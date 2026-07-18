@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v1.6 -->
+<!-- AUDIOLINK · proyecto.html · v1.7 -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -97,12 +97,24 @@ body::after{
 .waveform-bg svg.w-slow{animation-duration:34s;}
 header, main{position:relative;z-index:1;}
 header{
-  padding:20px 28px;
+  padding:16px 20px;
   border-bottom:1px solid var(--brd);
   display:flex;
   align-items:center;
   justify-content:space-between;
   background:var(--surf);
+  flex-wrap:wrap;
+  gap:12px;
+}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
+.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+@media (max-width:640px){
+  header{padding:14px 16px;}
+  h1{font-size:1.05rem;}
+  nav.links{margin-left:8px;}
+  nav.links a{padding:5px 8px;font-size:0.76rem;}
+  .header-actions{width:100%;justify-content:flex-end;}
 }
 .brand{display:flex;align-items:center;gap:14px;}
 nav.links{display:flex;gap:8px;margin-left:20px;}
@@ -275,10 +287,11 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
       <a href="proyecto.html" class="active">Proyectos</a>
     </nav>
   </div>
-  <div style="display:flex;gap:10px;align-items:center;">
+  <div class="header-actions">
     <button class="btn" onclick="abrirModalNuevo()">+ Nuevo Proyecto</button>
-    <button class="btn btn-ghost" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
-    <button class="btn btn-ghost" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+    <div class="separador"></div>
+    <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
+    <button class="btn btn-ghost btn-icon" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
   </div>
 </header>
 
@@ -432,6 +445,7 @@ auth.onAuthStateChanged(async (user) => {
 });
 
 function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión?')) return;
   auth.signOut().then(() => window.location.href = 'login.html');
 }
 
