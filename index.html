@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Dashboard</title>
+<!-- AUDIOLINK · index.html · v1.0 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0.5;}
+.waveform-bg svg{position:absolute;bottom:0;left:0;width:200%;height:220px;animation:wave-drift 22s linear infinite;}
+.waveform-bg svg.w-slow{animation-duration:34s;}
+.waveform-bg path{fill:none;stroke:var(--gold);stroke-width:1.2;opacity:0.14;}
+.waveform-bg path.w2{opacity:0.09;}
+.waveform-bg path.w3{opacity:0.06;}
+@keyframes wave-drift{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+header, main{position:relative;z-index:1;}
+
+header{
+  padding:20px 28px;
+  border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surf);
+}
+.brand{display:flex;align-items:center;gap:14px;}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+nav.links{display:flex;gap:8px;margin-left:20px;}
+nav.links a{
+  color:var(--muted);font-size:0.82rem;text-decoration:none;
+  padding:6px 12px;border-radius:6px;transition:all 0.2s;
+}
+nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg);}
+.btn{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  transition:all 0.2s;font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+
+main{padding:28px;max-width:1200px;margin:0 auto;}
+.layout{display:grid;grid-template-columns:1.3fr 1fr;gap:24px;}
+@media (max-width:900px){.layout{grid-template-columns:1fr;}}
+
+.panel{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:22px;}
+.panel h2{font-size:0.95rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;margin-bottom:18px;}
+
+/* Calendario */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.cal-head .mes{font-size:1.1rem;color:var(--gold);font-weight:600;text-transform:capitalize;}
+.cal-nav{display:flex;gap:6px;}
+.cal-nav button{
+  background:var(--surf-light);border:1px solid var(--brd);color:var(--muted);
+  width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:0.9rem;
+}
+.cal-nav button:hover{border-color:var(--gold);color:var(--gold);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-dow{text-align:center;font-size:0.7rem;color:var(--faint);padding:6px 0;text-transform:uppercase;letter-spacing:0.04em;}
+.cal-day{
+  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:8px;font-size:0.85rem;color:var(--txt);cursor:default;position:relative;
+  background:var(--surf-light);border:1px solid transparent;
+}
+.cal-day.out{opacity:0.25;}
+.cal-day.today{border-color:var(--gold);}
+.cal-day.tiene-evento{cursor:pointer;}
+.cal-day.tiene-evento:hover{border-color:var(--gold);}
+.cal-dots{display:flex;gap:2px;margin-top:3px;}
+.dot{width:5px;height:5px;border-radius:50%;}
+.dot.ok{background:var(--ok);}
+.dot.warn{background:var(--warn);}
+.dot.err{background:var(--err);}
+
+/* Detalle día */
+.dia-detalle{margin-top:16px;padding:14px;background:var(--surf-light);border-radius:8px;border-left:2px solid var(--gold);display:none;}
+.dia-detalle.active{display:block;}
+.dia-detalle .fecha-titulo{font-size:0.8rem;color:var(--gold);margin-bottom:8px;font-weight:600;}
+.dia-detalle .item{font-size:0.85rem;padding:6px 0;border-bottom:1px solid var(--brd);cursor:pointer;}
+.dia-detalle .item:last-child{border-bottom:none;}
+.dia-detalle .item:hover{color:var(--gold);}
+
+/* Lista proyectos */
+.proy-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 14px;border-radius:8px;background:var(--surf-light);
+  margin-bottom:8px;cursor:pointer;transition:all 0.2s;border:1px solid transparent;
+}
+.proy-item:hover{border-color:var(--gold);}
+.proy-item .nombre{font-size:0.9rem;font-weight:500;}
+.proy-item .sub{font-size:0.75rem;color:var(--muted);margin-top:2px;}
+.badge{font-size:0.68rem;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;}
+.badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.empty{text-align:center;padding:30px 10px;color:var(--faint);font-size:0.85rem;}
+</style>
+</head>
+<body>
+
+<div class="waveform-bg">
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none" class="w-slow">
+    <path class="w1" d="M0,110 Q35,40 70,110 T140,110 T210,110 T280,110 T350,110 T420,110 T490,110 T560,110 T630,110 T700,110 T770,110 T840,110 T910,110 T980,110 T1050,110 T1120,110 T1190,110 T1260,110 T1330,110 T1400,110"/>
+  </svg>
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none">
+    <path class="w2" d="M0,150 Q30,90 60,150 T120,150 T180,150 T240,150 T300,150 T360,150 T420,150 T480,150 T540,150 T600,150 T660,150 T720,150 T780,150 T840,150 T900,150 T960,150 T1020,150 T1080,150 T1140,150 T1200,150 T1260,150 T1320,150 T1380,150 T1400,150"/>
+  </svg>
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none" class="w-slow">
+    <path class="w3" d="M0,180 Q25,140 50,180 T100,180 T150,180 T200,180 T250,180 T300,180 T350,180 T400,180 T450,180 T500,180 T550,180 T600,180 T650,180 T700,180 T750,180 T800,180 T850,180 T900,180 T950,180 T1000,180 T1050,180 T1100,180 T1150,180 T1200,180 T1250,180 T1300,180 T1350,180 T1400,180"/>
+  </svg>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+    <h1>AUDIOLINK</h1>
+    <nav class="links">
+      <a href="index.html" class="active">Dashboard</a>
+      <a href="proyecto.html">Proyectos</a>
+    </nav>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="btn btn-ghost" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
+    <button class="btn btn-ghost" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+  </div>
+</header>
+
+<main>
+  <div class="layout">
+
+    <div class="panel">
+      <h2>CALENDARIO</h2>
+      <div class="cal-head">
+        <div class="cal-nav">
+          <button onclick="cambiarMes(-1)">‹</button>
+          <button onclick="cambiarMes(1)">›</button>
+        </div>
+        <div class="mes" id="mesActual"></div>
+        <div style="width:66px;"></div>
+      </div>
+      <div class="cal-grid" id="calDow"></div>
+      <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+      <div class="dia-detalle" id="diaDetalle"></div>
+    </div>
+
+    <div class="panel">
+      <h2>PROYECTOS ACTIVOS</h2>
+      <div id="listaProyectos"></div>
+      <div class="empty" id="emptyProyectos" style="display:none;">No hay proyectos aún.</div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
+  authDomain: "audiolink-44abd.firebaseapp.com",
+  projectId: "audiolink-44abd",
+  storageBucket: "audiolink-44abd.firebasestorage.app",
+  messagingSenderId: "497341329998",
+  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const proyectosRef = db.collection('proyectos');
+
+// ============ GUARD DE SESIÓN ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    window.location.href = 'login.html';
+    return;
+  }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+    }
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+function cerrarSesion(){
+  auth.signOut().then(() => window.location.href = 'login.html');
+}
+
+// ============ TEMA ============
+function toggleTema(){
+  const actual = document.documentElement.getAttribute('data-tema') || 'dark';
+  const nuevo = actual === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  localStorage.setItem('audiolink_tema', nuevo);
+  document.getElementById('btnTema').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const t = localStorage.getItem('audiolink_tema') || 'dark';
+  document.getElementById('btnTema').textContent = t === 'dark' ? '🌙' : '☀️';
+});
+
+// ============ ESTADO ============
+let proyectos = [];
+let fechaCalActual = new Date();
+const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DOW = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+proyectosRef.orderBy('creadoEn', 'desc').onSnapshot(snap => {
+  proyectos = [];
+  snap.forEach(doc => proyectos.push({ id: doc.id, ...doc.data() }));
+  renderListaProyectos();
+  renderCalendario();
+}, err => console.error("Error cargando proyectos:", err));
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+// ============ LISTA PROYECTOS ============
+function renderListaProyectos(){
+  const cont = document.getElementById('listaProyectos');
+  const empty = document.getElementById('emptyProyectos');
+  if(proyectos.length === 0){
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  cont.innerHTML = proyectos.map(p => `
+    <div class="proy-item" onclick="irAProyecto('${p.id}')">
+      <div>
+        <div class="nombre">${escapeHtml(p.nombre || 'Sin nombre')}</div>
+        <div class="sub">${escapeHtml(p.clienteArtista || '—')}</div>
+      </div>
+      <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
+    </div>
+  `).join('');
+}
+
+function irAProyecto(id){
+  // proyecto.html lee el id vía query param
+  window.location.href = `proyecto.html?id=${id}`;
+}
+
+// ============ CALENDARIO ============
+function cambiarMes(delta){
+  fechaCalActual.setMonth(fechaCalActual.getMonth() + delta);
+  renderCalendario();
+  document.getElementById('diaDetalle').classList.remove('active');
+}
+
+function eventosPorFecha(){
+  // Mapa "YYYY-MM-DD" -> [ {proyecto, tipo} ]
+  const mapa = {};
+  proyectos.forEach(p => {
+    if(!p.fechaEntregaEstimada) return;
+    const fecha = p.fechaEntregaEstimada.split('T')[0];
+    if(!mapa[fecha]) mapa[fecha] = [];
+    mapa[fecha].push({ nombre: p.nombre, id: p.id, estado: p.estado || 'ok' });
+  });
+  return mapa;
+}
+
+function renderCalendario(){
+  const dowCont = document.getElementById('calDow');
+  dowCont.innerHTML = DOW.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  const año = fechaCalActual.getFullYear();
+  const mes = fechaCalActual.getMonth();
+  document.getElementById('mesActual').textContent = `${MESES[mes]} ${año}`;
+
+  const primerDia = new Date(año, mes, 1);
+  const ultimoDia = new Date(año, mes + 1, 0);
+  const diasEnMes = ultimoDia.getDate();
+  const diaSemanaInicio = primerDia.getDay();
+
+  const eventos = eventosPorFecha();
+  const hoy = new Date();
+  const hoyStr = hoy.toISOString().split('T')[0];
+
+  let celdas = [];
+
+  // días del mes anterior (relleno)
+  for(let i = 0; i < diaSemanaInicio; i++){
+    celdas.push({ num: '', out: true });
+  }
+  // días del mes actual
+  for(let d = 1; d <= diasEnMes; d++){
+    const fechaStr = `${año}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    celdas.push({ num: d, out: false, fecha: fechaStr, eventos: eventos[fechaStr] || [] });
+  }
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = celdas.map(c => {
+    if(c.out) return `<div class="cal-day out">${''}</div>`;
+    const esHoy = c.fecha === hoyStr;
+    const tieneEventos = c.eventos.length > 0;
+    const dots = c.eventos.slice(0,4).map(e => `<span class="dot ${e.estado}"></span>`).join('');
+    return `
+      <div class="cal-day ${esHoy ? 'today' : ''} ${tieneEventos ? 'tiene-evento' : ''}"
+           onclick="${tieneEventos ? `mostrarDia('${c.fecha}')` : ''}">
+        ${c.num}
+        ${tieneEventos ? `<div class="cal-dots">${dots}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function mostrarDia(fechaStr){
+  const eventos = eventosPorFecha()[fechaStr] || [];
+  const det = document.getElementById('diaDetalle');
+  const [y,m,d] = fechaStr.split('-');
+  const fechaLegible = new Date(y, m-1, d).toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' });
+  det.innerHTML = `
+    <div class="fecha-titulo">${fechaLegible}</div>
+    ${eventos.map(e => `<div class="item" onclick="irAProyecto('${e.id}')">📁 ${escapeHtml(e.nombre)} — entrega estimada</div>`).join('')}
+  `;
+  det.classList.add('active');
+}
+
+// init
+document.addEventListener('DOMContentLoaded', renderCalendario);
+</script>
+
+</body>
+</html>

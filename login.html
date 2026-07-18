@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Acceso</title>
+<!-- AUDIOLINK · login.html · v1.0 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --err:#d4574a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  overflow:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.box{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:12px;
+  padding:40px 36px;
+  width:100%;
+  max-width:380px;
+  box-shadow:0 8px 40px rgba(0,0,0,0.4);
+}
+.brand{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:8px;}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);text-align:center;}
+.subtitle{text-align:center;color:var(--muted);font-size:0.82rem;margin-bottom:28px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
+.field input{
+  width:100%;
+  background:var(--surf-light);
+  border:1px solid var(--brd);
+  color:var(--txt);
+  padding:11px 12px;
+  border-radius:6px;
+  font-size:0.92rem;
+}
+.field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+.btn{
+  width:100%;
+  background:var(--gold-bg);
+  border:1px solid var(--gold);
+  color:var(--gold);
+  padding:12px;
+  border-radius:6px;
+  font-size:0.92rem;
+  cursor:pointer;
+  font-weight:600;
+  margin-top:6px;
+  transition:all 0.2s;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+.msg{
+  font-size:0.82rem;
+  text-align:center;
+  margin-top:14px;
+  min-height:18px;
+}
+.msg.error{color:var(--err);}
+.msg.info{color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div class="box">
+  <div class="brand">
+    <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+    <h1>AUDIOLINK</h1>
+  </div>
+  <div class="subtitle">Acceso equipo interno</div>
+
+  <div class="field">
+    <label>Correo</label>
+    <input type="email" id="fEmail" placeholder="tu@correo.com" autocomplete="username">
+  </div>
+  <div class="field">
+    <label>Contraseña</label>
+    <input type="password" id="fPass" placeholder="••••••••" autocomplete="current-password">
+  </div>
+  <button class="btn" id="btnLogin" onclick="login()">Ingresar</button>
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
+  authDomain: "audiolink-44abd.firebaseapp.com",
+  projectId: "audiolink-44abd",
+  storageBucket: "audiolink-44abd.firebasestorage.app",
+  messagingSenderId: "497341329998",
+  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Si ya hay sesión activa Y autorizada, saltar directo
+auth.onAuthStateChanged(async (user) => {
+  if(user){
+    const autorizado = await verificarEquipoInterno(user.email);
+    if(autorizado) window.location.href = 'proyecto.html';
+  }
+});
+
+async function verificarEquipoInterno(email){
+  try{
+    const doc = await db.collection('equipoInterno').doc(email).get();
+    return doc.exists && doc.data().activo === true;
+  } catch(e){
+    console.error('Error verificando equipoInterno:', e);
+    return false;
+  }
+}
+
+function mostrarMsg(texto, tipo){
+  const msg = document.getElementById('msg');
+  msg.textContent = texto;
+  msg.className = 'msg ' + tipo;
+}
+
+async function login(){
+  const email = document.getElementById('fEmail').value.trim();
+  const pass = document.getElementById('fPass').value;
+  const btn = document.getElementById('btnLogin');
+
+  if(!email || !pass){
+    mostrarMsg('Ingresa correo y contraseña.', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  mostrarMsg('Verificando...', 'info');
+
+  try{
+    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    const autorizado = await verificarEquipoInterno(cred.user.email);
+
+    if(!autorizado){
+      await auth.signOut();
+      mostrarMsg('Este correo no tiene acceso autorizado al equipo interno.', 'error');
+      btn.disabled = false;
+      return;
+    }
+
+    mostrarMsg('Acceso concedido, redirigiendo...', 'info');
+    window.location.href = 'proyecto.html';
+
+  } catch(err){
+    let texto = 'Error al iniciar sesión.';
+    if(err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found'){
+      texto = 'Correo o contraseña incorrectos.';
+    }
+    mostrarMsg(texto, 'error');
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('fPass').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') login();
+});
+</script>
+
+</body>
+</html>
