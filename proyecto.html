@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v1.7 -->
+<!-- AUDIOLINK · proyecto.html · v1.9 -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -115,6 +115,10 @@ header{
   nav.links{margin-left:8px;}
   nav.links a{padding:5px 8px;font-size:0.76rem;}
   .header-actions{width:100%;justify-content:flex-end;}
+  .row2{grid-template-columns:1fr;}
+  .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .pdf-actions .btn{width:100%;}
+  .modal{padding:20px;}
 }
 .brand{display:flex;align-items:center;gap:14px;}
 nav.links{display:flex;gap:8px;margin-left:20px;}
@@ -285,6 +289,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
     <nav class="links">
       <a href="index.html">Dashboard</a>
       <a href="proyecto.html" class="active">Proyectos</a>
+      <a href="logistica.html">Logística</a>
     </nav>
   </div>
   <div class="header-actions">
@@ -314,6 +319,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
       <button class="btn" onclick="exportarPDF('cliente')">📄 PDF Cliente</button>
       <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
       <button class="btn btn-ghost" onclick="editarProyectoActual()">✎ Editar</button>
+      <button class="btn btn-ghost" onclick="verSesiones()">📅 Ver sesiones</button>
     </div>
   </div>
 
@@ -647,6 +653,11 @@ function verDetalle(id){
         ${p.equipo.map(e => `<span class="equipo-chip">${escapeHtml(e.rol)}: ${escapeHtml(e.nombre)}</span>`).join('')}
       </div>` : ''}
   `;
+}
+
+function verSesiones(){
+  if(!proyectoActualId) return;
+  window.location.href = `logistica.html?id=${proyectoActualId}`;
 }
 
 function volverListado(){

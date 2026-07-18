@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Logística</title>
+<!-- AUDIOLINK · logistica.html · v1.1 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0.5;}
+.waveform-bg svg{position:absolute;bottom:0;left:0;width:200%;height:220px;animation:wave-drift 22s linear infinite;}
+.waveform-bg svg.w-slow{animation-duration:34s;}
+.waveform-bg path{fill:none;stroke:var(--gold);stroke-width:1.2;opacity:0.14;}
+.waveform-bg path.w2{opacity:0.09;}
+.waveform-bg path.w3{opacity:0.06;}
+@keyframes wave-drift{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+header, main{position:relative;z-index:1;}
+header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surf);
+  flex-wrap:wrap;
+  gap:12px;
+}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
+.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+@media (max-width:640px){
+  header{padding:14px 16px;}
+  h1{font-size:1.05rem;}
+  nav.links{margin-left:8px;}
+  nav.links a{padding:5px 8px;font-size:0.76rem;}
+  .header-actions{width:100%;justify-content:flex-end;}
+  .row2{grid-template-columns:1fr;}
+  .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .pdf-actions .btn{width:100%;}
+  .modal{padding:20px;}
+  .top-actions{flex-wrap:wrap;gap:10px;}
+  .top-actions .btn{flex:1 1 100%;}
+  .modal-actions{flex-wrap:wrap;}
+  .modal-actions button{flex:1 1 auto;}
+  #btnEliminar{flex:1 1 100%;order:3;}
+}
+.brand{display:flex;align-items:center;gap:14px;}
+nav.links{display:flex;gap:8px;margin-left:20px;}
+nav.links a{
+  color:var(--muted);font-size:0.82rem;text-decoration:none;
+  padding:6px 12px;border-radius:6px;transition:all 0.2s;
+}
+nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg);}
+.brand h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+.btn{
+  background:var(--gold-bg);
+  border:1px solid var(--gold);
+  color:var(--gold);
+  padding:9px 18px;
+  border-radius:6px;
+  font-size:0.85rem;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+main{padding:28px;max-width:1200px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.proyecto-ctx{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+.proyecto-ctx .nombre{font-size:1.05rem;color:var(--gold);font-weight:600;}
+.proyecto-ctx .sub{font-size:0.8rem;color:var(--muted);margin-top:2px;}
+.back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
+.back-link:hover{color:var(--gold);}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.card{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:10px;
+  padding:20px;
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.card h3{font-size:1.05rem;font-weight:600;color:var(--gold);}
+.card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;}
+.badge{
+  font-size:0.7rem;padding:3px 10px;border-radius:20px;font-weight:600;
+  letter-spacing:0.03em;text-transform:uppercase;
+}
+.badge.vis{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge.priv{background:rgba(212,87,74,0.15);color:var(--err);}
+.equipo-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.equipo-chip{
+  background:var(--gold-bg);border:1px solid var(--gold);border-radius:20px;
+  padding:3px 10px;font-size:0.72rem;color:var(--gold);
+}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+
+/* Modal */
+.modal-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;
+  align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 20px;
+}
+.modal-bg.active{display:flex;}
+.modal{
+  background:var(--surf);border:1px solid var(--brd);border-radius:12px;
+  max-width:640px;width:100%;padding:28px;
+}
+.modal h2{color:var(--gold);font-size:1.1rem;margin-bottom:20px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);
+  padding:10px 12px;border-radius:6px;font-size:0.9rem;font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);
+}
+.field textarea{resize:vertical;min-height:70px;}
+.checkbox-field{display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+.checkbox-field input{width:auto;}
+.checkbox-field label{margin:0;font-size:0.85rem;color:var(--txt);}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+@media (max-width:640px){.row3{grid-template-columns:1fr;}}
+.equipo-row{display:flex;gap:8px;margin-bottom:8px;}
+.equipo-row input{flex:1;}
+.equipo-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 12px;cursor:pointer;
+}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.link-add{color:var(--gold);font-size:0.8rem;cursor:pointer;display:inline-block;margin-top:4px;}
+.pdf-actions{display:flex;gap:10px;margin-top:20px;}
+</style>
+</head>
+<body>
+
+<div class="waveform-bg">
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none" class="w-slow">
+    <path class="w1" d="M0,110 Q35,40 70,110 T140,110 T210,110 T280,110 T350,110 T420,110 T490,110 T560,110 T630,110 T700,110 T770,110 T840,110 T910,110 T980,110 T1050,110 T1120,110 T1190,110 T1260,110 T1330,110 T1400,110"/>
+  </svg>
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none">
+    <path class="w2" d="M0,150 Q30,90 60,150 T120,150 T180,150 T240,150 T300,150 T360,150 T420,150 T480,150 T540,150 T600,150 T660,150 T720,150 T780,150 T840,150 T900,150 T960,150 T1020,150 T1080,150 T1140,150 T1200,150 T1260,150 T1320,150 T1380,150 T1400,150"/>
+  </svg>
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none" class="w-slow">
+    <path class="w3" d="M0,180 Q25,140 50,180 T100,180 T150,180 T200,180 T250,180 T300,180 T350,180 T400,180 T450,180 T500,180 T550,180 T600,180 T650,180 T700,180 T750,180 T800,180 T850,180 T900,180 T950,180 T1000,180 T1050,180 T1100,180 T1150,180 T1200,180 T1250,180 T1300,180 T1350,180 T1400,180"/>
+  </svg>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+    <h1>AUDIOLINK</h1>
+    <nav class="links">
+      <a href="index.html">Dashboard</a>
+      <a href="proyecto.html">Proyectos</a>
+      <a href="logistica.html" class="active">Logística</a>
+    </nav>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
+    <button class="btn btn-ghost btn-icon" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+  </div>
+</header>
+
+<main>
+
+  <span class="back-link" onclick="volverAProyecto()" id="backLink" style="display:none;">← Volver al proyecto</span>
+
+  <div class="proyecto-ctx" id="proyectoCtx" style="display:none;">
+    <div>
+      <div class="nombre" id="ctxNombre">—</div>
+      <div class="sub" id="ctxSub">—</div>
+    </div>
+  </div>
+
+  <div class="top-actions">
+    <h2>SESIONES</h2>
+    <button class="btn" onclick="abrirModalNuevo()" id="btnNueva" style="display:none;">+ Nueva sesión</button>
+  </div>
+
+  <div class="pdf-actions" id="pdfActionsTop" style="display:none;margin-top:-14px;margin-bottom:20px;">
+    <button class="btn btn-ghost" onclick="exportarPDF('cliente')">📄 PDF Cliente</button>
+    <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
+  </div>
+
+  <div class="grid" id="gridSesiones"></div>
+  <div class="empty" id="emptyState" style="display:none;">No hay sesiones registradas aún.</div>
+  <div class="empty" id="sinProyecto" style="display:none;">Selecciona un proyecto desde el listado de Proyectos para ver o crear sus sesiones.</div>
+
+</main>
+
+<!-- MODAL CREAR/EDITAR SESIÓN -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitulo">Nueva Sesión</h2>
+    <div class="row2">
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="fFecha">
+      </div>
+      <div class="field">
+        <label>Sala</label>
+        <input type="text" id="fSala" placeholder="Ej: Sala A">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Hora inicio</label>
+        <input type="time" id="fHoraInicio">
+      </div>
+      <div class="field">
+        <label>Hora fin</label>
+        <input type="time" id="fHoraFin">
+      </div>
+    </div>
+    <div class="field">
+      <label>Actividad</label>
+      <input type="text" id="fActividad" placeholder="Ej: Grabación de voces">
+    </div>
+    <div class="field">
+      <label>Equipo técnico</label>
+      <div id="equipoContainer"></div>
+      <span class="link-add" onclick="agregarFilaEquipo()">+ agregar integrante</span>
+    </div>
+    <div class="field">
+      <label>Notas internas (confidencial)</label>
+      <textarea id="fNotasInternas" placeholder="No visible para el cliente..."></textarea>
+    </div>
+    <div class="checkbox-field">
+      <input type="checkbox" id="fVisibleCliente" checked>
+      <label for="fVisibleCliente">Visible para el cliente</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn" onclick="guardarSesion()">Guardar</button>
+      <button class="btn btn-ghost" style="color:var(--err);border-color:var(--err);display:none;" id="btnEliminar" onclick="eliminarSesion()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ FIREBASE CONFIG ============
+const firebaseConfig = {
+  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
+  authDomain: "audiolink-44abd.firebaseapp.com",
+  projectId: "audiolink-44abd",
+  storageBucket: "audiolink-44abd.firebasestorage.app",
+  messagingSenderId: "497341329998",
+  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const proyectosRef = db.collection('proyectos');
+
+// ============ GUARD DE SESIÓN ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    window.location.href = 'login.html';
+    return;
+  }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+    initLogistica();
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  auth.signOut().then(() => window.location.href = 'login.html');
+}
+
+// ============ TEMA ============
+function toggleTema(){
+  const actual = document.documentElement.getAttribute('data-tema') || 'dark';
+  const nuevo = actual === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  localStorage.setItem('audiolink_tema', nuevo);
+  document.getElementById('btnTema').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const t = localStorage.getItem('audiolink_tema') || 'dark';
+  document.getElementById('btnTema').textContent = t === 'dark' ? '🌙' : '☀️';
+});
+
+// ============ ESTADO ============
+let proyectoId = null;
+let proyectoData = null;
+let sesiones = [];
+let sesionActualId = null;
+let editando = false;
+let unsubscribeSesiones = null;
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function volverAProyecto(){
+  if(proyectoId){
+    window.location.href = `proyecto.html?id=${proyectoId}`;
+  } else {
+    window.location.href = 'proyecto.html';
+  }
+}
+
+async function initLogistica(){
+  const urlParams = new URLSearchParams(window.location.search);
+  proyectoId = urlParams.get('id');
+
+  if(!proyectoId){
+    document.getElementById('sinProyecto').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('backLink').style.display = 'inline-block';
+  document.getElementById('btnNueva').style.display = 'inline-block';
+  document.getElementById('pdfActionsTop').style.display = 'flex';
+
+  try{
+    const doc = await proyectosRef.doc(proyectoId).get();
+    if(!doc.exists){
+      document.getElementById('sinProyecto').textContent = 'El proyecto indicado no existe.';
+      document.getElementById('sinProyecto').style.display = 'block';
+      return;
+    }
+    proyectoData = doc.data();
+    document.getElementById('proyectoCtx').style.display = 'flex';
+    document.getElementById('ctxNombre').textContent = proyectoData.nombre || 'Sin nombre';
+    document.getElementById('ctxSub').textContent = proyectoData.clienteArtista || '—';
+  } catch(e){
+    console.error('Error cargando proyecto:', e);
+  }
+
+  unsubscribeSesiones = proyectosRef.doc(proyectoId).collection('sesiones')
+    .orderBy('fecha', 'asc')
+    .onSnapshot(snap => {
+      sesiones = [];
+      snap.forEach(d => sesiones.push({ id: d.id, ...d.data() }));
+      renderSesiones();
+    }, err => console.error('Error cargando sesiones:', err));
+}
+
+function renderSesiones(){
+  const grid = document.getElementById('gridSesiones');
+  const empty = document.getElementById('emptyState');
+  if(sesiones.length === 0){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = sesiones.map(s => {
+    const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+    return `
+    <div class="card" onclick="abrirModalEditar('${s.id}')">
+      <div class="card-top">
+        <h3>${escapeHtml(s.actividad || 'Sesión')}</h3>
+        <span class="badge ${s.visibleCliente ? 'vis' : 'priv'}">${s.visibleCliente ? 'Visible' : 'Privada'}</span>
+      </div>
+      <div class="meta">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')}</div>
+      <div class="meta">⏱️ ${escapeHtml(s.horaInicio || '--:--')} – ${escapeHtml(s.horaFin || '--:--')}</div>
+      ${s.equipoTecnico && s.equipoTecnico.length ? `
+        <div class="equipo-list">
+          ${s.equipoTecnico.map(e => `<span class="equipo-chip">${escapeHtml(e.rol)}: ${escapeHtml(e.nombre)}</span>`).join('')}
+        </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ============ MODAL ============
+function abrirModalNuevo(){
+  if(!proyectoId) return;
+  editando = false;
+  sesionActualId = null;
+  document.getElementById('modalTitulo').textContent = 'Nueva Sesión';
+  document.getElementById('btnEliminar').style.display = 'none';
+  limpiarFormulario();
+  document.getElementById('modalBg').classList.add('active');
+}
+
+function abrirModalEditar(id){
+  const s = sesiones.find(x => x.id === id);
+  if(!s) return;
+  editando = true;
+  sesionActualId = id;
+  document.getElementById('modalTitulo').textContent = 'Editar Sesión';
+  document.getElementById('btnEliminar').style.display = 'inline-block';
+  document.getElementById('fFecha').value = s.fecha || '';
+  document.getElementById('fSala').value = s.sala || '';
+  document.getElementById('fHoraInicio').value = s.horaInicio || '';
+  document.getElementById('fHoraFin').value = s.horaFin || '';
+  document.getElementById('fActividad').value = s.actividad || '';
+  document.getElementById('fNotasInternas').value = s.notasInternas || '';
+  document.getElementById('fVisibleCliente').checked = s.visibleCliente !== false;
+  document.getElementById('equipoContainer').innerHTML = '';
+  if(s.equipoTecnico && s.equipoTecnico.length){
+    s.equipoTecnico.forEach(e => agregarFilaEquipo(e.rol, e.nombre));
+  } else {
+    agregarFilaEquipo();
+  }
+  document.getElementById('modalBg').classList.add('active');
+}
+
+function cerrarModal(){
+  document.getElementById('modalBg').classList.remove('active');
+}
+
+function limpiarFormulario(){
+  document.getElementById('fFecha').value = '';
+  document.getElementById('fSala').value = '';
+  document.getElementById('fHoraInicio').value = '';
+  document.getElementById('fHoraFin').value = '';
+  document.getElementById('fActividad').value = '';
+  document.getElementById('fNotasInternas').value = '';
+  document.getElementById('fVisibleCliente').checked = true;
+  document.getElementById('equipoContainer').innerHTML = '';
+  agregarFilaEquipo();
+}
+
+function agregarFilaEquipo(rol='', nombre=''){
+  const container = document.getElementById('equipoContainer');
+  const row = document.createElement('div');
+  row.className = 'equipo-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Rol (ej: Técnico)" class="equipo-rol" value="${escapeHtml(rol)}">
+    <input type="text" placeholder="Nombre" class="equipo-nombre" value="${escapeHtml(nombre)}">
+    <button onclick="this.parentElement.remove()">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+async function guardarSesion(){
+  if(!proyectoId) return;
+  const fecha = document.getElementById('fFecha').value;
+  const actividad = document.getElementById('fActividad').value.trim();
+  if(!fecha || !actividad){
+    alert('Fecha y actividad son obligatorias.');
+    return;
+  }
+  const equipoTecnico = [];
+  document.querySelectorAll('#equipoContainer .equipo-row').forEach(row => {
+    const rol = row.querySelector('.equipo-rol').value.trim();
+    const nom = row.querySelector('.equipo-nombre').value.trim();
+    if(rol || nom) equipoTecnico.push({ rol, nombre: nom });
+  });
+
+  const data = {
+    fecha,
+    sala: document.getElementById('fSala').value.trim(),
+    horaInicio: document.getElementById('fHoraInicio').value,
+    horaFin: document.getElementById('fHoraFin').value,
+    actividad,
+    equipoTecnico,
+    notasInternas: document.getElementById('fNotasInternas').value.trim(),
+    visibleCliente: document.getElementById('fVisibleCliente').checked
+  };
+
+  const sesionesRef = proyectosRef.doc(proyectoId).collection('sesiones');
+
+  try{
+    if(editando && sesionActualId){
+      await sesionesRef.doc(sesionActualId).update(data);
+    } else {
+      data.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
+      await sesionesRef.add(data);
+    }
+    cerrarModal();
+  } catch(err){
+    console.error(err);
+    alert('Error guardando la sesión. Revisa la consola.');
+  }
+}
+
+async function eliminarSesion(){
+  if(!proyectoId || !sesionActualId) return;
+  if(!confirm('¿Eliminar esta sesión? Esta acción no se puede deshacer.')) return;
+  try{
+    await proyectosRef.doc(proyectoId).collection('sesiones').doc(sesionActualId).delete();
+    cerrarModal();
+  } catch(err){
+    console.error(err);
+    alert('Error eliminando la sesión.');
+  }
+}
+
+// ============ EXPORTAR PDF ============
+function exportarPDF(modo){
+  if(!proyectoId || !proyectoData) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const goldRGB = [201, 162, 75];
+  const darkRGB = [11, 11, 13];
+  const mutedRGB = [154, 151, 143];
+  const pageW = 210;
+  const pageHFull = 297;
+  const marginX = 18;
+
+  const sesionesFiltradas = modo === 'interno' ? sesiones : sesiones.filter(s => s.visibleCliente !== false);
+
+  function pintarHeader(){
+    doc.setFillColor(...darkRGB);
+    doc.rect(0, 0, pageW, 38, 'F');
+    doc.setDrawColor(...goldRGB);
+    doc.setLineWidth(0.6);
+    doc.line(0, 38, pageW, 38);
+    doc.setTextColor(...goldRGB);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(20);
+    doc.text('AUDIOLINK', marginX, 20);
+    doc.setFontSize(8.5);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(...mutedRGB);
+    doc.text(modo === 'interno' ? 'LOGÍSTICA · INFORME INTERNO' : 'LOGÍSTICA · RESUMEN DE SESIONES', marginX, 28);
+    doc.setFontSize(8);
+    doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - marginX, 28, { align:'right' });
+  }
+
+  function pintarFooter(){
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.2);
+    doc.line(marginX, pageHFull - 15, pageW - marginX, pageHFull - 15);
+    doc.setFontSize(7.5);
+    doc.setTextColor(...mutedRGB);
+    doc.setFont(undefined, 'normal');
+    doc.text('AUDIOLINK — Producción y Logística Musical', marginX, pageHFull - 10);
+    doc.text(modo === 'interno' ? 'Documento confidencial' : 'Documento generado automáticamente', pageW - marginX, pageHFull - 10, { align:'right' });
+  }
+
+  pintarHeader();
+  let y = 52;
+  doc.setTextColor(20, 20, 20);
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(17);
+  doc.text(proyectoData.nombre || 'Sin nombre', marginX, y);
+  y += 7;
+  doc.setFontSize(8.5);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...mutedRGB);
+  doc.text('CLIENTE/ARTISTA: ' + (proyectoData.clienteArtista || '—').toUpperCase(), marginX, y);
+  y += 10;
+  doc.setDrawColor(230, 230, 230);
+  doc.setLineWidth(0.3);
+  doc.line(marginX, y, pageW - marginX, y);
+  y += 10;
+
+  if(sesionesFiltradas.length === 0){
+    doc.setFontSize(10);
+    doc.setTextColor(...mutedRGB);
+    doc.text('No hay sesiones para mostrar.', marginX, y);
+  }
+
+  sesionesFiltradas.forEach(s => {
+    const notasHeight = (modo === 'interno' && s.notasInternas) ? doc.splitTextToSize(s.notasInternas, pageW - marginX*2 - 4).length * 5 + 8 : 0;
+    const equipoHeight = (s.equipoTecnico && s.equipoTecnico.length) ? 6.5 : 0;
+    const bloqueAltura = 30 + equipoHeight + notasHeight;
+
+    if(y + bloqueAltura > pageHFull - 22){
+      pintarFooter();
+      doc.addPage();
+      pintarHeader();
+      y = 52;
+    }
+
+    doc.setFillColor(246, 244, 239);
+    doc.roundedRect(marginX, y - 6, pageW - marginX*2, bloqueAltura - 4, 2, 2, 'F');
+
+    const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'}) : '—';
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(30, 30, 30);
+    doc.text(s.actividad || 'Sesión', marginX + 6, y + 2);
+
+    doc.setFontSize(8.5);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(140, 108, 40);
+    doc.text(`${fechaLegible}  ·  Sala: ${s.sala || '—'}  ·  ${s.horaInicio || '--:--'}–${s.horaFin || '--:--'}`, marginX + 6, y + 9);
+
+    let yy = y + 16;
+    if(s.equipoTecnico && s.equipoTecnico.length){
+      doc.setFontSize(9);
+      doc.setTextColor(70, 70, 70);
+      const equipoStr = s.equipoTecnico.map(e => `${e.rol}: ${e.nombre}`).join('  ·  ');
+      doc.text(equipoStr, marginX + 6, yy);
+      yy += 7;
+    }
+
+    if(modo === 'interno' && s.notasInternas){
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(180, 60, 50);
+      doc.text('NOTA INTERNA:', marginX + 6, yy);
+      yy += 4.5;
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(90, 90, 90);
+      const splitNotas = doc.splitTextToSize(s.notasInternas, pageW - marginX*2 - 12);
+      doc.text(splitNotas, marginX + 6, yy);
+      yy += splitNotas.length * 5;
+    }
+
+    y += bloqueAltura + 6;
+  });
+
+  pintarFooter();
+
+  const blobUrl = doc.output('bloburl');
+  window.open(blobUrl, '_blank');
+}
+</script>
+
+</body>
+</html>
