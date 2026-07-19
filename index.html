@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v1.2 -->
+<!-- AUDIOLINK · index.html · v1.3
+     V1.3: se agrega el panel "RESUMEN COMERCIAL" que enlaza y relaciona lo
+     construido en proyecto.html: cuenta proyectos en estado comercial
+     "cotización", cotizaciones en borrador (collectionGroup sobre
+     proyectos/*/cotizaciones) y clientes con clienteEmail registrado que
+     aún no tienen portal activado (cruce contra clientesAcceso). Cada tarjeta
+     enlaza a proyecto.html. Solo lectura, no gestiona nada aquí. No se tocó
+     ninguna otra función ni estilo existente. -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -165,6 +172,17 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
 .badge.err{background:rgba(212,87,74,0.15);color:var(--err);}
 .empty{text-align:center;padding:30px 10px;color:var(--faint);font-size:0.85rem;}
+
+/* Resumen comercial (v1.3) */
+.resumen-grid{display:flex;flex-direction:column;gap:10px;}
+.resumen-card{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 16px;border-radius:8px;background:var(--surf-light);
+  border:1px solid var(--brd);cursor:pointer;transition:all 0.2s;
+}
+.resumen-card:hover{border-color:var(--gold);}
+.resumen-card .label{font-size:0.85rem;color:var(--txt);}
+.resumen-card .num{font-size:1.3rem;font-weight:700;color:var(--gold);}
 </style>
 </head>
 <body>
@@ -221,6 +239,24 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
       <div class="empty" id="emptyProyectos" style="display:none;">No hay proyectos aún.</div>
     </div>
 
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <h2>RESUMEN COMERCIAL</h2>
+    <div class="resumen-grid">
+      <div class="resumen-card" onclick="window.location.href='proyecto.html'">
+        <span class="label">📋 Proyectos en cotización</span>
+        <span class="num" id="numEnCotizacion">—</span>
+      </div>
+      <div class="resumen-card" onclick="window.location.href='proyecto.html'">
+        <span class="label">🧾 Cotizaciones en borrador</span>
+        <span class="num" id="numCotizBorrador">—</span>
+      </div>
+      <div class="resumen-card" onclick="window.location.href='proyecto.html'">
+        <span class="label">🔐 Clientes sin portal activado</span>
+        <span class="num" id="numClientesSinActivar">—</span>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -396,6 +432,50 @@ function mostrarDia(fechaStr){
 
 // init
 document.addEventListener('DOMContentLoaded', renderCalendario);
+
+// ============ RESUMEN COMERCIAL (v1.3) ============
+// Enlaza y relaciona datos ya existentes en otras colecciones/paneles de
+// proyecto.html, en modo solo lectura. No gestiona nada desde aquí.
+const clientesAccesoRef = db.collection('clientesAcceso');
+let clientesAccesoCache = {};
+
+function actualizarResumenComercial(){
+  // 1) Proyectos en estado comercial "cotizacion"
+  const enCotizacion = proyectos.filter(p => (p.estadoComercial || 'cotizacion') === 'cotizacion').length;
+  document.getElementById('numEnCotizacion').textContent = enCotizacion;
+
+  // 3) Clientes con clienteEmail registrado que no tienen portal activado
+  const emailsUnicos = [...new Set(
+    proyectos.map(p => (p.clienteEmail || '').trim().toLowerCase()).filter(Boolean)
+  )];
+  const sinActivar = emailsUnicos.filter(email => {
+    const acc = clientesAccesoCache[email];
+    return !acc || !acc.authUid || acc.portalRevocado === true;
+  }).length;
+  document.getElementById('numClientesSinActivar').textContent = sinActivar;
+}
+
+clientesAccesoRef.onSnapshot(snap => {
+  clientesAccesoCache = {};
+  snap.forEach(d => clientesAccesoCache[d.id] = d.data());
+  actualizarResumenComercial();
+}, err => console.error('Error cargando clientesAcceso:', err));
+
+// 2) Cotizaciones en borrador, en todos los proyectos (collectionGroup)
+db.collectionGroup('cotizaciones').where('estado', '==', 'borrador').onSnapshot(snap => {
+  document.getElementById('numCotizBorrador').textContent = snap.size;
+}, err => {
+  console.error('Error cargando cotizaciones (revisa el índice de collectionGroup si falla):', err);
+  document.getElementById('numCotizBorrador').textContent = '—';
+});
+
+// El listener de proyectos ya existe arriba; solo necesitamos recalcular
+// el resumen cuando cambien los proyectos también.
+const _origRenderListaProyectos = renderListaProyectos;
+renderListaProyectos = function(){
+  _origRenderListaProyectos();
+  actualizarResumenComercial();
+};
 </script>
 
 </body>
