@@ -3,8 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V8.1</title>
-<!-- AUDIOLINK · cotizador.html · v8.1
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8.2</title>
+<!-- AUDIOLINK · cotizador.html · v8.2
+     V8.2: se replica la arquitectura de navegación V2.7 de proyecto.html —
+     sidebar fija desktop (heredada de Andamios, colapsable a solo-iconos) +
+     mobile topbar/bottomnav/panel "···" (heredado de PsicoGestión),
+     reemplazando el link "← Volver" suelto del header. Se envuelve
+     .container en un nuevo .main-wrap que se ajusta al ancho del sidebar
+     (el .container conserva su max-width/margin:0 auto tal cual). Se
+     agregan también los créditos de diseño (Marto 🧠 · martowave@gmail.com)
+     al pie del sidebar y del panel móvil. No se tocó ninguna fórmula de
+     cálculo, el borrador local, el guard de sesión, ni la exportación a
+     PDF existentes.
      V8.1: se incorporan efectos visuales del diseño ICESI (index.html),
      elegidos pensando en mobile (nada depende de :hover para funcionar):
      glow de foco en inputs, sombra suave en paneles al pasar el mouse
@@ -54,6 +64,87 @@ body {
 }
 
 .container { max-width: 1140px; margin: 0 auto; padding: 40px 24px; }
+
+/* ===== NAV V8.2: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
+:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
+  background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;z-index:90;overflow:hidden;
+  transition:width 0.18s ease;
+}
+.sidebar.collapsed{width:var(--sb-c);}
+.sb-brand{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
+}
+.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.06em;font-weight:700;color:var(--gold);transition:opacity 0.15s;}
+.sidebar.collapsed .sb-brand h1{opacity:0;}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-item{
+  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
+  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
+  transition:background 0.15s,color 0.15s;font-family:var(--S);
+}
+.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
+.sb-item:hover{background:var(--surf-light);color:var(--txt);}
+.sb-item.active{background:var(--gold-bg);color:var(--gold);}
+.sidebar.collapsed .sb-item span{display:none;}
+.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.sb-toggle{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
+  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;font-family:var(--S);
+}
+.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
+.sb-toggle i{transition:transform 0.2s;display:inline-block;}
+.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
+.sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;font-family:var(--S);}
+.sidebar.collapsed .sb-credit{opacity:0;}
+.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
+.main-wrap.expanded{margin-left:var(--sb-c);}
+
+.mobile-topbar{display:none;}
+.mobile-bottomnav{display:none;}
+.mas-mobile-panel{display:none;}
+
+@media (max-width:768px){
+  .sidebar{display:none;}
+  .main-wrap{margin-left:0;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
+    position:relative;z-index:1;
+  }
+  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
+  .mobile-topbar h1{font-family:var(--T);font-size:1rem;letter-spacing:0.06em;font-weight:700;color:var(--gold);}
+  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  .container{padding-bottom:78px;}
+  .mobile-bottomnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
+    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
+  }
+  .mobile-bottomnav a{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;font-family:var(--S);
+  }
+  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
+  .mobile-bottomnav a.active{color:var(--gold);}
+  .mas-mobile-panel{
+    display:none;position:fixed;top:60px;right:14px;z-index:81;
+    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.4);
+  }
+  .mas-mobile-panel.show{display:block;}
+  .mas-mobile-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;font-family:var(--S);
+  }
+  .mas-mobile-item:hover{background:var(--surf-light);}
+  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;font-family:var(--S);}
+  .btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;background:transparent;border:1px solid var(--brd);color:var(--muted);border-radius:6px;cursor:pointer;}
+}
 
 header { border-bottom: 1px solid var(--brd); padding-bottom: 24px; margin-bottom: 32px; }
 .brand-tag { 
@@ -397,6 +488,51 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
 
 <div id="print-view"></div>
 
+<!-- SIDEBAR DESKTOP (>=769px) — patrón heredado de Andamios El Progreso Central -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <h1>AUDIOLINK</h1>
+  </div>
+  <nav class="sb-nav">
+    <a href="index.html" class="sb-item"><i>🏠</i><span>Dashboard</span></a>
+    <a href="proyecto.html" class="sb-item"><i>📁</i><span>Proyectos</span></a>
+    <a href="logistica.html" class="sb-item"><i>🎚️</i><span>Logística</span></a>
+    <a href="pagos.html" class="sb-item"><i>💳</i><span>Pagos</span></a>
+    <a href="#" class="sb-item active" style="pointer-events:none;"><i>🧾</i><span>Cotizador</span></a>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-item" onclick="cerrarSesion()"><i>⏻</i><span>Cerrar sesión</span></div>
+    <div class="sb-toggle" id="sidebarToggle"><i>«</i><span>Colapsar</span></div>
+    <div class="sb-credit">Marto 🧠 · martowave@gmail.com</div>
+  </div>
+</aside>
+
+<!-- MOBILE TOPBAR (<=768px) -->
+<div class="mobile-topbar">
+  <div class="brand">
+    <h1>AUDIOLINK</h1>
+  </div>
+  <div class="mobile-topbar-actions">
+    <button class="btn-icon" onclick="toggleMasMobile()" title="Más opciones">⋮</button>
+  </div>
+</div>
+
+<!-- PANEL "···" MOBILE — patrón heredado de PsicoGestión -->
+<div class="mas-mobile-panel" id="masMobilePanel">
+  <div class="mas-mobile-item" onclick="window.location.href='proyecto.html'"><i>←</i>Volver a Proyectos</div>
+  <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
+  <div class="mas-mobile-credit">Marto 🧠 · martowave@gmail.com</div>
+</div>
+
+<!-- BOTTOM NAV MOBILE (<=768px) — patrón heredado de PsicoGestión -->
+<nav class="mobile-bottomnav">
+  <a href="index.html"><i>🏠</i>Dashboard</a>
+  <a href="proyecto.html"><i>📁</i>Proyectos</a>
+  <a href="logistica.html"><i>🎚️</i>Logística</a>
+  <a href="pagos.html"><i>💳</i>Pagos</a>
+</nav>
+
+<div class="main-wrap" id="mainWrap">
 <div class="container">
   <header>
     <span class="brand-tag">
@@ -1034,6 +1170,7 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
 
   </div>
 </div>
+</div><!-- /main-wrap -->
 
 <script>
 const TARIFAS_ENTORNOS = {
@@ -1487,6 +1624,39 @@ auth.onAuthStateChanged(async (user) => {
     console.error('Error validando sesión:', e);
     window.location.href = 'login.html';
   }
+});
+
+// ---------- SESIÓN MANUAL (nuevo en v8.2, para el botón del sidebar) ----------
+function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  auth.signOut().then(() => window.location.href = 'login.html');
+}
+
+// ============ NAV V8.2: sidebar colapsable (desktop) + panel "···" (mobile) ============
+(function(){
+  document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.getElementById('sidebar');
+    const mainWrap = document.getElementById('mainWrap');
+    const toggle = document.getElementById('sidebarToggle');
+    if(!sidebar || !mainWrap || !toggle) return;
+    const colapsado = localStorage.getItem('audiolink_sb_colapsado') === '1';
+    if(colapsado){ sidebar.classList.add('collapsed'); mainWrap.classList.add('expanded'); }
+    toggle.addEventListener('click', () => {
+      const ahora = sidebar.classList.toggle('collapsed');
+      mainWrap.classList.toggle('expanded', ahora);
+      localStorage.setItem('audiolink_sb_colapsado', ahora ? '1' : '0');
+    });
+  });
+})();
+function toggleMasMobile(){
+  const panel = document.getElementById('masMobilePanel');
+  if(panel) panel.classList.toggle('show');
+}
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('masMobilePanel');
+  if(!panel || !panel.classList.contains('show')) return;
+  const btn = e.target.closest('.mobile-topbar-actions');
+  if(!panel.contains(e.target) && !btn) panel.classList.remove('show');
 });
 
 // ---------- VÍNCULO CON PROYECTO ----------
