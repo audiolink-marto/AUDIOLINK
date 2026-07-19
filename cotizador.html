@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V8.5</title>
-<!-- AUDIOLINK · cotizador.html · v8.5
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8.6</title>
+<!-- AUDIOLINK · cotizador.html · v8.6
+     V8.6: fix bug de impresión/PDF — la topbar mobile, el bottomnav mobile,
+     el panel "···" y el sidebar (agregados en v8.2) no estaban ocultos en
+     @media print, así que se colaban al final del PDF exportado. Se agrega
+     regla que oculta .sidebar/.mobile-topbar/.mobile-bottomnav/.mas-mobile-
+     panel solo en impresión. También se agrega clear:both a
+     .print-footer-container para que el bloque de totales no quede mal
+     posicionado cuando hay notas (que usan float:left) antes de él. Cambios
+     100% CSS dentro de @media print; no se tocó ninguna fórmula de cálculo,
+     el borrador local, el guard de sesión, ni la lógica de exportarPDF().
      V8.5: las specs técnicas/gear de cada sala dejan de estar fijas en el
      HTML (antes solo existían para ICESI, texto hardcodeado). Ahora salen
      del campo 'specs' de cada sala en Firestore (editable como texto libre
@@ -366,6 +375,10 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
   }
   body { background: #FFFFFF !important; color: #000000 !important; font-family: var(--S); }
   .container { display: none !important; }
+  .sidebar,
+  .mobile-topbar,
+  .mobile-bottomnav,
+  .mas-mobile-panel { display: none !important; }
   #print-view { 
     display: block !important; 
     color: #000000 !important;
@@ -476,6 +489,7 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
     padding-top: 16px;
     display: block;
     width: 100%;
+    clear: both;
   }
   .print-footer-grid {
     display: grid;
