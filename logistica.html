@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Logística</title>
-<!-- AUDIOLINK · logistica.html · v1.5
+<!-- AUDIOLINK · logistica.html · v1.6
+     V1.6: firebaseConfig deja de estar copiado en este archivo; ahora se
+     carga desde firebase-config.js (compartido por todo el ecosistema,
+     mismos valores exactos). Se agrega <script src="firebase-config.js">
+     en el <head>, justo después de firebase-firestore-compat.js. No se
+     tocó firebase.initializeApp() ni ninguna otra lógica.
      V1.5: se agrega el acceso directo "🧮 Cotizador" en el sidebar y el
      panel "···". Se reemplaza el mensaje plano de "sin proyecto" por un
      selector de proyectos funcional (cargarSelectorProyectoSuelto /
@@ -28,6 +33,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function(){
@@ -452,14 +458,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 
 <script>
 // ============ FIREBASE CONFIG ============
-const firebaseConfig = {
-  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
-  authDomain: "audiolink-44abd.firebaseapp.com",
-  projectId: "audiolink-44abd",
-  storageBucket: "audiolink-44abd.firebasestorage.app",
-  messagingSenderId: "497341329998",
-  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
-};
+/* firebaseConfig ahora vive en firebase-config.js (ecosistema compartido) */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();

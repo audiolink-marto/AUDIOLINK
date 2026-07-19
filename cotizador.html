@@ -3,8 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V8.6</title>
-<!-- AUDIOLINK · cotizador.html · v8.6
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8.7</title>
+<!-- AUDIOLINK · cotizador.html · v8.7
+     V8.7: firebaseConfig deja de estar copiado en este archivo; ahora se
+     carga desde firebase-config.js (compartido por todo el ecosistema,
+     mismos valores exactos). Se agrega <script src="firebase-config.js">
+     en el <head>, justo después de firebase-firestore-compat.js. No se
+     tocó firebase.initializeApp() ni ninguna otra lógica.
      V8.6: fix bug de impresión/PDF — la topbar mobile, el bottomnav mobile,
      el panel "···" y el sidebar (agregados en v8.2) no estaban ocultos en
      @media print, así que se colaban al final del PDF exportado. Se agrega
@@ -67,6 +72,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1660,14 +1666,7 @@ window.onload = function() {
       —igual al formato que ya lee proyecto.html— y lo escribe en
       proyectos/{id}/cotizaciones, respetando firestore.rules (esStaff()).
    =================================================================== */
-const firebaseConfig = {
-  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
-  authDomain: "audiolink-44abd.firebaseapp.com",
-  projectId: "audiolink-44abd",
-  storageBucket: "audiolink-44abd.firebasestorage.app",
-  messagingSenderId: "497341329998",
-  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
-};
+/* firebaseConfig ahora vive en firebase-config.js (ecosistema compartido) */
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();

@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v1.6
+<!-- AUDIOLINK · index.html · v1.7
+     V1.7: firebaseConfig deja de estar copiado en este archivo; ahora se
+     carga desde firebase-config.js (compartido por todo el ecosistema,
+     mismos valores exactos). Se agrega <script src="firebase-config.js">
+     en el <head>, justo después de firebase-firestore-compat.js. No se
+     tocó firebase.initializeApp() ni ninguna otra lógica.
      V1.6: se agrega el acceso directo "🧮 Cotizador" en el sidebar y el
      panel "···". No se tocó ninguna otra función existente.
      V1.5: se replica la arquitectura de navegación V2.7 de proyecto.html —
@@ -25,6 +30,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -384,14 +390,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 </div><!-- /main-wrap -->
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
-  authDomain: "audiolink-44abd.firebaseapp.com",
-  projectId: "audiolink-44abd",
-  storageBucket: "audiolink-44abd.firebasestorage.app",
-  messagingSenderId: "497341329998",
-  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
-};
+/* firebaseConfig ahora vive en firebase-config.js (ecosistema compartido) */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();

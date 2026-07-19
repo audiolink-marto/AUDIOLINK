@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Acceso</title>
-<!-- AUDIOLINK · login.html · v1.6
+<!-- AUDIOLINK · login.html · v1.7
+     V1.7: firebaseConfig deja de estar copiado en este archivo; ahora se
+     carga desde firebase-config.js (compartido por todo el ecosistema,
+     mismos valores exactos). Se agrega <script src="firebase-config.js">
+     en el <head>, justo después de firebase-firestore-compat.js. No se
+     tocó firebase.initializeApp() ni ninguna otra lógica.
      V1.6: se unifica tipografía con el resto del ecosistema (Playfair
      Display + DM Sans + JetBrains Mono, tomada de cotizador.html/ICESI).
      Solo cambia font-family en :root/body/h1; no se tocó ningún color,
@@ -14,6 +19,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <style>
 :root{
   --bg:#0b0b0d;
@@ -229,14 +235,7 @@ h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;c
 </script>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
-  authDomain: "audiolink-44abd.firebaseapp.com",
-  projectId: "audiolink-44abd",
-  storageBucket: "audiolink-44abd.firebasestorage.app",
-  messagingSenderId: "497341329998",
-  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
-};
+/* firebaseConfig ahora vive en firebase-config.js (ecosistema compartido) */
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
