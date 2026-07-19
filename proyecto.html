@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v2.3
+<!-- AUDIOLINK · proyecto.html · v2.4
+     V2.4: se agrega el botón "🧮 Cotizador Pro" dentro del modal de
+     cotizaciones, que abre cotizador.html?id={proyectoActualId} en pestaña
+     nueva (el calculador avanzado con salas/backline/honorarios/IVA).
+     Una sola línea nueva; no se tocó ninguna función existente.
      V2.3: se agrega el enlace "Pagos" al nav (nuevo archivo pagos.html).
      No se tocó ninguna otra función ni estilo existente.
      V2.2: se agrega el "Cotizador" dentro del detalle de cada proyecto: modal
@@ -506,7 +510,10 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
       <div id="cotizLista"></div>
       <div class="modal-actions" style="justify-content:space-between;">
         <button class="btn btn-ghost" onclick="cerrarModalCotizador()">Cerrar</button>
-        <button class="btn" onclick="abrirFormularioCotizacion()">+ Nueva cotización</button>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost" onclick="window.open('cotizador.html?id=' + proyectoActualId, '_blank')">🧮 Cotizador Pro</button>
+          <button class="btn" onclick="abrirFormularioCotizacion()">+ Nueva cotización</button>
+        </div>
       </div>
     </div>
 

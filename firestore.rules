@@ -1,0 +1,81 @@
+rules_version = '2';
+
+// ============================================================
+// AUDIOLINK — Borrador de reglas de Firestore
+// Cubre: proyectos, proyectos/{id}/sesiones, proyectos/{id}/cotizaciones,
+// equipoInterno, clientesAcceso.
+//
+// IMPORTANTE — léelo antes de publicar:
+// 1. El PRIMER correo de equipoInterno hay que crearlo manualmente desde la
+//    consola de Firebase (Firestore → equipoInterno → doc con id = tu correo,
+//    campo activo:true). Después de eso, ya puedes agregar los demás desde el
+//    modal "Equipo interno" en proyecto.html.
+// 2. Prueba estas reglas en el simulador de la consola de Firebase antes de
+//    publicarlas en producción, y avísame si algo bloquea una acción legítima
+//    para ajustarlas — no las publiques a ciegas.
+// ============================================================
+
+function esStaff() {
+  return request.auth != null &&
+    exists(/databases/$(database)/documents/equipoInterno/$(request.auth.token.email)) &&
+    get(/databases/$(database)/documents/equipoInterno/$(request.auth.token.email)).data.activo == true;
+}
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- PROYECTOS ----------
+    match /proyectos/{proyectoId} {
+      // Staff: acceso total.
+      allow read, write: if esStaff();
+
+      // Cliente: solo lectura de SU proyecto, y solo si está marcado visible.
+      allow read: if request.auth != null &&
+        resource.data.clienteEmail == request.auth.token.email.lower() &&
+        resource.data.visibleCliente != false;
+
+      // ---------- SESIONES (subcolección) ----------
+      match /sesiones/{sesionId} {
+        allow read, write: if esStaff();
+
+        allow read: if request.auth != null &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.clienteEmail == request.auth.token.email.lower() &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.visibleCliente != false &&
+          resource.data.visibleCliente != false;
+      }
+
+      // ---------- COTIZACIONES (subcolección) ----------
+      // Solo equipo interno. El cliente NUNCA accede a esto directamente
+      // (se le comparte como PDF generado, no como datos vivos).
+      match /cotizaciones/{cotizacionId} {
+        allow read, write: if esStaff();
+      }
+
+      // ---------- PAGOS (subcolección, v1.0 pagos.html) ----------
+      // Registro de abonos contra una cotización aceptada. Solo equipo
+      // interno; el cliente no ve esto directamente en el portal.
+      match /pagos/{pagoId} {
+        allow read, write: if esStaff();
+      }
+    }
+
+    // ---------- EQUIPO INTERNO ----------
+    // Cualquier usuario autenticado puede LEER SOLO su propio doc (para el
+    // guard de sesión de login.html/proyecto.html/etc). Solo staff ya activo
+    // puede agregar/quitar correos (incluido el suyo propio al listar todos).
+    match /equipoInterno/{correo} {
+      allow get: if request.auth != null && request.auth.token.email == correo;
+      allow list: if esStaff();
+      allow write: if esStaff();
+    }
+
+    // ---------- CLIENTES ACCESO ----------
+    // El cliente puede leer SOLO su propio doc (portal.html lo valida al
+    // hacer login). Solo staff puede crear/editar (activar/revocar).
+    match /clientesAcceso/{correo} {
+      allow get: if request.auth != null && request.auth.token.email.lower() == correo;
+      allow list: if esStaff();
+      allow write: if esStaff();
+    }
+  }
+}

@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8</title>
+<!-- AUDIOLINK · cotizador.html · v8
+     V8: se agrega guard de sesión de equipo interno (mismo patrón de
+     login.html/proyecto.html), vínculo a un proyecto de Firestore (por
+     ?id=... en la URL o selector si se abre suelto) y botón "Guardar
+     cotización en proyecto", que escribe en proyectos/{id}/cotizaciones con
+     el mismo formato {items, total, estado, notas, validez, creadoEn} que ya
+     lee el Cotizador simple de proyecto.html. No se tocó ninguna fórmula de
+     cálculo, el borrador local, ni la exportación a PDF existentes. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0F0F0F;
+  --surf: #161616;
+  --surf-light: #202020;
+  --brd: #262626;
+  --gold: #C4982C;
+  --gold-bg: rgba(196,152,44,0.08);
+  --txt: #DDD6C8;
+  --muted: #7A7060;
+  --faint: #3A342B;
+  --green: #4A9C6A;
+  --green-bg: rgba(74,156,106,0.1);
+  --T: "Playfair Display", Georgia, serif;
+  --S: "DM Sans", system-ui, sans-serif;
+  --M: "JetBrains Mono", monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+  background-color: var(--bg); 
+  color: var(--txt); 
+  font-family: var(--S); 
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container { max-width: 1140px; margin: 0 auto; padding: 40px 24px; }
+
+header { border-bottom: 1px solid var(--brd); padding-bottom: 24px; margin-bottom: 32px; }
+.brand-tag { 
+  font-family: var(--M); 
+  font-size: 11px; 
+  color: var(--gold); 
+  letter-spacing: 0.2em; 
+  text-transform: uppercase; 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 8px; 
+  margin-bottom: 8px; 
+}
+.brand-tag svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
+.subtitle { font-size: 14px; color: var(--muted); font-style: italic; margin-top: 4px; }
+
+.project-info-panel { margin-bottom: 32px; }
+.info-grid { display: grid; grid-template-columns: 2fr 2fr 1fr 2fr; gap: 20px; }
+@media (max-width: 768px) { .info-grid { grid-template-columns: 1fr; } }
+
+.text-input {
+  background: var(--bg);
+  border: 1px solid var(--brd);
+  color: #FFFFFF;
+  font-family: var(--S);
+  font-size: 14px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+.text-input:focus { border-color: var(--gold); outline: none; }
+
+.inline-name-input {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--brd);
+  color: #FFFFFF;
+  font-family: var(--S);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+  width: 100%;
+  max-width: 220px;
+  transition: border-color 0.2s;
+}
+.inline-name-input:focus { border-color: var(--gold); outline: none; }
+
+.main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+@media (max-width: 950px) { .main-grid { grid-template-columns: 1fr; } }
+
+.panel { background: var(--surf); border: 1px solid var(--brd); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+.panel-title { 
+  font-family: var(--T); 
+  font-size: 18px; 
+  font-weight: 700; 
+  color: #FFFFFF; 
+  margin-bottom: 16px; 
+  border-bottom: 1px solid var(--brd); 
+  padding-bottom: 8px; 
+  display: flex; 
+  align-items: center; 
+  gap: 10px;
+}
+.panel-title svg { width: 18px; height: 18px; fill: none; stroke: var(--gold); stroke-width: 2; }
+
+.calc-group { margin-bottom: 24px; }
+.calc-label { font-family: var(--M); font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; display: block; margin-bottom: 10px; }
+
+.row-input { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  background: rgba(0,0,0,0.15); 
+  padding: 12px 14px; 
+  border: 1px solid var(--brd); 
+  border-radius: 6px; 
+  margin-bottom: 10px; 
+  gap: 16px;
+}
+.row-input:hover { border-color: var(--faint); }
+
+.input-main { display: flex; flex-direction: column; justify-content: center; flex: 1; }
+.checkbox-container { display: flex; align-items: center; gap: 10px; }
+.row-input label { font-size: 14px; cursor: pointer; user-select: none; font-weight: 500; }
+.row-input input[type="checkbox"] { accent-color: var(--gold); width: 16px; height: 16px; cursor: pointer; }
+
+.room-specs {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.4;
+  padding-left: 26px;
+  width: 100%;
+}
+.room-specs strong { color: var(--gold); font-weight: 500; }
+.room-layout { display: block; font-family: var(--M); font-size: 10px; margin-bottom: 2px; color: #9A8F7A; }
+
+.input-controls { display: flex; align-items: flex-end; gap: 6px; }
+.input-unit-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.input-unit-label { font-family: var(--M); font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; line-height: 1; }
+.mult { color: var(--muted); font-size: 12px; font-family: var(--M); margin-bottom: 6px; user-select: none; }
+
+.row-input input[type="number"] { 
+  background: var(--bg); 
+  border: 1px solid var(--brd); 
+  color: #FFFFFF; 
+  font-family: var(--M); 
+  font-size: 13px; 
+  padding: 6px; 
+  text-align: center; 
+  border-radius: 4px; 
+}
+.row-input input[type="number"]:focus { border-color: var(--gold); outline: none; }
+
+.qty-input { width: 55px; }
+.rate-input { width: 105px; text-align: right !important; }
+
+details.backline-accordion { border: 1px solid var(--brd); border-radius: 6px; background: rgba(0,0,0,0.1); margin-top: 12px; }
+details.backline-accordion summary { padding: 12px; font-family: var(--M); font-size: 12px; color: var(--gold); cursor: pointer; user-select: none; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px; }
+details.backline-accordion summary svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+.accordion-content { padding: 12px; border-top: 1px solid var(--brd); max-height: 380px; overflow-y: auto; }
+
+.total-box { background: var(--gold-bg); border: 1px solid rgba(196,152,44,0.2); border-radius: 6px; padding: 20px; margin-top: 20px; }
+.summary-line { display: flex; justify-content: space-between; font-family: var(--M); font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.summary-line span:last-child { color: var(--txt); }
+.summary-line.highlight { border-top: 1px solid var(--brd); padding-top: 10px; margin-top: 10px; }
+.summary-line.highlight .total-amount { font-size: 24px; font-weight: 700; color: var(--gold); }
+
+.btn-action { 
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center; 
+  gap: 10px; 
+  width: 100%; 
+  text-align: center; 
+  background: transparent; 
+  border: 1px solid var(--gold); 
+  color: var(--gold); 
+  padding: 12px; 
+  font-family: var(--M); 
+  font-size: 12px; 
+  text-transform: uppercase; 
+  letter-spacing: 0.05em; 
+  border-radius: 4px; 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  margin-top: 16px; 
+}
+.btn-action svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
+.btn-action:hover:not(:disabled) { background: var(--gold); color: #000000; font-weight: 500; }
+.btn-action:disabled { border-color: var(--faint); color: var(--muted); cursor: not-allowed; opacity: 0.5; }
+
+#print-view { display: none; }
+
+@media print {
+  @page {
+    size: letter;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+  body { background: #FFFFFF !important; color: #000000 !important; font-family: var(--S); }
+  .container { display: none !important; }
+  #print-view { 
+    display: block !important; 
+    color: #000000 !important;
+    padding: 0;
+    position: relative;
+    min-height: 100%;
+  }
+  .print-header { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    border-bottom: 3px solid #C4982C; 
+    padding-bottom: 16px; 
+    margin-bottom: 24px; 
+  }
+  .print-title { font-family: var(--T); font-size: 26px; font-weight: bold; color: #111111; letter-spacing: -0.02em; }
+  
+  .print-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .print-card {
+    background: #FAFAFA !important;
+    border: 1px solid #E5E5E5;
+    border-radius: 6px;
+    padding: 14px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-card-title {
+    font-family: var(--M);
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #7A7060;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .print-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; table-layout: fixed; }
+  .print-table th, .print-table td { 
+    border: 1px solid #E5E5E5; 
+    padding: 9px 12px; 
+    font-size: 12px; 
+    color: #222222; 
+    word-wrap: break-word;
+    overflow: visible;
+  }
+  .print-table th { 
+    background-color: #111111 !important; 
+    color: #FFFFFF !important;
+    font-family: var(--M); 
+    font-size: 10.5px; 
+    text-transform: uppercase; 
+    letter-spacing: 0.05em; 
+    border: 1px solid #111111;
+    -webkit-print-color-adjust: exact; 
+    print-color-adjust: exact; 
+  }
+
+  .print-group-header td {
+    background-color: #F0EDE7 !important;
+    color: #111111 !important;
+    font-family: var(--M);
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 12px;
+    border-left: 4px solid #C4982C !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-group-header-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .print-group-header-content svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: #C4982C;
+    stroke-width: 2;
+  }
+  
+  .print-table tr.print-group-subtotal td {
+    background-color: #FAFAFA !important;
+    font-weight: 500;
+    font-family: var(--M);
+    font-size: 10.5px;
+    color: #555555 !important;
+    border-top: 1px dashed #C4982C;
+    text-align: right;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .print-footer-container {
+    margin-top: 30px;
+    border-top: 2px solid #111111;
+    padding-top: 16px;
+    display: block;
+    width: 100%;
+  }
+  .print-footer-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1.3fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .print-totals { width: 100%; font-size: 12.5px; }
+  .print-totals-line { display: flex; justify-content: space-between; padding: 5px 0; color: #444; border-bottom: 1px dotted #E5E5E5; gap: 12px; }
+  .print-totals-line span:last-child { white-space: nowrap; text-align: right; font-weight: 500; }
+  .print-totals-line.bold { 
+    font-family: var(--M); 
+    font-weight: bold; 
+    border-top: 2px solid #C4982C; 
+    border-bottom: none;
+    padding-top: 10px; 
+    margin-top: 6px; 
+    font-size: 16px; 
+    color: #111111 !important; 
+  }
+  .print-totals-line.bold span:last-child { color: #C4982C !important; }
+}
+</style>
+</head>
+<body>
+
+<datalist id="lista-ingenieros"><option value="German Albano"></option></datalist>
+<datalist id="lista-dir-mus"><option value="Alejandro Londoño"></option></datalist>
+<datalist id="lista-arreglos"><option value="El Negro"></option></datalist>
+<datalist id="lista-mezcla"><option value="German Albano"></option><option value="Camilo Silva"></option></datalist>
+<datalist id="lista-edicion"><option value="German Albano"></option></datalist>
+<datalist id="lista-maquetacion"></datalist>
+<datalist id="lista-master"><option value="Camilo Silva"></option></datalist>
+
+<div id="print-view"></div>
+
+<div class="container">
+  <header>
+    <span class="brand-tag">
+      <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5v14M22 8v8M7 8v8M2 10v4"/></svg>
+      AUDIOLINK • Central de Control General
+    </span>
+    <h1>CENTRAL DE OPERACIONES Y COTIZACIONES V7</h1>
+    <div class="subtitle">Estructura dinámica de tarifas, servicios y control de proyectos musicales</div>
+  </header>
+
+  <div class="panel project-info-panel" id="panelVinculo">
+    <h2 class="panel-title">
+      <svg viewBox="0 0 24 24"><path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.1-1.1M10.172 13.828a4 4 0 0 0 5.656 0l4-4a4 4 0 0 0-5.656-5.656l-1.1 1.1"/></svg>
+      Vínculo con Proyecto (Firestore)
+    </h2>
+    <div class="info-grid" style="grid-template-columns: 3fr 1fr;">
+      <div class="info-group">
+        <label class="calc-label" id="labelSelectorProyecto">Proyecto vinculado</label>
+        <select id="selector-proyecto-vinculo" class="text-input" onchange="cambiarProyectoVinculado()">
+          <option value="">— Cargando proyectos... —</option>
+        </select>
+      </div>
+      <div class="info-group">
+        <label class="calc-label">&nbsp;</label>
+        <a href="proyecto.html" class="text-input" style="display:block;text-align:center;text-decoration:none;color:var(--gold);border-color:var(--gold);">← Volver</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel project-info-panel">
+    <h2 class="panel-title">
+      <svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/></svg>
+      Parámetros del Proyecto Actual
+    </h2>
+    <div class="info-grid">
+      <div class="info-group">
+        <label class="calc-label">Nombre del Cliente *</label>
+        <input type="text" id="client-name" class="text-input" placeholder="Obligatorio" oninput="validarYCalcular()">
+      </div>
+      <div class="info-group">
+        <label class="calc-label">Nombre del Tema / Proyecto *</label>
+        <input type="text" id="track-name" class="text-input" placeholder="Obligatorio" oninput="validarYCalcular()">
+      </div>
+      <div class="info-group">
+        <label class="calc-label">Cant. Temas</label>
+        <input type="number" id="track-qty" class="text-input" value="1" min="1" oninput="validarYCalcular()">
+      </div>
+      <div class="info-group">
+        <label class="calc-label">Entorno Operativo Principal</label>
+        <select id="selector-entorno" class="text-input" onchange="cambiarEntorno()">
+          <option value="icesi">Universidad ICESI</option>
+          <option value="externo">Estudio Externo (Variable)</option>
+          <option value="home_studio">Home Studio / Línea Directa</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    
+    <div class="col-left">
+      <div class="panel">
+        <h2 class="panel-title">
+          <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 19v3"/></svg>
+          1. Infraestructura de Salas e Ingeniería
+        </h2>
+        
+        <div class="calc-group">
+          <span class="calc-label">Horas de Captura / Tracking</span>
+          
+          <div class="row-input" style="flex-wrap: wrap;">
+            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" id="chk-sala-a" onchange="validarYCalcular()">
+                  <label for="chk-sala-a" id="label-sala-a">Estudio A</label>
+                </div>
+              </div>
+              <div class="input-controls">
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Horas</span>
+                  <input type="number" id="num-sala-a" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+                <span class="mult">×</span>
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Tarifa COP</span>
+                  <input type="number" id="rate-sala-a" value="270000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+            <div class="room-specs" id="specs-sala-a">
+              <span class="room-layout">Control A + Iso Booths A1 y A2 + Live Room compartido con Control B</span>
+              Entorno de alta gama con alta versatilidad de ruteo y captura multi-ambientes. <br><strong>Preamps:</strong> 24 API, 8 Millenia, 2 BAE 1073, 4 Manley Force.
+            </div>
+          </div>
+          
+          <div class="row-input" style="flex-wrap: wrap;">
+            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" id="chk-sala-b" onchange="validarYCalcular()">
+                  <label for="chk-sala-b" id="label-sala-b">Estudio B</label>
+                </div>
+              </div>
+              <div class="input-controls">
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Horas</span>
+                  <input type="number" id="num-sala-b" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+                <span class="mult">×</span>
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Tarifa COP</span>
+                  <input type="number" id="rate-sala-b" value="230000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+            <div class="room-specs" id="specs-sala-b">
+              <span class="room-layout">Control B + Iso Booth B1 + Live Room</span>
+              Diseño acústico calibrado para respuesta controlada y grabaciones en bloque. <br><strong>Preamps:</strong> 8 ISA828 modificados, 8 Yamaha, 2 Camilo Silva, 1 Avalon 737.
+            </div>
+          </div>
+          
+          <div class="row-input" style="flex-wrap: wrap;">
+            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" id="chk-sala-c" onchange="validarYCalcular()">
+                  <label for="chk-sala-c" id="label-sala-c">Estudio C</label>
+                </div>
+              </div>
+              <div class="input-controls">
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Horas</span>
+                  <input type="number" id="num-sala-c" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+                <span class="mult">×</span>
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Tarifa COP</span>
+                  <input type="number" id="rate-sala-c" value="160000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+            <div class="room-specs" id="specs-sala-c">
+              <span class="room-layout">Control C + Live Room independiente en otro piso</span>
+              Espacio acústico controlado para tomas independientes y procesamiento de señales directas. <br><strong>Preamps:</strong> 2 Camilo Silva, 1 Manley Core, 16 Yamaha.
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-group">
+          <span class="calc-label">Soporte Técnico Especializado</span>
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-ing" onchange="validarYCalcular()">
+                <label for="chk-ing">Ingeniería de Grabación</label>
+              </div>
+              <input type="text" id="name-ing" placeholder="Nombre del ingeniero asignado" class="inline-name-input" list="lista-ingenieros" oninput="validarYCalcular()">
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">Horas</span>
+                <input type="number" id="num-ing" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+              <span class="mult">×</span>
+              <div class="input-unit-group">
+                <span class="input-unit-label">Tarifa COP</span>
+                <input type="number" id="rate-ing" value="80000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <span class="calc-label">Instrumentación Adicional</span>
+        <details class="backline-accordion">
+          <summary>
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            Catálogo Avalado de Backline (Por Día)
+          </summary>
+          <div class="accordion-content">
+            
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Congas LP Galaxy (3 pzs)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-1" data-rate="rate-bl-1" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-1" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-1" value="220000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Congas LP Estándar (3 pzs)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-2" data-rate="rate-bl-2" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-2" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-2" value="170000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Timbal LP Tito Puente</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-3" data-rate="rate-bl-3" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-3" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-3" value="170000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Timbal LP Matador</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-4" data-rate="rate-bl-4" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-4" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-4" value="170000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Bongó LP Pedrito Martínez</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-5" data-rate="rate-bl-5" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-5" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-5" value="120000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Set de Campanas LP Salsa</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-6" data-rate="rate-bl-6" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-6" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-6" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Güiro LP Oficial</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-7" data-rate="rate-bl-7" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-7" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-7" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+            
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Inst. Multipercusión Variados</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-12" data-rate="rate-bl-12" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-12" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-12" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Inst. Percusión Brasilera</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-13" data-rate="rate-bl-13" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-13" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-13" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Inst. Percusión Andina, Caribe, Pacífico</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-14" data-rate="rate-bl-14" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-14" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-14" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Batería DW Perf. / Stage Custom</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-8" data-rate="rate-bl-8" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-8" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-8" value="350000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Platillos Zildjian K Custom Dark</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-9" data-rate="rate-bl-9" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-9" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-9" value="170000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Teclado Nord Stage 2 (88t)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-10" data-rate="rate-bl-10" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-10" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-10" value="330000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Teclado Yamaha Montage (88t)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-11" data-rate="rate-bl-11" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-11" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-11" value="330000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+            
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Teclado Yamaha MX61</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-15" data-rate="rate-bl-15" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-15" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-15" value="110000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Teclado Yamaha P45 (88t)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-16" data-rate="rate-bl-16" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-16" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-16" value="110000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="panel">
+        <h2 class="panel-title">
+          <svg viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+          2. Gestión de Production y Servicios
+        </h2>
+        
+        <div class="calc-group">
+          <span class="calc-label">Preproducción y Ejecución</span>
+          
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-ensamble" onchange="validarYCalcular()">
+                <label for="chk-ensamble">Etapa Ensamble</label>
+              </div>
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">Ensayos</span>
+                <input type="number" id="num-ensayos" value="2" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+              <span class="mult">×</span>
+              <div class="input-unit-group">
+                <span class="input-unit-label">Pers.</span>
+                <input type="number" id="num-personas-ensamble" value="5" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+              <span class="mult">×</span>
+              <div class="input-unit-group">
+                <span class="input-unit-label">Tarifa COP</span>
+                <input type="number" id="rate-ensamble" value="50000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-musicos-1" onchange="validarYCalcular()">
+                <label for="chk-musicos-1">Músicos de Sesión (Tarifa A)</label>
+              </div>
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">Músicos</span>
+                <input type="number" id="num-canales-1" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+              <span class="mult">×</span>
+              <div class="input-unit-group">
+                <span class="input-unit-label">Tarifa COP</span>
+                <input type="number" id="rate-musicos-1" value="100000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-musicos-2" onchange="validarYCalcular()">
+                <label for="chk-musicos-2">Músicos de Sesión (Tarifa B)</label>
+              </div>
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">Músicos</span>
+                <input type="number" id="num-canales-2" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+              <span class="mult">×</span>
+              <div class="input-unit-group">
+                <span class="input-unit-label">Tarifa COP</span>
+                <input type="number" id="rate-musicos-2" value="150000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+
+          <div class="row-input" style="flex-wrap: wrap;">
+            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" id="chk-ensamble-percu" onchange="validarYCalcular()">
+                  <label for="chk-ensamble-percu">Ensamble de Percusión (3 Músicos)</label>
+                </div>
+              </div>
+              <div class="input-controls">
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Jornadas</span>
+                  <input type="number" id="num-ensamble-percu" value="1" min="1" class="qty-input" onchange="validarYCalcular()">
+                </div>
+                <span class="mult">×</span>
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Tarifa COP</span>
+                  <input type="number" id="rate-ensamble-percu" value="450000" min="0" class="rate-input" onchange="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+            <div class="room-specs">
+              Formato de ensamble fijo. Incluye ejecución de: <strong>Batería/Timbal</strong>, <strong>Congas</strong> y <strong>Bongó/Campana</strong>.
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-group">
+          <span class="calc-label">Roles Musicales y Postproducción (Calculado por Tema)</span>
+          
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-maquetacion" onchange="validarYCalcular()">
+                <label for="chk-maquetacion">Pre-Producción / Maquetación</label>
+              </div>
+              <input type="text" id="name-maquetacion" placeholder="Asignar profesional" class="inline-name-input" list="lista-maquetacion" oninput="validarYCalcular()">
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">COP / Tema</span>
+                <input type="number" id="rate-maquetacion" value="100000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-dir-mus" onchange="validarYCalcular()">
+                <label for="chk-dir-mus">Dirección Musical</label>
+              </div>
+              <input type="text" id="name-dir-mus" placeholder="Asignar profesional" class="inline-name-input" list="lista-dir-mus" oninput="validarYCalcular()">
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">COP / Tema</span>
+                <input type="number" id="rate-dir-mus" value="100000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-arreglos" onchange="validarYCalcular()">
+                <label for="chk-arreglos">Co-Arreglos / Apertura</label>
+              </div>
+              <input type="text" id="name-arreglos" placeholder="Asignar profesional" class="inline-name-input" list="lista-arreglos" oninput="validarYCalcular()">
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">COP / Tema</span>
+                <input type="number" id="rate-arreglos" value="100000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-edicion" onchange="validarYCalcular()">
+                <label for="chk-edicion">Edición</label>
+              </div>
+              <input type="text" id="name-edicion" placeholder="Asignar profesional" class="inline-name-input" list="lista-edicion" value="German Albano" oninput="validarYCalcular()">
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">COP / Tema</span>
+                <input type="number" id="rate-edicion" value="100000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+
+          <div class="row-input">
+            <div class="input-main">
+              <div class="checkbox-container">
+                <input type="checkbox" id="chk-mezcla" onchange="validarYCalcular()">
+                <label for="chk-mezcla">Mezcla Profesional</label>
+              </div>
+              <input type="text" id="name-mezcla" placeholder="Asignar profesional" class="inline-name-input" list="lista-mezcla" oninput="validarYCalcular()">
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">COP / Tema</span>
+                <input type="number" id="rate-mezcla" value="200000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+
+          <div class="row-input" style="flex-wrap: wrap;">
+            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" id="chk-master" onchange="validarYCalcular()">
+                  <label for="chk-master">Masterización</label>
+                </div>
+                <input type="text" id="name-master" placeholder="Asignar profesional" class="inline-name-input" list="lista-master" oninput="validarYCalcular()">
+              </div>
+              <div class="input-controls">
+                <div class="input-unit-group">
+                  <span class="input-unit-label">COP / Tema</span>
+                  <input type="number" id="rate-master" value="250000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+            <div style="padding-left: 26px; font-size: 11px; color: var(--muted); width: 100%; font-style: italic; margin-top: 4px;">
+              * Tarifa estandarizada por track (procesamiento híbrido digital/análogo en cinta según requerimientos).
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-group" style="border-top: 1px solid var(--brd); padding-top: 16px;">
+          <span class="calc-label">Configuración Logística e Impuestos</span>
+          <div class="row-input">
+            <div class="input-main">
+              <label>Honorarios Producción General y Logística</label>
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">Porcentaje %</span>
+                <input type="number" id="num-honorarios" value="20" min="0" max="100" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+          <div class="row-input">
+            <div class="input-main">
+              <label>Impuestos / IVA / Retenciones</label>
+            </div>
+            <div class="input-controls">
+              <div class="input-unit-group">
+                <span class="input-unit-label">Porcentaje %</span>
+                <input type="number" id="num-iva" value="0" min="0" max="100" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-group">
+          <label class="calc-label">Notas Operativas / Distribución de Jornadas</label>
+          <textarea id="agenda-notes" class="text-input" rows="3" style="resize: vertical; font-family: var(--S);" placeholder="Ej: Día 1: Captura de Base Rítmica en bloque. Día 2: Base Armónica por línea directa..." oninput="validarYCalcular()"></textarea>
+        </div>
+
+        <div class="total-box">
+          <div class="summary-line" id="row-subtotal-salas" style="display: none; border-bottom: 1px dashed var(--brd); padding-bottom: 4px; margin-bottom: 4px;">
+            <span>Subtotal Salas e Infraestructura:</span>
+            <span id="val-subtotal-salas">$0 COP</span>
+          </div>
+          <div class="summary-line" id="row-subtotal-backline" style="display: none; border-bottom: 1px dashed var(--brd); padding-bottom: 4px; margin-bottom: 4px;">
+            <span>Subtotal Backline e Inst.:</span>
+            <span id="val-subtotal-backline">$0 COP</span>
+          </div>
+          <div class="summary-line" id="row-subtotal-ejecucion" style="display: none; border-bottom: 1px dashed var(--brd); padding-bottom: 4px; margin-bottom: 4px;">
+            <span>Subtotal Personal y Soporte:</span>
+            <span id="val-subtotal-ejecucion">$0 COP</span>
+          </div>
+          <div class="summary-line" id="row-subtotal-post" style="display: none; border-bottom: 1px dashed var(--brd); padding-bottom: 4px; margin-bottom: 4px;">
+            <span>Subtotal Prod. y Postproducción:</span>
+            <span id="val-subtotal-post">$0 COP</span>
+          </div>
+          <div class="summary-line" style="font-weight: bold; margin-top: 8px;">
+            <span>Subtotal Neto Total:</span>
+            <span id="val-subtotal">$0 COP</span>
+          </div>
+          <div class="summary-line">
+            <span>Honorarios Producción General y Logística:</span>
+            <span id="val-honorarios">$0 COP</span>
+          </div>
+          <div class="summary-line">
+            <span>Impuestos Calculados:</span>
+            <span id="val-iva">$0 COP</span>
+          </div>
+          <div class="summary-line highlight">
+            <span>Inversión Estimada Total:</span>
+            <div class="total-amount" id="total-general">$0 COP</div>
+          </div>
+        </div>
+
+        <button id="btn-guardar-proyecto" class="btn-action" onclick="guardarCotizacionEnProyecto()" disabled style="border-color: var(--gold); color: var(--gold);">
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+          Guardar Cotización en el Proyecto
+        </button>
+
+        <button id="btn-pdf" class="btn-action" onclick="exportarPDF()" disabled style="border-color: var(--green); color: var(--green);">
+          <svg viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+          Exportar Propuesta a PDF
+        </button>
+        
+        <button id="btn-clear" class="btn-action" onclick="limpiarFormulario()" style="margin-top: 10px; border-color: #555; color: var(--muted);">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Limpiar Formulario / Borrador
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const TARIFAS_ENTORNOS = {
+  icesi: { salaA: 270000, salaB: 230000, salaC: 160000 },
+  externo: { salaA: 0, salaB: 0, salaC: 0 },
+  home_studio: { salaA: 0, salaB: 0, salaC: 0 }
+};
+
+const NOMBRES_SALAS_ENTORNOS = {
+  icesi: { salaA: "Estudio A", salaB: "Estudio B", salaC: "Estudio C" },
+  externo: { salaA: "Estudio 1", salaB: "Estudio 2", salaC: "Estudio 3" },
+  home_studio: { salaA: "Estudio en Casa 1", salaB: "Estudio en Casa 2", salaC: "Estudio en Casa 3" }
+};
+
+const formatCOP = (val) => new Intl.NumberFormat('es-CO', {
+  style: 'currency',
+  currency: 'COP',
+  minimumFractionDigits: 0
+}).format(val);
+
+function actualizarNombresSalas() {
+  const entorno = document.getElementById('selector-entorno').value;
+  const nombres = NOMBRES_SALAS_ENTORNOS[entorno] || NOMBRES_SALAS_ENTORNOS.icesi;
+
+  document.getElementById('label-sala-a').innerText = nombres.salaA;
+  document.getElementById('label-sala-b').innerText = nombres.salaB;
+  document.getElementById('label-sala-c').innerText = nombres.salaC;
+
+  const specsA = document.getElementById('specs-sala-a');
+  const specsB = document.getElementById('specs-sala-b');
+  const specsC = document.getElementById('specs-sala-c');
+
+  if (entorno === 'icesi') {
+    if (specsA) specsA.style.display = 'block';
+    if (specsB) specsB.style.display = 'block';
+    if (specsC) specsC.style.display = 'block';
+  } else {
+    if (specsA) specsA.style.display = 'none';
+    if (specsB) specsB.style.display = 'none';
+    if (specsC) specsC.style.display = 'none';
+  }
+}
+
+function cambiarEntorno() {
+  const entorno = document.getElementById('selector-entorno').value;
+  const tarifas = TARIFAS_ENTORNOS[entorno];
+
+  document.getElementById('rate-sala-a').value = tarifas.salaA;
+  document.getElementById('rate-sala-b').value = tarifas.salaB;
+  document.getElementById('rate-sala-c').value = tarifas.salaC;
+
+  actualizarNombresSalas();
+  validarYCalcular();
+}
+
+function guardarBorrador() {
+  const inputs = document.querySelectorAll('input[type="text"], input[type="number"], select, input[type="checkbox"], textarea');
+  const data = {};
+  inputs.forEach(input => {
+    if (input.id) {
+      data[input.id] = input.type === 'checkbox' ? input.checked : input.value;
+    }
+  });
+  localStorage.setItem('cotizador_borrador_v6', JSON.stringify(data));
+}
+
+function cargarBorrador() {
+  const dataStr = localStorage.getItem('cotizador_borrador_v6');
+  if (!dataStr) return;
+  try {
+    const data = JSON.parse(dataStr);
+    Object.keys(data).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (el.type === 'checkbox') {
+          el.checked = data[id];
+        } else {
+          el.value = data[id];
+        }
+      }
+    });
+  } catch (e) {
+    console.error("Error cargando el borrador local", e);
+  }
+}
+
+function limpiarFormulario() {
+  if (confirm("¿Estás seguro de que deseas restablecer el formulario? Esto borrará el borrador actual.")) {
+    localStorage.removeItem('cotizador_borrador_v6');
+    window.location.reload();
+  }
+}
+
+function validarYCalcular() {
+  const cliente = document.getElementById('client-name').value.trim();
+  const tema = document.getElementById('track-name').value.trim();
+  const btnPdf = document.getElementById('btn-pdf');
+
+  const inactivo = (cliente === "" || tema === "");
+  if (btnPdf) btnPdf.disabled = inactivo;
+
+  const cantTemas = parseInt(document.getElementById('track-qty').value || 1);
+  
+  let subtotalSalas = 0;
+  let subtotalBackline = 0;
+  let subtotalEjecucion = 0;
+  let subtotalPost = 0;
+
+  if (document.getElementById('chk-sala-a').checked) {
+    subtotalSalas += parseInt(document.getElementById('num-sala-a').value || 0) * parseFloat(document.getElementById('rate-sala-a').value || 0);
+  }
+  if (document.getElementById('chk-sala-b').checked) {
+    subtotalSalas += parseInt(document.getElementById('num-sala-b').value || 0) * parseFloat(document.getElementById('rate-sala-b').value || 0);
+  }
+  if (document.getElementById('chk-sala-c').checked) {
+    subtotalSalas += parseInt(document.getElementById('num-sala-c').value || 0) * parseFloat(document.getElementById('rate-sala-c').value || 0);
+  }
+
+  if (document.getElementById('chk-ing').checked) {
+    subtotalEjecucion += parseInt(document.getElementById('num-ing').value || 0) * parseFloat(document.getElementById('rate-ing').value || 0);
+  }
+
+  document.querySelectorAll('.backline-row').forEach(row => {
+    const chk = row.querySelector('.chk-backline');
+    if (chk && chk.checked) {
+      const numId = chk.getAttribute('data-num');
+      const rateId = chk.getAttribute('data-rate');
+      subtotalBackline += parseInt(document.getElementById(numId).value || 0) * parseFloat(document.getElementById(rateId).value || 0);
+    }
+  });
+
+  if (document.getElementById('chk-ensamble').checked) {
+    const ensayos = parseInt(document.getElementById('num-ensayos').value || 0);
+    const personas = parseInt(document.getElementById('num-personas-ensamble').value || 0);
+    subtotalEjecucion += ensayos * personas * parseFloat(document.getElementById('rate-ensamble').value || 0);
+  }
+
+  if (document.getElementById('chk-musicos-1').checked) {
+    subtotalEjecucion += parseInt(document.getElementById('num-canales-1').value || 0) * parseFloat(document.getElementById('rate-musicos-1').value || 0);
+  }
+  if (document.getElementById('chk-musicos-2').checked) {
+    subtotalEjecucion += parseInt(document.getElementById('num-canales-2').value || 0) * parseFloat(document.getElementById('rate-musicos-2').value || 0);
+  }
+
+  if (document.getElementById('chk-ensamble-percu').checked) {
+    subtotalEjecucion += parseInt(document.getElementById('num-ensamble-percu').value || 0) * parseFloat(document.getElementById('rate-ensamble-percu').value || 0);
+  }
+
+  if (document.getElementById('chk-maquetacion').checked) subtotalPost += parseFloat(document.getElementById('rate-maquetacion').value || 0) * cantTemas;
+  if (document.getElementById('chk-dir-mus').checked) subtotalPost += parseFloat(document.getElementById('rate-dir-mus').value || 0) * cantTemas;
+  if (document.getElementById('chk-arreglos').checked) subtotalPost += parseFloat(document.getElementById('rate-arreglos').value || 0) * cantTemas;
+  if (document.getElementById('chk-edicion').checked) subtotalPost += parseFloat(document.getElementById('rate-edicion').value || 0) * cantTemas;
+  if (document.getElementById('chk-mezcla').checked) subtotalPost += parseFloat(document.getElementById('rate-mezcla').value || 0) * cantTemas;
+  if (document.getElementById('chk-master').checked) subtotalPost += parseFloat(document.getElementById('rate-master').value || 0) * cantTemas;
+
+  const subtotal = subtotalSalas + subtotalBackline + subtotalEjecucion + subtotalPost;
+
+  const pctHonorarios = parseFloat(document.getElementById('num-honorarios').value || 0) / 100;
+  const honorarios = subtotal * pctHonorarios;
+
+  const subtotalConHonorarios = subtotal + honorarios;
+  const pctIva = parseFloat(document.getElementById('num-iva').value || 0) / 100;
+  const iva = subtotalConHonorarios * pctIva;
+
+  const totalGeneral = subtotalConHonorarios + iva;
+
+  document.getElementById('val-subtotal-salas').innerText = formatCOP(subtotalSalas);
+  document.getElementById('row-subtotal-salas').style.display = subtotalSalas > 0 ? 'flex' : 'none';
+
+  document.getElementById('val-subtotal-backline').innerText = formatCOP(subtotalBackline);
+  document.getElementById('row-subtotal-backline').style.display = subtotalBackline > 0 ? 'flex' : 'none';
+
+  document.getElementById('val-subtotal-ejecucion').innerText = formatCOP(subtotalEjecucion);
+  document.getElementById('row-subtotal-ejecucion').style.display = subtotalEjecucion > 0 ? 'flex' : 'none';
+
+  document.getElementById('val-subtotal-post').innerText = formatCOP(subtotalPost);
+  document.getElementById('row-subtotal-post').style.display = subtotalPost > 0 ? 'flex' : 'none';
+
+  document.getElementById('val-subtotal').innerText = formatCOP(subtotal);
+  document.getElementById('val-honorarios').innerText = formatCOP(honorarios);
+  document.getElementById('val-iva').innerText = formatCOP(iva);
+  document.getElementById('total-general').innerText = formatCOP(totalGeneral);
+
+  guardarBorrador();
+}
+
+function exportarPDF() {
+  const cliente = document.getElementById('client-name').value.trim();
+  const tema = document.getElementById('track-name').value.trim();
+  const cantTemas = parseInt(document.getElementById('track-qty').value || 1);
+  const entornoIdx = document.getElementById('selector-entorno').selectedIndex;
+  const entornoTxt = document.getElementById('selector-entorno').options[entornoIdx].text;
+  const notas = document.getElementById('agenda-notes').value.trim();
+  const fecha = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const svgHeader = `<svg width="48" height="24" viewBox="0 0 48 24" style="fill:#C4982C;"><rect x="0" y="8" width="2" height="8" rx="1"/><rect x="5" y="4" width="2" height="16" rx="1"/><rect x="10" y="0" width="2" height="24" rx="1"/><rect x="15" y="6" width="2" height="12" rx="1"/><rect x="20" y="2" width="2" height="20" rx="1"/><rect x="25" y="9" width="2" height="6" rx="1"/><rect x="30" y="4" width="2" height="16" rx="1"/><rect x="35" y="0" width="2" height="24" rx="1"/><rect x="40" y="8" width="2" height="8" rx="1"/><rect x="45" y="5" width="2" height="14" rx="1"/></svg>`;
+  const svgStudio = `<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
+  const svgBackline = `<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
+  const svgStaff = `<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5-33-8-4z"/></svg>`;
+  const svgPost = `<svg viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zm0-12v2h18V5H3zm0 7v2h12v-2H3z"/></svg>`;
+
+  let html = `
+    <div class="print-header">
+      <div>
+        <div class="print-title">AUDIOLINK</div>
+        <div style="font-size: 11px; color: #7A7060; font-family: var(--M); text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px;">Propuesta Operativa & Económica de Production</div>
+      </div>
+      <div>${svgHeader}</div>
+    </div>
+    
+    <div class="print-meta-grid">
+      <div class="print-card">
+        <div class="print-card-title">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Titular del Proyecto
+        </div>
+        <strong>Cliente / Artista:</strong> ${cliente}<br>
+        <strong>Proyecto Base:</strong> ${tema}<br>
+        <strong>Volumen total:</strong> ${cantTemas} Tema(s)
+      </div>
+      <div class="print-card">
+        <div class="print-card-title">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Trazabilidad Logística
+        </div>
+        <strong>Fecha de Emisión:</strong> ${fecha}<br>
+        <strong>Entorno Operativo:</strong> ${entornoTxt}<br>
+        <strong>Productor Responsable:</strong> Martin Zambrano
+      </div>
+    </div>
+
+    <table class="print-table">
+      <colgroup>
+        <col style="width: auto;">
+        <col style="width: 125px;">
+        <col style="width: 145px;">
+        <col style="width: 155px;">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Descripción del Rubro / Servicio Asignado</th>
+          <th style="text-align: center;">Cantidad</th>
+          <th style="text-align: right;">Tarifa Unitaria</th>
+          <th style="text-align: right;">Total Neto (COP)</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  const grupos = [
+    { nombre: "Infraestructura - Salas de Grabación", icon: svgStudio, filas: [], subtotal: 0 },
+    { nombre: "Equipos - Backline / Instrumentación Adicional", icon: svgBackline, filas: [], subtotal: 0 },
+    { nombre: "Personal Operativo & Soporte", icon: svgStaff, filas: [], subtotal: 0 },
+    { nombre: "Producción & Postproducción de Audio", icon: svgPost, filas: [], subtotal: 0 }
+  ];
+
+  function agregarFila(grupoIdx, descripcion, cantidadTxt, tarifaTxt, total) {
+    grupos[grupoIdx].filas.push(
+      `<tr>
+        <td>${descripcion}</td>
+        <td style="text-align: center; font-family: var(--M); font-size: 11.5px; white-space: nowrap;">${cantidadTxt}</td>
+        <td style="text-align: right; font-family: var(--M); font-size: 11.5px; white-space: nowrap;">${tarifaTxt}</td>
+        <td style="text-align: right; font-family: var(--M); font-size: 11.5px; white-space: nowrap;">${formatCOP(total)}</td>
+      </tr>`
+    );
+    grupos[grupoIdx].subtotal += total;
+  }
+
+  if (document.getElementById('chk-sala-a').checked) {
+    const h = document.getElementById('num-sala-a').value; const r = document.getElementById('rate-sala-a').value;
+    agregarFila(0, `Alquiler de Infraestructura - ${document.getElementById('label-sala-a').innerText}`, `${h} Hora(s)`, formatCOP(r), h*r);
+  }
+  if (document.getElementById('chk-sala-b').checked) {
+    const h = document.getElementById('num-sala-b').value; const r = document.getElementById('rate-sala-b').value;
+    agregarFila(0, `Alquiler de Infraestructura - ${document.getElementById('label-sala-b').innerText}`, `${h} Hora(s)`, formatCOP(r), h*r);
+  }
+  if (document.getElementById('chk-sala-c').checked) {
+    const h = document.getElementById('num-sala-c').value; const r = document.getElementById('rate-sala-c').value;
+    agregarFila(0, `Alquiler de Infraestructura - ${document.getElementById('label-sala-c').innerText}`, `${h} Hora(s)`, formatCOP(r), h*r);
+  }
+
+  document.querySelectorAll('.backline-row').forEach(row => {
+    const chk = row.querySelector('.chk-backline');
+    if (chk && chk.checked) {
+      const label = row.querySelector('label').innerText;
+      const d = document.getElementById(chk.getAttribute('data-num')).value;
+      const r = document.getElementById(chk.getAttribute('data-rate')).value;
+      agregarFila(1, `Backline - [${label}]`, `${d} Día(s)`, formatCOP(r), d*r);
+    }
+  });
+
+  if (document.getElementById('chk-ing').checked) {
+    const h = document.getElementById('num-ing').value; const r = document.getElementById('rate-ing').value;
+    const n = document.getElementById('name-ing').value.trim();
+    agregarFila(2, `Soporte Técnico - Ingeniería de Grabación ${n ? '['+n+']' : ''}`, `${h} Hora(s)`, formatCOP(r), h*r);
+  }
+  if (document.getElementById('chk-ensamble').checked) {
+    const ensayos = document.getElementById('num-ensayos').value; const personas = document.getElementById('num-personas-ensamble').value; const r = document.getElementById('rate-ensamble').value;
+    agregarFila(2, "Preproducción Logística - Etapa de Ensamble", `${ensayos} Ens. × ${personas} Pers.`, `${formatCOP(r)}`, ensayos*personas*r);
+  }
+  if (document.getElementById('chk-musicos-1').checked) {
+    const m = document.getElementById('num-canales-1').value; const r = document.getElementById('rate-musicos-1').value;
+    agregarFila(2, "Personal de Ejecución - Músicos de Sesión (Tarifa A)", `${m} Músico(s)`, formatCOP(r), m*r);
+  }
+  if (document.getElementById('chk-musicos-2').checked) {
+    const m = document.getElementById('num-canales-2').value; const r = document.getElementById('rate-musicos-2').value;
+    agregarFila(2, "Personal de Ejecución - Músicos de Sesión (Tarifa B)", `${m} Músico(s)`, formatCOP(r), m*r);
+  }
+  
+  if (document.getElementById('chk-ensamble-percu').checked) {
+    const j = document.getElementById('num-ensamble-percu').value; const r = document.getElementById('rate-ensamble-percu').value;
+    agregarFila(2, "Personal de Ejecución - Ensamble de Percusión (3 Músicos)", `${j} Jornada(s)`, formatCOP(r), j*r);
+  }
+
+  if (document.getElementById('chk-maquetacion').checked) {
+    const n = document.getElementById('name-maquetacion').value.trim(); const r = document.getElementById('rate-maquetacion').value;
+    agregarFila(3, `Preproducción - Maquetación ${n ? '['+n+']' : ''}`, `${cantTemas} Tema(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-dir-mus').checked) {
+    const n = document.getElementById('name-dir-mus').value.trim(); const r = document.getElementById('rate-dir-mus').value;
+    agregarFila(3, `Roles Creativos - Dirección Musical ${n ? '['+n+']' : ''}`, `${cantTemas} Tema(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-arreglos').checked) {
+    const n = document.getElementById('name-arreglos').value.trim(); const r = document.getElementById('rate-arreglos').value;
+    agregarFila(3, `Roles Creativos - Co-Arreglos / Apertura ${n ? '['+n+']' : ''}`, `${cantTemas} Tema(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-edicion').checked) {
+    const n = document.getElementById('name-edicion').value.trim(); const r = document.getElementById('rate-edicion').value;
+    agregarFila(3, `Postproducción de Audio - Edición ${n ? '['+n+']' : ''}`, `${cantTemas} Tema(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-mezcla').checked) {
+    const n = document.getElementById('name-mezcla').value.trim(); const r = document.getElementById('rate-mezcla').value;
+    agregarFila(3, `Postproducción de Audio - Mezcla Profesional ${n ? '['+n+']' : ''}`, `${cantTemas} Track(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-master').checked) {
+    const n = document.getElementById('name-master').value.trim(); const r = document.getElementById('rate-master').value;
+    agregarFila(3, `Postproducción de Audio - Masterización ${n ? '['+n+']' : ''}`, `${cantTemas} Track(s)`, formatCOP(r), cantTemas*r);
+  }
+
+  const tieneItems = grupos.some(g => g.filas.length > 0);
+  if (!tieneItems) {
+    alert("Selecciona al menos un rubro operativo para exportar el documento.");
+    return;
+  }
+
+  grupos.forEach(g => {
+    if (g.filas.length === 0) return;
+    html += `
+      <tr class="print-group-header">
+        <td colspan="4">
+          <div class="print-group-header-content">
+            ${g.icon}
+            <span>${g.nombre}</span>
+          </div>
+        </td>
+      </tr>`;
+    html += g.filas.join('');
+    html += `<tr class="print-group-subtotal"><td colspan="3">Subtotal Neto Parcial</td><td style="font-family: var(--M); font-size: 11.5px; white-space: nowrap;">${formatCOP(g.subtotal)}</td></tr>`;
+  });
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  if (notas) {
+    html += `
+      <div style="margin-top: 10px; font-size: 11.5px; width: 50%; float: left; border-left: 3px solid #C4982C; padding-left: 12px; line-height: 1.5;">
+        <strong style="font-family: var(--M); font-size: 9.5px; text-transform: uppercase; color: #7A7060; letter-spacing: 0.05em; display:block; margin-bottom:4px;">Distribución Operativa de Agenda & Notas</strong>
+        <p style="white-space: pre-wrap; color: #333; font-family: var(--S);">${notas}</p>
+      </div>
+    `;
+  }
+
+  html += `
+    <div class="print-footer-container">
+      <div class="print-footer-grid">
+        <div style="font-family: var(--M); font-size: 11px; color: #111111; line-height: 1.4; letter-spacing: 0.05em; padding-top: 6px; text-transform: uppercase;">
+          <strong>AUDIOLINK / MARTO</strong><br>
+          MARTIN ZAMBRANO<br>
+          <span style="font-size: 10px; color: #555; text-transform: none; font-family: var(--M);">MARTOWAVE@GMAIL.COM</span>
+        </div>
+        
+        <div class="print-totals">
+          <div class="print-totals-line"><span>Subtotal Rubros:</span><span>${document.getElementById('val-subtotal').innerText}</span></div>
+          <div class="print-totals-line"><span>Honorarios Prod. General (${document.getElementById('num-honorarios').value}%):</span><span>${document.getElementById('val-honorarios').innerText}</span></div>
+  `;
+
+  if (parseFloat(document.getElementById('num-iva').value) > 0) {
+    html += `<div class="print-totals-line"><span>Impuestos / Retenciones (${document.getElementById('num-iva').value}%):</span><span>${document.getElementById('val-iva').innerText}</span></div>`;
+  }
+
+  html += `
+          <div class="print-totals-line bold"><span>Inversión Estimada Total:</span><span>${document.getElementById('total-general').innerText}</span></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('print-view').innerHTML = html;
+  window.print();
+}
+
+window.onload = function() {
+  cargarBorrador();
+  actualizarNombresSalas();
+  validarYCalcular();
+};
+
+/* ===================================================================
+   INTEGRACIÓN CON EL ECOSISTEMA (v8) — no toca ninguna función de arriba.
+   1) Guard de sesión: mismo patrón de login.html/proyecto.html.
+   2) Vincula esta cotización a un proyecto real de Firestore (por ?id=
+      en la URL, o eligiéndolo del selector si se abre suelto).
+   3) "Guardar en proyecto" arma un items[] plano (concepto/cantidad/precio)
+      —igual al formato que ya lee proyecto.html— y lo escribe en
+      proyectos/{id}/cotizaciones, respetando firestore.rules (esStaff()).
+   =================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
+  authDomain: "audiolink-44abd.firebaseapp.com",
+  projectId: "audiolink-44abd",
+  storageBucket: "audiolink-44abd.firebasestorage.app",
+  messagingSenderId: "497341329998",
+  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const proyectosRef = db.collection('proyectos');
+
+let proyectoVinculadoId = null;
+let proyectoVinculadoData = null;
+let proyectosDisponibles = [];
+
+// ---------- GUARD DE SESIÓN (idéntico a proyecto.html) ----------
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    window.location.href = 'login.html';
+    return;
+  }
+  try {
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if (!doc.exists || doc.data().activo !== true) {
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+    iniciarVinculoProyecto();
+  } catch (e) {
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+// ---------- VÍNCULO CON PROYECTO ----------
+function iniciarVinculoProyecto() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const idParam = urlParams.get('id');
+
+  proyectosRef.orderBy('creadoEn', 'desc').onSnapshot(snap => {
+    proyectosDisponibles = [];
+    snap.forEach(doc => proyectosDisponibles.push({ id: doc.id, ...doc.data() }));
+    poblarSelectorProyectos(idParam);
+  }, err => console.error('Error cargando proyectos:', err));
+}
+
+function poblarSelectorProyectos(idParamInicial) {
+  const sel = document.getElementById('selector-proyecto-vinculo');
+  const seleccionActual = proyectoVinculadoId || idParamInicial || '';
+  sel.innerHTML = '<option value="">— Sin vincular (no se podrá guardar en Firestore) —</option>' +
+    proyectosDisponibles.map(p =>
+      `<option value="${p.id}">${(p.nombre || 'Sin nombre').replace(/</g,'&lt;')} — ${(p.clienteArtista || '—').replace(/</g,'&lt;')}</option>`
+    ).join('');
+
+  if (seleccionActual && proyectosDisponibles.some(p => p.id === seleccionActual)) {
+    sel.value = seleccionActual;
+    if (proyectoVinculadoId !== seleccionActual) {
+      proyectoVinculadoId = seleccionActual;
+      aplicarDatosProyectoVinculado();
+    }
+  }
+}
+
+function cambiarProyectoVinculado() {
+  const sel = document.getElementById('selector-proyecto-vinculo');
+  proyectoVinculadoId = sel.value || null;
+  aplicarDatosProyectoVinculado();
+}
+
+function aplicarDatosProyectoVinculado() {
+  proyectoVinculadoData = proyectosDisponibles.find(p => p.id === proyectoVinculadoId) || null;
+  if (proyectoVinculadoData) {
+    const campoCliente = document.getElementById('client-name');
+    const campoTema = document.getElementById('track-name');
+    if (!campoCliente.value.trim()) campoCliente.value = proyectoVinculadoData.clienteArtista || '';
+    if (!campoTema.value.trim()) campoTema.value = proyectoVinculadoData.nombre || '';
+  }
+  validarYCalcular();
+  const btnPdf = document.getElementById('btn-pdf');
+  const btnGuardar = document.getElementById('btn-guardar-proyecto');
+  if (btnPdf && btnGuardar) btnGuardar.disabled = btnPdf.disabled || !proyectoVinculadoId;
+}
+
+// ---------- RECOLECCIÓN PLANA DE ÍTEMS (independiente de exportarPDF) ----------
+// Duplica intencionalmente las mismas condiciones de validarYCalcular()/
+// exportarPDF() en vez de reescribirlas, para no arriesgar esas dos
+// funciones que ya funcionan. Devuelve el mismo formato items[] que usa
+// el Cotizador simple de proyecto.html: {concepto, cantidad, precio}.
+function recolectarItemsPlanos() {
+  const items = [];
+  const cantTemas = parseInt(document.getElementById('track-qty').value || 1);
+
+  function push(concepto, cantidad, precio) {
+    if (cantidad > 0 && precio >= 0) items.push({ concepto, cantidad, precio });
+  }
+
+  if (document.getElementById('chk-sala-a').checked) {
+    push(`Alquiler de Infraestructura - ${document.getElementById('label-sala-a').innerText}`,
+      Number(document.getElementById('num-sala-a').value) || 0, Number(document.getElementById('rate-sala-a').value) || 0);
+  }
+  if (document.getElementById('chk-sala-b').checked) {
+    push(`Alquiler de Infraestructura - ${document.getElementById('label-sala-b').innerText}`,
+      Number(document.getElementById('num-sala-b').value) || 0, Number(document.getElementById('rate-sala-b').value) || 0);
+  }
+  if (document.getElementById('chk-sala-c').checked) {
+    push(`Alquiler de Infraestructura - ${document.getElementById('label-sala-c').innerText}`,
+      Number(document.getElementById('num-sala-c').value) || 0, Number(document.getElementById('rate-sala-c').value) || 0);
+  }
+
+  document.querySelectorAll('.backline-row').forEach(row => {
+    const chk = row.querySelector('.chk-backline');
+    if (chk && chk.checked) {
+      const label = row.querySelector('label').innerText;
+      const d = Number(document.getElementById(chk.getAttribute('data-num')).value) || 0;
+      const r = Number(document.getElementById(chk.getAttribute('data-rate')).value) || 0;
+      push(`Backline - [${label}]`, d, r);
+    }
+  });
+
+  if (document.getElementById('chk-ing').checked) {
+    const n = document.getElementById('name-ing').value.trim();
+    push(`Soporte Técnico - Ingeniería de Grabación ${n ? '['+n+']' : ''}`,
+      Number(document.getElementById('num-ing').value) || 0, Number(document.getElementById('rate-ing').value) || 0);
+  }
+  if (document.getElementById('chk-ensamble').checked) {
+    const ensayos = Number(document.getElementById('num-ensayos').value) || 0;
+    const personas = Number(document.getElementById('num-personas-ensamble').value) || 0;
+    push('Preproducción Logística - Etapa de Ensamble', ensayos * personas, Number(document.getElementById('rate-ensamble').value) || 0);
+  }
+  if (document.getElementById('chk-musicos-1').checked) {
+    push('Personal de Ejecución - Músicos de Sesión (Tarifa A)',
+      Number(document.getElementById('num-canales-1').value) || 0, Number(document.getElementById('rate-musicos-1').value) || 0);
+  }
+  if (document.getElementById('chk-musicos-2').checked) {
+    push('Personal de Ejecución - Músicos de Sesión (Tarifa B)',
+      Number(document.getElementById('num-canales-2').value) || 0, Number(document.getElementById('rate-musicos-2').value) || 0);
+  }
+  if (document.getElementById('chk-ensamble-percu').checked) {
+    push('Personal de Ejecución - Ensamble de Percusión (3 Músicos)',
+      Number(document.getElementById('num-ensamble-percu').value) || 0, Number(document.getElementById('rate-ensamble-percu').value) || 0);
+  }
+  if (document.getElementById('chk-maquetacion').checked) {
+    const n = document.getElementById('name-maquetacion').value.trim();
+    push(`Preproducción - Maquetación ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-maquetacion').value) || 0);
+  }
+  if (document.getElementById('chk-dir-mus').checked) {
+    const n = document.getElementById('name-dir-mus').value.trim();
+    push(`Roles Creativos - Dirección Musical ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-dir-mus').value) || 0);
+  }
+  if (document.getElementById('chk-arreglos').checked) {
+    const n = document.getElementById('name-arreglos').value.trim();
+    push(`Roles Creativos - Co-Arreglos / Apertura ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-arreglos').value) || 0);
+  }
+  if (document.getElementById('chk-edicion').checked) {
+    const n = document.getElementById('name-edicion').value.trim();
+    push(`Postproducción de Audio - Edición ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-edicion').value) || 0);
+  }
+  if (document.getElementById('chk-mezcla').checked) {
+    const n = document.getElementById('name-mezcla').value.trim();
+    push(`Postproducción de Audio - Mezcla Profesional ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-mezcla').value) || 0);
+  }
+  if (document.getElementById('chk-master').checked) {
+    const n = document.getElementById('name-master').value.trim();
+    push(`Postproducción de Audio - Masterización ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-master').value) || 0);
+  }
+
+  const subtotal = items.reduce((acc, it) => acc + it.cantidad * it.precio, 0);
+  const pctHonorarios = Number(document.getElementById('num-honorarios').value) || 0;
+  const honorarios = subtotal * (pctHonorarios / 100);
+  if (honorarios > 0) push(`Honorarios Producción General y Logística (${pctHonorarios}%)`, 1, honorarios);
+
+  const pctIva = Number(document.getElementById('num-iva').value) || 0;
+  const subtotalConHonorarios = subtotal + honorarios;
+  const iva = subtotalConHonorarios * (pctIva / 100);
+  if (iva > 0) push(`Impuestos / Retenciones (${pctIva}%)`, 1, iva);
+
+  const total = items.reduce((acc, it) => acc + it.cantidad * it.precio, 0);
+  return { items, total };
+}
+
+async function guardarCotizacionEnProyecto() {
+  if (!proyectoVinculadoId) {
+    alert('Selecciona primero un proyecto para vincular esta cotización.');
+    return;
+  }
+  const { items, total } = recolectarItemsPlanos();
+  if (items.length === 0) {
+    alert('Agrega al menos un rubro operativo antes de guardar.');
+    return;
+  }
+  const btn = document.getElementById('btn-guardar-proyecto');
+  btn.disabled = true;
+  try {
+    await proyectosRef.doc(proyectoVinculadoId).collection('cotizaciones').add({
+      estado: 'borrador',
+      validez: null,
+      notas: document.getElementById('agenda-notes').value.trim(),
+      items,
+      total,
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert('Cotización guardada en el proyecto. Ya aparece en el listado de cotizaciones de proyecto.html.');
+  } catch (err) {
+    console.error(err);
+    alert('Error guardando la cotización en el proyecto. Revisa la consola.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Habilita/deshabilita el botón de guardado junto con el de PDF, sin
+// modificar la función validarYCalcular() original: se "engancha" al mismo
+// evento observando el botón de PDF ya existente.
+const _btnPdfObservado = document.getElementById('btn-pdf');
+if (_btnPdfObservado) {
+  new MutationObserver(() => {
+    const btnGuardar = document.getElementById('btn-guardar-proyecto');
+    if (btnGuardar) btnGuardar.disabled = _btnPdfObservado.disabled || !proyectoVinculadoId;
+  }).observe(_btnPdfObservado, { attributes: true, attributeFilter: ['disabled'] });
+}
+</script>
+
+</body>
+</html>
