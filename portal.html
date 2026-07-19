@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Portal de Clientes</title>
-<!-- AUDIOLINK · portal.html · v1.1
+<!-- AUDIOLINK · portal.html · v1.2
+     V1.2: se agregan los créditos de diseño (Marto 🧠 · martowave@gmail.com)
+     discretos al pie de la pantalla del portal, igual que en el resto del
+     ecosistema. Esta hoja NO recibe la sidebar/bottomnav de navegación
+     interna (proyecto/logistica/pagos v2.7/v1.4/v1.2) porque es la vista
+     del cliente final, que no navega entre módulos internos — su header
+     minimalista (marca + tema + salir) ya estaba correcto y se dejó igual.
+     No se tocó ninguna función existente.
      V1.1: se unifica tipografía con cotizador.html/ICESI (Playfair Display
      + DM Sans + JetBrains Mono). Solo cambia font-family en :root/body/h1;
      no se tocó ningún color, layout ni función existente. -->
@@ -174,6 +181,10 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
   header{padding:14px 16px;}
   .brand h1{font-size:1.05rem;}
 }
+.portal-credit{
+  text-align:center;padding:18px 20px 24px;font-size:0.68rem;color:var(--faint);
+  letter-spacing:0.02em;
+}
 </style>
 </head>
 <body>
@@ -236,6 +247,7 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
       <div class="empty" id="emptySesiones" style="display:none;">No hay sesiones registradas para este proyecto.</div>
     </div>
   </main>
+  <div class="portal-credit">Marto 🧠 · martowave@gmail.com</div>
 </div>
 
 <script>

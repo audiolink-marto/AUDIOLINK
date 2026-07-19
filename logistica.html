@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Logística</title>
-<!-- AUDIOLINK · logistica.html · v1.3
+<!-- AUDIOLINK · logistica.html · v1.4
+     V1.4: se replica la arquitectura de navegación V2.7 de proyecto.html —
+     sidebar fija desktop (heredada de Andamios El Progreso Central,
+     colapsable a solo-iconos) + mobile topbar/bottomnav/panel "···"
+     (heredado de PsicoGestión). Se agregan también los créditos de diseño
+     (Marto 🧠 · martowave@gmail.com) discretos al pie del sidebar y del
+     panel móvil. No se tocó ninguna función de Firestore, PDF, ni lógica
+     de sesiones/modales existente — solo estructura de navegación.
      V1.3: se unifica tipografía con cotizador.html/ICESI (Playfair Display
      + DM Sans + JetBrains Mono). Solo cambia font-family en :root/body/h1;
      no se tocó ninguna otra función ni estilo existente.
@@ -89,11 +96,7 @@ header{
 .header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
 .btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
 @media (max-width:640px){
-  header{padding:14px 16px;}
-  h1{font-size:1.05rem;}
-  nav.links{margin-left:8px;}
-  nav.links a{padding:5px 8px;font-size:0.76rem;}
-  .header-actions{width:100%;justify-content:flex-end;}
+  header{display:none;}
   .row2{grid-template-columns:1fr;}
   .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .pdf-actions .btn{width:100%;}
@@ -104,6 +107,87 @@ header{
   .modal-actions button{flex:1 1 auto;}
   #btnEliminar{flex:1 1 100%;order:3;}
 }
+/* ===== NAV V1.4: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
+:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
+  background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;z-index:90;overflow:hidden;
+  transition:width 0.18s ease;
+}
+.sidebar.collapsed{width:var(--sb-c);}
+.sb-brand{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
+}
+.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
+.sidebar.collapsed .sb-brand h1{opacity:0;}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-item{
+  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
+  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
+  transition:background 0.15s,color 0.15s;
+}
+.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
+.sb-item:hover{background:var(--surf-light);color:var(--txt);}
+.sb-item.active{background:var(--gold-bg);color:var(--gold);}
+.sidebar.collapsed .sb-item span{display:none;}
+.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.sb-toggle{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
+  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
+}
+.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
+.sb-toggle i{transition:transform 0.2s;display:inline-block;}
+.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
+.sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
+.sidebar.collapsed .sb-credit{opacity:0;}
+.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
+.main-wrap.expanded{margin-left:var(--sb-c);}
+
+.mobile-topbar{display:none;}
+.mobile-bottomnav{display:none;}
+.mas-mobile-panel{display:none;}
+
+@media (max-width:768px){
+  .sidebar{display:none;}
+  .main-wrap{margin-left:0;}
+  header{display:none;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
+    position:relative;z-index:1;
+  }
+  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
+  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  main{padding-bottom:78px !important;}
+  .mobile-bottomnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
+    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
+  }
+  .mobile-bottomnav a{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
+  }
+  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
+  .mobile-bottomnav a.active{color:var(--gold);}
+  .mas-mobile-panel{
+    display:none;position:fixed;top:60px;right:14px;z-index:81;
+    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
+  }
+  .mas-mobile-panel.show{display:block;}
+  .mas-mobile-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
+  }
+  .mas-mobile-item:hover{background:var(--surf-light);}
+  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
+}
+
 .brand{display:flex;align-items:center;gap:14px;}
 nav.links{display:flex;gap:8px;margin-left:20px;}
 nav.links a{
@@ -224,22 +308,54 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   </svg>
 </div>
 
-<header>
+<!-- SIDEBAR DESKTOP (>=769px) — patrón heredado de Andamios El Progreso Central -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+    <h1>AUDIOLINK</h1>
+  </div>
+  <nav class="sb-nav">
+    <a href="index.html" class="sb-item"><i>🏠</i><span>Dashboard</span></a>
+    <a href="proyecto.html" class="sb-item"><i>📁</i><span>Proyectos</span></a>
+    <a href="logistica.html" class="sb-item active"><i>🎚️</i><span>Logística</span></a>
+    <a href="pagos.html" class="sb-item"><i>💳</i><span>Pagos</span></a>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-item" onclick="toggleTema()" id="btnTemaSb"><i>🌙</i><span>Tema</span></div>
+    <div class="sb-item" onclick="cerrarSesion()"><i>⏻</i><span>Cerrar sesión</span></div>
+    <div class="sb-toggle" id="sidebarToggle"><i>«</i><span>Colapsar</span></div>
+    <div class="sb-credit">Marto 🧠 · martowave@gmail.com</div>
+  </div>
+</aside>
+
+<!-- MOBILE TOPBAR (<=768px) -->
+<div class="mobile-topbar">
   <div class="brand">
     <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
     <h1>AUDIOLINK</h1>
-    <nav class="links">
-      <a href="index.html">Dashboard</a>
-      <a href="proyecto.html">Proyectos</a>
-      <a href="logistica.html" class="active">Logística</a>
-      <a href="pagos.html">Pagos</a>
-    </nav>
   </div>
-  <div class="header-actions">
-    <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
-    <button class="btn btn-ghost btn-icon" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+  <div class="mobile-topbar-actions">
+    <button class="btn btn-ghost btn-icon" onclick="toggleMasMobile()" title="Más opciones">⋮</button>
   </div>
-</header>
+</div>
+
+<!-- PANEL "···" MOBILE — patrón heredado de PsicoGestión -->
+<div class="mas-mobile-panel" id="masMobilePanel">
+  <div class="mas-mobile-item" onclick="toggleTema()"><i>🌙</i>Cambiar tema</div>
+  <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
+  <div class="mas-mobile-credit">Marto 🧠 · martowave@gmail.com</div>
+</div>
+
+<!-- BOTTOM NAV MOBILE (<=768px) — patrón heredado de PsicoGestión -->
+<nav class="mobile-bottomnav">
+  <a href="index.html"><i>🏠</i>Dashboard</a>
+  <a href="proyecto.html"><i>📁</i>Proyectos</a>
+  <a href="logistica.html" class="active"><i>🎚️</i>Logística</a>
+  <a href="pagos.html"><i>💳</i>Pagos</a>
+</nav>
+
+<div class="main-wrap" id="mainWrap">
+<header style="display:none;"></header>
 
 <main>
 
@@ -267,6 +383,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   <div class="empty" id="sinProyecto" style="display:none;">Selecciona un proyecto desde el listado de Proyectos para ver o crear sus sesiones.</div>
 
 </main>
+</div><!-- /main-wrap -->
 
 <!-- MODAL CREAR/EDITAR SESIÓN -->
 <div class="modal-bg" id="modalBg">
@@ -358,16 +475,48 @@ function cerrarSesion(){
 }
 
 // ============ TEMA ============
+function actualizarIconoTema(tema){
+  const icono = tema === 'dark' ? '🌙' : '☀️';
+  const sbIcon = document.querySelector('#btnTemaSb i');
+  if(sbIcon) sbIcon.textContent = icono;
+}
 function toggleTema(){
   const actual = document.documentElement.getAttribute('data-tema') || 'dark';
   const nuevo = actual === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-tema', nuevo);
   localStorage.setItem('audiolink_tema', nuevo);
-  document.getElementById('btnTema').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+  actualizarIconoTema(nuevo);
 }
 document.addEventListener('DOMContentLoaded', () => {
   const t = localStorage.getItem('audiolink_tema') || 'dark';
-  document.getElementById('btnTema').textContent = t === 'dark' ? '🌙' : '☀️';
+  actualizarIconoTema(t);
+});
+
+// ============ NAV V1.4: sidebar colapsable (desktop) + panel "···" (mobile) ============
+(function(){
+  document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.getElementById('sidebar');
+    const mainWrap = document.getElementById('mainWrap');
+    const toggle = document.getElementById('sidebarToggle');
+    if(!sidebar || !mainWrap || !toggle) return;
+    const colapsado = localStorage.getItem('audiolink_sb_colapsado') === '1';
+    if(colapsado){ sidebar.classList.add('collapsed'); mainWrap.classList.add('expanded'); }
+    toggle.addEventListener('click', () => {
+      const ahora = sidebar.classList.toggle('collapsed');
+      mainWrap.classList.toggle('expanded', ahora);
+      localStorage.setItem('audiolink_sb_colapsado', ahora ? '1' : '0');
+    });
+  });
+})();
+function toggleMasMobile(){
+  const panel = document.getElementById('masMobilePanel');
+  if(panel) panel.classList.toggle('show');
+}
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('masMobilePanel');
+  if(!panel || !panel.classList.contains('show')) return;
+  const btn = e.target.closest('.mobile-topbar-actions');
+  if(!panel.contains(e.target) && !btn) panel.classList.remove('show');
 });
 
 // ============ ESTADO ============
