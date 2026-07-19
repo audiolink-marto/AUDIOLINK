@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Acceso</title>
-<!-- AUDIOLINK · login.html · v1.0 -->
+<!-- AUDIOLINK · login.html · v1.5 -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -38,7 +38,50 @@ body::after{
   position:fixed;inset:0;pointer-events:none;opacity:0.025;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+/* ===== FONDO ANIMADO — RED DE NEURONAS EN DORADO =====
+   Adaptado del patrón de PsicoGestión (v1.9.22-25): SVG generado por JS con
+   nodos conectados a sus vecinos más cercanos, con pulso + chispa eléctrica
+   en cada nodo y "disparo" animado en cada línea. Paleta ajustada a Oro
+   Profundo (dorado + variantes) en vez de verde/ámbar. */
+.login-bg-shimmer{
+  position:absolute; inset:0; z-index:0; opacity:0.5; pointer-events:none;
+}
+.login-bg-shimmer svg{width:100%; height:100%; display:block;}
+.neuron-node{
+  animation:neuronPulse var(--d, 3s) ease-in-out infinite;
+  animation-delay:var(--delay, 0s); transform-origin:center;
+  transform-box:fill-box; filter:drop-shadow(0 0 3px currentColor);
+}
+.neuron-line{
+  stroke-dasharray:var(--len) var(--len); stroke-dashoffset:var(--len);
+  animation:neuronFire var(--fd, 4s) ease-in-out infinite;
+  animation-delay:var(--fdelay, 0s);
+  filter:drop-shadow(0 0 2px currentColor);
+}
+@keyframes neuronPulse{
+  0%,100%{opacity:.3; transform:scale(.7);}
+  50%{opacity:1; transform:scale(1.35);}
+}
+.neuron-spark{
+  fill:#fff; transform-origin:center; transform-box:fill-box;
+  animation:sparkFlash var(--sd, 3.5s) cubic-bezier(.16,1,.3,1) infinite;
+  animation-delay:var(--sdelay, 0s);
+}
+@keyframes sparkFlash{
+  0%,86%,100%{opacity:0; transform:scale(.2);}
+  90%{opacity:1; transform:scale(2.4);}
+  94%{opacity:.5; transform:scale(1.5);}
+  97%{opacity:0; transform:scale(.6);}
+}
+@keyframes neuronFire{
+  0%{stroke-dashoffset:var(--len); opacity:0;}
+  30%{opacity:1;}
+  70%{opacity:1;}
+  100%{stroke-dashoffset:0; opacity:0;}
+}
 .box{
+  position:relative;
+  z-index:1;
   background:var(--surf);
   border:1px solid var(--brd);
   border-radius:12px;
@@ -97,6 +140,8 @@ h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);text
 </head>
 <body>
 
+<div class="login-bg-shimmer" id="login-bg-shimmer"></div>
+
 <div class="box">
   <div class="brand">
     <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
@@ -115,6 +160,64 @@ h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);text
   <button class="btn" id="btnLogin" onclick="login()">Ingresar</button>
   <div class="msg" id="msg"></div>
 </div>
+
+<script>
+/* ===== FONDO ANIMADO — RED DE NEURONAS EN DORADO =====
+   Genera un SVG con nodos conectados a sus 3 vecinos más cercanos, cada uno
+   con pulso + chispa eléctrica, y líneas que "disparan" un pulso en loop.
+   Paleta en tonos dorados (Oro Profundo) usando las variables del tema. */
+(function generarFondoLogin(){
+  const cont = document.getElementById('login-bg-shimmer');
+  if(!cont) return;
+  const rect = cont.getBoundingClientRect();
+  const W = Math.max(rect.width, 100), H = Math.max(rect.height, 100);
+  const N = 45;
+  const pts = Array.from({length:N}, () => ({x:Math.random()*W, y:Math.random()*H}));
+  const colores = ['#c9a24b', '#e8c77a', '#f0ede6', '#d9b565'];
+  let lineas = '', barras = '';
+  pts.forEach((p,i) => {
+    const vecinos = pts
+      .map((q,j) => ({j, d: j===i ? Infinity : Math.hypot(p.x-q.x, p.y-q.y)}))
+      .sort((a,b) => a.d-b.d)
+      .slice(0,3);
+    vecinos.forEach(({j,d}) => {
+      if(j <= i) return;
+      const q = pts[j];
+      const fd = (2.5 + Math.random()*3).toFixed(2);
+      const fdelay = (Math.random()*4).toFixed(2);
+      const color = colores[Math.floor(Math.random()*colores.length)];
+      lineas += `<line x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${q.x.toFixed(1)}" y2="${q.y.toFixed(1)}" class="neuron-line" stroke="${color}" stroke-width="0.9" style="--len:${d.toFixed(1)};--fd:${fd}s;--fdelay:${fdelay}s;color:${color};"/>`;
+    });
+  });
+  pts.forEach(p => {
+    // Radio variable simulando "amplitud de señal": la mayoría son sutiles,
+    // pero algunos pocos nodos son más grandes, como picos de audio.
+    const esPico = Math.random() < 0.18;
+    const r = esPico ? (3.2 + Math.random()*2.4).toFixed(2) : (1.4 + Math.random()*1.4).toFixed(2);
+    const d = (2 + Math.random()*3).toFixed(2);
+    const delay = (Math.random()*3).toFixed(2);
+    const color = colores[Math.floor(Math.random()*colores.length)];
+    barras += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${color}" class="neuron-node" style="--d:${d}s;--delay:${delay}s;color:${color};"/>`;
+    const sd = (2.5 + Math.random()*3.5).toFixed(2);
+    const sdelay = (Math.random()*5).toFixed(2);
+    const rSpark = (Number(r) * 0.6).toFixed(2);
+    barras += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rSpark}" class="neuron-spark" style="--sd:${sd}s;--sdelay:${sdelay}s;filter:drop-shadow(0 0 4px ${color}) drop-shadow(0 0 9px ${color});"/>`;
+  });
+
+  // Onda de audio sutil de fondo, tipo waveform, cruzando la pantalla
+  const midY = H * 0.5;
+  let ondaPath = `M0,${midY.toFixed(1)} `;
+  const segs = 24;
+  for(let s = 1; s <= segs; s++){
+    const x = (W / segs) * s;
+    const yOff = (Math.random() - 0.5) * H * 0.5;
+    ondaPath += `Q${(x - (W/segs)/2).toFixed(1)},${(midY + yOff).toFixed(1)} ${x.toFixed(1)},${midY.toFixed(1)} `;
+  }
+  const onda = `<path d="${ondaPath}" fill="none" stroke="#c9a24b" stroke-width="1" opacity="0.12"/>`;
+
+  cont.innerHTML = `<svg viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}">${onda}${lineas}${barras}</svg>`;
+})();
+</script>
 
 <script>
 const firebaseConfig = {
