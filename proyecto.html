@@ -4,7 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v2.0
+<!-- AUDIOLINK · proyecto.html · v2.2
+     V2.2: se agrega el "Cotizador" dentro del detalle de cada proyecto: modal
+     con ítems (concepto/cantidad/precio unitario), total en vivo, estado
+     (borrador/enviada/aceptada) y listado de cotizaciones previas del mismo
+     proyecto para reabrir/editar/duplicar. Se guarda en la subcolección
+     proyectos/{id}/cotizaciones (mismo patrón que sesiones en logistica.html).
+     Genera PDF reutilizando el estilo de marca de exportarPDF. Solo equipo
+     interno (mismo guard existente). No se tocó ninguna otra función ni
+     estilo existente.
+     V2.1: se agrega el modal "Equipo interno" (agregar/quitar correos con
+     acceso administrativo), adaptado del mismo patrón usado en PsicoGestión:
+     colección equipoInterno con doc id = correo, campo agregadoEn, y activo:true
+     para que el guard de sesión existente (que ya exige activo===true en
+     login.html/proyecto.html/logistica.html/index.html/portal.html) lo
+     reconozca sin tocar esos archivos. Quitar acceso borra el documento
+     completo (igual que Psico). No se tocó ninguna otra función ni estilo
+     existente.
      V2.0: se agrega el modal "Portal de clientes" (activar/reenviar/revocar/vista
      previa), adaptado del mismo patrón usado en PsicoGestión (reset-email +
      instancia secundaria de Firebase para no cerrar la sesión de staff). Se
@@ -243,6 +259,23 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   background:transparent;border:1px solid var(--brd);color:var(--err);
   border-radius:6px;padding:0 12px;cursor:pointer;
 }
+.item-row{display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;margin-bottom:8px;align-items:center;}
+.item-row input{width:100%;}
+.item-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 8px;cursor:pointer;height:38px;
+}
+.cotiz-total{
+  display:flex;justify-content:flex-end;align-items:center;gap:10px;
+  margin-top:10px;padding-top:12px;border-top:1px solid var(--brd);
+  font-size:1rem;font-weight:600;color:var(--gold);
+}
+.cotiz-item-lista{
+  border:1px solid var(--brd);border-radius:8px;padding:12px 14px;
+  margin-bottom:8px;background:var(--surf-light);cursor:pointer;
+}
+.cotiz-item-lista:hover{border-color:var(--gold);}
+.cotiz-item-lista .top{display:flex;justify-content:space-between;align-items:center;}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
 .link-add{color:var(--gold);font-size:0.8rem;cursor:pointer;display:inline-block;margin-top:4px;}
 
@@ -302,6 +335,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   <div class="header-actions">
     <button class="btn" onclick="abrirModalNuevo()">+ Nuevo Proyecto</button>
     <button class="btn btn-ghost" onclick="abrirModalPortalClientes()">🔐 Portal de clientes</button>
+    <button class="btn btn-ghost" onclick="abrirModalEquipoInterno()">👤 Equipo interno</button>
     <div class="separador"></div>
     <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
     <button class="btn btn-ghost btn-icon" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
@@ -328,6 +362,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
       <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
       <button class="btn btn-ghost" onclick="editarProyectoActual()">✎ Editar</button>
       <button class="btn btn-ghost" onclick="verSesiones()">📅 Ver sesiones</button>
+      <button class="btn btn-ghost" onclick="abrirModalCotizador()">🧾 Cotizador</button>
     </div>
   </div>
 
@@ -436,6 +471,78 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cerrarModalPortalClientes()">Cerrar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL EQUIPO INTERNO (v2.1) -->
+<div class="modal-bg" id="modalEquipoBg">
+  <div class="modal">
+    <h2>👤 Equipo interno</h2>
+    <div class="row2">
+      <div class="field" style="margin-bottom:0;">
+        <input type="email" id="equipoNuevoCorreo" placeholder="correo@equipo.com">
+      </div>
+      <button class="btn" style="height:fit-content;" onclick="agregarEquipoInterno()">+ Agregar</button>
+    </div>
+    <div id="equipoErr" style="color:var(--err);font-size:0.82rem;margin:10px 0;"></div>
+    <div id="equipoLista" style="display:flex;flex-direction:column;gap:8px;max-height:45vh;overflow-y:auto;margin-top:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModalEquipoInterno()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COTIZADOR (v2.2) -->
+<div class="modal-bg" id="modalCotizadorBg">
+  <div class="modal" style="max-width:720px;">
+
+    <!-- Vista A: listado de cotizaciones del proyecto -->
+    <div id="cotizVistaListado">
+      <h2>🧾 Cotizaciones del proyecto</h2>
+      <div id="cotizListaVacio" class="empty" style="display:none;padding:30px;">Aún no hay cotizaciones para este proyecto.</div>
+      <div id="cotizLista"></div>
+      <div class="modal-actions" style="justify-content:space-between;">
+        <button class="btn btn-ghost" onclick="cerrarModalCotizador()">Cerrar</button>
+        <button class="btn" onclick="abrirFormularioCotizacion()">+ Nueva cotización</button>
+      </div>
+    </div>
+
+    <!-- Vista B: formulario de ítems -->
+    <div id="cotizVistaForm" style="display:none;">
+      <h2 id="cotizFormTitulo">Nueva cotización</h2>
+      <div class="row2">
+        <div class="field">
+          <label>Estado</label>
+          <select id="cotizEstado">
+            <option value="borrador">Borrador</option>
+            <option value="enviada">Enviada</option>
+            <option value="aceptada">Aceptada</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Validez de la oferta</label>
+          <input type="date" id="cotizValidez">
+        </div>
+      </div>
+      <div class="field">
+        <label>Ítems</label>
+        <div id="cotizItemsContainer"></div>
+        <span class="link-add" onclick="agregarFilaItem()">+ agregar ítem</span>
+      </div>
+      <div class="field">
+        <label>Notas / condiciones</label>
+        <textarea id="cotizNotas" placeholder="Ej: 50% anticipo, entrega en 15 días hábiles..."></textarea>
+      </div>
+      <div class="cotiz-total">Total: <span id="cotizTotalTxt">$0</span></div>
+      <div class="modal-actions" style="justify-content:space-between;">
+        <button class="btn btn-ghost" onclick="volverListadoCotizaciones()">← Volver</button>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost" onclick="guardarCotizacion(false)">Guardar</button>
+          <button class="btn" onclick="guardarCotizacion(true)">Guardar y generar PDF</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1038,6 +1145,335 @@ window._pcRevocar = async function(email, nuevoEstado){
 window._pcPreview = function(email){
   window.open(`portal.html?preview=${encodeURIComponent(email)}`, '_blank');
 };
+
+// ============ MODAL: EQUIPO INTERNO (v2.1) ============
+// Colección equipoInterno, id de documento = correo. Se guarda activo:true
+// porque el guard de sesión existente (login.html, proyecto.html, logistica.html,
+// index.html, portal.html) exige doc.data().activo === true. Mismo patrón de
+// PsicoGestión (agregadoEn), adaptado a ese requisito.
+function abrirModalEquipoInterno(){
+  document.getElementById('equipoErr').textContent = '';
+  document.getElementById('equipoNuevoCorreo').value = '';
+  cargarListaEquipoInterno();
+  document.getElementById('modalEquipoBg').classList.add('active');
+}
+
+function cerrarModalEquipoInterno(){
+  document.getElementById('modalEquipoBg').classList.remove('active');
+}
+
+async function cargarListaEquipoInterno(){
+  const cont = document.getElementById('equipoLista');
+  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  try{
+    const snap = await db.collection('equipoInterno').get();
+    if(snap.empty){
+      cont.innerHTML = '<div class="empty" style="padding:16px;">Sin correos registrados.</div>';
+      return;
+    }
+    cont.innerHTML = snap.docs.map(d => `
+      <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--brd);border-radius:8px;padding:10px 14px;background:var(--surf-light);">
+        <span style="font-size:0.88rem;">${escapeHtml(d.id)}</span>
+        <span style="color:var(--err);cursor:pointer;font-size:0.9rem;" onclick="window._eiQuitar('${d.id}')" title="Quitar acceso">✕</span>
+      </div>`).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:16px;">No pudimos cargar la lista.</div>';
+  }
+}
+
+async function agregarEquipoInterno(){
+  const errEl = document.getElementById('equipoErr');
+  errEl.textContent = '';
+  const correo = document.getElementById('equipoNuevoCorreo').value.trim().toLowerCase();
+  if(!correo || !correo.includes('@')){
+    errEl.textContent = 'Ingresa un correo válido.';
+    return;
+  }
+  try{
+    await db.collection('equipoInterno').doc(correo).set({
+      activo: true,
+      agregadoEn: new Date().toISOString()
+    });
+    document.getElementById('equipoNuevoCorreo').value = '';
+    cargarListaEquipoInterno();
+  } catch(err){
+    console.error(err);
+    errEl.textContent = 'No pudimos agregar el correo. Intenta de nuevo.';
+  }
+}
+
+window._eiQuitar = async function(correo){
+  if(auth.currentUser && correo === auth.currentUser.email){
+    alert('No puedes quitarte a ti mismo del equipo interno desde aquí.');
+    return;
+  }
+  if(!confirm(`¿Quitar a ${correo} del equipo interno? Perderá acceso administrativo.`)) return;
+  try{
+    await db.collection('equipoInterno').doc(correo).delete();
+    cargarListaEquipoInterno();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos eliminar el correo.');
+  }
+};
+
+// ============ COTIZADOR (v2.2) ============
+// Subcolección proyectos/{id}/cotizaciones, mismo patrón que sesiones en
+// logistica.html. Items: [{concepto, cantidad, precio}]. Total calculado
+// en vivo y guardado también en el doc para no recalcular al listar.
+let cotizacionesProyecto = [];
+let cotizacionActualId = null;
+
+function cotizacionesRef(){
+  return proyectosRef.doc(proyectoActualId).collection('cotizaciones');
+}
+
+function abrirModalCotizador(){
+  if(!proyectoActualId) return;
+  document.getElementById('cotizVistaForm').style.display = 'none';
+  document.getElementById('cotizVistaListado').style.display = 'block';
+  cargarListaCotizaciones();
+  document.getElementById('modalCotizadorBg').classList.add('active');
+}
+
+function cerrarModalCotizador(){
+  document.getElementById('modalCotizadorBg').classList.remove('active');
+}
+
+async function cargarListaCotizaciones(){
+  const cont = document.getElementById('cotizLista');
+  const vacio = document.getElementById('cotizListaVacio');
+  cont.innerHTML = '<div class="empty" style="padding:20px;">Cargando...</div>';
+  try{
+    const snap = await cotizacionesRef().orderBy('creadoEn', 'desc').get();
+    cotizacionesProyecto = [];
+    snap.forEach(d => cotizacionesProyecto.push({ id: d.id, ...d.data() }));
+    if(cotizacionesProyecto.length === 0){
+      cont.innerHTML = '';
+      vacio.style.display = 'block';
+      return;
+    }
+    vacio.style.display = 'none';
+    const ESTADO_LABEL = { borrador:'Borrador', enviada:'Enviada', aceptada:'Aceptada' };
+    const ESTADO_BADGE = { borrador:'warn', enviada:'ok', aceptada:'ok' };
+    cont.innerHTML = cotizacionesProyecto.map(c => {
+      const fecha = c.creadoEn && c.creadoEn.toDate ? c.creadoEn.toDate().toLocaleDateString('es-CO') : '—';
+      return `
+        <div class="cotiz-item-lista" onclick="abrirFormularioCotizacion('${c.id}')">
+          <div class="top">
+            <strong>$${(c.total || 0).toLocaleString('es-CO')}</strong>
+            <span class="badge ${ESTADO_BADGE[c.estado] || 'warn'}">${ESTADO_LABEL[c.estado] || 'Borrador'}</span>
+          </div>
+          <div style="color:var(--muted);font-size:0.8rem;margin-top:4px;">${(c.items||[]).length} ítem(s) · ${fecha}</div>
+        </div>`;
+    }).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:20px;">No pudimos cargar las cotizaciones.</div>';
+  }
+}
+
+function agregarFilaItem(concepto='', cantidad=1, precio=''){
+  const container = document.getElementById('cotizItemsContainer');
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Concepto (ej: Mezcla 5 temas)" class="item-concepto" value="${escapeHtml(concepto)}" oninput="recalcularTotalCotizacion()">
+    <input type="number" placeholder="Cant." min="0" step="1" class="item-cantidad" value="${cantidad}" oninput="recalcularTotalCotizacion()">
+    <input type="number" placeholder="Precio unit." min="0" class="item-precio" value="${precio}" oninput="recalcularTotalCotizacion()">
+    <button onclick="this.parentElement.remove(); recalcularTotalCotizacion();">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function recalcularTotalCotizacion(){
+  let total = 0;
+  document.querySelectorAll('#cotizItemsContainer .item-row').forEach(row => {
+    const cant = Number(row.querySelector('.item-cantidad').value) || 0;
+    const precio = Number(row.querySelector('.item-precio').value) || 0;
+    total += cant * precio;
+  });
+  document.getElementById('cotizTotalTxt').textContent = '$' + total.toLocaleString('es-CO');
+  return total;
+}
+
+function abrirFormularioCotizacion(id = null){
+  cotizacionActualId = id;
+  document.getElementById('cotizVistaListado').style.display = 'none';
+  document.getElementById('cotizVistaForm').style.display = 'block';
+  document.getElementById('cotizItemsContainer').innerHTML = '';
+
+  if(id){
+    const c = cotizacionesProyecto.find(x => x.id === id);
+    document.getElementById('cotizFormTitulo').textContent = 'Editar cotización';
+    document.getElementById('cotizEstado').value = c.estado || 'borrador';
+    document.getElementById('cotizValidez').value = c.validez || '';
+    document.getElementById('cotizNotas').value = c.notas || '';
+    if(c.items && c.items.length){
+      c.items.forEach(it => agregarFilaItem(it.concepto, it.cantidad, it.precio));
+    } else {
+      agregarFilaItem();
+    }
+  } else {
+    document.getElementById('cotizFormTitulo').textContent = 'Nueva cotización';
+    document.getElementById('cotizEstado').value = 'borrador';
+    document.getElementById('cotizValidez').value = '';
+    document.getElementById('cotizNotas').value = '';
+    agregarFilaItem();
+  }
+  recalcularTotalCotizacion();
+}
+
+function volverListadoCotizaciones(){
+  document.getElementById('cotizVistaForm').style.display = 'none';
+  document.getElementById('cotizVistaListado').style.display = 'block';
+  cargarListaCotizaciones();
+}
+
+function recolectarDatosCotizacion(){
+  const items = [];
+  document.querySelectorAll('#cotizItemsContainer .item-row').forEach(row => {
+    const concepto = row.querySelector('.item-concepto').value.trim();
+    const cantidad = Number(row.querySelector('.item-cantidad').value) || 0;
+    const precio = Number(row.querySelector('.item-precio').value) || 0;
+    if(concepto || cantidad || precio) items.push({ concepto, cantidad, precio });
+  });
+  return {
+    estado: document.getElementById('cotizEstado').value,
+    validez: document.getElementById('cotizValidez').value || null,
+    notas: document.getElementById('cotizNotas').value.trim(),
+    items,
+    total: items.reduce((acc, it) => acc + (it.cantidad * it.precio), 0)
+  };
+}
+
+async function guardarCotizacion(conPDF){
+  const data = recolectarDatosCotizacion();
+  if(data.items.length === 0){
+    alert('Agrega al menos un ítem a la cotización.');
+    return;
+  }
+  try{
+    let idGuardado = cotizacionActualId;
+    if(cotizacionActualId){
+      await cotizacionesRef().doc(cotizacionActualId).update(data);
+    } else {
+      data.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
+      const docRef = await cotizacionesRef().add(data);
+      idGuardado = docRef.id;
+      cotizacionActualId = idGuardado;
+    }
+    if(conPDF) generarPDFCotizacion(data);
+    volverListadoCotizaciones();
+  } catch(err){
+    console.error(err);
+    alert('Error guardando la cotización. Revisa la consola.');
+  }
+}
+
+function generarPDFCotizacion(data){
+  const p = proyectos.find(x => x.id === proyectoActualId);
+  if(!p) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const goldRGB = [201, 162, 75];
+  const darkRGB = [11, 11, 13];
+  const mutedRGB = [154, 151, 143];
+  const pageW = 210;
+  const marginX = 18;
+
+  doc.setFillColor(...darkRGB);
+  doc.rect(0, 0, pageW, 38, 'F');
+  doc.setDrawColor(...goldRGB);
+  doc.setLineWidth(0.6);
+  doc.line(0, 38, pageW, 38);
+  doc.setTextColor(...goldRGB);
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(20);
+  doc.text('AUDIOLINK', marginX, 20);
+  doc.setFontSize(8.5);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...mutedRGB);
+  doc.text('COTIZACIÓN', marginX, 28);
+  doc.setFontSize(8);
+  doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - marginX, 28, { align:'right' });
+
+  let y = 52;
+  doc.setTextColor(20, 20, 20);
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(17);
+  doc.text(p.nombre || 'Sin nombre', marginX, y);
+  y += 7;
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...mutedRGB);
+  doc.text(`Cliente/Artista: ${p.clienteArtista || '—'}`, marginX, y);
+  if(data.validez){
+    doc.text(`Válida hasta: ${new Date(data.validez).toLocaleDateString('es-CO')}`, pageW - marginX, y, { align:'right' });
+  }
+  y += 12;
+
+  // Tabla de ítems
+  doc.setFillColor(246, 244, 239);
+  doc.rect(marginX, y - 6, pageW - marginX*2, 9, 'F');
+  doc.setFontSize(8.5);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(140, 108, 40);
+  doc.text('CONCEPTO', marginX + 3, y);
+  doc.text('CANT.', marginX + 105, y);
+  doc.text('P. UNIT.', marginX + 130, y);
+  doc.text('SUBTOTAL', pageW - marginX - 3, y, { align:'right' });
+  y += 10;
+
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 40);
+  data.items.forEach(it => {
+    const subtotal = it.cantidad * it.precio;
+    doc.text(String(it.concepto || '—'), marginX + 3, y);
+    doc.text(String(it.cantidad), marginX + 105, y);
+    doc.text('$' + it.precio.toLocaleString('es-CO'), marginX + 130, y);
+    doc.text('$' + subtotal.toLocaleString('es-CO'), pageW - marginX - 3, y, { align:'right' });
+    y += 7;
+  });
+
+  y += 4;
+  doc.setDrawColor(230, 230, 230);
+  doc.line(marginX, y, pageW - marginX, y);
+  y += 10;
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...goldRGB);
+  doc.text('TOTAL: $' + data.total.toLocaleString('es-CO'), pageW - marginX, y, { align:'right' });
+
+  if(data.notas){
+    y += 14;
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(20, 20, 20);
+    doc.text('Notas / condiciones', marginX, y);
+    y += 6;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(70, 70, 70);
+    const splitNotas = doc.splitTextToSize(data.notas, pageW - marginX*2);
+    doc.text(splitNotas, marginX, y);
+  }
+
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setDrawColor(230, 230, 230);
+  doc.setLineWidth(0.2);
+  doc.line(marginX, pageHeight - 15, pageW - marginX, pageHeight - 15);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...mutedRGB);
+  doc.text('AUDIOLINK — Producción y Logística Musical', marginX, pageHeight - 10);
+  doc.text('Cotización sujeta a confirmación', pageW - marginX, pageHeight - 10, { align:'right' });
+
+  const blobUrl = doc.output('bloburl');
+  window.open(blobUrl, '_blank');
+}
 </script>
 
 </body>
