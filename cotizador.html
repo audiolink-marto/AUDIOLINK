@@ -3,8 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V8.3</title>
-<!-- AUDIOLINK · cotizador.html · v8.3
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8.4</title>
+<!-- AUDIOLINK · cotizador.html · v8.4
+     V8.4: fix — cargarEstudiosDesdeFirestore() combinaba where('activo','==',
+     true) con orderBy('nombre'), lo que exige un índice compuesto en
+     Firestore que no existía, y hacía fallar la consulta silenciosamente
+     (mensaje "Error cargando estudios" en el selector). Se cambia a traer
+     todos los estudios ordenados por nombre y filtrar 'activo' en JS. No
+     se tocó ninguna otra lógica.
      V8.3: el selector "Entorno Operativo Principal" deja de tener 3
      opciones fijas en el código (ICESI/Externo/Home Studio). Ahora se
      llena en tiempo real desde la colección Firestore 'estudios' (activo:
@@ -1192,13 +1198,20 @@ let ESTUDIOS_DATA = {};
 async function cargarEstudiosDesdeFirestore(){
   const sel = document.getElementById('selector-entorno');
   try{
-    const snap = await db.collection('estudios').where('activo', '==', true).orderBy('nombre').get();
-    if(snap.empty){
+    // v8.4: se quita el where('activo','==',true) combinado con
+    // orderBy('nombre') porque exige un índice compuesto en Firestore que
+    // no existe todavía y hacía fallar la consulta (silenciosamente, caía
+    // al catch). Ahora se trae todo ordenado por nombre y se filtra
+    // 'activo' aquí mismo en JS — mismo resultado, sin depender de crear
+    // un índice en la consola de Firebase.
+    const snap = await db.collection('estudios').orderBy('nombre').get();
+    const docsActivos = snap.docs.filter(d => d.data().activo !== false);
+    if(docsActivos.length === 0){
       sel.innerHTML = '<option value="">Sin estudios registrados</option>';
       return;
     }
     ESTUDIOS_DATA = {};
-    sel.innerHTML = snap.docs.map(d => {
+    sel.innerHTML = docsActivos.map(d => {
       ESTUDIOS_DATA[d.id] = d.data();
       return `<option value="${d.id}">${d.data().nombre}</option>`;
     }).join('');
