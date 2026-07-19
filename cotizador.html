@@ -3,8 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V8.4</title>
-<!-- AUDIOLINK · cotizador.html · v8.4
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8.5</title>
+<!-- AUDIOLINK · cotizador.html · v8.5
+     V8.5: las specs técnicas/gear de cada sala dejan de estar fijas en el
+     HTML (antes solo existían para ICESI, texto hardcodeado). Ahora salen
+     del campo 'specs' de cada sala en Firestore (editable como texto libre
+     desde el modal Estudios en proyecto.html — layout, preamps, mics,
+     monitores, lo que se necesite). Los saltos de línea se respetan como
+     <br>. No se tocó ninguna fórmula de cálculo ni la exportación a PDF.
      V8.4: fix — cargarEstudiosDesdeFirestore() combinaba where('activo','==',
      true) con orderBy('nombre'), lo que exige un índice compuesto en
      Firestore que no existía, y hacía fallar la consulta silenciosamente
@@ -639,10 +645,7 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
                 </div>
               </div>
             </div>
-            <div class="room-specs" id="specs-sala-a">
-              <span class="room-layout">Control A + Iso Booths A1 y A2 + Live Room compartido con Control B</span>
-              Entorno de alta gama con alta versatilidad de ruteo y captura multi-ambientes. <br><strong>Preamps:</strong> 24 API, 8 Millenia, 2 BAE 1073, 4 Manley Force.
-            </div>
+            <div class="room-specs" id="specs-sala-a"></div>
           </div>
           
           <div class="row-input" style="flex-wrap: wrap;">
@@ -665,10 +668,7 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
                 </div>
               </div>
             </div>
-            <div class="room-specs" id="specs-sala-b">
-              <span class="room-layout">Control B + Iso Booth B1 + Live Room</span>
-              Diseño acústico calibrado para respuesta controlada y grabaciones en bloque. <br><strong>Preamps:</strong> 8 ISA828 modificados, 8 Yamaha, 2 Camilo Silva, 1 Avalon 737.
-            </div>
+            <div class="room-specs" id="specs-sala-b"></div>
           </div>
           
           <div class="row-input" style="flex-wrap: wrap;">
@@ -691,10 +691,7 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
                 </div>
               </div>
             </div>
-            <div class="room-specs" id="specs-sala-c">
-              <span class="room-layout">Control C + Live Room independiente en otro piso</span>
-              Espacio acústico controlado para tomas independientes y procesamiento de señales directas. <br><strong>Preamps:</strong> 2 Camilo Silva, 1 Manley Core, 16 Yamaha.
-            </div>
+            <div class="room-specs" id="specs-sala-c"></div>
           </div>
         </div>
 
@@ -1261,10 +1258,16 @@ function actualizarNombresSalas() {
   const specsB = document.getElementById('specs-sala-b');
   const specsC = document.getElementById('specs-sala-c');
 
+  // v8.5: el texto de specs/gear ya no está fijo en el HTML — viene del
+  // campo 'specs' de cada sala en Firestore (editable desde el modal
+  // Estudios en proyecto.html). Los saltos de línea que el usuario escriba
+  // en el textarea se convierten en <br> para mantener el formato.
+  const formatearSpecs = (texto) => (texto || '').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+
   const mostrar = e.specsVisibles ? 'block' : 'none';
-  if (specsA) specsA.style.display = mostrar;
-  if (specsB) specsB.style.display = mostrar;
-  if (specsC) specsC.style.display = mostrar;
+  if (specsA){ specsA.style.display = mostrar; specsA.innerHTML = formatearSpecs(e.salaA?.specs); }
+  if (specsB){ specsB.style.display = mostrar; specsB.innerHTML = formatearSpecs(e.salaB?.specs); }
+  if (specsC){ specsC.style.display = mostrar; specsC.innerHTML = formatearSpecs(e.salaC?.specs); }
 }
 
 function cambiarEntorno() {

@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v2.9
+<!-- AUDIOLINK · proyecto.html · v3.0
+     V3.0: el modal "Estudios" agrega un textarea de specs/gear (texto
+     libre: layout, preamps, mics, monitores, etc.) por cada sala. Se
+     guarda en el campo salaX.specs de Firestore y lo lee el Cotizador
+     (v8.5) para mostrarlo cuando "Mostrar especificaciones técnicas" está
+     activo. La siembra automática de ICESI ahora incluye el texto real de
+     specs que antes estaba fijo en el HTML de cotizador.html, para no
+     perder esa información al migrar. No se tocó ninguna otra función.
      V2.9: se agrega el acceso directo "🧮 Cotizador" en el sidebar y el
      panel "···" (abre cotizador.html suelto, sin ?id=, que ya soporta
      vincularse a un proyecto desde su propio selector). Se corrige un
@@ -689,6 +696,10 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
         <input type="number" id="estudioSalaATarifa" placeholder="0" min="0">
       </div>
     </div>
+    <div class="field">
+      <label>Specs / Gear Sala A (opcional)</label>
+      <textarea id="estudioSalaASpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
+    </div>
     <div class="row2">
       <div class="field">
         <label>Nombre Sala B</label>
@@ -699,6 +710,10 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
         <input type="number" id="estudioSalaBTarifa" placeholder="0" min="0">
       </div>
     </div>
+    <div class="field">
+      <label>Specs / Gear Sala B (opcional)</label>
+      <textarea id="estudioSalaBSpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
+    </div>
     <div class="row2">
       <div class="field">
         <label>Nombre Sala C</label>
@@ -708,6 +723,10 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
         <label>Tarifa Sala C (COP)</label>
         <input type="number" id="estudioSalaCTarifa" placeholder="0" min="0">
       </div>
+    </div>
+    <div class="field">
+      <label>Specs / Gear Sala C (opcional)</label>
+      <textarea id="estudioSalaCSpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
     </div>
     <div class="field" style="display:flex;align-items:center;gap:8px;">
       <input type="checkbox" id="estudioSpecsVisibles" style="width:auto;">
@@ -1511,10 +1530,13 @@ function cancelarEdicionEstudio(){
   document.getElementById('estudioNombre').value = '';
   document.getElementById('estudioSalaANombre').value = '';
   document.getElementById('estudioSalaATarifa').value = '';
+  document.getElementById('estudioSalaASpecs').value = '';
   document.getElementById('estudioSalaBNombre').value = '';
   document.getElementById('estudioSalaBTarifa').value = '';
+  document.getElementById('estudioSalaBSpecs').value = '';
   document.getElementById('estudioSalaCNombre').value = '';
   document.getElementById('estudioSalaCTarifa').value = '';
+  document.getElementById('estudioSalaCSpecs').value = '';
   document.getElementById('estudioSpecsVisibles').checked = false;
   document.getElementById('btnEstudioCancelar').style.display = 'none';
   document.getElementById('estudioErr').textContent = '';
@@ -1530,13 +1552,15 @@ async function sembrarEstudiosSemillaSiVacio(){
     if(!snap.empty) return;
     const semilla = [
       { id:'icesi', nombre:'Universidad ICESI',
-        salaA:{nombre:'Estudio A',tarifa:270000}, salaB:{nombre:'Estudio B',tarifa:230000}, salaC:{nombre:'Estudio C',tarifa:160000},
+        salaA:{nombre:'Estudio A',tarifa:270000,specs:'Control A + Iso Booths A1 y A2 + Live Room compartido con Control B\nEntorno de alta gama con alta versatilidad de ruteo y captura multi-ambientes.\nPreamps: 24 API, 8 Millenia, 2 BAE 1073, 4 Manley Force.'},
+        salaB:{nombre:'Estudio B',tarifa:230000,specs:'Control B + Iso Booth B1 + Live Room\nDiseño acústico calibrado para respuesta controlada y grabaciones en bloque.\nPreamps: 8 ISA828 modificados, 8 Yamaha, 2 Camilo Silva, 1 Avalon 737.'},
+        salaC:{nombre:'Estudio C',tarifa:160000,specs:'Control C + Live Room independiente en otro piso\nEspacio acústico controlado para tomas independientes y procesamiento de señales directas.\nPreamps: 2 Camilo Silva, 1 Manley Core, 16 Yamaha.'},
         specsVisibles:true },
       { id:'externo', nombre:'Estudio Externo (Variable)',
-        salaA:{nombre:'Estudio 1',tarifa:0}, salaB:{nombre:'Estudio 2',tarifa:0}, salaC:{nombre:'Estudio 3',tarifa:0},
+        salaA:{nombre:'Estudio 1',tarifa:0,specs:''}, salaB:{nombre:'Estudio 2',tarifa:0,specs:''}, salaC:{nombre:'Estudio 3',tarifa:0,specs:''},
         specsVisibles:false },
       { id:'home_studio', nombre:'Home Studio / Línea Directa',
-        salaA:{nombre:'Estudio en Casa 1',tarifa:0}, salaB:{nombre:'Estudio en Casa 2',tarifa:0}, salaC:{nombre:'Estudio en Casa 3',tarifa:0},
+        salaA:{nombre:'Estudio en Casa 1',tarifa:0,specs:''}, salaB:{nombre:'Estudio en Casa 2',tarifa:0,specs:''}, salaC:{nombre:'Estudio en Casa 3',tarifa:0,specs:''},
         specsVisibles:false }
     ];
     const batch = db.batch();
@@ -1594,9 +1618,9 @@ async function guardarEstudio(){
   }
   const data = {
     nombre,
-    salaA:{ nombre: document.getElementById('estudioSalaANombre').value.trim() || 'Sala A', tarifa: Number(document.getElementById('estudioSalaATarifa').value) || 0 },
-    salaB:{ nombre: document.getElementById('estudioSalaBNombre').value.trim() || 'Sala B', tarifa: Number(document.getElementById('estudioSalaBTarifa').value) || 0 },
-    salaC:{ nombre: document.getElementById('estudioSalaCNombre').value.trim() || 'Sala C', tarifa: Number(document.getElementById('estudioSalaCTarifa').value) || 0 },
+    salaA:{ nombre: document.getElementById('estudioSalaANombre').value.trim() || 'Sala A', tarifa: Number(document.getElementById('estudioSalaATarifa').value) || 0, specs: document.getElementById('estudioSalaASpecs').value.trim() },
+    salaB:{ nombre: document.getElementById('estudioSalaBNombre').value.trim() || 'Sala B', tarifa: Number(document.getElementById('estudioSalaBTarifa').value) || 0, specs: document.getElementById('estudioSalaBSpecs').value.trim() },
+    salaC:{ nombre: document.getElementById('estudioSalaCNombre').value.trim() || 'Sala C', tarifa: Number(document.getElementById('estudioSalaCTarifa').value) || 0, specs: document.getElementById('estudioSalaCSpecs').value.trim() },
     specsVisibles: document.getElementById('estudioSpecsVisibles').checked,
     activo: true
   };
@@ -1625,10 +1649,13 @@ window._estEditar = async function(id){
     document.getElementById('estudioNombre').value = e.nombre || '';
     document.getElementById('estudioSalaANombre').value = e.salaA?.nombre || '';
     document.getElementById('estudioSalaATarifa').value = e.salaA?.tarifa || '';
+    document.getElementById('estudioSalaASpecs').value = e.salaA?.specs || '';
     document.getElementById('estudioSalaBNombre').value = e.salaB?.nombre || '';
     document.getElementById('estudioSalaBTarifa').value = e.salaB?.tarifa || '';
+    document.getElementById('estudioSalaBSpecs').value = e.salaB?.specs || '';
     document.getElementById('estudioSalaCNombre').value = e.salaC?.nombre || '';
     document.getElementById('estudioSalaCTarifa').value = e.salaC?.tarifa || '';
+    document.getElementById('estudioSalaCSpecs').value = e.salaC?.specs || '';
     document.getElementById('estudioSpecsVisibles').checked = !!e.specsVisibles;
     document.getElementById('btnEstudioCancelar').style.display = 'inline-block';
     document.getElementById('modalEstudiosBg').querySelector('.modal').scrollTop = 0;
