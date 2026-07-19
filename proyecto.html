@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v1.9 -->
+<!-- AUDIOLINK · proyecto.html · v2.0
+     V2.0: se agrega el modal "Portal de clientes" (activar/reenviar/revocar/vista
+     previa), adaptado del mismo patrón usado en PsicoGestión (reset-email +
+     instancia secundaria de Firebase para no cerrar la sesión de staff). Se
+     agrega el campo "Correo del cliente" en el formulario de proyecto, que
+     guarda clienteEmail (ya usado por portal.html). Colección nueva:
+     clientesAcceso (doc id = email en minúsculas) con authUid y
+     portalRevocado. No se tocó ninguna otra función ni estilo existente. -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -294,6 +301,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   </div>
   <div class="header-actions">
     <button class="btn" onclick="abrirModalNuevo()">+ Nuevo Proyecto</button>
+    <button class="btn btn-ghost" onclick="abrirModalPortalClientes()">🔐 Portal de clientes</button>
     <div class="separador"></div>
     <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
     <button class="btn btn-ghost btn-icon" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
@@ -369,6 +377,10 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
         <input type="text" id="fProductor">
       </div>
     </div>
+    <div class="field">
+      <label>Correo del cliente (portal)</label>
+      <input type="email" id="fCorreoCliente" placeholder="cliente@correo.com">
+    </div>
     <div class="row2">
       <div class="field">
         <label>Etapa actual</label>
@@ -412,6 +424,21 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   </div>
 </div>
 
+<!-- MODAL PORTAL DE CLIENTES (v2.0) -->
+<div class="modal-bg" id="modalPortalBg">
+  <div class="modal">
+    <h2>🔐 Portal de clientes</h2>
+    <div class="field">
+      <input type="text" id="portalBuscador" placeholder="Buscar por nombre o correo..." oninput="renderListaPortalClientes()">
+    </div>
+    <div id="portalErr" style="color:var(--err);font-size:0.82rem;margin-bottom:10px;"></div>
+    <div id="portalLista" style="display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModalPortalClientes()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============ FIREBASE CONFIG ============
 // TU_CONFIG_AQUI — reemplaza con el config real de tu proyecto Firebase
@@ -428,6 +455,15 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 const proyectosRef = db.collection('proyectos');
+const clientesAccesoRef = db.collection('clientesAcceso');
+
+// ===== APP SECUNDARIA (v2.0) =====
+// signInWithEmailAndPassword / createUserWithEmailAndPassword cierran/reemplazan
+// la sesión activa en la instancia donde se llaman. Usamos una segunda instancia
+// de Firebase solo para crear/gestionar la cuenta del cliente, sin tocar tu
+// sesión de staff en la app principal. Mismo patrón usado en PsicoGestión.
+const appPortal = firebase.initializeApp(firebaseConfig, 'portal-activador');
+const authPortal = appPortal.auth();
 
 // ============ GUARD DE SESIÓN ============
 let sesionValidada = false;
@@ -555,6 +591,7 @@ function limpiarFormulario(){
   document.getElementById('fTipo').value = 'propio';
   document.getElementById('fEstado').value = 'ok';
   document.getElementById('fCliente').value = '';
+  document.getElementById('fCorreoCliente').value = '';
   document.getElementById('fProductor').value = '';
   document.getElementById('fEtapa').value = 'preproduccion';
   document.getElementById('fFechaEntrega').value = '';
@@ -596,6 +633,7 @@ async function guardarProyecto(){
     estado: document.getElementById('fEstado').value,
     estadoComercial: document.getElementById('fEstadoComercial').value,
     clienteArtista: document.getElementById('fCliente').value.trim(),
+    clienteEmail: document.getElementById('fCorreoCliente').value.trim().toLowerCase(),
     productorEjecutivo: document.getElementById('fProductor').value.trim(),
     etapaActual: document.getElementById('fEtapa').value,
     fechaEntregaEstimada: document.getElementById('fFechaEntrega').value || null,
@@ -676,6 +714,7 @@ function editarProyectoActual(){
   document.getElementById('fEstado').value = p.estado || 'ok';
   document.getElementById('fEstadoComercial').value = p.estadoComercial || 'cotizacion';
   document.getElementById('fCliente').value = p.clienteArtista || '';
+  document.getElementById('fCorreoCliente').value = p.clienteEmail || '';
   document.getElementById('fProductor').value = p.productorEjecutivo || '';
   document.getElementById('fEtapa').value = p.etapaActual || 'preproduccion';
   document.getElementById('fFechaEntrega').value = p.fechaEntregaEstimada ? p.fechaEntregaEstimada.split('T')[0] : '';
@@ -866,6 +905,139 @@ function exportarPDF(modo){
   const blobUrl = doc.output('bloburl');
   window.open(blobUrl, '_blank');
 }
+
+// ============ MODAL: PORTAL DE CLIENTES (v2.0) ============
+// Deduplica proyectos por clienteEmail. Usa clientesAccesoRef (doc id = email)
+// con authUid/portalRevocado como fuente de verdad, igual que en PsicoGestión.
+let clientesAccesoCache = {}; // email -> {authUid, portalRevocado}
+
+function abrirModalPortalClientes(){
+  document.getElementById('portalErr').textContent = '';
+  document.getElementById('portalBuscador').value = '';
+  cargarClientesAccesoYRender();
+  document.getElementById('modalPortalBg').classList.add('active');
+}
+
+function cerrarModalPortalClientes(){
+  document.getElementById('modalPortalBg').classList.remove('active');
+}
+
+async function cargarClientesAccesoYRender(){
+  try{
+    const snap = await clientesAccesoRef.get();
+    clientesAccesoCache = {};
+    snap.forEach(d => clientesAccesoCache[d.id] = d.data());
+  } catch(err){
+    console.error(err);
+    document.getElementById('portalErr').textContent = 'No se pudo cargar el estado de accesos.';
+  }
+  renderListaPortalClientes();
+}
+
+function getClientesUnicos(){
+  const term = document.getElementById('portalBuscador').value.trim().toLowerCase();
+  const mapa = {};
+  proyectos.forEach(p => {
+    const email = (p.clienteEmail || '').trim().toLowerCase();
+    if(!email) return;
+    if(!mapa[email]){
+      mapa[email] = { email, nombre: p.clienteArtista || email };
+    }
+  });
+  return Object.values(mapa)
+    .filter(c => !term || c.nombre.toLowerCase().includes(term) || c.email.includes(term))
+    .sort((a,b) => a.nombre.localeCompare(b.nombre));
+}
+
+function renderListaPortalClientes(){
+  const cont = document.getElementById('portalLista');
+  const clientes = getClientesUnicos();
+  if(clientes.length === 0){
+    cont.innerHTML = '<div class="empty" style="padding:20px;">No hay proyectos con correo de cliente registrado.</div>';
+    return;
+  }
+  cont.innerHTML = clientes.map(c => {
+    const acc = clientesAccesoCache[c.email];
+    let badgeClass, badgeTxt, acciones;
+    if(!acc || !acc.authUid){
+      badgeClass = 'warn'; badgeTxt = 'Sin activar';
+      acciones = `<button class="btn" onclick="window._pcActivar('${c.email}')">Activar</button>`;
+    } else if(acc.portalRevocado){
+      badgeClass = 'err'; badgeTxt = 'Revocado';
+      acciones = `
+        <button class="btn btn-ghost" onclick="window._pcReenviar('${c.email}')">Reenviar correo</button>
+        <button class="btn" onclick="window._pcRevocar('${c.email}', false)">Reactivar</button>`;
+    } else {
+      badgeClass = 'ok'; badgeTxt = 'Activado';
+      acciones = `
+        <button class="btn btn-ghost" onclick="window._pcReenviar('${c.email}')">Reenviar correo</button>
+        <button class="btn btn-ghost" onclick="window._pcRevocar('${c.email}', true)">Revocar</button>`;
+    }
+    return `
+      <div style="border:1px solid var(--brd);border-radius:8px;padding:14px 16px;background:var(--surf-light);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <strong>${escapeHtml(c.nombre)}</strong>
+          <span class="badge ${badgeClass}">${badgeTxt}</span>
+        </div>
+        <div style="color:var(--muted);font-size:0.82rem;margin-bottom:10px;">${escapeHtml(c.email)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${acciones}
+          <button class="btn btn-ghost" onclick="window._pcPreview('${c.email}')">👁️ Vista previa</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+window._pcActivar = async function(email){
+  if(!confirm(`¿Activar el portal para ${email}? Se creará una cuenta y se le enviará un correo para crear su contraseña.`)) return;
+  try{
+    const passTemp = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const cred = await authPortal.createUserWithEmailAndPassword(email, passTemp);
+    await clientesAccesoRef.doc(email).set({
+      authUid: cred.user.uid,
+      portalRevocado: false,
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await authPortal.sendPasswordResetEmail(email);
+    await authPortal.signOut();
+    clientesAccesoCache[email] = { authUid: cred.user.uid, portalRevocado: false };
+    renderListaPortalClientes();
+  } catch(err){
+    console.error(err);
+    if(err.code === 'auth/email-already-in-use'){
+      alert('Ese correo ya tiene una cuenta de portal creada. Verifica el correo o usa "Reenviar correo".');
+    } else {
+      alert('No pudimos activar el portal. Revisa la consola.');
+    }
+  }
+};
+
+window._pcReenviar = async function(email){
+  try{
+    await authPortal.sendPasswordResetEmail(email);
+    alert(`Correo de acceso reenviado a ${email}.`);
+  } catch(err){
+    console.error(err);
+    alert('No pudimos reenviar el correo.');
+  }
+};
+
+window._pcRevocar = async function(email, nuevoEstado){
+  const accion = nuevoEstado ? 'revocar' : 'reactivar';
+  if(!confirm(`¿Seguro que quieres ${accion} el acceso al portal de ${email}?`)) return;
+  try{
+    await clientesAccesoRef.doc(email).set({ portalRevocado: nuevoEstado }, { merge: true });
+    clientesAccesoCache[email] = { ...(clientesAccesoCache[email] || {}), portalRevocado: nuevoEstado };
+    renderListaPortalClientes();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos actualizar el acceso.');
+  }
+};
+
+window._pcPreview = function(email){
+  window.open(`portal.html?preview=${encodeURIComponent(email)}`, '_blank');
+};
 </script>
 
 </body>
