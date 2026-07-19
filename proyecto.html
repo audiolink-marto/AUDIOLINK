@@ -4,7 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v2.7
+<!-- AUDIOLINK · proyecto.html · v2.9
+     V2.9: se agrega el acceso directo "🧮 Cotizador" en el sidebar y el
+     panel "···" (abre cotizador.html suelto, sin ?id=, que ya soporta
+     vincularse a un proyecto desde su propio selector). Se corrige un
+     olvido de la v2.7: faltaban los créditos de diseño (Marto 🧠 ·
+     martowave@gmail.com) en el sidebar y el panel móvil de este archivo —
+     ya estaban en logistica/pagos/index/portal pero no aquí, el piloto
+     original. No se tocó ninguna otra función existente.
+     V2.8: se agrega el modal "Estudios" (CRUD sobre la nueva colección
+     Firestore 'estudios'), accesible desde el sidebar y el panel "···"
+     junto a Equipo Interno. Cada estudio guarda nombre + 3 salas
+     (nombre+tarifa) + specsVisibles + activo. Al abrir el modal por primera
+     vez, si la colección está vacía, se siembran automáticamente los 3
+     entornos que antes estaban fijos en el código de cotizador.html
+     (ICESI, Externo, Home Studio) para no cambiar el comportamiento
+     existente. Desactivar un estudio no lo borra, solo lo oculta del
+     selector del Cotizador. No se tocó ninguna otra función existente.
      V2.7: se rediseña la navegación (piloto, para replicar luego en
      index.html/logistica.html/pagos.html/portal.html). Desktop (>=769px):
      sidebar fija a la izquierda (patrón heredado de Andamios El Progreso
@@ -239,6 +255,8 @@ nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg
 .sb-toggle i{transition:transform 0.2s;display:inline-block;}
 .sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
 .sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
+.sidebar.collapsed .sb-credit{opacity:0;}
 .main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
 .main-wrap.expanded{margin-left:var(--sb-c);}
 
@@ -281,6 +299,7 @@ nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg
   }
   .mas-mobile-item:hover{background:var(--surf-light);}
   .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
 }
 
 main{padding:28px;max-width:1200px;margin:0 auto;}
@@ -443,13 +462,16 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
     <a href="proyecto.html" class="sb-item active"><i>📁</i><span>Proyectos</span></a>
     <a href="logistica.html" class="sb-item"><i>🎚️</i><span>Logística</span></a>
     <a href="pagos.html" class="sb-item"><i>💳</i><span>Pagos</span></a>
+    <a href="cotizador.html" class="sb-item"><i>🧮</i><span>Cotizador</span></a>
   </nav>
   <div class="sb-foot">
     <div class="sb-item" onclick="abrirModalPortalClientes()"><i>🔐</i><span>Portal de clientes</span></div>
     <div class="sb-item" onclick="abrirModalEquipoInterno()"><i>👤</i><span>Equipo interno</span></div>
+    <div class="sb-item" onclick="abrirModalEstudios()"><i>🏢</i><span>Estudios</span></div>
     <div class="sb-item" onclick="toggleTema()" id="btnTemaSb"><i>🌙</i><span>Tema</span></div>
     <div class="sb-item" onclick="cerrarSesion()"><i>⏻</i><span>Cerrar sesión</span></div>
     <div class="sb-toggle" id="sidebarToggle"><i>«</i><span>Colapsar</span></div>
+    <div class="sb-credit">Marto 🧠 · martowave@gmail.com</div>
   </div>
 </aside>
 
@@ -467,10 +489,13 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 <!-- PANEL "···" MOBILE — patrón heredado de PsicoGestión -->
 <div class="mas-mobile-panel" id="masMobilePanel">
   <div class="mas-mobile-item" onclick="abrirModalNuevo();toggleMasMobile()"><i>➕</i>Nuevo Proyecto</div>
+  <div class="mas-mobile-item" onclick="window.location.href='cotizador.html'"><i>🧮</i>Cotizador</div>
   <div class="mas-mobile-item" onclick="abrirModalPortalClientes();toggleMasMobile()"><i>🔐</i>Portal de clientes</div>
   <div class="mas-mobile-item" onclick="abrirModalEquipoInterno();toggleMasMobile()"><i>👤</i>Equipo interno</div>
+  <div class="mas-mobile-item" onclick="abrirModalEstudios();toggleMasMobile()"><i>🏢</i>Estudios</div>
   <div class="mas-mobile-item" onclick="toggleTema()"><i>🌙</i>Cambiar tema</div>
   <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
+  <div class="mas-mobile-credit">Marto 🧠 · martowave@gmail.com</div>
 </div>
 
 <!-- BOTTOM NAV MOBILE (<=768px) — patrón heredado de PsicoGestión -->
@@ -638,6 +663,64 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
     <div id="equipoLista" style="display:flex;flex-direction:column;gap:8px;max-height:45vh;overflow-y:auto;margin-top:14px;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cerrarModalEquipoInterno()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ESTUDIOS (v2.8) -->
+<div class="modal-bg" id="modalEstudiosBg">
+  <div class="modal" style="max-width:560px;">
+    <h2>🏢 Estudios</h2>
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px;">
+      Estos estudios alimentan el selector "Entorno Operativo" del Cotizador.
+    </div>
+    <input type="hidden" id="estudioEditId">
+    <div class="field">
+      <label>Nombre del estudio</label>
+      <input type="text" id="estudioNombre" placeholder="Ej. Universidad ICESI">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Nombre Sala A</label>
+        <input type="text" id="estudioSalaANombre" placeholder="Estudio A">
+      </div>
+      <div class="field">
+        <label>Tarifa Sala A (COP)</label>
+        <input type="number" id="estudioSalaATarifa" placeholder="0" min="0">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Nombre Sala B</label>
+        <input type="text" id="estudioSalaBNombre" placeholder="Estudio B">
+      </div>
+      <div class="field">
+        <label>Tarifa Sala B (COP)</label>
+        <input type="number" id="estudioSalaBTarifa" placeholder="0" min="0">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Nombre Sala C</label>
+        <input type="text" id="estudioSalaCNombre" placeholder="Estudio C">
+      </div>
+      <div class="field">
+        <label>Tarifa Sala C (COP)</label>
+        <input type="number" id="estudioSalaCTarifa" placeholder="0" min="0">
+      </div>
+    </div>
+    <div class="field" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="estudioSpecsVisibles" style="width:auto;">
+      <label style="margin:0;font-size:0.85rem;">Mostrar especificaciones técnicas en el cotizador</label>
+    </div>
+    <div id="estudioErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
+    <div class="row2" style="margin-top:6px;">
+      <button class="btn btn-ghost" id="btnEstudioCancelar" style="display:none;" onclick="cancelarEdicionEstudio()">Cancelar edición</button>
+      <button class="btn" onclick="guardarEstudio()">💾 Guardar estudio</button>
+    </div>
+    <div id="estudiosLista" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModalEstudios()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1402,6 +1485,167 @@ window._eiQuitar = async function(correo){
   } catch(err){
     console.error(err);
     alert('No pudimos eliminar el correo.');
+  }
+};
+
+// ============ ESTUDIOS (v2.8) ============
+// Colección Firestore 'estudios'. Alimenta el selector "Entorno Operativo"
+// de cotizador.html — antes esas 3 opciones (ICESI/Externo/Home Studio)
+// estaban hardcodeadas en el JS del cotizador; ahora viven aquí y son
+// editables sin tocar código. Cada doc: {nombre, salaA:{nombre,tarifa},
+// salaB:{...}, salaC:{...}, specsVisibles, activo, creadoEn}.
+async function abrirModalEstudios(){
+  document.getElementById('estudioErr').textContent = '';
+  cancelarEdicionEstudio();
+  await sembrarEstudiosSemillaSiVacio();
+  cargarListaEstudios();
+  document.getElementById('modalEstudiosBg').classList.add('active');
+}
+
+function cerrarModalEstudios(){
+  document.getElementById('modalEstudiosBg').classList.remove('active');
+}
+
+function cancelarEdicionEstudio(){
+  document.getElementById('estudioEditId').value = '';
+  document.getElementById('estudioNombre').value = '';
+  document.getElementById('estudioSalaANombre').value = '';
+  document.getElementById('estudioSalaATarifa').value = '';
+  document.getElementById('estudioSalaBNombre').value = '';
+  document.getElementById('estudioSalaBTarifa').value = '';
+  document.getElementById('estudioSalaCNombre').value = '';
+  document.getElementById('estudioSalaCTarifa').value = '';
+  document.getElementById('estudioSpecsVisibles').checked = false;
+  document.getElementById('btnEstudioCancelar').style.display = 'none';
+  document.getElementById('estudioErr').textContent = '';
+}
+
+// Primera vez que se abre el modal y la colección está vacía: crea los 3
+// entornos que antes estaban fijos en el código del cotizador, para que
+// el comportamiento no cambie para nadie y de ahí en adelante sean
+// editables como cualquier otro estudio.
+async function sembrarEstudiosSemillaSiVacio(){
+  try{
+    const snap = await db.collection('estudios').limit(1).get();
+    if(!snap.empty) return;
+    const semilla = [
+      { id:'icesi', nombre:'Universidad ICESI',
+        salaA:{nombre:'Estudio A',tarifa:270000}, salaB:{nombre:'Estudio B',tarifa:230000}, salaC:{nombre:'Estudio C',tarifa:160000},
+        specsVisibles:true },
+      { id:'externo', nombre:'Estudio Externo (Variable)',
+        salaA:{nombre:'Estudio 1',tarifa:0}, salaB:{nombre:'Estudio 2',tarifa:0}, salaC:{nombre:'Estudio 3',tarifa:0},
+        specsVisibles:false },
+      { id:'home_studio', nombre:'Home Studio / Línea Directa',
+        salaA:{nombre:'Estudio en Casa 1',tarifa:0}, salaB:{nombre:'Estudio en Casa 2',tarifa:0}, salaC:{nombre:'Estudio en Casa 3',tarifa:0},
+        specsVisibles:false }
+    ];
+    const batch = db.batch();
+    semilla.forEach(e => {
+      const ref = db.collection('estudios').doc(e.id);
+      batch.set(ref, { nombre:e.nombre, salaA:e.salaA, salaB:e.salaB, salaC:e.salaC, specsVisibles:e.specsVisibles, activo:true, creadoEn:new Date().toISOString() });
+    });
+    await batch.commit();
+  } catch(err){
+    console.error('Error sembrando estudios semilla:', err);
+  }
+}
+
+async function cargarListaEstudios(){
+  const cont = document.getElementById('estudiosLista');
+  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  try{
+    const snap = await db.collection('estudios').orderBy('nombre').get();
+    if(snap.empty){
+      cont.innerHTML = '<div class="empty" style="padding:16px;">Sin estudios registrados.</div>';
+      return;
+    }
+    cont.innerHTML = snap.docs.map(d => {
+      const e = d.data();
+      const inactivo = e.activo === false;
+      return `
+      <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--brd);border-radius:8px;padding:10px 14px;background:var(--surf-light);${inactivo ? 'opacity:0.5;' : ''}">
+        <div>
+          <div style="font-size:0.88rem;font-weight:500;">${escapeHtml(e.nombre || d.id)}${inactivo ? ' <span style="color:var(--muted);font-size:0.72rem;">(inactivo)</span>' : ''}</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">
+            ${escapeHtml(e.salaA?.nombre||'')}: $${Number(e.salaA?.tarifa||0).toLocaleString('es-CO')} ·
+            ${escapeHtml(e.salaB?.nombre||'')}: $${Number(e.salaB?.tarifa||0).toLocaleString('es-CO')} ·
+            ${escapeHtml(e.salaC?.nombre||'')}: $${Number(e.salaC?.tarifa||0).toLocaleString('es-CO')}
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-shrink:0;">
+          <span style="cursor:pointer;font-size:0.9rem;" onclick="window._estEditar('${d.id}')" title="Editar">✎</span>
+          <span style="color:var(--err);cursor:pointer;font-size:0.9rem;" onclick="window._estToggleActivo('${d.id}', ${inactivo})" title="${inactivo ? 'Reactivar' : 'Desactivar'}">${inactivo ? '↺' : '✕'}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:16px;">No pudimos cargar la lista.</div>';
+  }
+}
+
+async function guardarEstudio(){
+  const errEl = document.getElementById('estudioErr');
+  errEl.textContent = '';
+  const nombre = document.getElementById('estudioNombre').value.trim();
+  if(!nombre){
+    errEl.textContent = 'Ingresa el nombre del estudio.';
+    return;
+  }
+  const data = {
+    nombre,
+    salaA:{ nombre: document.getElementById('estudioSalaANombre').value.trim() || 'Sala A', tarifa: Number(document.getElementById('estudioSalaATarifa').value) || 0 },
+    salaB:{ nombre: document.getElementById('estudioSalaBNombre').value.trim() || 'Sala B', tarifa: Number(document.getElementById('estudioSalaBTarifa').value) || 0 },
+    salaC:{ nombre: document.getElementById('estudioSalaCNombre').value.trim() || 'Sala C', tarifa: Number(document.getElementById('estudioSalaCTarifa').value) || 0 },
+    specsVisibles: document.getElementById('estudioSpecsVisibles').checked,
+    activo: true
+  };
+  const editId = document.getElementById('estudioEditId').value;
+  try{
+    if(editId){
+      await db.collection('estudios').doc(editId).update(data);
+    } else {
+      data.creadoEn = new Date().toISOString();
+      await db.collection('estudios').add(data);
+    }
+    cancelarEdicionEstudio();
+    cargarListaEstudios();
+  } catch(err){
+    console.error(err);
+    errEl.textContent = 'No pudimos guardar el estudio. Intenta de nuevo.';
+  }
+}
+
+window._estEditar = async function(id){
+  try{
+    const doc = await db.collection('estudios').doc(id).get();
+    if(!doc.exists) return;
+    const e = doc.data();
+    document.getElementById('estudioEditId').value = id;
+    document.getElementById('estudioNombre').value = e.nombre || '';
+    document.getElementById('estudioSalaANombre').value = e.salaA?.nombre || '';
+    document.getElementById('estudioSalaATarifa').value = e.salaA?.tarifa || '';
+    document.getElementById('estudioSalaBNombre').value = e.salaB?.nombre || '';
+    document.getElementById('estudioSalaBTarifa').value = e.salaB?.tarifa || '';
+    document.getElementById('estudioSalaCNombre').value = e.salaC?.nombre || '';
+    document.getElementById('estudioSalaCTarifa').value = e.salaC?.tarifa || '';
+    document.getElementById('estudioSpecsVisibles').checked = !!e.specsVisibles;
+    document.getElementById('btnEstudioCancelar').style.display = 'inline-block';
+    document.getElementById('modalEstudiosBg').querySelector('.modal').scrollTop = 0;
+  } catch(err){
+    console.error(err);
+  }
+};
+
+window._estToggleActivo = async function(id, activar){
+  const confirmTxt = activar ? '¿Reactivar este estudio?' : '¿Desactivar este estudio? Dejará de aparecer en el Cotizador, pero no se borra.';
+  if(!confirm(confirmTxt)) return;
+  try{
+    await db.collection('estudios').doc(id).update({ activo: activar });
+    cargarListaEstudios();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos actualizar el estudio.');
   }
 };
 

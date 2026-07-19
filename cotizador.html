@@ -3,8 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V8.2</title>
-<!-- AUDIOLINK · cotizador.html · v8.2
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8.3</title>
+<!-- AUDIOLINK · cotizador.html · v8.3
+     V8.3: el selector "Entorno Operativo Principal" deja de tener 3
+     opciones fijas en el código (ICESI/Externo/Home Studio). Ahora se
+     llena en tiempo real desde la colección Firestore 'estudios' (activo:
+     true), editable desde el modal "Estudios" en proyecto.html. Se
+     reemplazan TARIFAS_ENTORNOS/NOMBRES_SALAS_ENTORNOS por ESTUDIOS_DATA +
+     cargarEstudiosDesdeFirestore(). Al abrir el modal "Estudios" por
+     primera vez en proyecto.html se siembran automáticamente los 3
+     entornos originales, así que el comportamiento no cambia hasta que se
+     edite algo. cargarEstudiosDesdeFirestore() respeta el entorno y las
+     tarifas que el borrador local (localStorage) tenía guardados, en vez
+     de resetear siempre al primer estudio de la lista. No se tocó ninguna
+     fórmula de cálculo, el borrador local, ni la exportación a PDF.
      V8.2: se replica la arquitectura de navegación V2.7 de proyecto.html —
      sidebar fija desktop (heredada de Andamios, colapsable a solo-iconos) +
      mobile topbar/bottomnav/panel "···" (heredado de PsicoGestión),
@@ -583,9 +595,7 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
       <div class="info-group">
         <label class="calc-label">Entorno Operativo Principal</label>
         <select id="selector-entorno" class="text-input" onchange="cambiarEntorno()">
-          <option value="icesi">Universidad ICESI</option>
-          <option value="externo">Estudio Externo (Variable)</option>
-          <option value="home_studio">Home Studio / Línea Directa</option>
+          <option value="">Cargando estudios...</option>
         </select>
       </div>
     </div>
@@ -1173,17 +1183,51 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
 </div><!-- /main-wrap -->
 
 <script>
-const TARIFAS_ENTORNOS = {
-  icesi: { salaA: 270000, salaB: 230000, salaC: 160000 },
-  externo: { salaA: 0, salaB: 0, salaC: 0 },
-  home_studio: { salaA: 0, salaB: 0, salaC: 0 }
-};
+// v8.3: ESTUDIOS_DATA reemplaza los objetos fijos TARIFAS_ENTORNOS y
+// NOMBRES_SALAS_ENTORNOS que existían antes. Ahora el selector se llena en
+// tiempo real desde la colección Firestore 'estudios' (editable desde el
+// modal "Estudios" en proyecto.html). No se tocó ninguna fórmula de cálculo.
+let ESTUDIOS_DATA = {};
 
-const NOMBRES_SALAS_ENTORNOS = {
-  icesi: { salaA: "Estudio A", salaB: "Estudio B", salaC: "Estudio C" },
-  externo: { salaA: "Estudio 1", salaB: "Estudio 2", salaC: "Estudio 3" },
-  home_studio: { salaA: "Estudio en Casa 1", salaB: "Estudio en Casa 2", salaC: "Estudio en Casa 3" }
-};
+async function cargarEstudiosDesdeFirestore(){
+  const sel = document.getElementById('selector-entorno');
+  try{
+    const snap = await db.collection('estudios').where('activo', '==', true).orderBy('nombre').get();
+    if(snap.empty){
+      sel.innerHTML = '<option value="">Sin estudios registrados</option>';
+      return;
+    }
+    ESTUDIOS_DATA = {};
+    sel.innerHTML = snap.docs.map(d => {
+      ESTUDIOS_DATA[d.id] = d.data();
+      return `<option value="${d.id}">${d.data().nombre}</option>`;
+    }).join('');
+
+    // Respetar el entorno guardado en el borrador local, si existe y sigue
+    // siendo un estudio activo; si no, usar el primero de la lista.
+    let entornoGuardado = null;
+    try{
+      const borrador = JSON.parse(localStorage.getItem('cotizador_borrador_v6') || 'null');
+      if(borrador && borrador['selector-entorno'] && ESTUDIOS_DATA[borrador['selector-entorno']]){
+        entornoGuardado = borrador['selector-entorno'];
+      }
+    } catch(e){}
+
+    if(entornoGuardado){
+      sel.value = entornoGuardado;
+      actualizarNombresSalas();
+      // Restaurar tarifas tal como el usuario las dejó (pudo haberlas
+      // editado a mano), no las tarifas por defecto del estudio.
+      cargarBorrador();
+      validarYCalcular();
+    } else {
+      cambiarEntorno();
+    }
+  } catch(err){
+    console.error('Error cargando estudios:', err);
+    sel.innerHTML = '<option value="">Error cargando estudios</option>';
+  }
+}
 
 const formatCOP = (val) => new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -1193,34 +1237,31 @@ const formatCOP = (val) => new Intl.NumberFormat('es-CO', {
 
 function actualizarNombresSalas() {
   const entorno = document.getElementById('selector-entorno').value;
-  const nombres = NOMBRES_SALAS_ENTORNOS[entorno] || NOMBRES_SALAS_ENTORNOS.icesi;
+  const e = ESTUDIOS_DATA[entorno];
+  if(!e) return;
 
-  document.getElementById('label-sala-a').innerText = nombres.salaA;
-  document.getElementById('label-sala-b').innerText = nombres.salaB;
-  document.getElementById('label-sala-c').innerText = nombres.salaC;
+  document.getElementById('label-sala-a').innerText = e.salaA?.nombre || 'Sala A';
+  document.getElementById('label-sala-b').innerText = e.salaB?.nombre || 'Sala B';
+  document.getElementById('label-sala-c').innerText = e.salaC?.nombre || 'Sala C';
 
   const specsA = document.getElementById('specs-sala-a');
   const specsB = document.getElementById('specs-sala-b');
   const specsC = document.getElementById('specs-sala-c');
 
-  if (entorno === 'icesi') {
-    if (specsA) specsA.style.display = 'block';
-    if (specsB) specsB.style.display = 'block';
-    if (specsC) specsC.style.display = 'block';
-  } else {
-    if (specsA) specsA.style.display = 'none';
-    if (specsB) specsB.style.display = 'none';
-    if (specsC) specsC.style.display = 'none';
-  }
+  const mostrar = e.specsVisibles ? 'block' : 'none';
+  if (specsA) specsA.style.display = mostrar;
+  if (specsB) specsB.style.display = mostrar;
+  if (specsC) specsC.style.display = mostrar;
 }
 
 function cambiarEntorno() {
   const entorno = document.getElementById('selector-entorno').value;
-  const tarifas = TARIFAS_ENTORNOS[entorno];
+  const e = ESTUDIOS_DATA[entorno];
+  if(!e) return;
 
-  document.getElementById('rate-sala-a').value = tarifas.salaA;
-  document.getElementById('rate-sala-b').value = tarifas.salaB;
-  document.getElementById('rate-sala-c').value = tarifas.salaC;
+  document.getElementById('rate-sala-a').value = e.salaA?.tarifa || 0;
+  document.getElementById('rate-sala-b').value = e.salaB?.tarifa || 0;
+  document.getElementById('rate-sala-c').value = e.salaC?.tarifa || 0;
 
   actualizarNombresSalas();
   validarYCalcular();
@@ -1620,6 +1661,7 @@ auth.onAuthStateChanged(async (user) => {
       return;
     }
     iniciarVinculoProyecto();
+    cargarEstudiosDesdeFirestore();
   } catch (e) {
     console.error('Error validando sesión:', e);
     window.location.href = 'login.html';

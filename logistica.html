@@ -4,7 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Logística</title>
-<!-- AUDIOLINK · logistica.html · v1.4
+<!-- AUDIOLINK · logistica.html · v1.5
+     V1.5: se agrega el acceso directo "🧮 Cotizador" en el sidebar y el
+     panel "···". Se reemplaza el mensaje plano de "sin proyecto" por un
+     selector de proyectos funcional (cargarSelectorProyectoSuelto /
+     irAProyectoSuelto): al entrar sin ?id= ya no toca ir y volver desde
+     Proyectos, se elige directo de un desplegable. No se tocó ninguna otra
+     función de sesiones, PDF ni Firestore existente.
      V1.4: se replica la arquitectura de navegación V2.7 de proyecto.html —
      sidebar fija desktop (heredada de Andamios El Progreso Central,
      colapsable a solo-iconos) + mobile topbar/bottomnav/panel "···"
@@ -319,6 +325,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
     <a href="proyecto.html" class="sb-item"><i>📁</i><span>Proyectos</span></a>
     <a href="logistica.html" class="sb-item active"><i>🎚️</i><span>Logística</span></a>
     <a href="pagos.html" class="sb-item"><i>💳</i><span>Pagos</span></a>
+    <a href="cotizador.html" class="sb-item"><i>🧮</i><span>Cotizador</span></a>
   </nav>
   <div class="sb-foot">
     <div class="sb-item" onclick="toggleTema()" id="btnTemaSb"><i>🌙</i><span>Tema</span></div>
@@ -343,6 +350,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 <div class="mas-mobile-panel" id="masMobilePanel">
   <div class="mas-mobile-item" onclick="toggleTema()"><i>🌙</i>Cambiar tema</div>
   <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
+    <div class="mas-mobile-item" onclick="window.location.href='cotizador.html'"><i>🧮</i>Cotizador</div>
   <div class="mas-mobile-credit">Marto 🧠 · martowave@gmail.com</div>
 </div>
 
@@ -380,7 +388,15 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 
   <div class="grid" id="gridSesiones"></div>
   <div class="empty" id="emptyState" style="display:none;">No hay sesiones registradas aún.</div>
-  <div class="empty" id="sinProyecto" style="display:none;">Selecciona un proyecto desde el listado de Proyectos para ver o crear sus sesiones.</div>
+  <div id="sinProyecto" style="display:none;text-align:center;padding:40px 16px;">
+    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;" id="sinProyectoTexto">Elige un proyecto para ver o crear sus sesiones de logística:</div>
+    <div class="field" style="max-width:360px;margin:0 auto 10px;">
+      <select id="selectorProyectoSuelto" onchange="irAProyectoSuelto()">
+        <option value="">Cargando proyectos...</option>
+      </select>
+    </div>
+    <div style="color:var(--faint);font-size:0.76rem;margin-top:10px;">o entra a <a href="proyecto.html" style="color:var(--gold);">Proyectos</a> y usa "Ver sesiones" desde ahí.</div>
+  </div>
 
 </main>
 </div><!-- /main-wrap -->
@@ -541,12 +557,41 @@ function volverAProyecto(){
   }
 }
 
+// Selector de proyecto cuando se entra a logistica.html sin ?id= (v1.5) —
+// mismo espíritu que el selector suelto de cotizador.html: evita tener que
+// ir a Proyectos y volver solo para llegar a las sesiones de logística.
+async function cargarSelectorProyectoSuelto(){
+  const sel = document.getElementById('selectorProyectoSuelto');
+  try{
+    const snap = await proyectosRef.orderBy('creadoEn', 'desc').get();
+    if(snap.empty){
+      sel.innerHTML = '<option value="">No hay proyectos todavía</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— Selecciona un proyecto —</option>' +
+      snap.docs.map(d => {
+        const p = d.data();
+        return `<option value="${d.id}">${escapeHtml(p.nombre || 'Sin nombre')} — ${escapeHtml(p.clienteArtista || '—')}</option>`;
+      }).join('');
+  } catch(err){
+    console.error('Error cargando proyectos:', err);
+    sel.innerHTML = '<option value="">No pudimos cargar los proyectos</option>';
+  }
+}
+
+function irAProyectoSuelto(){
+  const id = document.getElementById('selectorProyectoSuelto').value;
+  if(!id) return;
+  window.location.href = `logistica.html?id=${id}`;
+}
+
 async function initLogistica(){
   const urlParams = new URLSearchParams(window.location.search);
   proyectoId = urlParams.get('id');
 
   if(!proyectoId){
     document.getElementById('sinProyecto').style.display = 'block';
+    cargarSelectorProyectoSuelto();
     return;
   }
 

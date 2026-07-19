@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Pagos</title>
-<!-- AUDIOLINK · pagos.html · v1.2
+<!-- AUDIOLINK · pagos.html · v1.3
+     V1.3: se agrega el acceso directo "🧮 Cotizador" en el sidebar y el
+     panel "···". No se tocó ninguna otra función existente.
      V1.2: se replica la arquitectura de navegación V2.7 de proyecto.html —
      sidebar fija desktop (heredada de Andamios, colapsable a solo-iconos) +
      mobile topbar/bottomnav/panel "···" (heredado de PsicoGestión). Se
@@ -287,6 +289,7 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
     <a href="proyecto.html" class="sb-item"><i>📁</i><span>Proyectos</span></a>
     <a href="logistica.html" class="sb-item"><i>🎚️</i><span>Logística</span></a>
     <a href="pagos.html" class="sb-item active"><i>💳</i><span>Pagos</span></a>
+    <a href="cotizador.html" class="sb-item"><i>🧮</i><span>Cotizador</span></a>
   </nav>
   <div class="sb-foot">
     <div class="sb-item" onclick="toggleTema()" id="btnTemaSb"><i>🌙</i><span>Tema</span></div>
@@ -311,6 +314,7 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 <div class="mas-mobile-panel" id="masMobilePanel">
   <div class="mas-mobile-item" onclick="toggleTema()"><i>🌙</i>Cambiar tema</div>
   <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
+    <div class="mas-mobile-item" onclick="window.location.href='cotizador.html'"><i>🧮</i>Cotizador</div>
   <div class="mas-mobile-credit">Marto 🧠 · martowave@gmail.com</div>
 </div>
 
