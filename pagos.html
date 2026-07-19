@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Pagos</title>
+<!-- AUDIOLINK · pagos.html · v1.0
+     V1.0: primera versión. Hoja aparte (como Pagos/Diagnóstico en PsicoGestión)
+     porque es transversal a todos los proyectos, no contextual a uno solo.
+     Lista cotizaciones con estado "aceptada" (collectionGroup sobre
+     proyectos/*/cotizaciones), permite registrar abonos en la subcolección
+     nueva proyectos/{id}/pagos y calcula saldo pendiente en vivo. Mismo
+     guard de sesión (equipoInterno + activo:true), mismo tema y estilo
+     visual que el resto del ecosistema. No se tocó ningún otro archivo
+     salvo agregar el enlace "Pagos" al nav de los demás. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0.5;}
+.waveform-bg svg{position:absolute;bottom:0;left:0;width:200%;height:220px;animation:wave-drift 22s linear infinite;}
+.waveform-bg svg.w-slow{animation-duration:34s;}
+.waveform-bg path{fill:none;stroke:var(--gold);stroke-width:1.2;opacity:0.14;}
+.waveform-bg path.w2{opacity:0.09;}
+.waveform-bg path.w3{opacity:0.06;}
+@keyframes wave-drift{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+header, main{position:relative;z-index:1;}
+header{
+  padding:16px 20px;border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surf);flex-wrap:wrap;gap:12px;
+}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+@media (max-width:640px){
+  header{padding:14px 16px;}
+  h1{font-size:1.05rem;}
+  nav.links{margin-left:8px;}
+  nav.links a{padding:5px 8px;font-size:0.76rem;}
+  .header-actions{width:100%;justify-content:flex-end;}
+}
+.brand{display:flex;align-items:center;gap:14px;}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+nav.links{display:flex;gap:8px;margin-left:20px;}
+nav.links a{
+  color:var(--muted);font-size:0.82rem;text-decoration:none;
+  padding:6px 12px;border-radius:6px;transition:all 0.2s;
+}
+nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg);}
+.btn{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  transition:all 0.2s;font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+
+main{padding:28px;max-width:1000px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+
+.resumen-mini{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px;}
+.resumen-mini .card{
+  flex:1;min-width:180px;background:var(--surf);border:1px solid var(--brd);
+  border-radius:10px;padding:16px 18px;
+}
+.resumen-mini .card .lbl{font-size:0.75rem;color:var(--muted);letter-spacing:0.03em;margin-bottom:6px;}
+.resumen-mini .card .val{font-size:1.4rem;font-weight:700;color:var(--gold);}
+
+.cotiz-card{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:18px 20px;margin-bottom:14px;cursor:pointer;transition:all 0.2s;
+}
+.cotiz-card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.cotiz-card .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.cotiz-card h3{font-size:1.02rem;font-weight:600;}
+.cotiz-card .sub{font-size:0.8rem;color:var(--muted);margin-bottom:10px;}
+.badge{font-size:0.68rem;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;}
+.badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.montos-row{display:flex;gap:20px;flex-wrap:wrap;}
+.monto-item{font-size:0.82rem;}
+.monto-item .lbl{color:var(--muted);display:block;font-size:0.72rem;}
+.monto-item .val{font-weight:600;}
+.monto-item.saldo .val{color:var(--warn);}
+.monto-item.saldo.pagado .val{color:var(--ok);}
+.empty{text-align:center;padding:50px 20px;color:var(--faint);font-size:0.9rem;}
+
+/* Modal */
+.modal-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  z-index:100;align-items:flex-start;justify-content:center;
+  overflow-y:auto;padding:40px 20px;
+}
+.modal-bg.active{display:flex;}
+.modal{
+  background:var(--surf);border:1px solid var(--brd);border-radius:12px;
+  max-width:560px;width:100%;padding:28px;
+}
+.modal h2{color:var(--gold);font-size:1.1rem;margin-bottom:4px;}
+.modal .sub-cliente{font-size:0.82rem;color:var(--muted);margin-bottom:20px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);
+  padding:10px 12px;border-radius:6px;font-size:0.9rem;font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);
+}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.abono-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;border:1px solid var(--brd);border-radius:8px;
+  background:var(--surf-light);margin-bottom:8px;font-size:0.85rem;
+}
+.abono-item .info{color:var(--muted);font-size:0.76rem;}
+@media (max-width:640px){
+  .row2{grid-template-columns:1fr;}
+  .modal{padding:20px;}
+}
+</style>
+</head>
+<body>
+
+<div class="waveform-bg">
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none" class="w-slow">
+    <path class="w1" d="M0,110 Q35,40 70,110 T140,110 T210,110 T280,110 T350,110 T420,110 T490,110 T560,110 T630,110 T700,110 T770,110 T840,110 T910,110 T980,110 T1050,110 T1120,110 T1190,110 T1260,110 T1330,110 T1400,110"/>
+  </svg>
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none">
+    <path class="w2" d="M0,150 Q30,90 60,150 T120,150 T180,150 T240,150 T300,150 T360,150 T420,150 T480,150 T540,150 T600,150 T660,150 T720,150 T780,150 T840,150 T900,150 T960,150 T1020,150 T1080,150 T1140,150 T1200,150 T1260,150 T1320,150 T1380,150 T1400,150"/>
+  </svg>
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none" class="w-slow">
+    <path class="w3" d="M0,180 Q25,140 50,180 T100,180 T150,180 T200,180 T250,180 T300,180 T350,180 T400,180 T450,180 T500,180 T550,180 T600,180 T650,180 T700,180 T750,180 T800,180 T850,180 T900,180 T950,180 T1000,180 T1050,180 T1100,180 T1150,180 T1200,180 T1250,180 T1300,180 T1350,180 T1400,180"/>
+  </svg>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+    <h1>AUDIOLINK</h1>
+    <nav class="links">
+      <a href="index.html">Dashboard</a>
+      <a href="proyecto.html">Proyectos</a>
+      <a href="logistica.html">Logística</a>
+      <a href="pagos.html" class="active">Pagos</a>
+    </nav>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
+    <button class="btn btn-ghost btn-icon" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+  </div>
+</header>
+
+<main>
+  <div class="top-actions">
+    <h2>COBROS PENDIENTES</h2>
+  </div>
+
+  <div class="resumen-mini">
+    <div class="card">
+      <div class="lbl">TOTAL COTIZADO ACEPTADO</div>
+      <div class="val" id="resTotalCotizado">$0</div>
+    </div>
+    <div class="card">
+      <div class="lbl">TOTAL COBRADO</div>
+      <div class="val" id="resTotalCobrado">$0</div>
+    </div>
+    <div class="card">
+      <div class="lbl">SALDO PENDIENTE</div>
+      <div class="val" id="resTotalSaldo">$0</div>
+    </div>
+  </div>
+
+  <div id="listaCotizaciones"></div>
+  <div class="empty" id="emptyState" style="display:none;">No hay cotizaciones aceptadas todavía. Acéptalas desde el Cotizador en cada proyecto.</div>
+</main>
+
+<!-- MODAL: DETALLE DE PAGOS DE UNA COTIZACIÓN -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitulo">Proyecto</h2>
+    <div class="sub-cliente" id="modalSub"></div>
+
+    <div id="listaAbonos"></div>
+    <div class="empty" id="emptyAbonos" style="display:none;padding:16px 0;">Aún no se ha registrado ningún abono.</div>
+
+    <div class="row2" style="margin-top:16px;">
+      <div class="field">
+        <label>Monto del abono</label>
+        <input type="number" id="fMonto" placeholder="0">
+      </div>
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="fFecha">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Método</label>
+        <select id="fMetodo">
+          <option value="transferencia">Transferencia</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="tarjeta">Tarjeta</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Nota (opcional)</label>
+        <input type="text" id="fNota" placeholder="Ej: Anticipo 50%">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>
+      <button class="btn" onclick="registrarAbono()">+ Registrar abono</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ FIREBASE CONFIG ============
+const firebaseConfig = {
+  apiKey: "AIzaSyB8yE-H1urpKOr-K4H2fzRRq5X-PlQZQgs",
+  authDomain: "audiolink-44abd.firebaseapp.com",
+  projectId: "audiolink-44abd",
+  storageBucket: "audiolink-44abd.firebasestorage.app",
+  messagingSenderId: "497341329998",
+  appId: "1:497341329998:web:58f8c33f971a2626c6491f"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const proyectosRef = db.collection('proyectos');
+
+// ============ GUARD DE SESIÓN ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    window.location.href = 'login.html';
+    return;
+  }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+    }
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  auth.signOut().then(() => window.location.href = 'login.html');
+}
+
+// ============ TEMA ============
+function toggleTema(){
+  const actual = document.documentElement.getAttribute('data-tema') || 'dark';
+  const nuevo = actual === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  localStorage.setItem('audiolink_tema', nuevo);
+  document.getElementById('btnTema').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const t = localStorage.getItem('audiolink_tema') || 'dark';
+  document.getElementById('btnTema').textContent = t === 'dark' ? '🌙' : '☀️';
+});
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+function fmt(n){ return '$' + (n || 0).toLocaleString('es-CO'); }
+
+// ============ ESTADO ============
+// cotizacionesAceptadas: [{ id, proyectoId, total, nombre, clienteArtista, pagosUnsub, sumaPagos, pagos:[] }]
+let cotizacionesAceptadas = [];
+let modalActualCotizId = null;
+let modalActualProyectoId = null;
+
+// ============ CARGA: COTIZACIONES ACEPTADAS (collectionGroup) ============
+// Nota: esta consulta puede pedir crear un índice compuesto la primera vez
+// (Firebase muestra un link directo en la consola del navegador para crearlo).
+db.collectionGroup('cotizaciones').where('estado', '==', 'aceptada')
+  .onSnapshot(async (snap) => {
+    const nuevasCotizaciones = [];
+    for(const d of snap.docs){
+      const proyectoId = d.ref.parent.parent.id;
+      let proyectoData = {};
+      try{
+        const pDoc = await proyectosRef.doc(proyectoId).get();
+        proyectoData = pDoc.exists ? pDoc.data() : {};
+      } catch(e){ console.error(e); }
+
+      const existente = cotizacionesAceptadas.find(c => c.id === d.id && c.proyectoId === proyectoId);
+      nuevasCotizaciones.push({
+        id: d.id,
+        proyectoId,
+        total: d.data().total || 0,
+        nombre: proyectoData.nombre || 'Sin nombre',
+        clienteArtista: proyectoData.clienteArtista || '—',
+        sumaPagos: existente ? existente.sumaPagos : 0,
+        pagos: existente ? existente.pagos : []
+      });
+    }
+    cotizacionesAceptadas = nuevasCotizaciones;
+    renderListaCotizaciones();
+    cotizacionesAceptadas.forEach(c => escucharPagosDe(c.proyectoId, c.id));
+  }, err => {
+    console.error('Error cargando cotizaciones aceptadas (revisa el índice de collectionGroup si falla):', err);
+  });
+
+function escucharPagosDe(proyectoId, cotizId){
+  proyectosRef.doc(proyectoId).collection('pagos')
+    .where('cotizacionId', '==', cotizId)
+    .onSnapshot(snap => {
+      const pagos = [];
+      snap.forEach(d => pagos.push({ id: d.id, ...d.data() }));
+      const c = cotizacionesAceptadas.find(x => x.proyectoId === proyectoId && x.id === cotizId);
+      if(c){
+        c.pagos = pagos;
+        c.sumaPagos = pagos.reduce((acc, p) => acc + (p.monto || 0), 0);
+        renderListaCotizaciones();
+        if(modalActualCotizId === cotizId && modalActualProyectoId === proyectoId) renderAbonosModal(c);
+      }
+    }, err => console.error('Error cargando pagos:', err));
+}
+
+// ============ RENDER LISTADO ============
+function renderListaCotizaciones(){
+  const cont = document.getElementById('listaCotizaciones');
+  const empty = document.getElementById('emptyState');
+
+  if(cotizacionesAceptadas.length === 0){
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    actualizarResumenMini();
+    return;
+  }
+  empty.style.display = 'none';
+
+  cont.innerHTML = cotizacionesAceptadas.map(c => {
+    const saldo = c.total - c.sumaPagos;
+    const pagado = saldo <= 0;
+    return `
+      <div class="cotiz-card" onclick="abrirModal('${c.proyectoId}', '${c.id}')">
+        <div class="top">
+          <div>
+            <h3>${escapeHtml(c.nombre)}</h3>
+            <div class="sub">${escapeHtml(c.clienteArtista)}</div>
+          </div>
+          <span class="badge ${pagado ? 'ok' : 'warn'}">${pagado ? 'Pagado' : 'Pendiente'}</span>
+        </div>
+        <div class="montos-row">
+          <div class="monto-item"><span class="lbl">Cotizado</span><span class="val">${fmt(c.total)}</span></div>
+          <div class="monto-item"><span class="lbl">Cobrado</span><span class="val">${fmt(c.sumaPagos)}</span></div>
+          <div class="monto-item saldo ${pagado ? 'pagado' : ''}"><span class="lbl">Saldo</span><span class="val">${fmt(saldo)}</span></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  actualizarResumenMini();
+}
+
+function actualizarResumenMini(){
+  const totalCotizado = cotizacionesAceptadas.reduce((acc, c) => acc + c.total, 0);
+  const totalCobrado = cotizacionesAceptadas.reduce((acc, c) => acc + c.sumaPagos, 0);
+  document.getElementById('resTotalCotizado').textContent = fmt(totalCotizado);
+  document.getElementById('resTotalCobrado').textContent = fmt(totalCobrado);
+  document.getElementById('resTotalSaldo').textContent = fmt(totalCotizado - totalCobrado);
+}
+
+// ============ MODAL: ABONOS ============
+function abrirModal(proyectoId, cotizId){
+  modalActualProyectoId = proyectoId;
+  modalActualCotizId = cotizId;
+  const c = cotizacionesAceptadas.find(x => x.proyectoId === proyectoId && x.id === cotizId);
+  if(!c) return;
+
+  document.getElementById('modalTitulo').textContent = c.nombre;
+  document.getElementById('modalSub').textContent = `${c.clienteArtista} · Cotizado: ${fmt(c.total)}`;
+  document.getElementById('fMonto').value = '';
+  document.getElementById('fFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fMetodo').value = 'transferencia';
+  document.getElementById('fNota').value = '';
+
+  renderAbonosModal(c);
+  document.getElementById('modalBg').classList.add('active');
+}
+
+function renderAbonosModal(c){
+  const cont = document.getElementById('listaAbonos');
+  const empty = document.getElementById('emptyAbonos');
+  if(!c.pagos || c.pagos.length === 0){
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const ordenados = [...c.pagos].sort((a,b) => (a.fecha || '').localeCompare(b.fecha || ''));
+  cont.innerHTML = ordenados.map(p => `
+    <div class="abono-item">
+      <div>
+        <strong>${fmt(p.monto)}</strong>
+        <div class="info">${p.fecha || '—'} · ${escapeHtml(p.metodo || '—')}${p.nota ? ' · ' + escapeHtml(p.nota) : ''}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function cerrarModal(){
+  document.getElementById('modalBg').classList.remove('active');
+  modalActualProyectoId = null;
+  modalActualCotizId = null;
+}
+
+async function registrarAbono(){
+  const monto = Number(document.getElementById('fMonto').value);
+  if(!monto || monto <= 0){
+    alert('Ingresa un monto válido.');
+    return;
+  }
+  const data = {
+    cotizacionId: modalActualCotizId,
+    monto,
+    fecha: document.getElementById('fFecha').value || null,
+    metodo: document.getElementById('fMetodo').value,
+    nota: document.getElementById('fNota').value.trim(),
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{
+    await proyectosRef.doc(modalActualProyectoId).collection('pagos').add(data);
+    document.getElementById('fMonto').value = '';
+    document.getElementById('fNota').value = '';
+  } catch(err){
+    console.error(err);
+    alert('Error registrando el abono. Revisa la consola.');
+  }
+}
+</script>
+
+</body>
+</html>
