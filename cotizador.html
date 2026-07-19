@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V8</title>
-<!-- AUDIOLINK · cotizador.html · v8
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8.1</title>
+<!-- AUDIOLINK · cotizador.html · v8.1
+     V8.1: se incorporan efectos visuales del diseño ICESI (index.html),
+     elegidos pensando en mobile (nada depende de :hover para funcionar):
+     glow de foco en inputs, sombra suave en paneles al pasar el mouse
+     (desktop), barras VU decorativas junto al título, flecha animada en el
+     acordeón de backline, y un pulso sutil en el botón "Guardar Cotización"
+     que se activa solo cuando el formulario ya está listo pero falta
+     vincular un proyecto. Todo aditivo: no se tocó ninguna regla CSS ni
+     función JS existente, solo se agregaron reglas y dos líneas que
+     alternan una clase. No se aplicó a proyecto.html ni a login.html.
      V8: se agrega guard de sesión de equipo interno (mismo patrón de
      login.html/proyecto.html), vínculo a un proyecto de Firestore (por
      ?id=... en la URL o selector si se abre suelto) y botón "Guardar
@@ -78,7 +87,7 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
   border-radius: 6px;
   transition: border-color 0.2s;
 }
-.text-input:focus { border-color: var(--gold); outline: none; }
+.text-input:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 0 3px rgba(196,152,44,0.15); }
 
 .inline-name-input {
   background: rgba(0, 0, 0, 0.25);
@@ -98,7 +107,8 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
 .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
 @media (max-width: 950px) { .main-grid { grid-template-columns: 1fr; } }
 
-.panel { background: var(--surf); border: 1px solid var(--brd); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+.panel { background: var(--surf); border: 1px solid var(--brd); border-radius: 8px; padding: 24px; margin-bottom: 24px; transition: box-shadow 0.28s ease; }
+.panel:hover { box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 10px 36px rgba(0,0,0,0.5); }
 .panel-title { 
   font-family: var(--T); 
   font-size: 18px; 
@@ -160,7 +170,7 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
   text-align: center; 
   border-radius: 4px; 
 }
-.row-input input[type="number"]:focus { border-color: var(--gold); outline: none; }
+.row-input input[type="number"]:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 0 3px rgba(196,152,44,0.15); }
 
 .qty-input { width: 55px; }
 .rate-input { width: 105px; text-align: right !important; }
@@ -202,6 +212,37 @@ details.backline-accordion summary svg { width: 14px; height: 14px; fill: none; 
 .btn-action:disabled { border-color: var(--faint); color: var(--muted); cursor: not-allowed; opacity: 0.5; }
 
 #print-view { display: none; }
+
+/* ===== EFECTOS TOMADOS DE ICESI (index.html) — v8.1 =====
+   Todo aditivo: no reemplaza ninguna regla anterior. Elegidos pensando en
+   mobile primero (nada depende de :hover para funcionar, son livianos). */
+
+/* Barras VU decorativas junto al título, mismo lenguaje visual del logo
+   de Audiolink en login.html/proyecto.html. */
+.vu-deco{ display:inline-flex; gap:3px; align-items:flex-end; height:18px; margin-right:10px; vertical-align:middle; }
+.vu-deco span{ width:3px; background:var(--gold); border-radius:1px; animation:vuDeco .9s ease-in-out infinite alternate; opacity:0.8; }
+.vu-deco span:nth-child(1){ height:6px; animation-delay:0s; }
+.vu-deco span:nth-child(2){ height:14px; animation-delay:0.12s; }
+.vu-deco span:nth-child(3){ height:9px; animation-delay:0.24s; }
+.vu-deco span:nth-child(4){ height:17px; animation-delay:0.36s; }
+@keyframes vuDeco{ from{ transform:scaleY(0.4); opacity:0.4; } to{ transform:scaleY(1); opacity:1; } }
+
+/* Pulso de atención: se activa por JS solo cuando falta vincular un
+   proyecto, para que el botón de guardar llame la atención sin ser
+   permanentemente ruidoso. */
+.necesita-atencion{ animation:pulseBrd 2s infinite alternate; }
+@keyframes pulseBrd{ from{ box-shadow:0 0 0 0 rgba(196,152,44,0.25); } to{ box-shadow:0 0 0 6px rgba(196,152,44,0); } }
+
+/* Flecha animada en el acordeón de backline (no cambia el HTML, solo el
+   marcador nativo de <summary>) */
+details.backline-accordion summary{ list-style:none; position:relative; padding-right:34px; }
+details.backline-accordion summary::-webkit-details-marker{ display:none; }
+details.backline-accordion summary::after{
+  content:""; position:absolute; right:12px; top:50%; width:8px; height:8px;
+  border-right:2px solid var(--gold); border-bottom:2px solid var(--gold);
+  transform:translateY(-70%) rotate(45deg); transition:transform 0.2s ease;
+}
+details.backline-accordion[open] summary::after{ transform:translateY(-30%) rotate(-135deg); }
 
 @media print {
   @page {
@@ -362,7 +403,7 @@ details.backline-accordion summary svg { width: 14px; height: 14px; fill: none; 
       <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5v14M22 8v8M7 8v8M2 10v4"/></svg>
       AUDIOLINK • Central de Control General
     </span>
-    <h1>CENTRAL DE OPERACIONES Y COTIZACIONES V7</h1>
+    <h1><span class="vu-deco"><span></span><span></span><span></span><span></span></span>CENTRAL DE OPERACIONES Y COTIZACIONES V7</h1>
     <div class="subtitle">Estructura dinámica de tarifas, servicios y control de proyectos musicales</div>
   </header>
 
@@ -1494,7 +1535,10 @@ function aplicarDatosProyectoVinculado() {
   validarYCalcular();
   const btnPdf = document.getElementById('btn-pdf');
   const btnGuardar = document.getElementById('btn-guardar-proyecto');
-  if (btnPdf && btnGuardar) btnGuardar.disabled = btnPdf.disabled || !proyectoVinculadoId;
+  if (btnPdf && btnGuardar) {
+    btnGuardar.disabled = btnPdf.disabled || !proyectoVinculadoId;
+    btnGuardar.classList.toggle('necesita-atencion', !btnPdf.disabled && !proyectoVinculadoId);
+  }
 }
 
 // ---------- RECOLECCIÓN PLANA DE ÍTEMS (independiente de exportarPDF) ----------
@@ -1631,7 +1675,10 @@ const _btnPdfObservado = document.getElementById('btn-pdf');
 if (_btnPdfObservado) {
   new MutationObserver(() => {
     const btnGuardar = document.getElementById('btn-guardar-proyecto');
-    if (btnGuardar) btnGuardar.disabled = _btnPdfObservado.disabled || !proyectoVinculadoId;
+    if (btnGuardar) {
+      btnGuardar.disabled = _btnPdfObservado.disabled || !proyectoVinculadoId;
+      btnGuardar.classList.toggle('necesita-atencion', !_btnPdfObservado.disabled && !proyectoVinculadoId);
+    }
   }).observe(_btnPdfObservado, { attributes: true, attributeFilter: ['disabled'] });
 }
 </script>

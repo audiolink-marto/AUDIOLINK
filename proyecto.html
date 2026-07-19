@@ -4,7 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v2.4
+<!-- AUDIOLINK · proyecto.html · v2.6
+     V2.6: se unifica tipografía con cotizador.html/ICESI (Playfair Display
+     + DM Sans + JetBrains Mono vía Google Fonts). Solo se agregaron las
+     variables --T/--S/--M y se cambió font-family en body y .brand h1;
+     no se tocó ningún color, layout ni función existente.
+     V2.5: se rediseñó generarPDFCotizacion() con el lenguaje visual del PDF
+     de cotizador.html: dos tarjetas de info (Titular del Proyecto /
+     Trazabilidad), ítems agrupados por categoría (detectada por palabras
+     clave en el concepto) con subtotal por grupo, tipografía serif ("times")
+     para textos y mono ("courier") para etiquetas/cifras —los más cercanos
+     a Playfair Display/JetBrains Mono disponibles sin incrustar fuentes
+     externas en jsPDF—, y paginación automática si la cotización es larga.
+     No se tocó guardarCotizacion(), recolectarDatosCotizacion() ni ninguna
+     otra función del cotizador simple: solo cambia cómo se pinta el PDF.
      V2.4: se agrega el botón "🧮 Cotizador Pro" dentro del modal de
      cotizaciones, que abre cotizador.html?id={proyectoActualId} en pestaña
      nueva (el calculador avanzado con salas/backline/honorarios/IVA).
@@ -38,6 +51,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script>
 // Anti-flash: aplica tema guardado ANTES de pintar el body
 (function(){
@@ -59,6 +74,9 @@
   --ok:#4caf7d;
   --warn:#d9a441;
   --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
 }
 :root[data-tema="light"]{
   --bg:#faf8f4;
@@ -78,7 +96,7 @@
 body{
   background:var(--bg);
   color:var(--txt);
-  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  font-family:var(--S);
   min-height:100vh;
   position:relative;
   overflow-x:hidden;
@@ -156,7 +174,7 @@ nav.links a{
   padding:6px 12px;border-radius:6px;transition:all 0.2s;
 }
 nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg);}
-.brand h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
 .vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
 .vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
 .vu span:nth-child(1){height:40%;animation-delay:0s;}
@@ -1388,98 +1406,179 @@ function generarPDFCotizacion(data){
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  const goldRGB = [201, 162, 75];
-  const darkRGB = [11, 11, 13];
-  const mutedRGB = [154, 151, 143];
+  const goldRGB = [196, 152, 44];
+  const darkRGB = [17, 17, 17];
+  const mutedRGB = [122, 112, 96];
+  const cardBgRGB = [250, 250, 250];
+  const cardBrdRGB = [229, 229, 229];
   const pageW = 210;
+  const pageH = doc.internal.pageSize.height;
   const marginX = 18;
+  const bottomLimit = pageH - 24;
 
+  // ---- Categorización por palabras clave del concepto ----
+  // Cubre tanto los conceptos que llegan del Cotizador Pro (cotizador.html,
+  // que ya trae prefijos como "Backline -", "Postproducción de Audio -",
+  // etc.) como los del Cotizador simple (texto libre), que caen en "Otros".
+  const GRUPOS_DEF = [
+    { nombre: 'Infraestructura — Salas de Grabación', test: c => /infraestructura/i.test(c) },
+    { nombre: 'Equipos — Backline / Instrumentación', test: c => /backline/i.test(c) },
+    { nombre: 'Personal Operativo & Soporte', test: c => /(soporte técnico|preproducción logística|personal de ejecución|ensamble)/i.test(c) },
+    { nombre: 'Producción & Postproducción de Audio', test: c => /(preproducción -|roles creativos|postproducción)/i.test(c) },
+    { nombre: 'Honorarios e Impuestos', test: c => /(honorarios|impuestos)/i.test(c) },
+    { nombre: 'Otros Rubros', test: () => true }
+  ];
+  const grupos = GRUPOS_DEF.map(g => ({ nombre: g.nombre, items: [], subtotal: 0 }));
+  data.items.forEach(it => {
+    const idx = GRUPOS_DEF.findIndex(g => g.test(it.concepto || ''));
+    const grupo = grupos[idx === -1 ? grupos.length - 1 : idx];
+    grupo.items.push(it);
+    grupo.subtotal += it.cantidad * it.precio;
+  });
+  const gruposConItems = grupos.filter(g => g.items.length > 0);
+
+  function checkPageBreak(alturaNecesaria){
+    if(y + alturaNecesaria > bottomLimit){
+      doc.addPage();
+      y = 20;
+    }
+  }
+
+  // ---- Encabezado ----
   doc.setFillColor(...darkRGB);
   doc.rect(0, 0, pageW, 38, 'F');
   doc.setDrawColor(...goldRGB);
   doc.setLineWidth(0.6);
   doc.line(0, 38, pageW, 38);
   doc.setTextColor(...goldRGB);
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(20);
-  doc.text('AUDIOLINK', marginX, 20);
-  doc.setFontSize(8.5);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(...mutedRGB);
-  doc.text('COTIZACIÓN', marginX, 28);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(22);
+  doc.text('AUDIOLINK', marginX, 21);
+  doc.setFont('courier', 'normal');
   doc.setFontSize(8);
-  doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - marginX, 28, { align:'right' });
+  doc.setTextColor(200, 200, 195);
+  doc.text('PROPUESTA OPERATIVA Y ECONÓMICA', marginX, 28);
+  doc.setTextColor(...goldRGB);
+  doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }).toUpperCase(), pageW - marginX, 28, { align:'right' });
 
   let y = 52;
-  doc.setTextColor(20, 20, 20);
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(17);
-  doc.text(p.nombre || 'Sin nombre', marginX, y);
-  y += 7;
-  doc.setFontSize(9);
-  doc.setFont(undefined, 'normal');
+
+  // ---- Dos tarjetas de info (Titular del Proyecto / Trazabilidad) ----
+  const cardW = (pageW - marginX*2 - 10) / 2;
+  const cardH = 30;
+  doc.setDrawColor(...cardBrdRGB);
+  doc.setFillColor(...cardBgRGB);
+  doc.roundedRect(marginX, y, cardW, cardH, 2, 2, 'FD');
+  doc.roundedRect(marginX + cardW + 10, y, cardW, cardH, 2, 2, 'FD');
+
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(7.5);
   doc.setTextColor(...mutedRGB);
-  doc.text(`Cliente/Artista: ${p.clienteArtista || '—'}`, marginX, y);
-  if(data.validez){
-    doc.text(`Válida hasta: ${new Date(data.validez).toLocaleDateString('es-CO')}`, pageW - marginX, y, { align:'right' });
-  }
-  y += 12;
+  doc.text('TITULAR DEL PROYECTO', marginX + 5, y + 8);
+  doc.text('TRAZABILIDAD', marginX + cardW + 15, y + 8);
 
-  // Tabla de ítems
-  doc.setFillColor(246, 244, 239);
-  doc.rect(marginX, y - 6, pageW - marginX*2, 9, 'F');
-  doc.setFontSize(8.5);
-  doc.setFont(undefined, 'bold');
-  doc.setTextColor(140, 108, 40);
-  doc.text('CONCEPTO', marginX + 3, y);
-  doc.text('CANT.', marginX + 105, y);
-  doc.text('P. UNIT.', marginX + 130, y);
-  doc.text('SUBTOTAL', pageW - marginX - 3, y, { align:'right' });
-  y += 10;
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...darkRGB);
+  doc.text(`Cliente/Artista: ${p.clienteArtista || '—'}`, marginX + 5, y + 15);
+  doc.text(`Proyecto: ${p.nombre || 'Sin nombre'}`, marginX + 5, y + 21, { maxWidth: cardW - 10 });
 
-  doc.setFont(undefined, 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(40, 40, 40);
-  data.items.forEach(it => {
-    const subtotal = it.cantidad * it.precio;
-    doc.text(String(it.concepto || '—'), marginX + 3, y);
-    doc.text(String(it.cantidad), marginX + 105, y);
-    doc.text('$' + it.precio.toLocaleString('es-CO'), marginX + 130, y);
-    doc.text('$' + subtotal.toLocaleString('es-CO'), pageW - marginX - 3, y, { align:'right' });
-    y += 7;
+  doc.text(`Prod. Ejecutivo: ${p.productorEjecutivo || '—'}`, marginX + cardW + 15, y + 15);
+  const validezTxt = data.validez ? new Date(data.validez).toLocaleDateString('es-CO') : 'No definida';
+  doc.text(`Válida hasta: ${validezTxt}`, marginX + cardW + 15, y + 21);
+  doc.text(`Estado: ${(data.estado || 'borrador').toUpperCase()}`, marginX + cardW + 15, y + 27);
+
+  y += cardH + 12;
+
+  // ---- Tabla agrupada ----
+  gruposConItems.forEach(grupo => {
+    checkPageBreak(9 + grupo.items.length*7 + 10);
+
+    doc.setFillColor(240, 237, 231);
+    doc.setDrawColor(...goldRGB);
+    doc.setLineWidth(1);
+    doc.rect(marginX, y - 5.5, pageW - marginX*2, 8, 'F');
+    doc.line(marginX, y - 5.5, marginX, y + 2.5);
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...darkRGB);
+    doc.text(grupo.nombre.toUpperCase(), marginX + 4, y);
+    y += 8;
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...mutedRGB);
+    doc.text('CONCEPTO', marginX + 3, y);
+    doc.text('CANT.', marginX + 108, y, { align:'right' });
+    doc.text('P. UNIT.', marginX + 140, y, { align:'right' });
+    doc.text('SUBTOTAL', pageW - marginX - 3, y, { align:'right' });
+    y += 6;
+
+    doc.setFont('times', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(40, 40, 40);
+    grupo.items.forEach(it => {
+      checkPageBreak(7);
+      const subtotal = it.cantidad * it.precio;
+      doc.text(String(it.concepto || '—'), marginX + 3, y, { maxWidth: 95 });
+      doc.text(String(it.cantidad), marginX + 108, y, { align:'right' });
+      doc.text('$' + it.precio.toLocaleString('es-CO'), marginX + 140, y, { align:'right' });
+      doc.text('$' + subtotal.toLocaleString('es-CO'), pageW - marginX - 3, y, { align:'right' });
+      y += 7;
+    });
+
+    doc.setDrawColor(...goldRGB);
+    doc.setLineWidth(0.2);
+    doc.line(marginX, y - 2, pageW - marginX, y - 2);
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...mutedRGB);
+    doc.text(`Subtotal parcial: $${grupo.subtotal.toLocaleString('es-CO')}`, pageW - marginX - 3, y + 3, { align:'right' });
+    y += 12;
   });
 
-  y += 4;
-  doc.setDrawColor(230, 230, 230);
+  // ---- Total ----
+  checkPageBreak(20);
+  doc.setDrawColor(...goldRGB);
+  doc.setLineWidth(0.6);
   doc.line(marginX, y, pageW - marginX, y);
-  y += 10;
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(12);
+  y += 9;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(15);
   doc.setTextColor(...goldRGB);
-  doc.text('TOTAL: $' + data.total.toLocaleString('es-CO'), pageW - marginX, y, { align:'right' });
+  doc.text('INVERSIÓN ESTIMADA TOTAL: $' + data.total.toLocaleString('es-CO'), pageW - marginX, y, { align:'right' });
 
+  // ---- Notas ----
   if(data.notas){
     y += 14;
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(20, 20, 20);
-    doc.text('Notas / condiciones', marginX, y);
+    checkPageBreak(20);
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...darkRGB);
+    doc.text('NOTAS / CONDICIONES', marginX, y);
     y += 6;
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
+    doc.setFont('times', 'normal');
+    doc.setFontSize(9.5);
     doc.setTextColor(70, 70, 70);
     const splitNotas = doc.splitTextToSize(data.notas, pageW - marginX*2);
+    checkPageBreak(splitNotas.length * 5 + 4);
     doc.text(splitNotas, marginX, y);
   }
 
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setDrawColor(230, 230, 230);
-  doc.setLineWidth(0.2);
-  doc.line(marginX, pageHeight - 15, pageW - marginX, pageHeight - 15);
-  doc.setFontSize(7.5);
-  doc.setTextColor(...mutedRGB);
-  doc.text('AUDIOLINK — Producción y Logística Musical', marginX, pageHeight - 10);
-  doc.text('Cotización sujeta a confirmación', pageW - marginX, pageHeight - 10, { align:'right' });
+  // ---- Pie de página en todas las páginas generadas ----
+  const totalPaginas = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= totalPaginas; i++){
+    doc.setPage(i);
+    const ph = doc.internal.pageSize.height;
+    doc.setDrawColor(...cardBrdRGB);
+    doc.setLineWidth(0.2);
+    doc.line(marginX, ph - 15, pageW - marginX, ph - 15);
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...mutedRGB);
+    doc.text('AUDIOLINK — Producción y Logística Musical', marginX, ph - 10);
+    doc.text(`Cotización sujeta a confirmación · Pág. ${i}/${totalPaginas}`, pageW - marginX, ph - 10, { align:'right' });
+  }
 
   const blobUrl = doc.output('bloburl');
   window.open(blobUrl, '_blank');

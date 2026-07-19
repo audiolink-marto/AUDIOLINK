@@ -12,10 +12,14 @@
      nueva proyectos/{id}/pagos y calcula saldo pendiente en vivo. Mismo
      guard de sesión (equipoInterno + activo:true), mismo tema y estilo
      visual que el resto del ecosistema. No se tocó ningún otro archivo
-     salvo agregar el enlace "Pagos" al nav de los demás. -->
+     salvo agregar el enlace "Pagos" al nav de los demás.
+     V1.1: se unifica tipografía con cotizador.html/ICESI (Playfair Display
+     + DM Sans + JetBrains Mono). Solo cambia font-family en :root/body/h1. -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -36,6 +40,9 @@
   --ok:#4caf7d;
   --warn:#d9a441;
   --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
 }
 :root[data-tema="light"]{
   --bg:#faf8f4;
@@ -55,7 +62,7 @@
 body{
   background:var(--bg);
   color:var(--txt);
-  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  font-family:var(--S);
   min-height:100vh;
   position:relative;
   overflow-x:hidden;
@@ -97,7 +104,7 @@ header{
 .vu span:nth-child(4){height:100%;animation-delay:0.45s;}
 .vu span:nth-child(5){height:50%;animation-delay:0.6s;}
 @keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
-h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
 nav.links{display:flex;gap:8px;margin-left:20px;}
 nav.links a{
   color:var(--muted);font-size:0.82rem;text-decoration:none;

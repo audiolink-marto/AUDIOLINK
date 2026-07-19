@@ -4,10 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Portal de Clientes</title>
-<!-- AUDIOLINK · portal.html · v1.0 -->
+<!-- AUDIOLINK · portal.html · v1.1
+     V1.1: se unifica tipografía con cotizador.html/ICESI (Playfair Display
+     + DM Sans + JetBrains Mono). Solo cambia font-family en :root/body/h1;
+     no se tocó ningún color, layout ni función existente. -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -28,6 +33,9 @@
   --ok:#4caf7d;
   --warn:#d9a441;
   --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
 }
 :root[data-tema="light"]{
   --bg:#faf8f4;
@@ -47,7 +55,7 @@
 body{
   background:var(--bg);
   color:var(--txt);
-  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  font-family:var(--S);
   min-height:100vh;
   position:relative;
   overflow-x:hidden;
@@ -72,7 +80,7 @@ header{
   background:var(--surf);flex-wrap:wrap;gap:12px;
 }
 .brand{display:flex;align-items:center;gap:14px;}
-.brand h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
 .vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
 .vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
 .vu span:nth-child(1){height:40%;animation-delay:0s;}
