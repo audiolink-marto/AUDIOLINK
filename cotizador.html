@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AUDIOLINK - Central de Operaciones & Cotizador V8.7</title>
-<!-- AUDIOLINK · cotizador.html · v8.7
+<!-- AUDIOLINK · cotizador.html · v8.8
+     V8.8: el sidebar/topbar mobile/panel "···"/bottomnav (antes
+     copiados y pegados en cada archivo) ahora se cargan desde nav.js
+     (compartido por todo el ecosistema), inyectados en <div id="nav-
+     mount"></div>. Las funciones cerrarSesion(), toggleTema(),
+     toggleMasMobile() y el colapsar del sidebar también se movieron a
+     nav.js. Los ítems específicos de esta página (si los hay) se pasan
+     via window.NAV_CONFIG antes de cargar nav.js. No se tocó ninguna
+     otra lógica ni el CSS existente de .sidebar/.mobile-topbar/etc.
      V8.7: firebaseConfig deja de estar copiado en este archivo; ahora se
      carga desde firebase-config.js (compartido por todo el ecosistema,
      mismos valores exactos). Se agrega <script src="firebase-config.js">
@@ -533,48 +541,17 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
 <div id="print-view"></div>
 
 <!-- SIDEBAR DESKTOP (>=769px) — patrón heredado de Andamios El Progreso Central -->
-<aside class="sidebar" id="sidebar">
-  <div class="sb-brand">
-    <h1>AUDIOLINK</h1>
-  </div>
-  <nav class="sb-nav">
-    <a href="index.html" class="sb-item"><i>🏠</i><span>Dashboard</span></a>
-    <a href="proyecto.html" class="sb-item"><i>📁</i><span>Proyectos</span></a>
-    <a href="logistica.html" class="sb-item"><i>🎚️</i><span>Logística</span></a>
-    <a href="pagos.html" class="sb-item"><i>💳</i><span>Pagos</span></a>
-    <a href="#" class="sb-item active" style="pointer-events:none;"><i>🧾</i><span>Cotizador</span></a>
-  </nav>
-  <div class="sb-foot">
-    <div class="sb-item" onclick="cerrarSesion()"><i>⏻</i><span>Cerrar sesión</span></div>
-    <div class="sb-toggle" id="sidebarToggle"><i>«</i><span>Colapsar</span></div>
-    <div class="sb-credit">Marto 🧠 · martowave@gmail.com</div>
-  </div>
-</aside>
-
-<!-- MOBILE TOPBAR (<=768px) -->
-<div class="mobile-topbar">
-  <div class="brand">
-    <h1>AUDIOLINK</h1>
-  </div>
-  <div class="mobile-topbar-actions">
-    <button class="btn-icon" onclick="toggleMasMobile()" title="Más opciones">⋮</button>
-  </div>
-</div>
-
-<!-- PANEL "···" MOBILE — patrón heredado de PsicoGestión -->
-<div class="mas-mobile-panel" id="masMobilePanel">
-  <div class="mas-mobile-item" onclick="window.location.href='proyecto.html'"><i>←</i>Volver a Proyectos</div>
-  <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
-  <div class="mas-mobile-credit">Marto 🧠 · martowave@gmail.com</div>
-</div>
-
-<!-- BOTTOM NAV MOBILE (<=768px) — patrón heredado de PsicoGestión -->
-<nav class="mobile-bottomnav">
-  <a href="index.html"><i>🏠</i>Dashboard</a>
-  <a href="proyecto.html"><i>📁</i>Proyectos</a>
-  <a href="logistica.html"><i>🎚️</i>Logística</a>
-  <a href="pagos.html"><i>💳</i>Pagos</a>
-</nav>
+<script>
+window.NAV_CONFIG = {
+  activo: 'cotizador',
+  soportaTema: false, // el cotizador aún no tiene CSS de modo claro (pendiente, paso aparte)
+  masMobileExtra: [
+    {icon:'←', label:'Volver a Proyectos', onclick:"window.location.href='proyecto.html'"}
+  ]
+};
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
 
 <div class="main-wrap" id="mainWrap">
 <div class="container">
@@ -1698,37 +1675,8 @@ auth.onAuthStateChanged(async (user) => {
 });
 
 // ---------- SESIÓN MANUAL (nuevo en v8.2, para el botón del sidebar) ----------
-function cerrarSesion(){
-  if(!confirm('¿Cerrar sesión?')) return;
-  auth.signOut().then(() => window.location.href = 'login.html');
-}
-
-// ============ NAV V8.2: sidebar colapsable (desktop) + panel "···" (mobile) ============
-(function(){
-  document.addEventListener('DOMContentLoaded', () => {
-    const sidebar = document.getElementById('sidebar');
-    const mainWrap = document.getElementById('mainWrap');
-    const toggle = document.getElementById('sidebarToggle');
-    if(!sidebar || !mainWrap || !toggle) return;
-    const colapsado = localStorage.getItem('audiolink_sb_colapsado') === '1';
-    if(colapsado){ sidebar.classList.add('collapsed'); mainWrap.classList.add('expanded'); }
-    toggle.addEventListener('click', () => {
-      const ahora = sidebar.classList.toggle('collapsed');
-      mainWrap.classList.toggle('expanded', ahora);
-      localStorage.setItem('audiolink_sb_colapsado', ahora ? '1' : '0');
-    });
-  });
-})();
-function toggleMasMobile(){
-  const panel = document.getElementById('masMobilePanel');
-  if(panel) panel.classList.toggle('show');
-}
-document.addEventListener('click', (e) => {
-  const panel = document.getElementById('masMobilePanel');
-  if(!panel || !panel.classList.contains('show')) return;
-  const btn = e.target.closest('.mobile-topbar-actions');
-  if(!panel.contains(e.target) && !btn) panel.classList.remove('show');
-});
+// cerrarSesion(), toggleTema(), toggleMasMobile() y el colapsar del sidebar
+// ahora viven en nav.js (compartido por todo el ecosistema).
 
 // ---------- VÍNCULO CON PROYECTO ----------
 function iniciarVinculoProyecto() {
