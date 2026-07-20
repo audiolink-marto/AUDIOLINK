@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Pagos</title>
-<!-- AUDIOLINK · pagos.html · v1.9
+<!-- AUDIOLINK · pagos.html · v2.0
+     V2.0: el ícono 📁 "Ver proyecto" ya no abre en pestaña nueva (dejaba
+     al usuario con dos pestañas y sin forma de volver). Ahora navega en
+     la misma pestaña, agregando &from=pagos a la URL; proyecto.html v3.6
+     usa ese parámetro para que su botón "volver" regrese aquí en vez de
+     al listado de proyectos. No se tocó ninguna otra lógica.
      V1.9: cada card ahora muestra una etiqueta "En Producción" (mismo
      color/estilo que el badge nuevo de proyecto.html v3.4) junto al badge
      de Pagado/Pendiente, y un ícono 📁 que abre proyecto.html?id=X en
@@ -577,7 +582,7 @@ function renderListaCotizaciones(){
           <div class="top-labels">
             <span class="badge prod">En Producción</span>
             <span class="badge ${pagado ? 'ok' : 'warn'}">${pagado ? 'Pagado' : 'Pendiente'}</span>
-            <a href="proyecto.html?id=${c.proyectoId}" target="_blank" rel="noopener" class="btn-ir-proyecto" title="Ver proyecto" onclick="event.stopPropagation()">📁</a>
+            <a href="proyecto.html?id=${c.proyectoId}&from=pagos" rel="noopener" class="btn-ir-proyecto" title="Ver proyecto" onclick="event.stopPropagation()">📁</a>
           </div>
         </div>
         <div class="montos-row">

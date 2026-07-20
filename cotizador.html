@@ -4,7 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AUDIOLINK - Central de Operaciones & Cotizador V8.7</title>
-<!-- AUDIOLINK · cotizador.html · v9.0
+<!-- AUDIOLINK · cotizador.html · v9.1
+     V9.1: fix de contraste en tema claro. Varios textos (h1, títulos de
+     panel, inputs de texto y numéricos, subtítulo de sala) tenían el color
+     hardcodeado en blanco (#FFFFFF) o en un gris fijo (#9A8F7A) en vez de
+     usar var(--txt)/var(--muted). En oscuro no se notaba (--txt es casi
+     blanco), pero en claro quedaban textos blancos sobre fondo claro,
+     casi ilegibles. Se cambiaron esos 6 valores hardcodeados a las
+     variables de tema correspondientes. No se tocó ningún estilo de
+     impresión (@media print, que usa negro/blanco fijo a propósito para
+     el PDF) ni ninguna fórmula de cálculo.
      V9.0: Dos pendientes cerrados: (1) el cotizador ahora tiene soporte
      completo de tema claro/oscuro (script de aplicación temprana +
      bloque :root[data-tema="light"] a juego con su propia paleta +
@@ -237,7 +246,7 @@ header { border-bottom: 1px solid var(--brd); padding-bottom: 24px; margin-botto
 }
 .brand-tag svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
 
-h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
+h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: var(--txt); }
 .subtitle { font-size: 14px; color: var(--muted); font-style: italic; margin-top: 4px; }
 
 .project-info-panel { margin-bottom: 32px; }
@@ -247,7 +256,7 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
 .text-input {
   background: var(--bg);
   border: 1px solid var(--brd);
-  color: #FFFFFF;
+  color: var(--txt);
   font-family: var(--S);
   font-size: 14px;
   width: 100%;
@@ -260,7 +269,7 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
 .inline-name-input {
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--brd);
-  color: #FFFFFF;
+  color: var(--txt);
   font-family: var(--S);
   font-size: 12px;
   padding: 4px 8px;
@@ -281,7 +290,7 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
   font-family: var(--T); 
   font-size: 18px; 
   font-weight: 700; 
-  color: #FFFFFF; 
+  color: var(--txt); 
   margin-bottom: 16px; 
   border-bottom: 1px solid var(--brd); 
   padding-bottom: 8px; 
@@ -321,7 +330,7 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
   width: 100%;
 }
 .room-specs strong { color: var(--gold); font-weight: 500; }
-.room-layout { display: block; font-family: var(--M); font-size: 10px; margin-bottom: 2px; color: #9A8F7A; }
+.room-layout { display: block; font-family: var(--M); font-size: 10px; margin-bottom: 2px; color: var(--muted); }
 
 .input-controls { display: flex; align-items: flex-end; gap: 6px; }
 .input-unit-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -331,7 +340,7 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: #FFFFFF; }
 .row-input input[type="number"] { 
   background: var(--bg); 
   border: 1px solid var(--brd); 
-  color: #FFFFFF; 
+  color: var(--txt); 
   font-family: var(--M); 
   font-size: 13px; 
   padding: 6px; 

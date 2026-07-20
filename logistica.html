@@ -4,7 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Logística</title>
-<!-- AUDIOLINK · logistica.html · v1.7
+<!-- AUDIOLINK · logistica.html · v1.9
+     V1.9: "← Volver al proyecto" ahora recuerda de dónde viniste. Si
+     entraste a esta página de sesiones desde la agenda global (tarjeta o
+     selector suelto, sin ?id= previo), el link vuelve a la agenda global
+     (logistica.html) en vez de proyecto.html — antes siempre mandaba a
+     proyecto.html y eso disparaba un modal no pedido. Si entraste desde
+     "Ver sesiones" en proyecto.html, el link sigue yendo a
+     proyecto.html?id=X como siempre. Se logra con un parámetro extra
+     &origen=agenda en las dos rutas que salen de la agenda global; no se
+     tocó ninguna otra lógica de sesiones, Firestore, PDF ni modales.
+     V1.8: al entrar sin ?id= ya no se ve solo un selector vacío — ahora se
+     muestra una agenda global con las sesiones de TODOS los proyectos
+     (db.collectionGroup('sesiones'), mismo patrón usado en proyecto.html
+     v3.5 y en el calendario de index.html v1.9), ordenadas por fecha, cada
+     card enlaza a logistica.html?id=X del proyecto correspondiente. El
+     selector de proyecto se mantiene debajo, ahora como acceso directo
+     para crear/editar sesiones de un proyecto puntual. No se tocó ninguna
+     función de sesiones, modales, PDF ni la vista con ?id= existente.
      V1.7: el sidebar/topbar mobile/panel "···"/bottomnav (antes
      copiados y pegados en cada archivo) ahora se cargan desde nav.js
      (compartido por todo el ecosistema), inyectados en <div id="nav-
@@ -361,14 +378,21 @@ window.NAV_CONFIG = { activo: 'logistica' };
 
   <div class="grid" id="gridSesiones"></div>
   <div class="empty" id="emptyState" style="display:none;">No hay sesiones registradas aún.</div>
-  <div id="sinProyecto" style="display:none;text-align:center;padding:40px 16px;">
-    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;" id="sinProyectoTexto">Elige un proyecto para ver o crear sus sesiones de logística:</div>
-    <div class="field" style="max-width:360px;margin:0 auto 10px;">
-      <select id="selectorProyectoSuelto" onchange="irAProyectoSuelto()">
-        <option value="">Cargando proyectos...</option>
-      </select>
+  <div id="sinProyecto" style="display:none;">
+    <div class="top-actions" style="margin-bottom:6px;">
+      <h2 style="font-size:0.95rem;color:var(--muted);letter-spacing:0.04em;" id="sinProyectoTexto">AGENDA — TODOS LOS PROYECTOS</h2>
     </div>
-    <div style="color:var(--faint);font-size:0.76rem;margin-top:10px;">o entra a <a href="proyecto.html" style="color:var(--gold);">Proyectos</a> y usa "Ver sesiones" desde ahí.</div>
+    <div class="grid" id="gridAgendaGlobal"></div>
+    <div class="empty" id="emptyAgendaGlobal" style="display:none;">No hay sesiones registradas en ningún proyecto todavía.</div>
+    <div style="max-width:360px;margin:32px auto 0;text-align:center;">
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px;">¿Vas a crear o editar sesiones de un proyecto específico?</div>
+      <div class="field" style="margin:0 auto 10px;">
+        <select id="selectorProyectoSuelto" onchange="irAProyectoSuelto()">
+          <option value="">Cargando proyectos...</option>
+        </select>
+      </div>
+      <div style="color:var(--faint);font-size:0.76rem;margin-top:10px;">o entra a <a href="proyecto.html" style="color:var(--gold);">Proyectos</a> y usa "Ver sesiones" desde ahí.</div>
+    </div>
   </div>
 
 </main>
@@ -456,11 +480,21 @@ auth.onAuthStateChanged(async (user) => {
 
 // ============ ESTADO ============
 let proyectoId = null;
+let origenAgenda = false; // true si se llegó aquí desde la agenda global (?origen=agenda)
 let proyectoData = null;
 let sesiones = [];
 let sesionActualId = null;
 let editando = false;
 let unsubscribeSesiones = null;
+
+// Agenda global (v1.8): sesiones de TODOS los proyectos, para cuando se
+// entra a logistica.html sin ?id=. Antes ese caso solo mostraba un
+// selector vacío; ahora se ve de una vez qué hay agendado sin tener que
+// elegir un proyecto primero. proyectosCache guarda {id: {nombre}} para
+// poder mostrar el nombre del proyecto en cada card de la agenda.
+let agendaGlobal = [];
+let proyectosCache = {};
+let unsubscribeAgendaGlobal = null;
 
 function escapeHtml(str){
   const d = document.createElement('div');
@@ -469,7 +503,9 @@ function escapeHtml(str){
 }
 
 function volverAProyecto(){
-  if(proyectoId){
+  if(origenAgenda){
+    window.location.href = 'logistica.html';
+  } else if(proyectoId){
     window.location.href = `proyecto.html?id=${proyectoId}`;
   } else {
     window.location.href = 'proyecto.html';
@@ -487,11 +523,14 @@ async function cargarSelectorProyectoSuelto(){
       sel.innerHTML = '<option value="">No hay proyectos todavía</option>';
       return;
     }
+    proyectosCache = {};
+    snap.docs.forEach(d => { proyectosCache[d.id] = d.data(); });
     sel.innerHTML = '<option value="">— Selecciona un proyecto —</option>' +
       snap.docs.map(d => {
         const p = d.data();
         return `<option value="${d.id}">${escapeHtml(p.nombre || 'Sin nombre')} — ${escapeHtml(p.clienteArtista || '—')}</option>`;
       }).join('');
+    renderAgendaGlobal(); // por si la agenda ya llegó antes que los nombres de proyecto
   } catch(err){
     console.error('Error cargando proyectos:', err);
     sel.innerHTML = '<option value="">No pudimos cargar los proyectos</option>';
@@ -501,16 +540,60 @@ async function cargarSelectorProyectoSuelto(){
 function irAProyectoSuelto(){
   const id = document.getElementById('selectorProyectoSuelto').value;
   if(!id) return;
-  window.location.href = `logistica.html?id=${id}`;
+  window.location.href = `logistica.html?id=${id}&origen=agenda`;
+}
+
+// Agenda global: mismo patrón collectionGroup usado en proyecto.html v3.5
+// (resumen financiero) y en index.html v1.9 (calendario). Solo se activa
+// cuando se entra sin ?id=; no interfiere con la vista de un proyecto.
+function iniciarAgendaGlobal(){
+  unsubscribeAgendaGlobal = db.collectionGroup('sesiones')
+    .orderBy('fecha', 'asc')
+    .onSnapshot(snap => {
+      agendaGlobal = [];
+      snap.forEach(doc => {
+        const pid = doc.ref.parent.parent.id;
+        agendaGlobal.push({ id: doc.id, proyectoId: pid, ...doc.data() });
+      });
+      renderAgendaGlobal();
+    }, err => console.error('Error cargando agenda global de sesiones (revisa el índice de collectionGroup si falla):', err));
+}
+
+function renderAgendaGlobal(){
+  const grid = document.getElementById('gridAgendaGlobal');
+  const empty = document.getElementById('emptyAgendaGlobal');
+  if(!grid) return;
+  if(agendaGlobal.length === 0){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = agendaGlobal.map(s => {
+    const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+    const proy = proyectosCache[s.proyectoId];
+    return `
+    <div class="card" onclick="window.location.href='logistica.html?id=${s.proyectoId}&origen=agenda'">
+      <div class="card-top">
+        <h3>${escapeHtml(s.actividad || 'Sesión')}</h3>
+        <span class="badge ${s.visibleCliente ? 'vis' : 'priv'}">${s.visibleCliente ? 'Visible' : 'Privada'}</span>
+      </div>
+      <div class="meta">📁 ${escapeHtml(proy ? proy.nombre : 'Proyecto')}</div>
+      <div class="meta">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')}</div>
+      <div class="meta">⏱️ ${escapeHtml(s.horaInicio || '--:--')} – ${escapeHtml(s.horaFin || '--:--')}</div>
+    </div>`;
+  }).join('');
 }
 
 async function initLogistica(){
   const urlParams = new URLSearchParams(window.location.search);
   proyectoId = urlParams.get('id');
+  origenAgenda = urlParams.get('origen') === 'agenda';
 
   if(!proyectoId){
     document.getElementById('sinProyecto').style.display = 'block';
     cargarSelectorProyectoSuelto();
+    iniciarAgendaGlobal();
     return;
   }
 

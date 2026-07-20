@@ -1,0 +1,147 @@
+rules_version = '2';
+// ============================================================
+// AUDIOLINK — Reglas de Firestore
+// Cubre: proyectos, proyectos/{id}/sesiones, proyectos/{id}/cotizaciones,
+// proyectos/{id}/pagos, proyectos/{id}/produccion, equipoInterno,
+// clientesAcceso, estudios.
+//
+// IMPORTANTE — léelo antes de publicar:
+// 1. El PRIMER correo de equipoInterno hay que crearlo manualmente desde la
+//    consola de Firebase (Firestore → equipoInterno → doc con id = tu correo,
+//    campo activo:true). Después de eso, ya puedes agregar los demás desde el
+//    modal "Equipo interno" en proyecto.html.
+// 2. Prueba estas reglas en el simulador de la consola de Firebase antes de
+//    publicarlas en producción, y avísame si algo bloquea una acción legítima
+//    para ajustarlas — no las publiques a ciegas.
+//
+// FIX (v1.1): la función esStaff() estaba declarada ANTES del bloque
+// "service cloud.firestore { ... }", fuera de él. Firestore exige que las
+// funciones vivan DENTRO de ese bloque (dentro de match /databases/{database}
+// /documents { ... }). Eso rompía la evaluación de las reglas y bloqueaba
+// todas las escrituras de staff, incluido guardar proyectos. Se movió la
+// función adentro; no se tocó ninguna condición ni match existente.
+//
+// v1.2: se agrega el bloque /estudios/{estudioId} — catálogo de
+// estudios/salas/tarifas que alimenta el selector "Entorno Operativo" del
+// Cotizador (proyecto.html v2.8 / cotizador.html v8.3). Mismo patrón que
+// cotizaciones/pagos: solo equipo interno lee y escribe, el cliente nunca
+// accede a esto. No se tocó ninguna otra condición ni match existente.
+//
+// v1.3: se agrega un match adicional con patrón /{path=**}/cotizaciones/{id}
+// para habilitar la consulta collectionGroup('cotizaciones') que usa
+// pagos.html (V1.0) al listar cobros pendientes. Las reglas anidadas
+// normales (proyectos/{id}/cotizaciones/{id}) SOLO cubren lecturas directas
+// a un documento puntual; Firestore exige este patrón con comodín aparte
+// para autorizar consultas agrupadas (collectionGroup) sobre esa misma
+// colección, sin importar en qué proyecto esté anidada. No se modificó ni
+// se quitó ninguna regla existente — este bloque solo se suma.
+//
+// v1.4: mismo problema que v1.3, ahora con /sesiones/. index.html (v1.9,
+// calendario) y logistica.html (v1.8, agenda global) usan
+// db.collectionGroup('sesiones') para listar sesiones de TODOS los
+// proyectos a la vez, y esa consulta fallaba con "Missing or insufficient
+// permissions" porque el match anidado proyectos/{id}/sesiones/{id} no
+// cubre collectionGroup queries. Se agrega el match con comodín
+// /{path=**}/sesiones/{id}, mismo patrón exacto que el de cotizaciones de
+// v1.3. Solo lectura, solo staff. No se tocó ninguna otra regla existente
+// — el acceso de solo-lectura del cliente a las sesiones de SU proyecto
+// sigue intacto en el match anidado de siempre.
+//
+// v1.5: se agrega el match /produccion/{produccionId} dentro de
+// proyectos/{proyectoId} — subcolección nueva de proyecto.html v3.8 para
+// scores/arreglos/referencias/mezclas del proyecto. Mismo patrón que
+// pagos: solo lectura/escritura de equipo interno, sin acceso de cliente
+// por ahora (el campo visibleCliente queda guardado para uso futuro en el
+// portal, pero hoy no hay lectura de cliente sobre esta colección, y por
+// eso tampoco se agrega match de collectionGroup — nada la consulta así
+// todavía). No se tocó ninguna otra regla existente.
+// ============================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function esStaff() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/equipoInterno/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/equipoInterno/$(request.auth.token.email)).data.activo == true;
+    }
+    // ---------- PROYECTOS ----------
+    match /proyectos/{proyectoId} {
+      // Staff: acceso total.
+      allow read, write: if esStaff();
+      // Cliente: solo lectura de SU proyecto, y solo si está marcado visible.
+      allow read: if request.auth != null &&
+        resource.data.clienteEmail == request.auth.token.email.lower() &&
+        resource.data.visibleCliente != false;
+      // ---------- SESIONES (subcolección) ----------
+      match /sesiones/{sesionId} {
+        allow read, write: if esStaff();
+        allow read: if request.auth != null &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.clienteEmail == request.auth.token.email.lower() &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.visibleCliente != false &&
+          resource.data.visibleCliente != false;
+      }
+      // ---------- COTIZACIONES (subcolección) ----------
+      // Solo equipo interno. El cliente NUNCA accede a esto directamente
+      // (se le comparte como PDF generado, no como datos vivos).
+      match /cotizaciones/{cotizacionId} {
+        allow read, write: if esStaff();
+      }
+      // ---------- PAGOS (subcolección, v1.0 pagos.html) ----------
+      // Registro de abonos contra una cotización aceptada. Solo equipo
+      // interno; el cliente no ve esto directamente en el portal.
+      match /pagos/{pagoId} {
+        allow read, write: if esStaff();
+      }
+      // ---------- PRODUCCIÓN MUSICAL (subcolección, v1.5 — proyecto.html v3.8) ----------
+      // Scores, arreglos, referencias y mezclas del proyecto. Solo equipo
+      // interno lee y escribe; el campo visibleCliente queda guardado para
+      // uso futuro en el portal, pero hoy el cliente no tiene lectura aquí.
+      match /produccion/{produccionId} {
+        allow read, write: if esStaff();
+      }
+    }
+    // ---------- COTIZACIONES (collectionGroup, v1.3) ----------
+    // Habilita específicamente la consulta db.collectionGroup('cotizaciones')
+    // que usa pagos.html para listar cobros pendientes across todos los
+    // proyectos. Sin este bloque, esa consulta falla con "Missing or
+    // insufficient permissions" aunque el match anidado de arriba exista,
+    // porque las collectionGroup queries requieren su propio match con
+    // comodín de profundidad variable ({path=**}). Solo lectura, solo staff.
+    match /{path=**}/cotizaciones/{cotizacionId} {
+      allow read: if esStaff();
+    }
+    // ---------- SESIONES (collectionGroup, v1.4) ----------
+    // Habilita específicamente la consulta db.collectionGroup('sesiones')
+    // que usan index.html (calendario) y logistica.html (agenda global) para
+    // listar sesiones de TODOS los proyectos. Mismo motivo que el bloque de
+    // cotizaciones de arriba. Solo lectura, solo staff — el acceso del
+    // cliente a sesiones de su propio proyecto sigue siendo por el match
+    // anidado de arriba, sin cambios.
+    match /{path=**}/sesiones/{sesionId} {
+      allow read: if esStaff();
+    }
+    // ---------- EQUIPO INTERNO ----------
+    // Cualquier usuario autenticado puede LEER SOLO su propio doc (para el
+    // guard de sesión de login.html/proyecto.html/etc). Solo staff ya activo
+    // puede agregar/quitar correos (incluido el suyo propio al listar todos).
+    match /equipoInterno/{correo} {
+      allow get: if request.auth != null && request.auth.token.email == correo;
+      allow list: if esStaff();
+      allow write: if esStaff();
+    }
+    // ---------- CLIENTES ACCESO ----------
+    // El cliente puede leer SOLO su propio doc (portal.html lo valida al
+    // hacer login). Solo staff puede crear/editar (activar/revocar).
+    match /clientesAcceso/{correo} {
+      allow get: if request.auth != null && request.auth.token.email.lower() == correo;
+      allow list: if esStaff();
+      allow write: if esStaff();
+    }
+    // ---------- ESTUDIOS (v2.8 proyecto.html / v8.3 cotizador.html) ----------
+    // Catálogo de estudios/salas y tarifas que alimenta el selector "Entorno
+    // Operativo" del Cotizador. Solo equipo interno lee y escribe; el
+    // cliente nunca accede a esto.
+    match /estudios/{estudioId} {
+      allow read, write: if esStaff();
+    }
+  }
+}

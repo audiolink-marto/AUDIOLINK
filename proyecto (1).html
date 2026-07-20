@@ -157,6 +157,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -972,6 +973,7 @@ window.NAV_CONFIG = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+const storage = firebase.storage(); // v4.0 — audio de Producción musical
 const proyectosRef = db.collection('proyectos');
 const clientesAccesoRef = db.collection('clientesAcceso');
 
@@ -2189,7 +2191,13 @@ function cerrarLightboxProduccion(){
   document.getElementById('lightboxProdBody').innerHTML = '';
 }
 
-async function subirArchivoProduccion(file){
+// v4.0 — el audio (mp3/wav/m4a/ogg/aac) va a Firebase Storage en vez de
+// Cloudinary, para no competir por el cupo de créditos de Cloudinary
+// (reservado ahora para foto/video/PDF). Imagen/video/PDF siguen exactamente
+// igual que antes, sin ningún cambio en su ruta ni en subirArchivoCloudinary.
+const EXTENSIONES_AUDIO = ['mp3','wav','m4a','ogg','aac'];
+
+async function subirArchivoCloudinary(file){
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -2198,7 +2206,22 @@ async function subirArchivoProduccion(file){
     body: formData
   });
   if(!resp.ok) throw new Error('Cloudinary respondió con error ' + resp.status);
-  return resp.json();
+  const data = await resp.json();
+  return data.secure_url;
+}
+
+async function subirArchivoStorage(file){
+  const ref = storage.ref().child(`produccion-audio/${Date.now()}_${file.name}`);
+  await ref.put(file);
+  return ref.getDownloadURL();
+}
+
+async function subirArchivoProduccion(file){
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const url = EXTENSIONES_AUDIO.includes(ext)
+    ? await subirArchivoStorage(file)
+    : await subirArchivoCloudinary(file);
+  return { secure_url: url };
 }
 
 async function guardarProduccion(){

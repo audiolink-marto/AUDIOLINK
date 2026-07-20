@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v1.8
+<!-- AUDIOLINK · index.html · v1.9
+     V1.9: el calendario ahora también pinta las sesiones de logística de
+     todos los proyectos (antes solo mostraba fechaEntregaEstimada). Nuevo
+     listener db.collectionGroup('sesiones') (mismo patrón que el resumen
+     financiero de proyecto.html v3.5), guardado en `sesionesCal`, separado
+     del listener de `proyectos`. Los puntos de sesión usan un color propio
+     (.dot.sesion, dorado) para distinguirse de los de entrega. Al abrir el
+     detalle de un día, las sesiones enlazan a logistica.html?id=X y las
+     entregas siguen enlazando a proyecto.html?id=X como antes. No se tocó
+     ninguna otra lógica del dashboard (resumen comercial, lista de
+     proyectos, etc.).
      V1.8: el sidebar/topbar mobile/panel "···"/bottomnav (antes
      copiados y pegados en cada archivo) ahora se cargan desde nav.js
      (compartido por todo el ecosistema), inyectados en <div id="nav-
@@ -250,6 +260,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .dot.ok{background:var(--ok);}
 .dot.warn{background:var(--warn);}
 .dot.err{background:var(--err);}
+.dot.sesion{background:var(--gold);}
 
 /* Detalle día */
 .dia-detalle{margin-top:16px;padding:14px;background:var(--surf-light);border-radius:8px;border-left:2px solid var(--gold);display:none;}
@@ -390,12 +401,28 @@ let fechaCalActual = new Date();
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const DOW = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 
+// sesionesCal: sesiones de logística de TODOS los proyectos, para pintarlas
+// en el calendario junto a las fechas de entrega. Se llena por separado
+// del listener de `proyectos` (mismo patrón collectionGroup usado en
+// proyecto.html v3.5 para el resumen financiero). No reemplaza a
+// logistica.html, que sigue siendo el lugar para crear/editar sesiones.
+let sesionesCal = [];
+
 proyectosRef.orderBy('creadoEn', 'desc').onSnapshot(snap => {
   proyectos = [];
   snap.forEach(doc => proyectos.push({ id: doc.id, ...doc.data() }));
   renderListaProyectos();
   renderCalendario();
 }, err => console.error("Error cargando proyectos:", err));
+
+db.collectionGroup('sesiones').onSnapshot(snap => {
+  sesionesCal = [];
+  snap.forEach(doc => {
+    const proyectoId = doc.ref.parent.parent.id;
+    sesionesCal.push({ id: doc.id, proyectoId, ...doc.data() });
+  });
+  renderCalendario();
+}, err => console.error('Error cargando sesiones para el calendario:', err));
 
 function escapeHtml(str){
   const d = document.createElement('div');
@@ -437,13 +464,26 @@ function cambiarMes(delta){
 }
 
 function eventosPorFecha(){
-  // Mapa "YYYY-MM-DD" -> [ {proyecto, tipo} ]
+  // Mapa "YYYY-MM-DD" -> [ {tipo:'entrega'|'sesion', nombre, id, estado|actividad} ]
   const mapa = {};
   proyectos.forEach(p => {
     if(!p.fechaEntregaEstimada) return;
     const fecha = p.fechaEntregaEstimada.split('T')[0];
     if(!mapa[fecha]) mapa[fecha] = [];
-    mapa[fecha].push({ nombre: p.nombre, id: p.id, estado: p.estado || 'ok' });
+    mapa[fecha].push({ tipo:'entrega', nombre: p.nombre, id: p.id, estado: p.estado || 'ok' });
+  });
+  sesionesCal.forEach(s => {
+    if(!s.fecha) return;
+    const fecha = s.fecha.split('T')[0];
+    if(!mapa[fecha]) mapa[fecha] = [];
+    const proy = proyectos.find(p => p.id === s.proyectoId);
+    mapa[fecha].push({
+      tipo:'sesion',
+      nombre: proy ? proy.nombre : 'Proyecto',
+      id: s.proyectoId,
+      actividad: s.actividad || 'Sesión',
+      sala: s.sala || ''
+    });
   });
   return mapa;
 }
@@ -482,7 +522,7 @@ function renderCalendario(){
     if(c.out) return `<div class="cal-day out">${''}</div>`;
     const esHoy = c.fecha === hoyStr;
     const tieneEventos = c.eventos.length > 0;
-    const dots = c.eventos.slice(0,4).map(e => `<span class="dot ${e.estado}"></span>`).join('');
+    const dots = c.eventos.slice(0,4).map(e => `<span class="dot ${e.tipo === 'sesion' ? 'sesion' : e.estado}"></span>`).join('');
     return `
       <div class="cal-day ${esHoy ? 'today' : ''} ${tieneEventos ? 'tiene-evento' : ''}"
            onclick="${tieneEventos ? `mostrarDia('${c.fecha}')` : ''}">
@@ -499,9 +539,16 @@ function mostrarDia(fechaStr){
   const fechaLegible = new Date(y, m-1, d).toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' });
   det.innerHTML = `
     <div class="fecha-titulo">${fechaLegible}</div>
-    ${eventos.map(e => `<div class="item" onclick="irAProyecto('${e.id}')">📁 ${escapeHtml(e.nombre)} — entrega estimada</div>`).join('')}
+    ${eventos.map(e => e.tipo === 'sesion'
+      ? `<div class="item" onclick="irASesion('${e.id}')">🎚️ ${escapeHtml(e.nombre)} — ${escapeHtml(e.actividad)}${e.sala ? ' · ' + escapeHtml(e.sala) : ''}</div>`
+      : `<div class="item" onclick="irAProyecto('${e.id}')">📁 ${escapeHtml(e.nombre)} — entrega estimada</div>`
+    ).join('')}
   `;
   det.classList.add('active');
+}
+
+function irASesion(proyectoId){
+  window.location.href = `logistica.html?id=${proyectoId}`;
 }
 
 // init
