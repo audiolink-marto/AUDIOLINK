@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Pagos</title>
-<!-- AUDIOLINK · pagos.html · v1.6
+<!-- AUDIOLINK · pagos.html · v1.7
+     V1.7: se agrega subida OPCIONAL de comprobante de pago (imagen o PDF) al
+     registrar un abono, vía Cloudinary (cloud "dv7lelmoy", upload preset sin
+     firmar "AUDIOLINK APP"). El archivo se sube directo desde el navegador
+     (sin backend propio) y la URL resultante (secure_url) se guarda en el
+     mismo documento del abono en Firestore, en los campos nuevos
+     comprobanteUrl / comprobantePublicId / comprobanteTipo. Si no se
+     selecciona archivo, esos campos simplemente no se guardan — no es
+     obligatorio. En la lista de abonos, cada abono con comprobante muestra
+     una miniatura clicable (imagen) o un ícono de PDF clicable, que abre el
+     archivo en pestaña nueva. No se tocó ninguna otra lógica de saldos,
+     cotizaciones ni Firestore existente.
      V1.6: fmt() ahora delega en formatCOP() de utils.js en vez de reimplementar el formateo a mano; mismo resultado visual, mismos 8 sitios donde se usa fmt() sin tocar.
      V1.5: el sidebar/topbar mobile/panel "···"/bottomnav (antes
      copiados y pegados en cada archivo) ahora se cargan desde nav.js
@@ -274,6 +285,23 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
   background:var(--surf-light);margin-bottom:8px;font-size:0.85rem;
 }
 .abono-item .info{color:var(--muted);font-size:0.76rem;}
+.abono-item .abono-main{display:flex;align-items:center;gap:10px;}
+.comprobante-thumb{
+  width:38px;height:38px;border-radius:6px;object-fit:cover;flex-shrink:0;
+  border:1px solid var(--brd);cursor:pointer;
+}
+.comprobante-pdf{
+  width:38px;height:38px;border-radius:6px;flex-shrink:0;
+  border:1px solid var(--brd);background:var(--surf-light);
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+  cursor:pointer;color:var(--gold);text-decoration:none;
+}
+.field input[type="file"]{
+  padding:8px 10px;font-size:0.82rem;color:var(--muted);
+}
+.upload-status{font-size:0.76rem;color:var(--muted);margin-top:6px;min-height:16px;}
+.upload-status.err{color:var(--err);}
+.upload-status.ok{color:var(--ok);}
 @media (max-width:640px){
   .row2{grid-template-columns:1fr;}
   .modal{padding:20px;}
@@ -363,10 +391,15 @@ window.NAV_CONFIG = { activo: 'pagos' };
         <input type="text" id="fNota" placeholder="Ej: Anticipo 50%">
       </div>
     </div>
+    <div class="field">
+      <label>Comprobante de pago (opcional — imagen o PDF)</label>
+      <input type="file" id="fComprobante" accept="image/*,application/pdf">
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
 
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>
-      <button class="btn" onclick="registrarAbono()">+ Registrar abono</button>
+      <button class="btn" id="btnRegistrarAbono" onclick="registrarAbono()">+ Registrar abono</button>
     </div>
   </div>
 </div>
@@ -533,14 +566,26 @@ function renderAbonosModal(c){
   }
   empty.style.display = 'none';
   const ordenados = [...c.pagos].sort((a,b) => (a.fecha || '').localeCompare(b.fecha || ''));
-  cont.innerHTML = ordenados.map(p => `
+  cont.innerHTML = ordenados.map(p => {
+    let comprobanteHtml = '';
+    if(p.comprobanteUrl){
+      if(p.comprobanteTipo === 'pdf'){
+        comprobanteHtml = `<a href="${p.comprobanteUrl}" target="_blank" rel="noopener" class="comprobante-pdf" title="Ver comprobante (PDF)">📄</a>`;
+      } else {
+        comprobanteHtml = `<img src="${p.comprobanteUrl}" class="comprobante-thumb" alt="Comprobante" title="Ver comprobante" onclick="window.open('${p.comprobanteUrl}','_blank')">`;
+      }
+    }
+    return `
     <div class="abono-item">
-      <div>
-        <strong>${fmt(p.monto)}</strong>
-        <div class="info">${p.fecha || '—'} · ${escapeHtml(p.metodo || '—')}${p.nota ? ' · ' + escapeHtml(p.nota) : ''}</div>
+      <div class="abono-main">
+        ${comprobanteHtml}
+        <div>
+          <strong>${fmt(p.monto)}</strong>
+          <div class="info">${p.fecha || '—'} · ${escapeHtml(p.metodo || '—')}${p.nota ? ' · ' + escapeHtml(p.nota) : ''}</div>
+        </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function cerrarModal(){
@@ -549,12 +594,33 @@ function cerrarModal(){
   modalActualCotizId = null;
 }
 
+// ============ COMPROBANTE DE PAGO (Cloudinary — opcional) ============
+const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
+const CLOUDINARY_UPLOAD_PRESET = 'AUDIOLINK APP';
+
+async function subirComprobanteCloudinary(file){
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if(!resp.ok) throw new Error('Cloudinary respondió con error ' + resp.status);
+  return resp.json(); // contiene secure_url, public_id, resource_type, format, etc.
+}
+
 async function registrarAbono(){
   const monto = Number(document.getElementById('fMonto').value);
   if(!monto || monto <= 0){
     alert('Ingresa un monto válido.');
     return;
   }
+  const btn = document.getElementById('btnRegistrarAbono');
+  const statusEl = document.getElementById('uploadStatus');
+  const fileInput = document.getElementById('fComprobante');
+  const file = fileInput.files && fileInput.files[0];
+
   const data = {
     cotizacionId: modalActualCotizId,
     monto,
@@ -563,13 +629,36 @@ async function registrarAbono(){
     nota: document.getElementById('fNota').value.trim(),
     creadoEn: firebase.firestore.FieldValue.serverTimestamp()
   };
+
+  btn.disabled = true;
   try{
+    if(file){
+      statusEl.textContent = 'Subiendo comprobante...';
+      statusEl.className = 'upload-status';
+      try{
+        const resultado = await subirComprobanteCloudinary(file);
+        data.comprobanteUrl = resultado.secure_url;
+        data.comprobantePublicId = resultado.public_id;
+        data.comprobanteTipo = resultado.format === 'pdf' ? 'pdf' : 'imagen';
+        statusEl.textContent = 'Comprobante subido correctamente.';
+        statusEl.className = 'upload-status ok';
+      } catch(errUpload){
+        console.error('Error subiendo comprobante a Cloudinary:', errUpload);
+        statusEl.textContent = 'No se pudo subir el comprobante. El abono se registrará sin él.';
+        statusEl.className = 'upload-status err';
+      }
+    }
+
     await proyectosRef.doc(modalActualProyectoId).collection('pagos').add(data);
     document.getElementById('fMonto').value = '';
     document.getElementById('fNota').value = '';
+    fileInput.value = '';
+    if(!file) statusEl.textContent = '';
   } catch(err){
     console.error(err);
     alert('Error registrando el abono. Revisa la consola.');
+  } finally {
+    btn.disabled = false;
   }
 }
 </script>
