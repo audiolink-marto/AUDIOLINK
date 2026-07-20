@@ -4,7 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AUDIOLINK - Central de Operaciones & Cotizador V8.7</title>
-<!-- AUDIOLINK · cotizador.html · v8.9
+<!-- AUDIOLINK · cotizador.html · v9.0
+     V9.0: Dos pendientes cerrados: (1) el cotizador ahora tiene soporte
+     completo de tema claro/oscuro (script de aplicación temprana +
+     bloque :root[data-tema="light"] a juego con su propia paleta +
+     soportaTema activado en NAV_CONFIG, el botón de tema ya aparece en
+     el nav); (2) el botón "Guardar Cotización en el Proyecto" ahora
+     muestra un texto de ayuda debajo explicando por qué está
+     deshabilitado (falta completar el formulario, o falta vincular un
+     proyecto). No se tocó la lógica de habilitado/deshabilitado
+     existente ni ninguna fórmula de cálculo.
      V8.9: formatCOP() ahora vive en utils.js (compartido). Se agrega <script src="utils.js"> junto a firebase-config.js. No se tocó ninguna llamada a formatCOP() ni ninguna fórmula.
      V8.8: el sidebar/topbar mobile/panel "···"/bottomnav (antes
      copiados y pegados en cada archivo) ahora se cargan desde nav.js
@@ -83,6 +92,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -101,6 +116,19 @@
   --T: "Playfair Display", Georgia, serif;
   --S: "DM Sans", system-ui, sans-serif;
   --M: "JetBrains Mono", monospace;
+}
+:root[data-tema="light"] {
+  --bg: #faf8f4;
+  --surf: #ffffff;
+  --surf-light: #f3f0e8;
+  --brd: #e2ddd0;
+  --gold: #a8823a;
+  --gold-bg: rgba(168,130,58,0.10);
+  --txt: #2a2620;
+  --muted: #7a756a;
+  --faint: #a39d8f;
+  --green: #3a8f63;
+  --green-bg: rgba(58,143,99,0.10);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -546,7 +574,6 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
 <script>
 window.NAV_CONFIG = {
   activo: 'cotizador',
-  soportaTema: false, // el cotizador aún no tiene CSS de modo claro (pendiente, paso aparte)
   masMobileExtra: [
     {icon:'←', label:'Volver a Proyectos', onclick:"window.location.href='proyecto.html'"}
   ]
@@ -1167,6 +1194,7 @@ window.NAV_CONFIG = {
           <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
           Guardar Cotización en el Proyecto
         </button>
+        <div id="guardar-hint" style="display:none; font-size:0.78rem; color:var(--muted); margin-top:-8px; margin-bottom:12px;"></div>
 
         <button id="btn-pdf" class="btn-action" onclick="exportarPDF()" disabled style="border-color: var(--green); color: var(--green);">
           <svg viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
@@ -1725,6 +1753,24 @@ function aplicarDatosProyectoVinculado() {
   if (btnPdf && btnGuardar) {
     btnGuardar.disabled = btnPdf.disabled || !proyectoVinculadoId;
     btnGuardar.classList.toggle('necesita-atencion', !btnPdf.disabled && !proyectoVinculadoId);
+    actualizarHintGuardar(btnPdf.disabled, proyectoVinculadoId);
+  }
+}
+
+// Muestra por qué "Guardar Cotización en el Proyecto" está deshabilitado,
+// sin cambiar la lógica de habilitado/deshabilitado ya existente (solo lee
+// el mismo estado que ya calculan validarYCalcular() y el observer de abajo).
+function actualizarHintGuardar(pdfDeshabilitado, tieneProyecto) {
+  const hint = document.getElementById('guardar-hint');
+  if (!hint) return;
+  if (pdfDeshabilitado) {
+    hint.textContent = 'Completa cliente, tema y al menos un rubro para habilitar el guardado.';
+    hint.style.display = 'block';
+  } else if (!tieneProyecto) {
+    hint.textContent = 'Vincula esta cotización a un proyecto (arriba) para poder guardarla.';
+    hint.style.display = 'block';
+  } else {
+    hint.style.display = 'none';
   }
 }
 
@@ -1865,6 +1911,7 @@ if (_btnPdfObservado) {
     if (btnGuardar) {
       btnGuardar.disabled = _btnPdfObservado.disabled || !proyectoVinculadoId;
       btnGuardar.classList.toggle('necesita-atencion', !_btnPdfObservado.disabled && !proyectoVinculadoId);
+      actualizarHintGuardar(_btnPdfObservado.disabled, proyectoVinculadoId);
     }
   }).observe(_btnPdfObservado, { attributes: true, attributeFilter: ['disabled'] });
 }
