@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AUDIOLINK - Central de Operaciones & Cotizador V8.7</title>
-<!-- AUDIOLINK · cotizador.html · v8.8
+<!-- AUDIOLINK · cotizador.html · v8.9
+     V8.9: formatCOP() ahora vive en utils.js (compartido). Se agrega <script src="utils.js"> junto a firebase-config.js. No se tocó ninguna llamada a formatCOP() ni ninguna fórmula.
      V8.8: el sidebar/topbar mobile/panel "···"/bottomnav (antes
      copiados y pegados en cada archivo) ahora se cargan desde nav.js
      (compartido por todo el ecosistema), inyectados en <div id="nav-
@@ -81,6 +82,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="utils.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1236,11 +1238,7 @@ async function cargarEstudiosDesdeFirestore(){
   }
 }
 
-const formatCOP = (val) => new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  minimumFractionDigits: 0
-}).format(val);
+// formatCOP() ahora vive en utils.js (compartido por el ecosistema).
 
 function actualizarNombresSalas() {
   const entorno = document.getElementById('selector-entorno').value;

@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Pagos</title>
-<!-- AUDIOLINK · pagos.html · v1.5
+<!-- AUDIOLINK · pagos.html · v1.6
+     V1.6: fmt() ahora delega en formatCOP() de utils.js en vez de reimplementar el formateo a mano; mismo resultado visual, mismos 8 sitios donde se usa fmt() sin tocar.
      V1.5: el sidebar/topbar mobile/panel "···"/bottomnav (antes
      copiados y pegados en cada archivo) ahora se cargan desde nav.js
      (compartido por todo el ecosistema), inyectados en <div id="nav-
@@ -32,6 +33,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="utils.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script>
@@ -403,7 +405,7 @@ function escapeHtml(str){
   d.textContent = str || '';
   return d.innerHTML;
 }
-function fmt(n){ return '$' + (n || 0).toLocaleString('es-CO'); }
+function fmt(n){ return formatCOP(n || 0); } // delega en formatCOP() de utils.js (mismo resultado visual, código único)
 
 // ============ ESTADO ============
 // cotizacionesAceptadas: [{ id, proyectoId, total, nombre, clienteArtista, pagosUnsub, sumaPagos, pagos:[] }]
