@@ -4,7 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Pagos</title>
-<!-- AUDIOLINK · pagos.html · v1.8
+<!-- AUDIOLINK · pagos.html · v1.9
+     V1.9: cada card ahora muestra una etiqueta "En Producción" (mismo
+     color/estilo que el badge nuevo de proyecto.html v3.4) junto al badge
+     de Pagado/Pendiente, y un ícono 📁 que abre proyecto.html?id=X en
+     pestaña nueva para ver el proyecto completo. El clic normal de la
+     card sigue abriendo el modal de abonos igual que antes (el ícono usa
+     stopPropagation para no interferir). No se tocó ninguna otra lógica.
      V1.8: los comprobantes en PDF ahora muestran una miniatura de su
      página 1 (generada al vuelo por Cloudinary agregando la transformación
      pg_N a la misma comprobanteUrl ya guardada — no se sube nada extra).
@@ -255,6 +261,15 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 .badge{font-size:0.68rem;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;}
 .badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
 .badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge.prod{background:rgba(90,140,220,0.15);color:#6ea3e8;}
+.cotiz-card .top-labels{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.btn-ir-proyecto{
+  background:transparent;border:1px solid var(--brd);color:var(--muted);
+  width:30px;height:30px;border-radius:6px;font-size:0.9rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  text-decoration:none;
+}
+.btn-ir-proyecto:hover{border-color:var(--gold);color:var(--gold);}
 .montos-row{display:flex;gap:20px;flex-wrap:wrap;}
 .monto-item{font-size:0.82rem;}
 .monto-item .lbl{color:var(--muted);display:block;font-size:0.72rem;}
@@ -559,7 +574,11 @@ function renderListaCotizaciones(){
             <h3>${escapeHtml(c.nombre)}</h3>
             <div class="sub">${escapeHtml(c.clienteArtista)}</div>
           </div>
-          <span class="badge ${pagado ? 'ok' : 'warn'}">${pagado ? 'Pagado' : 'Pendiente'}</span>
+          <div class="top-labels">
+            <span class="badge prod">En Producción</span>
+            <span class="badge ${pagado ? 'ok' : 'warn'}">${pagado ? 'Pagado' : 'Pendiente'}</span>
+            <a href="proyecto.html?id=${c.proyectoId}" target="_blank" rel="noopener" class="btn-ir-proyecto" title="Ver proyecto" onclick="event.stopPropagation()">📁</a>
+          </div>
         </div>
         <div class="montos-row">
           <div class="monto-item"><span class="lbl">Cotizado</span><span class="val">${fmt(c.total)}</span></div>

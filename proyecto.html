@@ -4,7 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v3.3
+<!-- AUDIOLINK · proyecto.html · v3.5
+     V3.5: se agrega resumen financiero (Cotizado/Cobrado/Saldo) usando el
+     mismo patrón de pagos.html: collectionGroup('cotizaciones') con
+     estado=='aceptada' + subcolección pagos de cada proyecto, guardado en
+     un objeto nuevo `resumenPagos` (no toca `proyectos` ni su listener).
+     En la card del listado se agrega una línea "💰 Saldo pendiente" solo
+     si saldo > 0. En el detalle se agrega un bloque Cotizado/Cobrado/Saldo
+     arriba de la ficha, solo si el proyecto tiene cotización aceptada.
+     Usa formatCOP() de utils.js. No se tocó ninguna lógica de cotizador,
+     PDF, portal de clientes ni sesiones.
+     V3.4: en el listado de cotizaciones, el estado 'aceptada' ahora se
+     muestra como "En Producción" (antes "Aceptada"), con un badge de color
+     azul distintivo (.badge.prod) en vez de compartir el verde de
+     "Enviada". Es solo un cambio de etiqueta/color visual — el valor
+     interno guardado en Firestore sigue siendo 'aceptada', sin tocar
+     ninguna consulta ni lógica existente.
      V3.3: en guardarCotizacion(), solo puede haber UNA cotización con
      estado 'aceptada' por proyecto. Si se intenta aceptar una segunda,
      se pide confirmación explícita; al confirmar, la cotización
@@ -105,6 +120,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="utils.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -356,7 +372,9 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
 .badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
 .badge.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.badge.prod{background:rgba(90,140,220,0.15);color:#6ea3e8;}
 .card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;}
+.card .meta-saldo{font-size:0.82rem;color:var(--warn);font-weight:600;margin-bottom:4px;}
 .card .etapa{
   display:inline-block;
   margin-top:10px;
@@ -443,6 +461,12 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   padding:24px;margin-bottom:20px;
 }
 .detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
+.resumen-financiero{display:flex;gap:24px;flex-wrap:wrap;background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:14px 18px;margin-bottom:16px;}
+.resumen-financiero .monto-item{font-size:0.85rem;}
+.resumen-financiero .monto-item .lbl{color:var(--muted);display:block;font-size:0.72rem;}
+.resumen-financiero .monto-item .val{font-weight:600;font-size:1rem;}
+.resumen-financiero .monto-item.saldo .val{color:var(--warn);}
+.resumen-financiero .monto-item.saldo.pagado .val{color:var(--ok);}
 .detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
 .chip{
   background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;
@@ -831,6 +855,11 @@ let proyectos = [];
 let proyectoActualId = null;
 let editando = false;
 
+// resumenPagos: { [proyectoId]: { cotizacionId, cotizado, cobrado, saldo } }
+// Se llena por separado del listener de `proyectos` (misma lógica de
+// pagos.html: collectionGroup('cotizaciones') + subcolección pagos).
+let resumenPagos = {};
+
 const ETAPAS_LABEL = {
   preproduccion: "Preproducción",
   grabacion: "Grabación",
@@ -861,6 +890,56 @@ proyectosRef.orderBy('creadoEn', 'desc').onSnapshot(snap => {
   console.error("Error cargando proyectos:", err);
 });
 
+// ============ RESUMEN FINANCIERO (Cotizado/Cobrado/Saldo) ============
+// Mismo patrón que pagos.html: cotización aceptada por proyecto + suma de
+// su subcolección pagos. No interfiere con el listener de `proyectos`.
+db.collectionGroup('cotizaciones').where('estado', '==', 'aceptada')
+  .onSnapshot(snap => {
+    const vistos = new Set();
+    snap.forEach(d => {
+      const proyectoId = d.ref.parent.parent.id;
+      vistos.add(proyectoId);
+      const existente = resumenPagos[proyectoId];
+      resumenPagos[proyectoId] = {
+        cotizacionId: d.id,
+        cotizado: d.data().total || 0,
+        cobrado: existente ? existente.cobrado : 0,
+        saldo: existente ? (d.data().total || 0) - existente.cobrado : (d.data().total || 0)
+      };
+      escucharPagosResumen(proyectoId, d.id);
+    });
+    // Proyectos que ya no tienen cotización aceptada (se desaceptó, etc.)
+    Object.keys(resumenPagos).forEach(pid => {
+      if(!vistos.has(pid)) delete resumenPagos[pid];
+    });
+    renderListado();
+    refrescarDetalleSiActivo();
+  }, err => {
+    console.error('Error cargando resumen financiero (revisa el índice de collectionGroup si falla):', err);
+  });
+
+function refrescarDetalleSiActivo(){
+  if(proyectoActualId && document.getElementById('vistaDetalle').classList.contains('active')){
+    verDetalle(proyectoActualId);
+  }
+}
+
+function escucharPagosResumen(proyectoId, cotizId){
+  proyectosRef.doc(proyectoId).collection('pagos')
+    .where('cotizacionId', '==', cotizId)
+    .onSnapshot(psnap => {
+      let suma = 0;
+      psnap.forEach(p => suma += (p.data().monto || 0));
+      const r = resumenPagos[proyectoId];
+      if(r && r.cotizacionId === cotizId){
+        r.cobrado = suma;
+        r.saldo = r.cotizado - suma;
+        renderListado();
+        if(proyectoActualId === proyectoId) refrescarDetalleSiActivo();
+      }
+    }, err => console.error('Error cargando pagos del resumen:', err));
+}
+
 function renderListado(){
   const grid = document.getElementById('gridProyectos');
   const empty = document.getElementById('emptyState');
@@ -870,7 +949,12 @@ function renderListado(){
     return;
   }
   empty.style.display = 'none';
-  grid.innerHTML = proyectos.map(p => `
+  grid.innerHTML = proyectos.map(p => {
+    const r = resumenPagos[p.id];
+    const saldoHtml = (r && r.saldo > 0)
+      ? `<div class="meta-saldo">💰 Saldo pendiente: ${formatCOP(r.saldo)}</div>`
+      : '';
+    return `
     <div class="card" onclick="verDetalle('${p.id}')">
       <div class="card-top">
         <div>
@@ -881,10 +965,12 @@ function renderListado(){
       </div>
       <div class="meta">${escapeHtml(p.clienteArtista || '—')}</div>
       <div class="meta">Prod. ejecutivo: ${escapeHtml(p.productorEjecutivo || '—')}</div>
+      ${saldoHtml}
       <span class="etapa">${ETAPAS_LABEL[p.etapaActual] || p.etapaActual || '—'}</span>
       <span class="etapa" style="margin-left:6px;">${COMERCIAL_LABEL[p.estadoComercial] || 'Cotización'}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function escapeHtml(str){
@@ -994,7 +1080,17 @@ function verDetalle(id){
 
   const entrega = p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada).toLocaleDateString('es-CO') : '—';
 
+  const r = resumenPagos[id];
+  const pagado = r && r.saldo <= 0;
+  const resumenHtml = r ? `
+    <div class="resumen-financiero">
+      <div class="monto-item"><span class="lbl">Cotizado</span><span class="val">${formatCOP(r.cotizado)}</span></div>
+      <div class="monto-item"><span class="lbl">Cobrado</span><span class="val">${formatCOP(r.cobrado)}</span></div>
+      <div class="monto-item saldo ${pagado ? 'pagado' : ''}"><span class="lbl">Saldo</span><span class="val">${formatCOP(r.saldo)}</span></div>
+    </div>` : '';
+
   document.getElementById('detalleContent').innerHTML = `
+    ${resumenHtml}
     <span class="tipo-tag">${p.tipo === 'propio' ? 'Proyecto propio' : 'Cliente'}</span>
     <h2>${escapeHtml(p.nombre)}</h2>
     <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
@@ -1637,8 +1733,8 @@ async function cargarListaCotizaciones(){
       return;
     }
     vacio.style.display = 'none';
-    const ESTADO_LABEL = { borrador:'Borrador', enviada:'Enviada', aceptada:'Aceptada' };
-    const ESTADO_BADGE = { borrador:'warn', enviada:'ok', aceptada:'ok' };
+    const ESTADO_LABEL = { borrador:'Borrador', enviada:'Enviada', aceptada:'En Producción' };
+    const ESTADO_BADGE = { borrador:'warn', enviada:'ok', aceptada:'prod' };
     cont.innerHTML = cotizacionesProyecto.map(c => {
       const fecha = c.creadoEn && c.creadoEn.toDate ? c.creadoEn.toDate().toLocaleDateString('es-CO') : '—';
       return `
