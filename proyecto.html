@@ -4,7 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v3.2
+<!-- AUDIOLINK · proyecto.html · v3.3
+     V3.3: en guardarCotizacion(), solo puede haber UNA cotización con
+     estado 'aceptada' por proyecto. Si se intenta aceptar una segunda,
+     se pide confirmación explícita; al confirmar, la cotización
+     previamente aceptada pasa automáticamente a 'enviada' (no se borra).
+     Si se cancela, no se guarda nada. No se tocó ninguna otra lógica de
+     ítems, PDF, validez ni notas.
      V3.2: el sidebar/topbar mobile/panel "···"/bottomnav (antes
      copiados y pegados en cada archivo) ahora se cargan desde nav.js
      (compartido por todo el ecosistema), inyectados en <div id="nav-
@@ -1730,6 +1736,29 @@ async function guardarCotizacion(conPDF){
     alert('Agrega al menos un ítem a la cotización.');
     return;
   }
+
+  // V2.9: solo puede haber UNA cotización 'aceptada' por proyecto. Si el
+  // usuario está marcando esta como aceptada y ya existe otra distinta con
+  // ese mismo estado, se le pregunta antes de continuar. Si confirma, la
+  // anterior pasa automáticamente a 'enviada' (no se borra ni se pierde,
+  // solo cambia de estado). Si cancela, no se guarda nada y el formulario
+  // se queda abierto tal cual estaba.
+  if(data.estado === 'aceptada'){
+    const otraAceptada = cotizacionesProyecto.find(c => c.estado === 'aceptada' && c.id !== cotizacionActualId);
+    if(otraAceptada){
+      const totalOtra = (otraAceptada.total || 0).toLocaleString('es-CO');
+      const confirmar = confirm(`Ya existe una cotización aceptada para este proyecto ($${totalOtra}). ¿Quieres reemplazarla? Esa cotización pasará automáticamente a estado "Enviada".`);
+      if(!confirmar) return;
+      try{
+        await cotizacionesRef().doc(otraAceptada.id).update({ estado: 'enviada' });
+      } catch(errRevertir){
+        console.error('Error revirtiendo la cotización aceptada anterior:', errRevertir);
+        alert('No se pudo actualizar la cotización aceptada anterior. Revisa la consola e inténtalo de nuevo.');
+        return;
+      }
+    }
+  }
+
   try{
     let idGuardado = cotizacionActualId;
     if(cotizacionActualId){

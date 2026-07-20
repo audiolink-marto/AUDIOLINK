@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Pagos</title>
-<!-- AUDIOLINK · pagos.html · v1.7
+<!-- AUDIOLINK · pagos.html · v1.8
+     V1.8: los comprobantes en PDF ahora muestran una miniatura de su
+     página 1 (generada al vuelo por Cloudinary agregando la transformación
+     pg_N a la misma comprobanteUrl ya guardada — no se sube nada extra).
+     Al subir el PDF se guarda además comprobantePaginas (Cloudinary lo
+     devuelve en la respuesta de upload). Click en cualquier miniatura
+     (imagen o PDF) abre un modal/lightbox con la imagen ampliada; si es un
+     PDF de más de 1 página, aparecen flechas ‹ › para moverse entre
+     páginas dentro del mismo modal. No se tocó ninguna otra lógica.
      V1.7: se agrega subida OPCIONAL de comprobante de pago (imagen o PDF) al
      registrar un abono, vía Cloudinary (cloud "dv7lelmoy", upload preset sin
      firmar "AUDIOLINK APP"). El archivo se sube directo desde el navegador
@@ -302,6 +310,27 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 .upload-status{font-size:0.76rem;color:var(--muted);margin-top:6px;min-height:16px;}
 .upload-status.err{color:var(--err);}
 .upload-status.ok{color:var(--ok);}
+
+/* Lightbox comprobante (v1.8) */
+.lightbox-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);
+  z-index:200;align-items:center;justify-content:center;padding:30px;
+}
+.lightbox-bg.active{display:flex;}
+.lightbox-content{position:relative;max-width:90vw;max-height:90vh;display:flex;align-items:center;gap:14px;}
+.lightbox-content img{max-width:80vw;max-height:85vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
+.lightbox-close{
+  position:absolute;top:-38px;right:0;background:transparent;border:none;color:var(--txt);
+  font-size:1.6rem;cursor:pointer;line-height:1;
+}
+.lightbox-arrow{
+  background:var(--surf);border:1px solid var(--brd);color:var(--gold);
+  width:42px;height:42px;border-radius:50%;font-size:1.3rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.lightbox-arrow:hover{background:var(--gold-bg);}
+.lightbox-arrow:disabled{opacity:0.3;cursor:not-allowed;}
+.lightbox-pag{position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:0.78rem;}
 @media (max-width:640px){
   .row2{grid-template-columns:1fr;}
   .modal{padding:20px;}
@@ -401,6 +430,19 @@ window.NAV_CONFIG = { activo: 'pagos' };
       <button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>
       <button class="btn" id="btnRegistrarAbono" onclick="registrarAbono()">+ Registrar abono</button>
     </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX: COMPROBANTE AMPLIADO (v1.8) -->
+<div class="lightbox-bg" id="lightboxBg" onclick="if(event.target===this) cerrarLightbox()">
+  <div class="lightbox-content">
+    <button class="lightbox-arrow" id="lightboxPrev" onclick="lightboxPagina(-1)" style="display:none;">‹</button>
+    <div style="position:relative;">
+      <button class="lightbox-close" onclick="cerrarLightbox()">✕</button>
+      <img id="lightboxImg" src="" alt="Comprobante ampliado">
+      <div class="lightbox-pag" id="lightboxPagInfo"></div>
+    </div>
+    <button class="lightbox-arrow" id="lightboxNext" onclick="lightboxPagina(1)" style="display:none;">›</button>
   </div>
 </div>
 
@@ -570,9 +612,11 @@ function renderAbonosModal(c){
     let comprobanteHtml = '';
     if(p.comprobanteUrl){
       if(p.comprobanteTipo === 'pdf'){
-        comprobanteHtml = `<a href="${p.comprobanteUrl}" target="_blank" rel="noopener" class="comprobante-pdf" title="Ver comprobante (PDF)">📄</a>`;
+        const totalPag = p.comprobantePaginas || 1;
+        const thumbUrl = urlPaginaPdf(p.comprobanteUrl, 1);
+        comprobanteHtml = `<img src="${thumbUrl}" class="comprobante-thumb" alt="Comprobante (PDF)" title="Ver comprobante" onclick='abrirLightbox(${JSON.stringify(p.comprobanteUrl)}, "pdf", ${totalPag})'>`;
       } else {
-        comprobanteHtml = `<img src="${p.comprobanteUrl}" class="comprobante-thumb" alt="Comprobante" title="Ver comprobante" onclick="window.open('${p.comprobanteUrl}','_blank')">`;
+        comprobanteHtml = `<img src="${p.comprobanteUrl}" class="comprobante-thumb" alt="Comprobante" title="Ver comprobante" onclick='abrirLightbox(${JSON.stringify(p.comprobanteUrl)}, "imagen", 1)'>`;
       }
     }
     return `
@@ -607,7 +651,59 @@ async function subirComprobanteCloudinary(file){
     body: formData
   });
   if(!resp.ok) throw new Error('Cloudinary respondió con error ' + resp.status);
-  return resp.json(); // contiene secure_url, public_id, resource_type, format, etc.
+  return resp.json(); // contiene secure_url, public_id, resource_type, format, pages, etc.
+}
+
+// Genera la URL de una página específica de un PDF ya subido, insertando la
+// transformación pg_N de Cloudinary y forzando salida .jpg. No sube nada
+// nuevo: solo arma una URL derivada de la misma comprobanteUrl guardada.
+function urlPaginaPdf(url, pagina){
+  return url.replace('/upload/', `/upload/pg_${pagina}/`).replace(/\.pdf($|\?)/i, '.jpg$1');
+}
+
+// ============ LIGHTBOX: COMPROBANTE AMPLIADO (v1.8) ============
+let lightboxUrlBase = null;
+let lightboxTipo = 'imagen';
+let lightboxPaginaActual = 1;
+let lightboxTotalPaginas = 1;
+
+function abrirLightbox(url, tipo, totalPaginas){
+  lightboxUrlBase = url;
+  lightboxTipo = tipo;
+  lightboxPaginaActual = 1;
+  lightboxTotalPaginas = totalPaginas || 1;
+  renderLightbox();
+  document.getElementById('lightboxBg').classList.add('active');
+}
+
+function renderLightbox(){
+  const img = document.getElementById('lightboxImg');
+  img.src = lightboxTipo === 'pdf' ? urlPaginaPdf(lightboxUrlBase, lightboxPaginaActual) : lightboxUrlBase;
+  const info = document.getElementById('lightboxPagInfo');
+  const prev = document.getElementById('lightboxPrev');
+  const next = document.getElementById('lightboxNext');
+  if(lightboxTipo === 'pdf' && lightboxTotalPaginas > 1){
+    info.textContent = `Página ${lightboxPaginaActual} de ${lightboxTotalPaginas}`;
+    prev.style.display = 'flex';
+    next.style.display = 'flex';
+    prev.disabled = lightboxPaginaActual <= 1;
+    next.disabled = lightboxPaginaActual >= lightboxTotalPaginas;
+  } else {
+    info.textContent = '';
+    prev.style.display = 'none';
+    next.style.display = 'none';
+  }
+}
+
+function lightboxPagina(delta){
+  const nueva = lightboxPaginaActual + delta;
+  if(nueva < 1 || nueva > lightboxTotalPaginas) return;
+  lightboxPaginaActual = nueva;
+  renderLightbox();
+}
+
+function cerrarLightbox(){
+  document.getElementById('lightboxBg').classList.remove('active');
 }
 
 async function registrarAbono(){
@@ -640,6 +736,9 @@ async function registrarAbono(){
         data.comprobanteUrl = resultado.secure_url;
         data.comprobantePublicId = resultado.public_id;
         data.comprobanteTipo = resultado.format === 'pdf' ? 'pdf' : 'imagen';
+        if(data.comprobanteTipo === 'pdf'){
+          data.comprobantePaginas = resultado.pages || 1;
+        }
         statusEl.textContent = 'Comprobante subido correctamente.';
         statusEl.className = 'upload-status ok';
       } catch(errUpload){
