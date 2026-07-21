@@ -4,7 +4,89 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v3.9
+<!-- AUDIOLINK · proyecto.html · v4.7
+     V4.7: en la lista de documentos de cada músico, el ícono fijo 📄 se
+     reemplaza por una miniatura real (mismo criterio visual de Pagos):
+     si el archivo es imagen (jpg/jpeg/png/webp/gif) se arma un thumbnail
+     de 28x28 pidiendo la transformación de Cloudinary directamente en la
+     URL (w_28,h_28,c_fill,q_auto,f_auto insertado antes de /upload/), sin
+     subir nada nuevo ni gastar créditos de storage extra. Si no es imagen
+     (PDF, audio, otro) se deja un ícono según tipo. El clic sigue abriendo
+     exactamente el mismo abrirLightboxProduccion() de siempre — no se tocó
+     esa función, ni _musSubirDocumento, ni _musEliminarDoc, ni ningún otro
+     módulo (Producción, Pagos, Estudios, Cotizador, Dashboard).
+     V4.6: en cada músico del catálogo se puede adjuntar uno o varios
+     documentos (cédula, hoja de vida, contrato, etc.). Se guardan en
+     musicos/{id}.documentos: [{url, nombre, subidoEn}] vía arrayUnion/
+     arrayRemove. Sube por subirArchivoCloudinary() (misma función, ahora
+     con 2º parámetro opcional assetFolder para no romper llamados
+     existentes), a una carpeta dinámica por músico en Cloudinary
+     (musicos/{nombre-slug}_{id-corto}, vía asset_folder — cuenta con
+     Dynamic Folder Mode). Ver/descargar reutiliza abrirLightboxProduccion()
+     tal cual. Eliminar quita del array (no borra de Cloudinary, mismo
+     criterio no-destructivo del resto de la app). No se tocó guardarMusico,
+     el resto de Músicos, ni ningún otro modal.
+     V4.5: nuevo catálogo maestro "Músicos" (colección Firestore `musicos`),
+     mismo patrón CRUD que Estudios (activo:false en vez de borrar, sin
+     semilla). Campos: nombre, cedula, instrumento, correo, telefono.
+     Modal "🎻 Músicos" + entrada en sbFootExtra junto a Estudios. No se
+     tocó Estudios, Cotizador, Dashboard, ni ninguna otra lógica existente.
+     V4.4: en el dashboard de proyecto, la barra segmentada de etapa
+     (dash-etapa-bar / renderBarraEtapa) se reemplaza por la ruta de
+     nodos de portal.html (V1.8: .etapa-ruta, nodo circular + línea
+     conectora, check en las hechas, pulso dorado en la actual, subtexto
+     con fecha de grabación/entrega), para que el dashboard y el portal
+     de clientes muestren la misma pieza visual. Se trajo el CSS
+     (.etapa-ruta y clases asociadas, incl. @keyframes etapaPulso) tal
+     cual de portal.html, y se agregó renderRutaEtapa(p) como adaptación
+     de renderEtapaChips() que retorna el HTML en vez de escribirlo en un
+     elemento por getElementById, reutilizando sesionesDash ya cargado
+     por el dashboard para calcular el rango de fechas de grabación.
+     renderBarraEtapa() y ETAPAS_LABEL quedan intactos (renderBarraEtapa
+     ya no se invoca en el dashboard, pero se deja por si se usa en otro
+     lugar). No se tocó portal.html, PDF, resumen financiero, tarjetas,
+     mini-calendario ni ningún otro bloque del dashboard (v4.3).
+     V4.3: se agrega un dashboard como landing del detalle de proyecto,
+     arriba del contenido existente (resumen financiero, chips, narrativa,
+     equipo — nada de eso se tocó ni se movió de función). Incluye: barra
+     de etapa (sobre ETAPAS_LABEL existente), barra financiera (sobre
+     resumenPagos existente), 3 tarjetas (sesiones hechas/total,
+     instrumentación, producción) y un mini-calendario del mes con puntos
+     de color (verde = sesión pasada, azul = sesión próxima, ámbar =
+     entrega estimada); clic en un día con punto abre un tooltip con el
+     detalle + link a logistica.html. Para esto, verDetalle() se separó en
+     apertura/suscripción + renderDetalleContent() (reutilizable desde los
+     listeners nuevos sin duplicar código), y se agregan dos listeners
+     onSnapshot acotados al proyecto abierto (sesiones y producción),
+     que se desuscriben en volverListado() para no dejar lecturas de
+     Firestore corriendo de fondo al salir del detalle. No se tocó
+     logistica.html, Cloudinary, Storage ni instrumentación (v4.2).
+     V4.2: se agrega sección "Instrumentación" al formulario de proyecto
+     (Entrega 1 de 2). Acordeón por grupo (Batería, Percusión latina,
+     Cuerdas, Bronces, Voces, Teclas, Otros — CATALOGO_INSTRUMENTACION),
+     cada grupo con piezas predefinidas (selector) + "agregar personalizada"
+     (texto libre), cantidad por pieza y, si cantidad > 1, etiquetas
+     editables por unidad (ej: Congas → Tumba/Conga 2/Quinto en vez de
+     Congas 1/2/3). Se guarda como `instrumentacion` en el documento de
+     `proyectos`, sin tocar `equipo`, `costos` ni ningún otro campo.
+     Colapsado por defecto y responsive (una columna en mobile) para no
+     saturar el formulario. Entrega 2 (pendiente, en logistica.html): usar
+     esta plantilla para armar el checklist por grupo + input list en cada
+     sesión — no se tocó logistica.html en esta entrega. Cloudinary,
+     Storage (comentado desde v4.1) y producción: sin ningún cambio.
+     V4.1: se revierte el enrutamiento de audio a Firebase Storage de v4.0
+     porque Google exige plan Blaze (pago) para habilitar Storage, y no se
+     activó. El audio ya NO se sube por el input de archivo: si el usuario
+     selecciona un audio ahí, subirArchivoProduccion() lanza un error
+     controlado y guardarProduccion() lo muestra pidiendo usar el campo
+     "Enlace externo" en su lugar (pegar link de Drive/WeTransfer/etc., que
+     ya existía desde antes como enlaceExterno). Se agrega un botón 🔗 en el
+     listado que aparece cuando hay enlaceExterno pero no archivoUrl, para
+     abrirlo en pestaña nueva sin tener que entrar a editar el ítem. El SDK
+     de Firebase Storage, `const storage = firebase.storage()` y la función
+     subirArchivoStorage() quedan COMENTADOS (no borrados) por si se activa
+     Blaze más adelante y se retoma. Cloudinary (imagen/video/PDF) sigue
+     exactamente igual, sin ningún cambio.
      V3.9: se agrega lightbox para ver el archivo adjunto de cada ítem de
      Producción musical, sin salir del listado. Mismo patrón visual que el
      lightbox de comprobantes de pagos.html (.lightbox-bg/.lightbox-content/
@@ -157,6 +239,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<!-- v4.1: comentado — requiere plan Blaze, no activado. Ver nota arriba.
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+-->
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -481,6 +566,26 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 }
 .item-row{display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;margin-bottom:8px;align-items:center;}
 .item-row input{width:100%;}
+.instr-grupo{border:1px solid var(--brd);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.instr-grupo-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer;background:var(--surf-light);}
+.instr-grupo-header span{font-size:0.88rem;color:var(--muted);}
+.instr-grupo-body{padding:10px 12px;display:none;}
+.instr-grupo.abierto .instr-grupo-body{display:block;}
+.instr-pieza-row{display:grid;grid-template-columns:1fr 64px 30px;gap:8px;margin-bottom:6px;align-items:center;}
+.instr-pieza-row input[type="number"]{width:64px;padding:8px 6px;}
+.instr-pieza-row button,.instr-footer-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 8px;cursor:pointer;height:34px;
+}
+.instr-unidad-row{margin:2px 0 8px 14px;padding-left:10px;border-left:2px solid var(--brd);}
+.instr-unidad-row input{font-size:0.82rem;margin-bottom:4px;}
+.instr-footer-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.instr-footer-row select{flex:1;min-width:140px;}
+.instr-footer-row .link-add{align-self:center;}
+@media (max-width:600px){
+  .instr-pieza-row{grid-template-columns:1fr;}
+  .instr-pieza-row input[type="number"]{width:100%;}
+}
 .item-row button{
   background:transparent;border:1px solid var(--brd);color:var(--err);
   border-radius:6px;padding:0 8px;cursor:pointer;height:38px;
@@ -539,6 +644,70 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .resumen-financiero .monto-item .val{font-weight:600;font-size:1rem;}
 .resumen-financiero .monto-item.saldo .val{color:var(--warn);}
 .resumen-financiero .monto-item.saldo.pagado .val{color:var(--ok);}
+.dash-etapa-bar{display:flex;gap:3px;margin:6px 0 14px;}
+.dash-etapa-bar span{flex:1;height:6px;border-radius:3px;background:var(--brd);}
+.dash-etapa-bar span.hecha{background:var(--ok);}
+.dash-etapa-bar span.actual{background:var(--gold);}
+/* Ruta de etapas (v4.4) — traída tal cual de portal.html (mismas clases:
+   .etapa-ruta, .etapa-nodo-row, .etapa-nodo-col, .etapa-linea,
+   .etapa-nodo-txt) para unificar el dashboard con el portal de clientes. */
+.etapa-ruta{margin-top:14px;}
+.etapa-nodo-row{display:flex;gap:12px;}
+.etapa-nodo-col{display:flex;flex-direction:column;align-items:center;}
+.etapa-nodo{width:18px;height:18px;min-width:18px;border-radius:50%;border:2px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;background:var(--surf);}
+.etapa-nodo.hecha{border-color:var(--ok);background:var(--ok);color:var(--bg);}
+.etapa-nodo.actual{border-color:var(--gold);background:var(--gold-bg);box-shadow:0 0 0 3px var(--gold-bg);position:relative;}
+.etapa-nodo.actual::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--gold);
+  animation:etapaPulso 2.2s ease-out infinite;
+}
+@keyframes etapaPulso{
+  0%{transform:scale(0.85);opacity:0.9;}
+  100%{transform:scale(1.9);opacity:0;}
+}
+.etapa-nodo.pendiente{opacity:0.55;}
+.etapa-linea{width:2px;flex:1;min-height:22px;background:var(--brd);margin:2px 0;}
+.etapa-linea.hecha{background:var(--ok);}
+.etapa-nodo-txt{padding-bottom:18px;}
+.etapa-nodo-txt span{display:block;font-size:0.85rem;font-weight:600;color:var(--txt);}
+.etapa-nodo-txt span.pendiente{color:var(--faint);font-weight:500;}
+.etapa-nodo-txt span.actual{color:var(--gold);}
+.etapa-nodo-txt span.hecha{color:var(--ok);}
+.etapa-nodo-txt small{display:block;margin-top:2px;font-size:0.72rem;color:var(--muted);}
+.etapa-nodo-txt small.etapa-actual-tag{color:var(--gold);}
+@media (min-width:640px){
+  .etapa-ruta{display:flex;align-items:flex-start;}
+  .etapa-nodo-row{flex:1;flex-direction:column;gap:6px;}
+  .etapa-nodo-col{flex-direction:row;width:100%;align-items:center;}
+  .etapa-linea{width:auto;flex:1;height:2px;min-height:0;margin:0 4px;}
+  .etapa-nodo-txt{padding-bottom:0;text-align:center;}
+}
+.dash-financiera-bar{height:8px;border-radius:4px;background:var(--brd);overflow:hidden;margin:6px 0 14px;}
+.dash-financiera-bar div{height:100%;background:#6ea3e8;}
+.dash-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.dash-card{background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:12px 14px;}
+.dash-card .lbl{font-size:0.72rem;color:var(--muted);display:block;margin-bottom:4px;}
+.dash-card .val{font-size:1.3rem;font-weight:600;}
+@media (max-width:600px){.dash-cards{grid-template-columns:1fr 1fr;}}
+.dash-calendario{background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:14px 18px;margin-bottom:16px;position:relative;}
+.dash-cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:0.85rem;}
+.dash-cal-head button{background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:6px;cursor:pointer;padding:2px 8px;}
+.dash-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:0.74rem;}
+.dash-cal-grid .dow{color:var(--muted);padding-bottom:4px;}
+.dash-cal-day{position:relative;padding:6px 0;border-radius:6px;cursor:default;}
+.dash-cal-day.con-evento{cursor:pointer;}
+.dash-cal-day.con-evento:hover{background:var(--surf-light);}
+.dash-cal-dots{display:flex;gap:2px;justify-content:center;margin-top:2px;}
+.dash-cal-dots span{width:5px;height:5px;border-radius:50%;}
+.dot-pasada{background:var(--ok);}
+.dot-proxima{background:#6ea3e8;}
+.dot-entrega{background:var(--warn);}
+.dash-cal-tooltip{
+  position:absolute;z-index:20;background:var(--surf);border:1px solid var(--brd);border-radius:8px;
+  padding:10px 12px;font-size:0.78rem;min-width:180px;box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.dash-cal-tooltip a{color:var(--gold);}
+.dash-proxima-sesion{font-size:0.85rem;color:var(--muted);margin-bottom:16px;}
 .detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
 .chip{
   background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;
@@ -581,7 +750,8 @@ window.NAV_CONFIG = {
   sbFootExtra: [
     {icon:'🔐', label:'Portal de clientes', onclick:'abrirModalPortalClientes()'},
     {icon:'👤', label:'Equipo interno', onclick:'abrirModalEquipoInterno()'},
-    {icon:'🏢', label:'Estudios', onclick:'abrirModalEstudios()'}
+    {icon:'🏢', label:'Estudios', onclick:'abrirModalEstudios()'},
+    {icon:'🎻', label:'Músicos', onclick:'abrirModalMusicos()'}
   ],
   masMobileExtra: [
     {icon:'➕', label:'Nuevo Proyecto', onclick:"abrirModalNuevo();toggleMasMobile()"}
@@ -698,6 +868,10 @@ window.NAV_CONFIG = {
       <label>Equipo asignado</label>
       <div id="equipoContainer"></div>
       <span class="link-add" onclick="agregarFilaEquipo()">+ agregar integrante</span>
+    </div>
+    <div class="field">
+      <label>Instrumentación</label>
+      <div id="instrumentacionContainer"></div>
     </div>
     <div class="field">
       <label>Narrativa / Contexto clave</label>
@@ -819,6 +993,50 @@ window.NAV_CONFIG = {
     <div id="estudiosLista" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cerrarModalEstudios()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MÚSICOS (v4.5 · documentos v4.6) -->
+<div class="modal-bg" id="modalMusicosBg">
+  <div class="modal">
+    <h2>🎻 Músicos</h2>
+    <p style="font-size:0.82rem;color:var(--muted);margin:-8px 0 16px;">
+      Catálogo reutilizable de músicos/sesionistas. Sirve para precargar sus datos en contratos de sesión y en producción musical.
+    </p>
+    <input type="hidden" id="musicoEditId">
+    <div class="field">
+      <label>Nombre completo</label>
+      <input type="text" id="musicoNombre" placeholder="Ej. Alejandro Londoño">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Cédula</label>
+        <input type="text" id="musicoCedula" placeholder="Ej. 1234567890">
+      </div>
+      <div class="field">
+        <label>Instrumento principal</label>
+        <input type="text" id="musicoInstrumento" placeholder="Ej. Piano / Percusión / Voz">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Correo</label>
+        <input type="email" id="musicoCorreo" placeholder="correo@ejemplo.com">
+      </div>
+      <div class="field">
+        <label>Teléfono</label>
+        <input type="text" id="musicoTelefono" placeholder="Ej. 3001234567">
+      </div>
+    </div>
+    <div id="musicoErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
+    <div class="row2" style="margin-top:6px;">
+      <button class="btn btn-ghost" id="btnMusicoCancelar" style="display:none;" onclick="cancelarEdicionMusico()">Cancelar edición</button>
+      <button class="btn" onclick="guardarMusico()">💾 Guardar músico</button>
+    </div>
+    <div id="musicosLista" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModalMusicos()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -972,6 +1190,8 @@ window.NAV_CONFIG = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+// v4.1: comentado — Firebase Storage requiere plan Blaze, no activado.
+// const storage = firebase.storage(); // v4.0 — audio de Producción musical
 const proyectosRef = db.collection('proyectos');
 const clientesAccesoRef = db.collection('clientesAcceso');
 
@@ -1083,9 +1303,204 @@ db.collectionGroup('cotizaciones').where('estado', '==', 'aceptada')
 
 function refrescarDetalleSiActivo(){
   if(proyectoActualId && document.getElementById('vistaDetalle').classList.contains('active')){
-    verDetalle(proyectoActualId);
+    renderDetalleContent();
   }
 }
+
+/* ============ DASHBOARD DE PROYECTO (v4.3) ============
+   Se agrega como landing del detalle, arriba del contenido existente
+   (resumen financiero, chips, narrativa, equipo — nada de eso se toca).
+   Usa datos ya disponibles (proyecto, resumenPagos) + dos listeners
+   nuevos y acotados al proyecto abierto (sesiones y producción), que se
+   desuscriben al salir del detalle o cambiar de proyecto para no dejar
+   lecturas de Firestore corriendo de fondo. */
+let unsubSesionesDash = null;
+let unsubProduccionDash = null;
+let sesionesDash = [];
+let produccionDash = [];
+let dashCalMes = new Date();
+
+function suscribirDashboardDetalle(id){
+  if(unsubSesionesDash) unsubSesionesDash();
+  if(unsubProduccionDash) unsubProduccionDash();
+  sesionesDash = [];
+  produccionDash = [];
+  dashCalMes = new Date();
+  unsubSesionesDash = proyectosRef.doc(id).collection('sesiones')
+    .onSnapshot(snap => {
+      sesionesDash = [];
+      snap.forEach(d => sesionesDash.push({ id: d.id, ...d.data() }));
+      refrescarDetalleSiActivo();
+    }, err => console.error('Error cargando sesiones del dashboard:', err));
+  unsubProduccionDash = proyectosRef.doc(id).collection('produccion')
+    .onSnapshot(snap => {
+      produccionDash = [];
+      snap.forEach(d => produccionDash.push({ id: d.id, ...d.data() }));
+      refrescarDetalleSiActivo();
+    }, err => console.error('Error cargando producción del dashboard:', err));
+}
+
+function desuscribirDashboardDetalle(){
+  if(unsubSesionesDash) { unsubSesionesDash(); unsubSesionesDash = null; }
+  if(unsubProduccionDash) { unsubProduccionDash(); unsubProduccionDash = null; }
+}
+
+function contarInstrumentacion(instr){
+  if(!instr) return { grupos: 0, piezas: 0 };
+  let grupos = 0, piezas = 0;
+  Object.keys(instr).forEach(k => {
+    if(Array.isArray(instr[k]) && instr[k].length){ grupos++; piezas += instr[k].length; }
+  });
+  return { grupos, piezas };
+}
+
+function renderBarraEtapa(etapaActual){
+  const claves = Object.keys(ETAPAS_LABEL);
+  const idxActual = claves.indexOf(etapaActual);
+  return claves.map((k, i) => {
+    let cls = '';
+    if(i < idxActual) cls = 'hecha';
+    else if(i === idxActual) cls = 'actual';
+    return `<span class="${cls}" title="${ETAPAS_LABEL[k]}"></span>`;
+  }).join('');
+}
+
+/* Ruta de etapas del dashboard (v4.4) — adaptación de renderEtapaChips()
+   de portal.html: misma lógica (idxActual, sub por fecha de grabación/
+   entrega), pero retorna el HTML como string para insertarlo dentro de
+   renderDashboardProyecto() en vez de escribirlo en un elemento del DOM
+   con getElementById. No se tocó renderBarraEtapa() ni ETAPAS_LABEL. */
+function renderRutaEtapa(p){
+  const claves = Object.keys(ETAPAS_LABEL);
+  const idxActual = claves.indexOf(p.etapaActual);
+
+  const conFecha = sesionesDash.filter(s => s.fecha).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  let rangoGrabacion = null;
+  if(conFecha.length){
+    const fmt = f => new Date(f + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short'});
+    const primera = conFecha[0].fecha, ultima = conFecha[conFecha.length - 1].fecha;
+    rangoGrabacion = primera === ultima ? fmt(primera) : `${fmt(primera)} – ${fmt(ultima)}`;
+  }
+  const entrega = p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : null;
+
+  return `
+    <div class="etapa-ruta">
+      ${claves.map((k, i) => {
+        const cls = i < idxActual ? 'hecha' : i === idxActual ? 'actual' : 'pendiente';
+        let sub = '';
+        if(k === 'grabacion' && rangoGrabacion) sub = rangoGrabacion;
+        if(k === 'entrega' && entrega) sub = entrega;
+        const esUltima = i === claves.length - 1;
+        return `
+          <div class="etapa-nodo-row">
+            <div class="etapa-nodo-col">
+              <div class="etapa-nodo ${cls}">${cls === 'hecha' ? '✓' : ''}</div>
+              ${!esUltima ? `<div class="etapa-linea ${i < idxActual ? 'hecha' : ''}"></div>` : ''}
+            </div>
+            <div class="etapa-nodo-txt">
+              <span class="${cls}">${ETAPAS_LABEL[k]}</span>
+              ${sub ? `<small>${sub}</small>` : (cls === 'actual' ? `<small class="etapa-actual-tag">etapa actual</small>` : '')}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderMiniCalendario(p){
+  const anio = dashCalMes.getFullYear();
+  const mes = dashCalMes.getMonth();
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const primerDia = new Date(anio, mes, 1);
+  const diasEnMes = new Date(anio, mes + 1, 0).getDate();
+  const offset = primerDia.getDay();
+  const entregaStr = p.fechaEntregaEstimada ? p.fechaEntregaEstimada.split('T')[0] : null;
+
+  const eventosPorDia = {};
+  sesionesDash.forEach(s => {
+    if(!s.fecha) return;
+    const d = new Date(s.fecha + 'T00:00:00');
+    const pasada = d < hoy;
+    if(!eventosPorDia[s.fecha]) eventosPorDia[s.fecha] = [];
+    eventosPorDia[s.fecha].push({ tipo: pasada ? 'pasada' : 'proxima', sesion: s });
+  });
+  if(entregaStr && entregaStr.slice(0,7) === `${anio}-${String(mes+1).padStart(2,'0')}`){
+    if(!eventosPorDia[entregaStr]) eventosPorDia[entregaStr] = [];
+    eventosPorDia[entregaStr].push({ tipo: 'entrega' });
+  }
+
+  const dow = ['D','L','M','X','J','V','S'];
+  let celdas = dow.map(d => `<div class="dow">${d}</div>`).join('');
+  for(let i = 0; i < offset; i++) celdas += `<div></div>`;
+  for(let dia = 1; dia <= diasEnMes; dia++){
+    const fechaStr = `${anio}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const eventos = eventosPorDia[fechaStr];
+    const dots = eventos ? `<div class="dash-cal-dots">${eventos.map(e => `<span class="dot-${e.tipo}"></span>`).join('')}</div>` : '';
+    celdas += `<div class="dash-cal-day ${eventos ? 'con-evento' : ''}" ${eventos ? `onclick="mostrarTooltipDia(event,'${fechaStr}')"` : ''}>${dia}${dots}</div>`;
+  }
+
+  return `
+    <div class="dash-calendario" id="dashCalendario">
+      <div class="dash-cal-head">
+        <button onclick="cambiarMesDash(-1)">‹</button>
+        <span>${dashCalMes.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}</span>
+        <button onclick="cambiarMesDash(1)">›</button>
+      </div>
+      <div class="dash-cal-grid">${celdas}</div>
+    </div>`;
+}
+
+function cambiarMesDash(delta){
+  dashCalMes = new Date(dashCalMes.getFullYear(), dashCalMes.getMonth() + delta, 1);
+  refrescarDetalleSiActivo();
+}
+
+function mostrarTooltipDia(evt, fechaStr){
+  evt.stopPropagation();
+  const existente = document.querySelector('.dash-cal-tooltip');
+  if(existente) existente.remove();
+  const sesionesDia = sesionesDash.filter(s => s.fecha === fechaStr);
+  const esEntrega = proyectos.find(x => x.id === proyectoActualId)?.fechaEntregaEstimada?.split('T')[0] === fechaStr;
+  const fechaFmt = new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' });
+  let html = `<strong>${fechaFmt}</strong><br>`;
+  if(esEntrega) html += `<div style="color:var(--warn);margin-top:4px;">Entrega estimada del proyecto</div>`;
+  sesionesDia.forEach(s => {
+    html += `<div style="margin-top:6px;">${escapeHtml(s.actividad || 'Sesión')}${s.sala ? ' · ' + escapeHtml(s.sala) : ''}<br><a href="logistica.html?id=${proyectoActualId}">Ver en logística →</a></div>`;
+  });
+  const box = document.createElement('div');
+  box.className = 'dash-cal-tooltip';
+  box.innerHTML = html;
+  evt.currentTarget.appendChild(box);
+  setTimeout(() => document.addEventListener('click', function cerrar(e){
+    if(!box.contains(e.target)){ box.remove(); document.removeEventListener('click', cerrar); }
+  }), 0);
+}
+
+function renderDashboardProyecto(p){
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const totalSesiones = sesionesDash.length;
+  const sesionesHechas = sesionesDash.filter(s => s.fecha && new Date(s.fecha + 'T00:00:00') < hoy).length;
+  const proximaSesion = sesionesDash
+    .filter(s => s.fecha && new Date(s.fecha + 'T00:00:00') >= hoy)
+    .sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
+
+  const instr = contarInstrumentacion(p.instrumentacion);
+  const r = resumenPagos[p.id];
+  const pctFinanciero = r && r.cotizado > 0 ? Math.min(100, Math.round((r.cobrado / r.cotizado) * 100)) : 0;
+
+  return `
+    ${renderRutaEtapa(p)}
+    ${r ? `<div class="dash-financiera-bar"><div style="width:${pctFinanciero}%"></div></div>` : ''}
+    <div class="dash-cards">
+      <div class="dash-card"><span class="lbl">Sesiones</span><span class="val">${sesionesHechas} de ${totalSesiones}</span></div>
+      <div class="dash-card"><span class="lbl">Instrumentación</span><span class="val">${instr.grupos} grupo(s)</span></div>
+      <div class="dash-card"><span class="lbl">Producción</span><span class="val">${produccionDash.length} ítem(s)</span></div>
+    </div>
+    ${renderMiniCalendario(p)}
+    <div class="dash-proxima-sesion">${proximaSesion ? `Próxima sesión: ${new Date(proximaSesion.fecha + 'T00:00:00').toLocaleDateString('es-CO')} · ${escapeHtml(proximaSesion.actividad || '')}` : 'No hay sesiones próximas.'}</div>
+  `;
+}
+/* ============ FIN DASHBOARD DE PROYECTO ============ */
 
 function escucharPagosResumen(proyectoId, cotizId){
   proyectosRef.doc(proyectoId).collection('pagos')
@@ -1145,6 +1560,18 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
+// v4.6: carpeta dinámica por músico en Cloudinary (Dynamic Folder Mode).
+// nombre-slug + parte del id del doc, para que sea legible en el Media
+// Library de Cloudinary y nunca choque entre dos músicos de nombre parecido.
+function slugMusico(nombre, id){
+  const slug = (nombre || 'musico')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `musicos/${slug || 'musico'}_${(id || '').slice(0, 6)}`;
+}
+
 // ============ MODAL ============
 function abrirModalNuevo(){
   editando = false;
@@ -1172,6 +1599,9 @@ function limpiarFormulario(){
   document.getElementById('fNotasInternas').value = '';
   document.getElementById('equipoContainer').innerHTML = '';
   agregarFilaEquipo();
+  instrumentacionState = instrumentacionVacia();
+  instrGruposAbiertos = {};
+  renderInstrumentacion();
 }
 
 function agregarFilaEquipo(rol='', nombre=''){
@@ -1185,6 +1615,136 @@ function agregarFilaEquipo(rol='', nombre=''){
   `;
   container.appendChild(row);
 }
+
+/* ============ INSTRUMENTACIÓN (v4.2) ============
+   Catálogo de piezas por grupo, usado solo para prellenar el <select> de
+   cada grupo — el usuario puede agregar piezas fuera del catálogo con
+   "agregar personalizada". El estado real (instrumentacionState) es la
+   única fuente de verdad mientras el modal está abierto; se reconstruye
+   por completo en cada abrirModal/editar y se vuelca a instrumentacion
+   al guardar. No se relaciona con Cloudinary/Storage ni con producción. */
+const CATALOGO_INSTRUMENTACION = {
+  bateria: { label: 'Batería', piezas: ['Kick','Redoblante','Tom 1','Tom 2','Tom de piso','Hi-hat','Overhead L','Overhead R','Ride'] },
+  percusionLatina: { label: 'Percusión latina', piezas: ['Congas','Bongó','Timbales','Campana','Güiro','Maracas','Clave'] },
+  cuerdas: { label: 'Cuerdas', piezas: ['Bajo eléctrico','Contrabajo','Baby bass','Guitarra eléctrica','Guitarra acústica','Tres','Cuatro'] },
+  bronces: { label: 'Bronces', piezas: ['Trompeta','Trombón','Saxofón','Flauta traversa'] },
+  voces: { label: 'Voces', piezas: ['Voz principal','Coro 1','Coro 2','Coro 3'] },
+  teclas: { label: 'Teclas', piezas: ['Piano','Teclado/Sintetizador'] },
+  otros: { label: 'Otros', piezas: [] }
+};
+
+let instrumentacionState = {};
+let instrGruposAbiertos = {};
+
+function instrumentacionVacia(){
+  const st = {};
+  Object.keys(CATALOGO_INSTRUMENTACION).forEach(k => st[k] = []);
+  return st;
+}
+
+function generarUnidades(nombre, cantidad, unidadesPrevias){
+  const arr = [];
+  for(let i = 0; i < cantidad; i++){
+    if(unidadesPrevias && unidadesPrevias[i]) arr.push(unidadesPrevias[i]);
+    else arr.push(cantidad > 1 ? `${nombre} ${i+1}` : nombre);
+  }
+  return arr;
+}
+
+function renderInstrumentacion(){
+  const cont = document.getElementById('instrumentacionContainer');
+  cont.innerHTML = Object.keys(CATALOGO_INSTRUMENTACION).map(key => {
+    const grupo = CATALOGO_INSTRUMENTACION[key];
+    const piezas = instrumentacionState[key] || [];
+    const abierto = !!instrGruposAbiertos[key];
+    const yaAgregadas = piezas.map(p => p.nombre);
+    const disponibles = grupo.piezas.filter(p => !yaAgregadas.includes(p));
+
+    const filas = piezas.map((p, idx) => {
+      const unidadesHtml = p.cantidad > 1 ? `
+        <div class="instr-unidad-row">
+          ${p.unidades.map((u, uIdx) => `<input type="text" value="${escapeHtml(u)}" onchange="cambiarUnidadInstr('${key}',${idx},${uIdx},this.value)">`).join('')}
+        </div>` : '';
+      return `
+        <div class="instr-pieza-row">
+          <input type="text" value="${escapeHtml(p.nombre)}" onchange="renombrarPiezaInstr('${key}',${idx},this.value)">
+          <input type="number" min="1" value="${p.cantidad}" onchange="cambiarCantidadInstr('${key}',${idx},this.value)">
+          <button onclick="quitarPiezaInstr('${key}',${idx})" title="Quitar">✕</button>
+        </div>
+        ${unidadesHtml}`;
+    }).join('');
+
+    const selectHtml = disponibles.length ? `
+      <select id="instrSelect_${key}">
+        <option value="">Elegir pieza...</option>
+        ${disponibles.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost" onclick="agregarDesdeSelectInstr('${key}')" style="height:34px;">+ agregar</button>` : '';
+
+    return `
+      <div class="instr-grupo ${abierto ? 'abierto' : ''}">
+        <div class="instr-grupo-header" onclick="toggleGrupoInstr('${key}')">
+          <strong>${grupo.label}</strong>
+          <span>${piezas.length ? piezas.length + ' pieza(s)' : 'sin piezas'} ▾</span>
+        </div>
+        <div class="instr-grupo-body">
+          ${filas}
+          <div class="instr-footer-row">
+            ${selectHtml}
+            <span class="link-add" onclick="agregarPersonalizadaInstr('${key}')">+ agregar personalizada</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleGrupoInstr(key){
+  instrGruposAbiertos[key] = !instrGruposAbiertos[key];
+  renderInstrumentacion();
+}
+
+function agregarPiezaInstr(key, nombre){
+  if(!nombre.trim()) return;
+  instrumentacionState[key].push({ nombre: nombre.trim(), cantidad: 1, unidades: [nombre.trim()] });
+  instrGruposAbiertos[key] = true;
+  renderInstrumentacion();
+}
+
+function agregarDesdeSelectInstr(key){
+  const sel = document.getElementById(`instrSelect_${key}`);
+  if(sel && sel.value) agregarPiezaInstr(key, sel.value);
+}
+
+function agregarPersonalizadaInstr(key){
+  const nombre = prompt('Nombre de la pieza a agregar:');
+  if(nombre) agregarPiezaInstr(key, nombre);
+}
+
+function quitarPiezaInstr(key, idx){
+  instrumentacionState[key].splice(idx, 1);
+  renderInstrumentacion();
+}
+
+function renombrarPiezaInstr(key, idx, valor){
+  const p = instrumentacionState[key][idx];
+  if(!valor.trim()) { renderInstrumentacion(); return; }
+  p.nombre = valor.trim();
+  p.unidades = generarUnidades(p.nombre, p.cantidad, null);
+  renderInstrumentacion();
+}
+
+function cambiarCantidadInstr(key, idx, valor){
+  const p = instrumentacionState[key][idx];
+  const cantidad = Math.max(1, parseInt(valor, 10) || 1);
+  p.unidades = generarUnidades(p.nombre, cantidad, p.unidades);
+  p.cantidad = cantidad;
+  renderInstrumentacion();
+}
+
+function cambiarUnidadInstr(key, idx, uIdx, valor){
+  instrumentacionState[key][idx].unidades[uIdx] = valor.trim() || instrumentacionState[key][idx].unidades[uIdx];
+}
+/* ============ FIN INSTRUMENTACIÓN ============ */
 
 async function guardarProyecto(){
   const nombre = document.getElementById('fNombre').value.trim();
@@ -1211,6 +1771,7 @@ async function guardarProyecto(){
     fechaEntregaEstimada: document.getElementById('fFechaEntrega').value || null,
     equipo,
     narrativa: document.getElementById('fNarrativa').value.trim(),
+    instrumentacion: instrumentacionState,
     costos: {
       presupuesto: Number(document.getElementById('fPresupuesto').value) || 0,
       notasInternas: document.getElementById('fNotasInternas').value.trim()
@@ -1237,6 +1798,7 @@ async function guardarProyecto(){
 
 // ============ DETALLE ============
 function verDetalle(id){
+  const cambioDeProyecto = proyectoActualId !== id;
   proyectoActualId = id;
   const p = proyectos.find(x => x.id === id);
   if(!p) return;
@@ -1253,9 +1815,17 @@ function verDetalle(id){
     backLink.onclick = volverListado;
   }
 
+  if(cambioDeProyecto) suscribirDashboardDetalle(id);
+  renderDetalleContent();
+}
+
+function renderDetalleContent(){
+  const p = proyectos.find(x => x.id === proyectoActualId);
+  if(!p) return;
+
   const entrega = p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada).toLocaleDateString('es-CO') : '—';
 
-  const r = resumenPagos[id];
+  const r = resumenPagos[proyectoActualId];
   const pagado = r && r.saldo <= 0;
   const resumenHtml = r ? `
     <div class="resumen-financiero">
@@ -1265,10 +1835,11 @@ function verDetalle(id){
     </div>` : '';
 
   document.getElementById('detalleContent').innerHTML = `
-    ${resumenHtml}
     <span class="tipo-tag">${p.tipo === 'propio' ? 'Proyecto propio' : 'Cliente'}</span>
     <h2>${escapeHtml(p.nombre)}</h2>
     <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
+    ${renderDashboardProyecto(p)}
+    ${resumenHtml}
     <div class="detalle-meta">
       <span class="chip">Cliente/Artista: ${escapeHtml(p.clienteArtista || '—')}</span>
       <span class="chip">Prod. Ejecutivo: ${escapeHtml(p.productorEjecutivo || '—')}</span>
@@ -1293,6 +1864,7 @@ function volverListado(){
   document.getElementById('vistaDetalle').classList.remove('active');
   document.getElementById('vistaListado').style.display = 'block';
   proyectoActualId = null;
+  desuscribirDashboardDetalle();
 }
 
 function editarProyectoActual(){
@@ -1318,6 +1890,14 @@ function editarProyectoActual(){
   } else {
     agregarFilaEquipo();
   }
+  instrumentacionState = instrumentacionVacia();
+  if(p.instrumentacion){
+    Object.keys(instrumentacionState).forEach(key => {
+      if(Array.isArray(p.instrumentacion[key])) instrumentacionState[key] = p.instrumentacion[key];
+    });
+  }
+  instrGruposAbiertos = {};
+  renderInstrumentacion();
   document.getElementById('modalBg').classList.add('active');
 }
 
@@ -1871,6 +2451,200 @@ window._estToggleActivo = async function(id, activar){
   }
 };
 
+// ============ MÚSICOS (v4.5 · documentos v4.6) ============
+// Catálogo maestro de músicos/sesionistas, mismo patrón CRUD que Estudios
+// (activo:false en vez de borrar). Sin semilla: arranca vacío.
+// v4.6: cada músico puede tener documentos adjuntos (documentos: [{url,
+// nombre, subidoEn}]), subidos a una carpeta propia en Cloudinary.
+async function abrirModalMusicos(){
+  document.getElementById('musicoErr').textContent = '';
+  cancelarEdicionMusico();
+  cargarListaMusicos();
+  document.getElementById('modalMusicosBg').classList.add('active');
+}
+
+function cerrarModalMusicos(){
+  document.getElementById('modalMusicosBg').classList.remove('active');
+}
+
+function cancelarEdicionMusico(){
+  document.getElementById('musicoEditId').value = '';
+  document.getElementById('musicoNombre').value = '';
+  document.getElementById('musicoCedula').value = '';
+  document.getElementById('musicoInstrumento').value = '';
+  document.getElementById('musicoCorreo').value = '';
+  document.getElementById('musicoTelefono').value = '';
+  document.getElementById('btnMusicoCancelar').style.display = 'none';
+  document.getElementById('musicoErr').textContent = '';
+}
+
+async function cargarListaMusicos(){
+  const cont = document.getElementById('musicosLista');
+  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  try{
+    const snap = await db.collection('musicos').orderBy('nombre').get();
+    if(snap.empty){
+      cont.innerHTML = '<div class="empty" style="padding:16px;">Sin músicos registrados.</div>';
+      return;
+    }
+    cont.innerHTML = snap.docs.map(d => {
+      const m = d.data();
+      const inactivo = m.activo === false;
+      const documentos = Array.isArray(m.documentos) ? m.documentos : [];
+      const docsHtml = documentos.map((doc, i) => {
+        const extDoc = ((doc.nombre||'').split('.').pop() || '').toLowerCase();
+        const esImg = ['jpg','jpeg','png','webp','gif'].includes(extDoc);
+        const esAudio = ['mp3','wav','m4a','ogg','aac'].includes(extDoc);
+        const iconoDoc = esAudio ? '🎵' : (extDoc === 'pdf' ? '📕' : '📄');
+        const miniHtml = esImg && doc.url
+          ? `<img src="${doc.url.replace('/upload/', '/upload/w_28,h_28,c_fill,q_auto,f_auto/')}" alt="" style="width:20px;height:20px;object-fit:cover;border-radius:4px;flex-shrink:0;">`
+          : `<span style="flex-shrink:0;">${iconoDoc}</span>`;
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.76rem;padding:4px 0;">
+            <span style="cursor:pointer;color:var(--acc,#4a9eff);display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80%;" onclick="abrirLightboxProduccion('${(doc.url||'').replace(/'/g,"\\'")}', '${(doc.nombre||'').replace(/'/g,"\\'")}')" title="Ver documento">${miniHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(doc.nombre || 'Documento')}</span></span>
+            <span style="color:var(--err);cursor:pointer;flex-shrink:0;margin-left:8px;" onclick="window._musEliminarDoc('${d.id}', ${i})" title="Quitar de la lista (no borra el archivo de Cloudinary)">✕</span>
+          </div>`;
+      }).join('');
+      return `
+      <div style="border:1px solid var(--brd);border-radius:8px;padding:10px 14px;background:var(--surf-light);${inactivo ? 'opacity:0.5;' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:0.88rem;font-weight:500;">${escapeHtml(m.nombre || d.id)}${inactivo ? ' <span style="color:var(--muted);font-size:0.72rem;">(inactivo)</span>' : ''}</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">
+              ${escapeHtml(m.instrumento||'')} · CC ${escapeHtml(m.cedula||'')} ${m.telefono ? ' · '+escapeHtml(m.telefono) : ''}
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-shrink:0;">
+            <span style="cursor:pointer;font-size:0.9rem;" onclick="window._musEditar('${d.id}')" title="Editar">✎</span>
+            <span style="color:var(--err);cursor:pointer;font-size:0.9rem;" onclick="window._musToggleActivo('${d.id}', ${inactivo})" title="${inactivo ? 'Reactivar' : 'Desactivar'}">${inactivo ? '↺' : '✕'}</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--brd);">
+          ${docsHtml || '<div style="font-size:0.72rem;color:var(--muted);">Sin documentos adjuntos.</div>'}
+          <label style="display:inline-block;margin-top:6px;font-size:0.76rem;color:var(--acc,#4a9eff);cursor:pointer;">
+            📎 Adjuntar documento
+            <input type="file" style="display:none;" onchange="window._musSubirDocumento('${d.id}', '${(m.nombre||'').replace(/'/g,"\\'")}", this.files[0]); this.value='';">
+          </label>
+          <span id="musDocStatus-${d.id}" style="font-size:0.72rem;color:var(--muted);margin-left:8px;"></span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:16px;">No pudimos cargar la lista.</div>';
+  }
+}
+
+async function guardarMusico(){
+  const errEl = document.getElementById('musicoErr');
+  errEl.textContent = '';
+  const nombre = document.getElementById('musicoNombre').value.trim();
+  if(!nombre){
+    errEl.textContent = 'Ingresa el nombre del músico.';
+    return;
+  }
+  const data = {
+    nombre,
+    cedula: document.getElementById('musicoCedula').value.trim(),
+    instrumento: document.getElementById('musicoInstrumento').value.trim(),
+    correo: document.getElementById('musicoCorreo').value.trim(),
+    telefono: document.getElementById('musicoTelefono').value.trim(),
+    activo: true
+  };
+  const editId = document.getElementById('musicoEditId').value;
+  try{
+    if(editId){
+      await db.collection('musicos').doc(editId).update(data);
+    } else {
+      data.creadoEn = new Date().toISOString();
+      await db.collection('musicos').add(data);
+    }
+    cancelarEdicionMusico();
+    cargarListaMusicos();
+  } catch(err){
+    console.error(err);
+    errEl.textContent = 'No pudimos guardar el músico. Intenta de nuevo.';
+  }
+}
+
+window._musEditar = async function(id){
+  try{
+    const doc = await db.collection('musicos').doc(id).get();
+    if(!doc.exists) return;
+    const m = doc.data();
+    document.getElementById('musicoEditId').value = id;
+    document.getElementById('musicoNombre').value = m.nombre || '';
+    document.getElementById('musicoCedula').value = m.cedula || '';
+    document.getElementById('musicoInstrumento').value = m.instrumento || '';
+    document.getElementById('musicoCorreo').value = m.correo || '';
+    document.getElementById('musicoTelefono').value = m.telefono || '';
+    document.getElementById('btnMusicoCancelar').style.display = 'inline-block';
+    document.getElementById('modalMusicosBg').querySelector('.modal').scrollTop = 0;
+  } catch(err){
+    console.error(err);
+  }
+};
+
+window._musToggleActivo = async function(id, activar){
+  const confirmTxt = activar ? '¿Reactivar este músico?' : '¿Desactivar este músico? Dejará de aparecer disponible para nuevos contratos, pero no se borra.';
+  if(!confirm(confirmTxt)) return;
+  try{
+    await db.collection('musicos').doc(id).update({ activo: activar });
+    cargarListaMusicos();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos actualizar el músico.');
+  }
+};
+
+// v4.6: sube el documento a una carpeta propia del músico en Cloudinary
+// (subirArchivoCloudinary sin tocar su lógica interna, solo usando el
+// 2º parámetro nuevo) y agrega el registro al array documentos con
+// arrayUnion. No reemplaza documentos anteriores, solo suma.
+window._musSubirDocumento = async function(id, nombreMusico, file){
+  if(!file) return;
+  const statusEl = document.getElementById('musDocStatus-' + id);
+  if(statusEl) statusEl.textContent = 'Subiendo...';
+  try{
+    const carpeta = slugMusico(nombreMusico, id);
+    const url = await subirArchivoCloudinary(file, carpeta);
+    await db.collection('musicos').doc(id).update({
+      documentos: firebase.firestore.FieldValue.arrayUnion({
+        url,
+        nombre: file.name,
+        subidoEn: new Date().toISOString()
+      })
+    });
+    cargarListaMusicos();
+  } catch(err){
+    console.error(err);
+    if(statusEl) statusEl.textContent = 'Error al subir.';
+    alert('No pudimos subir el documento. Intenta de nuevo.');
+  }
+};
+
+// v4.6: quita el documento del array (arrayRemove necesita el objeto
+// EXACTO, por eso primero se relee el doc y se toma documentos[index]
+// tal cual está guardado). No borra el archivo de Cloudinary — mismo
+// criterio no-destructivo que _musToggleActivo.
+window._musEliminarDoc = async function(id, index){
+  if(!confirm('¿Quitar este documento de la lista? El archivo no se borra de Cloudinary, solo deja de aparecer aquí.')) return;
+  try{
+    const doc = await db.collection('musicos').doc(id).get();
+    if(!doc.exists) return;
+    const documentos = doc.data().documentos || [];
+    const target = documentos[index];
+    if(!target) return;
+    await db.collection('musicos').doc(id).update({
+      documentos: firebase.firestore.FieldValue.arrayRemove(target)
+    });
+    cargarListaMusicos();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos quitar el documento.');
+  }
+};
+
 // ============ COTIZADOR (v2.2) ============
 // Subcolección proyectos/{id}/cotizaciones, mismo patrón que sesiones en
 // logistica.html. Items: [{concepto, cantidad, precio}]. Total calculado
@@ -2107,6 +2881,7 @@ async function cargarListaProduccion(){
             <strong>${it.titulo || 'Sin título'}</strong>
             <div style="display:flex;align-items:center;gap:8px;">
               ${it.archivoUrl ? `<button class="btn-ir-sesiones" title="Ver archivo adjunto" onclick="event.stopPropagation(); abrirLightboxProduccion('${it.archivoUrl}', '${(it.archivoNombre || '').replace(/'/g, "\\'")}')">📎</button>` : ''}
+              ${!it.archivoUrl && it.enlaceExterno ? `<button class="btn-ir-sesiones" title="Abrir enlace externo" onclick="event.stopPropagation(); window.open('${it.enlaceExterno.replace(/'/g, "\\'")}', '_blank', 'noopener')">🔗</button>` : ''}
               <span class="badge ${it.visibleCliente ? 'ok' : 'warn'}">${PRODUCCION_TIPO_LABEL[it.tipo] || 'Otro'}</span>
             </div>
           </div>
@@ -2189,16 +2964,48 @@ function cerrarLightboxProduccion(){
   document.getElementById('lightboxProdBody').innerHTML = '';
 }
 
-async function subirArchivoProduccion(file){
+// v4.0 — el audio (mp3/wav/m4a/ogg/aac) va a Firebase Storage en vez de
+// Cloudinary, para no competir por el cupo de créditos de Cloudinary
+// (reservado ahora para foto/video/PDF). Imagen/video/PDF siguen exactamente
+// igual que antes, sin ningún cambio en su ruta ni en subirArchivoCloudinary.
+const EXTENSIONES_AUDIO = ['mp3','wav','m4a','ogg','aac'];
+
+// v4.6: 2º parámetro opcional assetFolder. Si no se manda (todos los
+// llamados previos a v4.6 siguen igual), Cloudinary usa el Asset Folder
+// por defecto del preset ("AUDIOLINK APP"), comportamiento sin cambios.
+async function subirArchivoCloudinary(file, assetFolder){
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  if(assetFolder) formData.append('asset_folder', assetFolder);
   const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
     method: 'POST',
     body: formData
   });
   if(!resp.ok) throw new Error('Cloudinary respondió con error ' + resp.status);
-  return resp.json();
+  const data = await resp.json();
+  return data.secure_url;
+}
+
+// v4.1: comentado — dependía de `storage` (Firebase Storage), que quedó
+// deshabilitado por requerir plan Blaze. Se deja aquí por si se retoma.
+// async function subirArchivoStorage(file){
+//   const ref = storage.ref().child(`produccion-audio/${Date.now()}_${file.name}`);
+//   await ref.put(file);
+//   return ref.getDownloadURL();
+// }
+
+// v4.1: el audio ya no se sube por este flujo (ver nota de versión arriba).
+// Si el archivo es audio, se lanza un error controlado con mensaje para el
+// usuario en vez de intentar subirlo; guardarProduccion() lo captura y lo
+// muestra en pantalla. Imagen/video/PDF no cambian: siguen por Cloudinary.
+async function subirArchivoProduccion(file){
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if(EXTENSIONES_AUDIO.includes(ext)){
+    throw new Error('AUDIO_NO_SOPORTADO');
+  }
+  const url = await subirArchivoCloudinary(file);
+  return { secure_url: url };
 }
 
 async function guardarProduccion(){
@@ -2241,8 +3048,12 @@ async function guardarProduccion(){
     }
     volverListadoProduccion();
   } catch(err){
-    console.error(err);
-    status.textContent = 'Error guardando el ítem. Revisa la consola.';
+    if(err.message === 'AUDIO_NO_SOPORTADO'){
+      status.textContent = 'Los archivos de audio no se suben directamente: pega el link en "Enlace externo" (Drive, WeTransfer, etc.) y guarda de nuevo.';
+    } else {
+      console.error(err);
+      status.textContent = 'Error guardando el ítem. Revisa la consola.';
+    }
     status.className = 'upload-status err';
   } finally {
     btnGuardar.disabled = false;

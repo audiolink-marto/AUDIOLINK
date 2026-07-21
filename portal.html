@@ -4,7 +4,105 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Portal de Clientes</title>
-<!-- AUDIOLINK · portal.html · v1.3
+<!-- AUDIOLINK · portal.html · v2.4
+     V2.4: la ruta de etapas pasa a ser responsive — vertical (como
+     hasta v2.3) en pantallas angostas (<640px, el caso típico de un
+     cliente en el celular), y horizontal en pantallas ≥640px (desktop),
+     para no ocupar tanto espacio vertical en la tarjeta de detalle.
+     Se logra con un solo @media que reordena flex-direction de las
+     mismas clases (.etapa-ruta, .etapa-nodo-row, .etapa-nodo-col,
+     .etapa-linea, .etapa-nodo-txt) — no se duplicó markup ni se creó
+     HTML nuevo, ni se tocó renderEtapaChips() ni el resto del archivo.
+     V2.3: se quita el guard de prefers-reduced-motion del pulso de la
+     etapa actual. Causa raíz del "no se ve el pulso": el sistema del
+     usuario tiene esa preferencia activada, y el CSS la respetaba a
+     propósito (anillo oculto). El login de este mismo portal (.neuron-
+     node/.neuron-spark) nunca respetó esa preferencia, así que para
+     mantener el criterio consistente en todo el portal, el pulso ahora
+     corre siempre igual que el login. Único cambio: se borra el bloque
+     @media (prefers-reduced-motion: reduce) del pulso; el resto del
+     archivo queda igual.
+     V2.2: se rehace la técnica del pulso de la etapa actual — el
+     box-shadow animado (v2.0/v2.1) resultaba muy sutil. Ahora usa la
+     misma técnica que .neuron-node del login de este portal: un anillo
+     ::after que se expande (transform:scale) y se desvanece (opacity),
+     efecto "ping" clásico, mucho más visible. Respeta
+     prefers-reduced-motion (oculta el anillo por completo si está
+     activo). Único cambio: el bloque .etapa-nodo.actual y su keyframe.
+     V2.1: el pico del pulso de la etapa actual sube de intensidad
+     (rgba(201,162,75,0.35) en vez de --gold-bg en el punto máximo) para
+     que el parpadeo se note claramente; antes era casi imperceptible
+     por lo transparente que es --gold-bg. Único cambio: el keyframe
+     etapaPulso, sin tocar nada más.
+     V2.0: el nodo de la etapa actual gana un pulso suave tipo "luz de
+     estudio" (animación CSS del box-shadow del anillo dorado, ciclo de
+     2.2s, sin tocar opacity ni el texto/✓). Respeta
+     prefers-reduced-motion: si el sistema del cliente lo pide, el nodo
+     se queda fijo en su estado dorado normal sin animar. Cambio 100%
+     CSS, sin JS ni estructura nueva — no toca renderEtapaChips() ni
+     ninguna otra sección.
+     V1.9: la ruta vertical de etapas se integra dentro de la misma
+     tarjeta del detalle del proyecto (.detalle-head), justo debajo de
+     Estado/Entrega est., en vez de flotar como bloque suelto sin fondo
+     propio. Cambio puramente estructural: #etapaChipsBox pasó de ser
+     un div hermano fuera de la tarjeta a nacer dentro de la plantilla
+     de detalleContent — mismo renderEtapaChips(), misma lógica de
+     datos, sin tocar Firestore ni otras secciones.
+     V1.8: la línea de tiempo de etapas pasa de fila de chips horizontal
+     a ruta vertical (nodo circular + línea conectora por etapa), más
+     legible en el portal de cliente sobre todo en móvil. Mismos datos
+     que v1.7 (idxActual, rangoGrabacion desde las sesiones ya cargadas,
+     fechaEntregaEstimada) — no hay consulta nueva a Firestore, solo
+     cambió el markup/CSS de renderEtapaChips(). Etapa pasada = nodo
+     verde con check, etapa actual = nodo dorado resaltado con anillo,
+     etapas futuras = nodo gris atenuado. No afecta proyecto.html,
+     logistica.html ni las reglas de Firestore.
+     V1.7: la línea de tiempo de etapas (renderEtapaChips, ya presente en
+     el archivo) gana color por progreso: verde (--ok) para etapas
+     pasadas, dorado resaltado (--gold/--gold-bg) para la etapa actual,
+     gris atenuado (--faint) para las futuras — mismo criterio que usa
+     renderBarraEtapa() en proyecto.html. Solo se agregó el bloque CSS
+     (.etapa-chips-row, .etapa-chip y sus variantes .hecha/.actual/
+     .pendiente); no se tocó el JS, que ya calculaba las clases y las
+     fechas de sub-etiqueta correctamente. No afecta proyecto.html,
+     logistica.html ni las reglas de Firestore.
+     V1.6: la sección COTIZACIÓN ahora también muestra cotizaciones en
+     estado 'enviada' (antes solo 'aceptada'), con badge "En revisión" y
+     un botón "Confirmar cotización". Al confirmar, el cliente hace un
+     update() muy angosto sobre ese documento (solo estado→'aceptada' +
+     aceptadaPor + fechaAceptacion, con confirm() de por medio) — nunca
+     toca items/total/notas. La sección de Pagos solo aparece cuando la
+     cotización visible es 'aceptada' (con una en revisión no hay saldo
+     que calcular todavía). Requiere la regla de Firestore v2.1 (lectura
+     ampliada a 'enviada' + ese update angosto para cliente); si no está
+     publicada, el botón fallará con error de permisos al hacer clic. No
+     se tocó Pagos, Sesiones, ni ninguna otra función existente.
+     V1.5: dos secciones nuevas en el detalle de proyecto, entre el
+     resumen y la lista de sesiones — COTIZACIÓN (ítems + total de la
+     cotización con estado 'aceptada'; borradores y cotizaciones
+     reemplazadas nunca se muestran) y PAGOS (abonos filtrados por el
+     cotizacionId de esa cotización aceptada — fecha, monto, método,
+     comprobante si existe; el campo `nota` de cada pago NO se muestra,
+     es donde el staff deja comentarios internos — y saldo pendiente
+     calculado). Se agrega <script src="utils.js"> para usar formatCOP
+     (mismo criterio que cotizador.html/pagos.html, sin reinventar el
+     formateo). Requiere la regla de Firestore v2.0 (lectura de
+     cotizaciones/pagos para cliente); si falla, esa sección
+     simplemente no se muestra, sin romper el resto. Se agrega limpieza
+     de los listeners nuevos en volverListado(), para no acumularlos al
+     navegar entre proyectos. No se tocó cargarSesionesCliente ni
+     ninguna otra función existente.
+     V1.4: cada tarjeta de sesión (cargarSesionesCliente) gana una línea
+     de resumen de tomas — "🎙️ 14 tomas registradas · 9 seleccionadas" —
+     leyendo la subcolección sesiones/{id}/tomas con .get() puntual (no
+     listener, para no acumular suscripciones por cada sesión del
+     proyecto). Solo se muestra el conteo total y cuántas están marcadas
+     `usar === true`; nunca rating, nota técnica ni codigoDaw — eso es
+     lenguaje interno de ingeniería. Requiere la regla de Firestore v1.9
+     (lectura de tomas para cliente, mismo patrón que ya existía para
+     sesiones); si la lectura falla por cualquier motivo, la tarjeta se
+     muestra igual, solo sin esa línea. No se tocó ninguna otra función
+     ni el resto de la vista de detalle de proyecto.
      V1.3: firebaseConfig deja de estar copiado en este archivo; ahora se
      carga desde firebase-config.js (compartido por todo el ecosistema,
      mismos valores exactos). Se agrega <script src="firebase-config.js">
@@ -24,6 +122,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="utils.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script>
@@ -181,8 +280,55 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 .detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
 .detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
 .chip{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;padding:6px 12px;font-size:0.8rem;color:var(--muted);}
+/* Línea de tiempo de etapas (v1.8) — ruta vertical */
+.etapa-ruta{margin-top:14px;}
+.etapa-nodo-row{display:flex;gap:12px;}
+.etapa-nodo-col{display:flex;flex-direction:column;align-items:center;}
+.etapa-nodo{width:18px;height:18px;min-width:18px;border-radius:50%;border:2px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;background:var(--surf);}
+.etapa-nodo.hecha{border-color:var(--ok);background:var(--ok);color:var(--bg);}
+.etapa-nodo.actual{border-color:var(--gold);background:var(--gold-bg);box-shadow:0 0 0 3px var(--gold-bg);position:relative;}
+.etapa-nodo.actual::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--gold);
+  animation:etapaPulso 2.2s ease-out infinite;
+}
+@keyframes etapaPulso{
+  0%{transform:scale(0.85);opacity:0.9;}
+  100%{transform:scale(1.9);opacity:0;}
+}
+.etapa-nodo.pendiente{opacity:0.55;}
+.etapa-linea{width:2px;flex:1;min-height:22px;background:var(--brd);margin:2px 0;}
+.etapa-linea.hecha{background:var(--ok);}
+.etapa-nodo-txt{padding-bottom:18px;}
+.etapa-nodo-txt span{display:block;font-size:0.85rem;font-weight:600;color:var(--txt);}
+.etapa-nodo-txt span.pendiente{color:var(--faint);font-weight:500;}
+.etapa-nodo-txt span.actual{color:var(--gold);}
+.etapa-nodo-txt span.hecha{color:var(--ok);}
+.etapa-nodo-txt small{display:block;margin-top:2px;font-size:0.72rem;color:var(--muted);}
+.etapa-nodo-txt small.etapa-actual-tag{color:var(--gold);}
+@media (min-width:640px){
+  .etapa-ruta{display:flex;align-items:flex-start;}
+  .etapa-nodo-row{flex:1;flex-direction:column;gap:6px;}
+  .etapa-nodo-col{flex-direction:row;width:100%;align-items:center;}
+  .etapa-linea{width:auto;flex:1;height:2px;min-height:0;margin:0 4px;}
+  .etapa-nodo-txt{padding-bottom:0;text-align:center;}
+}
 .sesion-card{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:16px 20px;margin-bottom:12px;}
 .sesion-card h4{font-size:0.95rem;color:var(--gold);margin-bottom:6px;}
+.resumen-box{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:20px;margin-bottom:20px;}
+.resumen-box h2{font-size:1rem;color:var(--muted);font-weight:500;margin-bottom:14px;}
+.cotiz-item-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--brd);font-size:0.88rem;}
+.cotiz-item-row:last-of-type{border-bottom:none;}
+.cotiz-item-row .concepto{color:var(--txt);}
+.cotiz-item-row .cant{color:var(--muted);font-size:0.8rem;margin-left:6px;}
+.cotiz-total-row{display:flex;justify-content:space-between;padding-top:14px;margin-top:6px;border-top:1px solid var(--brd);font-size:1rem;font-weight:700;color:var(--gold);}
+.pago-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd);font-size:0.86rem;}
+.pago-row:last-of-type{border-bottom:none;}
+.pago-row .meta{color:var(--muted);font-size:0.78rem;}
+.pago-row a{color:var(--gold);text-decoration:none;font-size:0.78rem;}
+.pago-row a:hover{text-decoration:underline;}
+.saldo-row{display:flex;justify-content:space-between;padding-top:14px;margin-top:6px;border-top:1px solid var(--brd);font-size:0.95rem;font-weight:700;}
+.saldo-row.pagado{color:var(--ok);}
+.saldo-row.pendiente{color:var(--gold);}
 @media (max-width:640px){
   header{padding:14px 16px;}
   .brand h1{font-size:1.05rem;}
@@ -248,6 +394,10 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
     <div id="vistaDetalle" style="display:none;">
       <span class="back-link" onclick="volverListado()">← Volver a mis proyectos</span>
       <div class="detalle-head" id="detalleContent"></div>
+
+      <div id="cotizacionClienteBox"></div>
+      <div id="pagosClienteBox"></div>
+
       <h2 style="font-size:1rem;color:var(--muted);font-weight:500;margin-bottom:14px;">SESIONES</h2>
       <div id="listaSesiones"></div>
       <div class="empty" id="emptySesiones" style="display:none;">No hay sesiones registradas para este proyecto.</div>
@@ -390,6 +540,7 @@ function cerrarSesionPortal(){
 // ============ PORTAL: DATOS DEL CLIENTE ============
 let proyectosCliente = [];
 let proyectoActualId = null;
+let proyectoDetalleActual = null;
 
 function mostrarPortal(){
   document.getElementById('loginScreen').style.display = 'none';
@@ -416,6 +567,43 @@ const COMERCIAL_LABEL = {
   cotizacion: "Cotización", aprobado: "Aprobado", en_curso: "En curso", finalizado: "Finalizado"
 };
 
+/* ============ LÍNEA DE TIEMPO DE ETAPAS (v1.8) ============
+   V1.8: pasa de fila de chips a ruta vertical (nodo + línea conectora
+   por etapa), más legible en el portal de cliente (sobre todo móvil,
+   que sigue el mismo patrón apilado del resto del detalle). Mismos
+   datos de v1.7, sin tocar Firestore: idxActual, rangoGrabacion y
+   entrega se calculan igual; solo cambia el markup que genera. */
+function renderEtapaChips(p, rangoGrabacion){
+  const box = document.getElementById('etapaChipsBox');
+  if(!box || !p) return;
+  const claves = Object.keys(ETAPAS_LABEL);
+  const idxActual = claves.indexOf(p.etapaActual);
+  const entrega = p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : null;
+
+  box.innerHTML = `
+    <div class="etapa-ruta">
+      ${claves.map((k, i) => {
+        const cls = i < idxActual ? 'hecha' : i === idxActual ? 'actual' : 'pendiente';
+        let sub = '';
+        if(k === 'grabacion' && rangoGrabacion) sub = rangoGrabacion;
+        if(k === 'entrega' && entrega) sub = entrega;
+        const esUltima = i === claves.length - 1;
+        return `
+          <div class="etapa-nodo-row">
+            <div class="etapa-nodo-col">
+              <div class="etapa-nodo ${cls}">${cls === 'hecha' ? '✓' : ''}</div>
+              ${!esUltima ? `<div class="etapa-linea ${i < idxActual ? 'hecha' : ''}"></div>` : ''}
+            </div>
+            <div class="etapa-nodo-txt">
+              <span class="${cls}">${ETAPAS_LABEL[k]}</span>
+              ${sub ? `<small>${sub}</small>` : (cls === 'actual' ? `<small class="etapa-actual-tag">etapa actual</small>` : '')}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
 function renderListadoProyectos(){
   const grid = document.getElementById('gridProyectos');
   const empty = document.getElementById('emptyState');
@@ -439,6 +627,7 @@ function verDetalleProyecto(id){
   proyectoActualId = id;
   const p = proyectosCliente.find(x => x.id === id);
   if(!p) return;
+  proyectoDetalleActual = p;
 
   document.getElementById('vistaListado').style.display = 'none';
   document.getElementById('vistaDetalle').style.display = 'block';
@@ -448,48 +637,212 @@ function verDetalleProyecto(id){
     <h2>${escapeHtml(p.nombre)}</h2>
     <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
     <div class="detalle-meta">
-      <span class="chip">Etapa: ${ETAPAS_LABEL[p.etapaActual] || '—'}</span>
       <span class="chip">Estado: ${COMERCIAL_LABEL[p.estadoComercial] || 'Cotización'}</span>
       <span class="chip">Entrega est.: ${entrega}</span>
     </div>
+    <div id="etapaChipsBox"></div>
     ${p.narrativa ? `<div style="margin-top:16px;font-size:0.88rem;color:var(--txt);line-height:1.5;border-left:2px solid var(--gold);padding-left:14px;">${escapeHtml(p.narrativa)}</div>` : ''}
   `;
 
+  renderEtapaChips(p, null);
   cargarSesionesCliente(id);
+  cargarCotizacionCliente(id);
 }
 
 function volverListado(){
   document.getElementById('vistaDetalle').style.display = 'none';
   document.getElementById('vistaListado').style.display = 'block';
   proyectoActualId = null;
+  if(unsubCotizCliente){ unsubCotizCliente(); unsubCotizCliente = null; }
+  if(unsubPagosCliente){ unsubPagosCliente(); unsubPagosCliente = null; }
 }
 
 function cargarSesionesCliente(proyectoId){
   proyectosRef.doc(proyectoId).collection('sesiones')
     .orderBy('fecha', 'asc')
-    .onSnapshot(snap => {
+    .onSnapshot(async snap => {
       const cont = document.getElementById('listaSesiones');
       const empty = document.getElementById('emptySesiones');
       const sesiones = [];
       snap.forEach(d => {
         const s = d.data();
-        if(s.visibleCliente !== false) sesiones.push(s);
+        if(s.visibleCliente !== false) sesiones.push({ id: d.id, ...s });
       });
+
+      // Rango de fechas para el chip "Grabación" de la línea de tiempo
+      // (sesiones ya vienen ordenadas por fecha asc en la consulta).
+      const conFecha = sesiones.filter(s => s.fecha);
+      let rangoGrabacion = null;
+      if(conFecha.length){
+        const fmt = f => new Date(f + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short'});
+        const primera = conFecha[0].fecha, ultima = conFecha[conFecha.length - 1].fecha;
+        rangoGrabacion = primera === ultima ? fmt(primera) : `${fmt(primera)} – ${fmt(ultima)}`;
+      }
+      renderEtapaChips(proyectoDetalleActual, rangoGrabacion);
+
       if(sesiones.length === 0){
         cont.innerHTML = '';
         empty.style.display = 'block';
         return;
       }
       empty.style.display = 'none';
+
+      // Resumen de tomas por sesión (v1.4): lectura puntual (get, no
+      // listener) para no acumular suscripciones por cada sesión del
+      // proyecto. Solo se cuenta total y cuántas están marcadas "usar" —
+      // nunca se muestra rating, nota técnica ni codigoDaw al cliente. Si
+      // la lectura falla para alguna sesión (regla de Firestore aún no
+      // publicada, sesión sin tomas, etc.), esa tarjeta se muestra igual,
+      // solo sin la línea de resumen.
+      const resumenes = await Promise.all(sesiones.map(async s => {
+        try{
+          const tomasSnap = await proyectosRef.doc(proyectoId).collection('sesiones').doc(s.id).collection('tomas').get();
+          let usar = 0;
+          tomasSnap.forEach(t => { if(t.data().usar === true) usar++; });
+          return { id: s.id, total: tomasSnap.size, usar };
+        } catch(e){
+          return { id: s.id, total: 0, usar: 0 };
+        }
+      }));
+      const resumenPorId = {};
+      resumenes.forEach(r => resumenPorId[r.id] = r);
+
       cont.innerHTML = sesiones.map(s => {
         const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'}) : '—';
+        const r = resumenPorId[s.id];
+        const tomasTxt = (r && r.total > 0)
+          ? `<div class="meta" style="color:var(--gold);font-size:0.82rem;margin-top:4px;">🎙️ ${r.total} toma${r.total === 1 ? '' : 's'} registrada${r.total === 1 ? '' : 's'} · ${r.usar} seleccionada${r.usar === 1 ? '' : 's'}</div>`
+          : '';
         return `
         <div class="sesion-card">
           <h4>${escapeHtml(s.actividad || 'Sesión')}</h4>
           <div class="meta" style="color:var(--muted);font-size:0.82rem;">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')} · ⏱️ ${escapeHtml(s.horaInicio || '--:--')}–${escapeHtml(s.horaFin || '--:--')}</div>
+          ${tomasTxt}
         </div>`;
       }).join('');
     }, err => console.error('Error cargando sesiones:', err));
+}
+
+/* ============ COTIZACIÓN Y PAGOS (v1.5, ampliado v1.6) ============
+   Se muestra la cotización 'aceptada' (con Pagos) O, si no hay ninguna
+   aceptada, la que esté 'enviada' (badge "En revisión" + botón para que
+   el cliente la confirme). Borradores nunca se exponen — ni por
+   Firestore rules ni por este query. Si por algún motivo raro existieran
+   ambas a la vez (ver comentario en firestore.rules v2.1), se prioriza
+   la 'aceptada'. Los pagos solo se cargan cuando hay una cotización
+   aceptada — así el saldo pendiente siempre es contra el presupuesto
+   vigente, no contra abonos de cotizaciones viejas. */
+let unsubCotizCliente = null;
+let unsubPagosCliente = null;
+
+function cargarCotizacionCliente(proyectoId){
+  if(unsubCotizCliente) unsubCotizCliente();
+  if(unsubPagosCliente) unsubPagosCliente();
+
+  unsubCotizCliente = proyectosRef.doc(proyectoId).collection('cotizaciones')
+    .where('estado', 'in', ['aceptada', 'enviada'])
+    .onSnapshot(snap => {
+      const box = document.getElementById('cotizacionClienteBox');
+      if(snap.empty){
+        box.innerHTML = '';
+        document.getElementById('pagosClienteBox').innerHTML = '';
+        return;
+      }
+      const docs = snap.docs;
+      const docAceptada = docs.find(d => d.data().estado === 'aceptada');
+      const doc = docAceptada || docs[0];
+      const c = doc.data();
+      const items = Array.isArray(c.items) ? c.items : [];
+      const esAceptada = c.estado === 'aceptada';
+
+      box.innerHTML = `
+        <div class="resumen-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <h2 style="margin-bottom:0;">COTIZACIÓN</h2>
+            <span class="badge ${esAceptada ? 'ok' : 'warn'}">${esAceptada ? 'Aceptada' : 'En revisión'}</span>
+          </div>
+          ${items.map(it => `
+            <div class="cotiz-item-row">
+              <span class="concepto">${escapeHtml(it.concepto || '—')}<span class="cant">×${it.cantidad || 0}</span></span>
+              <span>${formatCOP((it.cantidad || 0) * (it.precio || 0))}</span>
+            </div>`).join('')}
+          <div class="cotiz-total-row"><span>Total</span><span>${formatCOP(c.total || 0)}</span></div>
+          ${esAceptada ? '' : `
+            <button class="btn" style="width:100%;margin-top:16px;" onclick="confirmarCotizacionCliente('${proyectoId}', '${doc.id}', ${c.total || 0})">
+              Confirmar cotización
+            </button>`}
+        </div>
+      `;
+
+      if(esAceptada){
+        cargarPagosCliente(proyectoId, doc.id, c.total || 0);
+      } else if(unsubPagosCliente){
+        unsubPagosCliente();
+        unsubPagosCliente = null;
+        document.getElementById('pagosClienteBox').innerHTML = '';
+      }
+    }, err => {
+      console.error('Error cargando cotización del cliente:', err);
+      document.getElementById('cotizacionClienteBox').innerHTML = '';
+    });
+}
+
+async function confirmarCotizacionCliente(proyectoId, cotizacionId, total){
+  const totalTxt = formatCOP(total);
+  if(!confirm(`¿Confirmas que aceptas esta cotización por ${totalTxt}? Esta acción no se puede deshacer desde el portal.`)) return;
+
+  try{
+    await proyectosRef.doc(proyectoId).collection('cotizaciones').doc(cotizacionId).update({
+      estado: 'aceptada',
+      aceptadaPor: (firebase.auth().currentUser && firebase.auth().currentUser.email || '').toLowerCase(),
+      fechaAceptacion: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(err){
+    console.error('Error confirmando cotización:', err);
+    alert('No se pudo confirmar la cotización. Revisa tu conexión e intenta de nuevo.');
+  }
+}
+
+function cargarPagosCliente(proyectoId, cotizacionId, totalCotizacion){
+  if(unsubPagosCliente) unsubPagosCliente();
+
+  unsubPagosCliente = proyectosRef.doc(proyectoId).collection('pagos')
+    .where('cotizacionId', '==', cotizacionId)
+    .onSnapshot(snap => {
+      const box = document.getElementById('pagosClienteBox');
+      const pagos = [];
+      snap.forEach(d => pagos.push(d.data()));
+
+      const totalPagado = pagos.reduce((acc, p) => acc + (p.monto || 0), 0);
+      const saldo = totalCotizacion - totalPagado;
+
+      box.innerHTML = `
+        <div class="resumen-box">
+          <h2>PAGOS</h2>
+          ${pagos.length === 0
+            ? '<div class="meta" style="color:var(--muted);font-size:0.85rem;">Aún no hay abonos registrados.</div>'
+            : pagos.map(p => {
+                const fechaLegible = p.fecha ? new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+                return `
+                <div class="pago-row">
+                  <div>
+                    <div>${formatCOP(p.monto || 0)}</div>
+                    <div class="meta">${fechaLegible} · ${escapeHtml(p.metodo || '—')}</div>
+                  </div>
+                  ${p.comprobanteUrl ? `<a href="${escapeHtml(p.comprobanteUrl)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}
+                </div>`;
+              }).join('')
+          }
+          <div class="saldo-row ${saldo <= 0 ? 'pagado' : 'pendiente'}">
+            <span>${saldo <= 0 ? 'Pagado en su totalidad' : 'Saldo pendiente'}</span>
+            <span>${saldo <= 0 ? '✓' : formatCOP(saldo)}</span>
+          </div>
+        </div>
+      `;
+    }, err => {
+      console.error('Error cargando pagos del cliente:', err);
+      document.getElementById('pagosClienteBox').innerHTML = '';
+    });
 }
 
 // ============ FONDO DE NEURONAS (LOGIN) ============

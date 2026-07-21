@@ -3,7 +3,7 @@ rules_version = '2';
 // AUDIOLINK — Reglas de Firestore
 // Cubre: proyectos, proyectos/{id}/sesiones, proyectos/{id}/cotizaciones,
 // proyectos/{id}/pagos, proyectos/{id}/produccion, equipoInterno,
-// clientesAcceso, estudios.
+// clientesAcceso, estudios, musicos.
 //
 // IMPORTANTE — léelo antes de publicar:
 // 1. El PRIMER correo de equipoInterno hay que crearlo manualmente desde la
@@ -29,32 +29,81 @@ rules_version = '2';
 //
 // v1.3: se agrega un match adicional con patrón /{path=**}/cotizaciones/{id}
 // para habilitar la consulta collectionGroup('cotizaciones') que usa
-// pagos.html (V1.0) al listar cobros pendientes. Las reglas anidadas
-// normales (proyectos/{id}/cotizaciones/{id}) SOLO cubren lecturas directas
-// a un documento puntual; Firestore exige este patrón con comodín aparte
-// para autorizar consultas agrupadas (collectionGroup) sobre esa misma
-// colección, sin importar en qué proyecto esté anidada. No se modificó ni
-// se quitó ninguna regla existente — este bloque solo se suma.
+// pagos.html al listar cobros pendientes. Las reglas anidadas normales
+// (proyectos/{id}/cotizaciones/{id}) SOLO cubren lecturas directas a un
+// documento puntual; Firestore exige este patrón con comodín aparte para
+// autorizar consultas agrupadas (collectionGroup) sobre esa misma colección,
+// sin importar en qué proyecto esté anidada. No se modificó ni se quitó
+// ninguna regla existente — este bloque solo se suma.
 //
 // v1.4: mismo problema que v1.3, ahora con /sesiones/. index.html (v1.9,
 // calendario) y logistica.html (v1.8, agenda global) usan
 // db.collectionGroup('sesiones') para listar sesiones de TODOS los
-// proyectos a la vez, y esa consulta fallaba con "Missing or insufficient
-// permissions" porque el match anidado proyectos/{id}/sesiones/{id} no
-// cubre collectionGroup queries. Se agrega el match con comodín
-// /{path=**}/sesiones/{id}, mismo patrón exacto que el de cotizaciones de
-// v1.3. Solo lectura, solo staff. No se tocó ninguna otra regla existente
-// — el acceso de solo-lectura del cliente a las sesiones de SU proyecto
-// sigue intacto en el match anidado de siempre.
+// proyectos a la vez. Se agrega el match con comodín /{path=**}/sesiones/{id}.
+// Solo lectura, solo staff. No se tocó ninguna otra regla existente.
 //
 // v1.5: se agrega el match /produccion/{produccionId} dentro de
-// proyectos/{proyectoId} — subcolección nueva de proyecto.html v3.8 para
-// scores/arreglos/referencias/mezclas del proyecto. Mismo patrón que
-// pagos: solo lectura/escritura de equipo interno, sin acceso de cliente
-// por ahora (el campo visibleCliente queda guardado para uso futuro en el
-// portal, pero hoy no hay lectura de cliente sobre esta colección, y por
-// eso tampoco se agrega match de collectionGroup — nada la consulta así
-// todavía). No se tocó ninguna otra regla existente.
+// proyectos/{proyectoId} — subcolección de proyecto.html v3.8. Mismo patrón
+// que pagos: solo lectura/escritura de equipo interno. No se tocó ninguna
+// otra regla existente.
+//
+// v1.6: se agregan 2 excepciones puntuales SIN LOGIN dentro del match
+// anidado /proyectos/{proyectoId}/sesiones/{sesionId}, para soportar
+// bitacora.html (v1.0) — página standalone donde un ingeniero externo, sin
+// cuenta en el sistema, llena Preamp+Gain por canal usando un link con el
+// ID real de proyecto+sesión (ese ID, generado por Firestore, funciona como
+// "secreto" — es imposible de adivinar sin el link exacto):
+//   (a) allow get: if true — permite traer UN documento puntual sin login.
+//       No se agregó "list", así que sigue siendo imposible enumerar o
+//       listar sesiones sin login; solo se puede pedir una por su ID exacto.
+//   (b) allow update sin login, pero SOLO si el único campo modificado en
+//       todo el request es `inputList` — no puede tocar notasInternas,
+//       equipoTecnico, visibleCliente, fecha, ni ningún otro campo de la
+//       sesión, aunque el request lo intente.
+// No se tocó ninguna otra regla, colección, ni el acceso con auth de
+// staff/cliente que ya existía en este mismo match — quedan intactos y
+// se evalúan en paralelo (OR) con estas excepciones nuevas.
+//
+// v1.7: se agrega el match faltante /sesiones/{sesionId}/tomas/{tomaId}.
+// Esta subcolección se creó en logistica.html v2.1 (modal Reportes de
+// ingeniería) pero nunca tuvo su propia regla — en Firestore cada
+// subcolección necesita su match explícito, no hereda los permisos del
+// documento padre (sesiones). Sin este bloque, agregarToma() fallaba
+// silenciosamente por "Missing or insufficient permissions" para
+// cualquier usuario, incluido staff logueado. Mismo patrón que el resto
+// del archivo: solo equipo interno lee y escribe — en ese momento esto NO
+// se abría para bitacora.html; las tomas no se editaban desde ese link.
+//
+// v2.0: portal.html (v1.5) muestra al cliente la cotización aceptada de
+// su proyecto (ítems, total) y los abonos registrados contra ella (fecha,
+// monto, método, comprobante) con el saldo pendiente calculado. Se
+// agregan 2 reglas de lectura para cliente, mismo patrón de siempre
+// (dueño del proyecto vía clienteEmail + visibleCliente):
+//   - cotizaciones: SOLO si estado == 'aceptada' — borradores y
+//     cotizaciones ya reemplazadas ("enviada") nunca se exponen.
+//   - pagos: lectura de todos los abonos de su proyecto (el filtrado por
+//     cotizacionId de la aceptada lo hace portal.html, no la regla).
+// No se tocó `write` de ninguna de las dos — el cliente nunca crea,
+// edita ni borra cotizaciones o pagos, solo los lee. Tampoco se tocó el
+// acceso de staff (esStaff() sigue con lectura y escritura total).
+// v2.1: portal.html (v1.6) permite al cliente ver cotizaciones en estado
+// 'enviada' (badge "En revisión", además de 'aceptada' que ya se veía) y
+// CONFIRMARLAS con un botón — que hace un update() muy angosto: solo
+// puede cambiar `estado` a 'aceptada' + `aceptadaPor` (su propio correo)
+// + `fechaAceptacion` (timestamp), nunca items/total/notas/validez ni
+// crear o borrar cotizaciones. Mismo patrón de campo angosto que el
+// update de inputList sin login en bitacora.html. Caso borde: si hay dos
+// cotizaciones activas para el mismo proyecto (una 'aceptada' vieja y
+// una 'enviada' nueva) y el cliente confirma la nueva, la vieja NO se
+// revierte automáticamente a 'enviada' (eso hoy lo hace proyecto.html a
+// mano, con confirm(), y requeriría una Cloud Function para hacerlo
+// atómico desde el cliente — no disponible en el plan actual). Es un
+// caso raro; si ocurre, se corrige manualmente desde proyecto.html.
+//
+// v2.2: se agrega el bloque /musicos/{musicoId} — catálogo maestro de
+// músicos/sesionistas (proyecto.html v4.5). Mismo patrón que estudios: solo
+// equipo interno lee y escribe. No se tocó ninguna otra condición ni match
+// existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -78,18 +127,81 @@ service cloud.firestore {
           get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.clienteEmail == request.auth.token.email.lower() &&
           get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.visibleCliente != false &&
           resource.data.visibleCliente != false;
+
+        // ---- Excepciones sin login para bitacora.html (v1.6) ----
+        // Lectura de UN documento puntual, sin login. El ID de sesión
+        // (generado por Firestore) es el "secreto" del link — no hay forma
+        // de listar/enumerar sesiones sin auth, solo pedir una por su ID.
+        allow get: if true;
+        // Escritura sin login, pero solo si el ÚNICO campo que cambia en
+        // todo el documento es `inputList`. Cualquier intento de tocar otro
+        // campo (o varios a la vez incluyendo inputList) queda bloqueado.
+        allow update: if
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['inputList']);
+
+        // ---- Tomas (subcolección, v1.7 + excepción sin login v1.8 + lectura cliente v1.9) ----
+        match /tomas/{tomaId} {
+          // Equipo interno: acceso total (leer, crear, editar, borrar) —
+          // usado por el modal de Reportes en logistica.html.
+          allow read, write: if esStaff();
+          // Excepción sin login para bitacora.html (v1.8): SOLO crear,
+          // SOLO con este esquema exacto. Nunca leer, editar ni borrar
+          // desde el link público.
+          allow create: if
+            request.resource.data.keys().hasOnly(['instrumento','codigoDaw','hora','rating','usar','nota','creadoEn']) &&
+            request.resource.data.instrumento is string &&
+            request.resource.data.rating is number &&
+            (request.resource.data.usar == null || request.resource.data.usar is bool) &&
+            request.resource.data.nota is string;
+          // Lectura para cliente (v1.9): mismo dueño/visibilidad que ya
+          // exige la sesión padre — el portal solo cuenta tomas, nunca
+          // muestra rating/nota/codigoDaw en pantalla, pero la regla igual
+          // entrega el documento completo (el filtrado de qué se muestra
+          // es responsabilidad de portal.html, no de Firestore).
+          allow read: if request.auth != null &&
+            get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.clienteEmail == request.auth.token.email.lower() &&
+            get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.visibleCliente != false &&
+            get(/databases/$(database)/documents/proyectos/$(proyectoId)/sesiones/$(sesionId)).data.visibleCliente != false;
+        }
       }
       // ---------- COTIZACIONES (subcolección) ----------
-      // Solo equipo interno. El cliente NUNCA accede a esto directamente
-      // (se le comparte como PDF generado, no como datos vivos).
+      // Equipo interno: acceso total. Cliente (desde v2.0/v2.1): puede
+      // leer su cotización 'aceptada' o 'enviada', y confirmar una
+      // 'enviada' — ver reglas de cliente más abajo, dentro del match.
       match /cotizaciones/{cotizacionId} {
         allow read, write: if esStaff();
+        // Cliente (v2.0, ampliado en v2.1): lectura de la cotización
+        // aceptada O en revisión ("enviada") de su proyecto. Borradores
+        // nunca se exponen.
+        allow read: if request.auth != null &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.clienteEmail == request.auth.token.email.lower() &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.visibleCliente != false &&
+          (resource.data.estado == 'aceptada' || resource.data.estado == 'enviada');
+        // Cliente (v2.1): puede CONFIRMAR una cotización "enviada" desde
+        // el portal — pero SOLO cambiando estado a 'aceptada' + los 2
+        // campos de auditoría (quién y cuándo). No puede tocar items,
+        // total, notas, validez, ni crear/borrar cotizaciones. Mismo
+        // patrón angosto que el update de inputList sin login en
+        // bitacora.html.
+        allow update: if request.auth != null &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.clienteEmail == request.auth.token.email.lower() &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.visibleCliente != false &&
+          resource.data.estado == 'enviada' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'aceptadaPor', 'fechaAceptacion']) &&
+          request.resource.data.estado == 'aceptada' &&
+          request.resource.data.aceptadaPor == request.auth.token.email.lower();
       }
       // ---------- PAGOS (subcolección, v1.0 pagos.html) ----------
       // Registro de abonos contra una cotización aceptada. Solo equipo
       // interno; el cliente no ve esto directamente en el portal.
       match /pagos/{pagoId} {
         allow read, write: if esStaff();
+        // Cliente (v2.0): lectura de los abonos de su propio proyecto.
+        // El filtrado por cotizacionId (para calcular el saldo contra la
+        // cotización aceptada) lo hace portal.html, no esta regla.
+        allow read: if request.auth != null &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.clienteEmail == request.auth.token.email.lower() &&
+          get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.visibleCliente != false;
       }
       // ---------- PRODUCCIÓN MUSICAL (subcolección, v1.5 — proyecto.html v3.8) ----------
       // Scores, arreglos, referencias y mezclas del proyecto. Solo equipo
@@ -115,7 +227,9 @@ service cloud.firestore {
     // listar sesiones de TODOS los proyectos. Mismo motivo que el bloque de
     // cotizaciones de arriba. Solo lectura, solo staff — el acceso del
     // cliente a sesiones de su propio proyecto sigue siendo por el match
-    // anidado de arriba, sin cambios.
+    // anidado de arriba, sin cambios. (No se toca este bloque en v1.6: es
+    // collectionGroup con auth, no tiene relación con las excepciones sin
+    // login de bitacora.html, que solo aplican al match anidado puntual.)
     match /{path=**}/sesiones/{sesionId} {
       allow read: if esStaff();
     }
@@ -141,6 +255,13 @@ service cloud.firestore {
     // Operativo" del Cotizador. Solo equipo interno lee y escribe; el
     // cliente nunca accede a esto.
     match /estudios/{estudioId} {
+      allow read, write: if esStaff();
+    }
+    // ---------- MÚSICOS (v4.5 proyecto.html) ----------
+    // Catálogo de músicos/sesionistas para precargar datos en contratos de
+    // sesión y producción musical. Solo equipo interno lee y escribe; el
+    // cliente nunca accede a esto. Mismo patrón que estudios.
+    match /musicos/{musicoId} {
       allow read, write: if esStaff();
     }
   }

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Bitácora de Grabación</title>
+<!-- AUDIOLINK · bitacora.html · v2.2
+     V2.2: nuevo campo de texto libre "Nombre/código en el DAW" (opcional)
+     en el formulario de Tomas. Se guarda como `codigoDaw` junto a los
+     demás campos de la toma — coexiste con (no reemplaza) el sistema de
+     numero/codigo automático de logistica.html (que esta página nunca
+     generó, ver v2.1). Se muestra en el resumen de confirmación y en la
+     lista local de tomas registradas en esta sesión de trabajo. Se
+     actualizó también la regla de Firestore sugerida al final del
+     archivo (esquema de create en /tomas) para incluir el campo nuevo —
+     hay que volver a pegarla en Firebase Console si ya habías copiado la
+     versión anterior. Mismo campo agregado en logistica.html v2.7. No se
+     tocó ninguna otra lógica.
+     V2.1: se construye la sección "Tomas" (el shell ya existía desde
+     v2.0, pero sin formulario). Selector de instrumento vía
+     construirOpcionesInstrumento() — mismo criterio que logistica.html
+     v2.6: si el grupo NO está marcado "individual" da la opción del
+     grupo completo (ej. "Bronces"); si SÍ está marcado, expande usando
+     el snapshot `instrumentacionSesionPiezas` guardado por logistica.html
+     v2.5 (ej. "Guitarra", "Bajo"). Luego estrellas + Usar/Descartar +
+     nota, y antes de guardar se muestra el resumen de confirmación
+     ("Vas a registrar: ...") con Confirmar/Revisar. Al confirmar, se
+     hace add() a sesiones/{id}/tomas (create-only, no se puede leer,
+     editar ni borrar desde este link). Esta sección NO genera
+     numero/codigo (ej. BATERIA_T01) porque, al no poder leer el
+     histórico de tomas por la regla de Firestore, cualquier conteo
+     local sería incorrecto o duplicado entre distintas cargas de
+     página — se deja sin código y logistica.html lo muestra igual,
+     usando el nombre del instrumento como fallback (ya lo hacía). No
+     se tocó la sección Bitácora (Preamp/Gain), inputList, ni ninguna
+     otra lógica existente.
+     V2.0: Página standalone, SIN el sistema logueado de logistica.html (sin
+     firebase-auth, sin listado de proyectos). Se abre con
+     ?p={proyectoId}&s={sesionId} — usa el ID de sesión que ya genera
+     Firestore como "secreto" (imposible de adivinar por fuerza bruta),
+     en vez de armar un sistema de tokens o colecciones nuevas.
+
+     DOS SECCIONES:
+     1. Bitácora — lee el inputList de esa sesión puntual, permite llenar
+        Preamp + Gain por canal. Guarda con update() sobre el documento
+        de la sesión, permitido solo si el ÚNICO campo modificado es
+        `inputList` (regla de Firestore).
+     2. Tomas (v2.0) — mismo formulario que logistica.html (instrumento,
+        rating, usar/descartar, nota). El selector de instrumento usa
+        `instrumentacionSesion` + `instrumentacionSesionIndividual` +
+        `instrumentacionSesionPiezas` (snapshot que logistica.html v2.5
+        guarda en la sesión) para expandir por pieza los grupos marcados
+        individual, igual que hace logistica.html. Antes de guardar, se
+        muestra un resumen de confirmación ("Vas a registrar: ...") con
+        botones Confirmar/Revisar — es el único punto de reversa que
+        tiene el ingeniero, porque una vez confirmado, la toma se crea
+        con `add()` (create-only) y no se puede editar ni borrar desde
+        este link (solo desde logistica.html, con login).
+
+     Ninguna de las dos secciones puede ver ni tocar ninguna OTRA sesión,
+     proyecto, nota, cliente ni dato del sistema. Requiere 2 reglas de
+     Firestore sin auth (ver comentario al final): (a) get + update
+     angosto en sesiones/{id} (igual que v1.0), (b) create-only, con
+     validación de esquema, en sesiones/{id}/tomas — sin read, sin
+     update, sin delete sin login. No se tocó proyecto.html, Cloudinary
+     ni Storage. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<style>
+:root{
+  --bg:#0b0b0d; --surf:#16161a; --surf2:#1d1d22; --brd:#2a2a30;
+  --txt:#f2f0eb; --muted:#9a978f; --faint:#65625c;
+  --gold:#c9a24b; --gold-bg:rgba(201,162,75,0.12);
+  --ok:#4caf7d; --err:#d4574a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:'DM Sans', sans-serif;
+  min-height:100vh; padding:20px 14px 60px;
+}
+.wrap{max-width:640px;margin:0 auto;}
+h1{
+  font-family:'Playfair Display', serif; font-size:1.5rem; color:var(--gold);
+  margin-bottom:4px;
+}
+.subt{color:var(--muted); font-size:0.85rem; margin-bottom:24px;}
+.card{
+  background:var(--surf); border:1px solid var(--brd); border-radius:12px;
+  padding:16px; margin-bottom:14px;
+}
+.card .canal{
+  font-family:'JetBrains Mono', monospace; color:var(--gold);
+  font-size:0.75rem; letter-spacing:0.04em; margin-bottom:2px;
+}
+.card .nombre{font-size:1.05rem; font-weight:600; margin-bottom:12px;}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.field label{
+  display:block; font-size:0.72rem; color:var(--muted); margin-bottom:5px;
+  text-transform:uppercase; letter-spacing:0.03em;
+}
+.field input{
+  width:100%; background:var(--surf2); border:1px solid var(--brd); border-radius:8px;
+  padding:10px 12px; color:var(--txt); font-size:0.95rem;
+}
+.field input:focus{outline:none; border-color:var(--gold);}
+.btn-guardar{
+  position:sticky; bottom:14px; width:100%; background:var(--gold); color:#151109;
+  border:none; border-radius:10px; padding:15px; font-size:1rem; font-weight:700;
+  cursor:pointer; margin-top:10px; box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.btn-guardar:active{opacity:0.85;}
+.estado{
+  text-align:center; padding:8px; font-size:0.82rem; color:var(--muted); min-height:20px;
+}
+.estado.ok{color:var(--ok);}
+.estado.err{color:var(--err);}
+.empty, .error-box{
+  text-align:center; padding:60px 20px; color:var(--faint); font-size:0.9rem;
+}
+.error-box{color:var(--err);}
+
+.tabs{display:flex; gap:8px; margin-bottom:18px;}
+.tab-btn{
+  flex:1; background:var(--surf); border:1px solid var(--brd); color:var(--muted);
+  border-radius:10px; padding:12px 6px; font-size:0.85rem; cursor:pointer; text-align:center;
+}
+.tab-btn.activa{border-color:var(--gold); color:var(--gold); background:var(--gold-bg);}
+.panel{display:none;}
+.panel.activa{display:block;}
+
+.field select{
+  width:100%; background:var(--surf2); border:1px solid var(--brd); border-radius:8px;
+  padding:10px 12px; color:var(--txt); font-size:0.95rem; margin-bottom:12px;
+}
+.field textarea{
+  width:100%; background:var(--surf2); border:1px solid var(--brd); border-radius:8px;
+  padding:10px 12px; color:var(--txt); font-size:0.9rem; min-height:60px; margin-bottom:12px;
+}
+.estrellas{
+  display:flex; justify-content:center; gap:10px; font-size:2rem; color:var(--faint);
+  margin-bottom:16px; user-select:none;
+}
+.estrellas span.activa{color:var(--gold);}
+.usar-row{display:flex; gap:10px; margin-bottom:12px;}
+.usar-row button{
+  flex:1; background:var(--surf2); border:1px solid var(--brd); color:var(--txt);
+  border-radius:8px; padding:12px; font-size:0.9rem; cursor:pointer;
+}
+.usar-row button.si.activa{border-color:var(--ok); color:var(--ok); background:rgba(76,175,125,0.12);}
+.usar-row button.no.activa{border-color:var(--err); color:var(--err); background:rgba(212,87,74,0.12);}
+
+.confirm-card{
+  background:var(--surf); border:1px solid var(--gold); border-radius:12px; padding:18px;
+}
+.confirm-card h3{color:var(--gold); font-size:0.9rem; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.03em;}
+.confirm-card .linea{font-size:0.95rem; margin-bottom:4px;}
+.confirm-actions{display:flex; gap:10px; margin-top:16px;}
+.confirm-actions button{flex:1; border-radius:8px; padding:13px; font-size:0.9rem; cursor:pointer; border:1px solid var(--brd);}
+.confirm-actions .btn-si{background:var(--gold); color:#151109; border:none; font-weight:700;}
+.confirm-actions .btn-no{background:transparent; color:var(--muted);}
+
+.toma-card{
+  background:var(--surf); border:1px solid var(--brd); border-radius:10px; padding:12px 14px; margin-bottom:8px;
+}
+.toma-card strong{color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Bitácora de Grabación</h1>
+  <div class="subt" id="subtitulo">Cargando sesión…</div>
+  <div id="tabsBox" class="tabs" style="display:none;">
+    <button class="tab-btn activa" id="tabBtn_bitacora" onclick="cambiarTab('bitacora')">🎛️ Bitácora</button>
+    <button class="tab-btn" id="tabBtn_tomas" onclick="cambiarTab('tomas')">🎙️ Tomas</button>
+  </div>
+  <div class="panel activa" id="panel_bitacora">
+    <div id="contenido"></div>
+  </div>
+  <div class="panel" id="panel_tomas">
+    <div id="tomasFormBox"></div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const proyectoId = params.get('p');
+const sesionId = params.get('s');
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let inputListActual = [];
+let sesionRef = null;
+let sesionData = null;
+
+async function cargar(){
+  const cont = document.getElementById('contenido');
+  const subt = document.getElementById('subtitulo');
+
+  if(!proyectoId || !sesionId){
+    subt.textContent = '';
+    cont.innerHTML = '<div class="error-box">Link inválido: faltan datos de la sesión.</div>';
+    return;
+  }
+
+  sesionRef = db.collection('proyectos').doc(proyectoId).collection('sesiones').doc(sesionId);
+
+  try{
+    const snap = await sesionRef.get();
+    if(!snap.exists){
+      subt.textContent = '';
+      cont.innerHTML = '<div class="error-box">Esta sesión no existe o el link ya no es válido.</div>';
+      return;
+    }
+    const s = snap.data();
+    sesionData = s;
+    subt.textContent = `${s.actividad || 'Sesión'} · ${s.fecha || ''} · ${s.sala || ''}`;
+    inputListActual = Array.isArray(s.inputList) ? s.inputList.map(it => ({...it})) : [];
+
+    document.getElementById('tabsBox').style.display = 'flex';
+    renderFormTomas(s);
+
+    if(!inputListActual.length){
+      cont.innerHTML = '<div class="empty">Esta sesión aún no tiene input list generado. Pide que lo generen desde Logística → Instrumentación de la sesión.</div>';
+      return;
+    }
+
+    cont.innerHTML = inputListActual.map((it, i) => `
+      <div class="card">
+        <div class="canal">CH${it.canal}</div>
+        <div class="nombre">${escapeHtml(it.nombre || '—')}</div>
+        <div class="row2">
+          <div class="field">
+            <label>Preamp</label>
+            <input type="text" placeholder="Ej: Neve 1073" value="${escapeHtml(it.preamp || '')}" oninput="inputListActual[${i}].preamp = this.value">
+          </div>
+          <div class="field">
+            <label>Gain</label>
+            <input type="text" placeholder="Ej: -6dB" value="${escapeHtml(it.gain || '')}" oninput="inputListActual[${i}].gain = this.value">
+          </div>
+        </div>
+      </div>
+    `).join('') + `
+      <button class="btn-guardar" onclick="guardar()">Guardar bitácora</button>
+      <div class="estado" id="estado"></div>
+    `;
+  } catch(err){
+    console.error(err);
+    subt.textContent = '';
+    cont.innerHTML = '<div class="error-box">Error cargando la sesión. Revisa tu conexión e intenta de nuevo.</div>';
+  }
+}
+
+async function guardar(){
+  const estado = document.getElementById('estado');
+  estado.textContent = 'Guardando…';
+  estado.className = 'estado';
+  try{
+    await sesionRef.update({ inputList: inputListActual });
+    estado.textContent = '✓ Guardado';
+    estado.className = 'estado ok';
+  } catch(err){
+    console.error(err);
+    estado.textContent = 'Error guardando. Intenta de nuevo.';
+    estado.className = 'estado err';
+  }
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
+
+/* ============ TABS (v2.1) ============ */
+function cambiarTab(tab){
+  document.getElementById('tabBtn_bitacora').classList.toggle('activa', tab === 'bitacora');
+  document.getElementById('tabBtn_tomas').classList.toggle('activa', tab === 'tomas');
+  document.getElementById('panel_bitacora').classList.toggle('activa', tab === 'bitacora');
+  document.getElementById('panel_tomas').classList.toggle('activa', tab === 'tomas');
+}
+
+/* ============ SECCIÓN TOMAS (v2.1) ============
+   Mismo criterio de expansión de instrumento que logistica.html v2.6
+   (construirOpcionesInstrumento), duplicado acá porque esta página es
+   standalone y no carga proyectoData ni el resto del sistema — solo lee
+   el documento de esta sesión puntual, que ya trae instrumentacionSesion
+   + instrumentacionSesionIndividual + instrumentacionSesionPiezas
+   (guardados por logistica.html). Antes de guardar se muestra un
+   resumen de confirmación; al confirmar se hace add() a
+   sesiones/{id}/tomas (create-only, sin numero/codigo — ver comentario
+   de cabecera). tomasLocalSesion es solo para mostrarle al ingeniero lo
+   que ya registró en esta carga de página (no se lee de Firestore). */
+const GRUPOS_INSTRUMENTACION_LABELS = {
+  bateria: 'Batería', percusionLatina: 'Percusión latina', cuerdas: 'Cuerdas',
+  bronces: 'Bronces', voces: 'Voces', teclas: 'Teclas', otros: 'Otros'
+};
+
+let ratingTomaActual = 0;
+let usarTomaActual = null;
+let tomasLocalSesion = [];
+
+function construirOpcionesInstrumento(s){
+  const grupos = Array.isArray(s.instrumentacionSesion) ? s.instrumentacionSesion : [];
+  const individual = (s.instrumentacionSesionIndividual && typeof s.instrumentacionSesionIndividual === 'object') ? s.instrumentacionSesionIndividual : {};
+  const piezasSnapshot = (s.instrumentacionSesionPiezas && typeof s.instrumentacionSesionPiezas === 'object') ? s.instrumentacionSesionPiezas : {};
+  const opciones = [];
+  grupos.forEach(key => {
+    const label = GRUPOS_INSTRUMENTACION_LABELS[key] || key;
+    const piezas = Array.isArray(piezasSnapshot[key]) ? piezasSnapshot[key] : [];
+    if(individual[key] && piezas.length){
+      piezas.forEach(p => {
+        const nombrePieza = (p && p.nombre) ? p.nombre : label;
+        if(!opciones.includes(nombrePieza)) opciones.push(nombrePieza);
+      });
+    } else {
+      opciones.push(label);
+    }
+  });
+  return opciones;
+}
+
+function renderFormTomas(s){
+  const box = document.getElementById('tomasFormBox');
+  const opciones = construirOpcionesInstrumento(s);
+
+  if(!opciones.length){
+    box.innerHTML = '<div class="empty">Esta sesión no tiene instrumentación marcada. Pide que la marquen desde Logística → Instrumentación de la sesión.</div>';
+    return;
+  }
+
+  box.innerHTML = `
+    <div id="tomaFormularioBox">
+      <div class="field">
+        <label>Instrumento</label>
+        <select id="tomaInstrumento">
+          ${opciones.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Nombre/código en el DAW (opcional)</label>
+        <input type="text" id="tomaCodigoDaw" placeholder="Ej: GTR_Comp_02">
+      </div>
+      <div class="estrellas" id="tomaEstrellas">
+        <span onclick="setRatingToma(1)">★</span><span onclick="setRatingToma(2)">★</span>
+        <span onclick="setRatingToma(3)">★</span><span onclick="setRatingToma(4)">★</span>
+        <span onclick="setRatingToma(5)">★</span>
+      </div>
+      <div class="usar-row">
+        <button type="button" class="si" id="tomaUsarSi" onclick="setUsarToma(true)">✓ Usar</button>
+        <button type="button" class="no" id="tomaUsarNo" onclick="setUsarToma(false)">✕ Descartar</button>
+      </div>
+      <div class="field">
+        <label>Nota</label>
+        <textarea id="tomaNota" placeholder="Nota corta (opcional)..."></textarea>
+      </div>
+      <button class="btn-guardar" onclick="prepararConfirmacionToma()">Registrar toma</button>
+    </div>
+    <div id="tomaConfirmBox"></div>
+    <div id="tomasLocalLista"></div>
+  `;
+  ratingTomaActual = 0;
+  usarTomaActual = null;
+}
+
+function setRatingToma(n){
+  ratingTomaActual = n;
+  document.querySelectorAll('#tomaEstrellas span').forEach((s, i) => {
+    s.classList.toggle('activa', i < n);
+  });
+}
+
+function setUsarToma(valor){
+  usarTomaActual = valor;
+  document.getElementById('tomaUsarSi').classList.toggle('activa', valor === true);
+  document.getElementById('tomaUsarNo').classList.toggle('activa', valor === false);
+}
+
+function prepararConfirmacionToma(){
+  const instrumento = document.getElementById('tomaInstrumento').value;
+  const codigoDaw = document.getElementById('tomaCodigoDaw').value.trim();
+  const nota = document.getElementById('tomaNota').value.trim();
+  const estrellasTxt = ratingTomaActual ? '★'.repeat(ratingTomaActual) + '☆'.repeat(5 - ratingTomaActual) : 'sin calificar';
+  const usarTxt = usarTomaActual === true ? 'Usar' : usarTomaActual === false ? 'Descartar' : 'sin definir';
+
+  document.getElementById('tomaFormularioBox').style.display = 'none';
+  document.getElementById('tomaConfirmBox').innerHTML = `
+    <div class="confirm-card">
+      <h3>Vas a registrar</h3>
+      <div class="linea"><strong>Instrumento:</strong> ${escapeHtml(instrumento)}</div>
+      ${codigoDaw ? `<div class="linea"><strong>DAW:</strong> ${escapeHtml(codigoDaw)}</div>` : ''}
+      <div class="linea"><strong>Calificación:</strong> ${estrellasTxt}</div>
+      <div class="linea"><strong>Estado:</strong> ${usarTxt}</div>
+      ${nota ? `<div class="linea"><strong>Nota:</strong> ${escapeHtml(nota)}</div>` : ''}
+      <div class="confirm-actions">
+        <button class="btn-no" onclick="revisarToma()">Revisar</button>
+        <button class="btn-si" onclick="confirmarToma()">Confirmar</button>
+      </div>
+    </div>
+  `;
+}
+
+function revisarToma(){
+  document.getElementById('tomaConfirmBox').innerHTML = '';
+  document.getElementById('tomaFormularioBox').style.display = '';
+}
+
+async function confirmarToma(){
+  const instrumento = document.getElementById('tomaInstrumento').value;
+  const codigoDaw = document.getElementById('tomaCodigoDaw').value.trim();
+  const nota = document.getElementById('tomaNota').value.trim();
+  const hora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  const data = {
+    instrumento,
+    codigoDaw,
+    hora,
+    rating: ratingTomaActual,
+    usar: usarTomaActual === null ? null : usarTomaActual,
+    nota,
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  const confirmBox = document.getElementById('tomaConfirmBox');
+  confirmBox.innerHTML = '<div class="estado">Guardando…</div>';
+
+  try{
+    await sesionRef.collection('tomas').add(data);
+    tomasLocalSesion.unshift(data);
+    renderListaTomasLocal();
+    renderFormTomas(sesionData);
+  } catch(err){
+    console.error(err);
+    confirmBox.innerHTML = `
+      <div class="confirm-card">
+        <div class="estado err">Error guardando la toma. Intenta de nuevo.</div>
+        <div class="confirm-actions">
+          <button class="btn-no" onclick="revisarToma()">Revisar</button>
+          <button class="btn-si" onclick="confirmarToma()">Reintentar</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderListaTomasLocal(){
+  const cont = document.getElementById('tomasLocalLista');
+  if(!cont) return;
+  if(!tomasLocalSesion.length){
+    cont.innerHTML = '';
+    return;
+  }
+  cont.innerHTML = '<div class="subt" style="margin:18px 0 8px;">Registradas en esta sesión de trabajo</div>' +
+    tomasLocalSesion.map(t => {
+      const estrellas = '★'.repeat(t.rating || 0) + '☆'.repeat(5 - (t.rating || 0));
+      const usarTag = t.usar === true ? ' · Usar' : t.usar === false ? ' · Descartar' : '';
+      return `
+        <div class="toma-card">
+          <strong>${escapeHtml(t.instrumento)}</strong> · ${t.hora || ''}<br>
+          ${t.codigoDaw ? `DAW: ${escapeHtml(t.codigoDaw)}<br>` : ''}
+          ${estrellas}${usarTag}
+          ${t.nota ? `<br><span style="color:var(--muted);">${escapeHtml(t.nota)}</span>` : ''}
+        </div>`;
+    }).join('');
+}
+/* ============ FIN SECCIÓN TOMAS ============ */
+
+cargar();
+</script>
+
+<!--
+REGLAS DE FIRESTORE SUGERIDAS (agregar manualmente en Firebase Console →
+Firestore → Rules, dentro del match de /proyectos/{proyectoId}/sesiones/{sesionId}
+que ya exista, o como bloque nuevo si no hay uno explícito):
+
+match /proyectos/{proyectoId}/sesiones/{sesionId} {
+  // ... tus reglas actuales de lectura/escritura con auth normal, se mantienen ...
+
+  allow get: if true; // permite abrir 1 documento puntual sin login (necesita el ID exacto)
+  allow list: if false; // nunca se puede listar/enumerar sesiones sin login
+
+  allow update: if
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['inputList']);
+    // sin login, SOLO puede modificar el campo inputList — nada más
+
+  match /tomas/{tomaId} {
+    allow read: if false;  // nunca se puede leer/listar tomas sin login
+    allow update: if false;
+    allow delete: if false;
+    allow create: if
+      request.resource.data.keys().hasOnly(['instrumento','codigoDaw','hora','rating','usar','nota','creadoEn']) &&
+      request.resource.data.instrumento is string &&
+      request.resource.data.rating is number &&
+      (request.resource.data.usar == null || request.resource.data.usar is bool) &&
+      request.resource.data.nota is string;
+      // sin login, SOLO puede crear tomas con ese esquema exacto — nunca leer, editar ni borrar
+  }
+}
+
+Esto no reemplaza tus reglas de auth normal para el resto del sistema,
+solo agrega estas excepciones puntuales para esta subcolección.
+-->
+</body>
+</html>
