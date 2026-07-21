@@ -4,20 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v4.9
-     V4.9: se corrige un bug donde un nombre de músico o de archivo adjunto
-     que contuviera una comilla doble (") rompía el atributo HTML onchange/
-     onclick correspondiente (la comilla doble cerraba el atributo antes de
-     tiempo, dejando código HTML suelto y el botón sin funcionar). Se agrega
-     la función escJsHtml(), que escapa backslash, comilla simple y comilla
-     doble (esta última como &quot;), y se usa en los 3 puntos donde se
-     interpola un string dentro de un string de JS dentro de un atributo
-     HTML: el nombre del músico en el onchange de "Adjuntar documento", y
-     doc.url + doc.nombre en el onclick de abrirLightboxProduccion() del
-     listado de documentos. No se corrige el dato ya guardado en Firestore
-     (si un músico tiene ese caracter en el nombre, sigue así hasta editarlo
-     manualmente) — solo se evita que rompa la página. No se tocó
-     _musEliminarDoc, guardarMusico, ni ninguna otra función o módulo.
+<!-- AUDIOLINK · proyecto.html · v4.8
      V4.8: prueba temporal de diagnóstico — _musSubirDocumento ya no envía
      el 2º parámetro (carpeta) a subirArchivoCloudinary(), por lo que los
      documentos de músicos suben ahora a la carpeta raíz del preset de
@@ -1583,16 +1570,6 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
-// v4.9: escapa un string para insertarlo de forma segura dentro de un
-// string de JS (comillas simples) que a su vez vive dentro de un atributo
-// HTML (comillas dobles). Sin esto, un texto con " rompe el atributo.
-function escJsHtml(str){
-  return String(str || '')
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\\'")
-    .replace(/"/g, '&quot;');
-}
-
 // v4.6: carpeta dinámica por músico en Cloudinary (Dynamic Folder Mode).
 // nombre-slug + parte del id del doc, para que sea legible en el Media
 // Library de Cloudinary y nunca choque entre dos músicos de nombre parecido.
@@ -2534,7 +2511,7 @@ async function cargarListaMusicos(){
           : `<span style="flex-shrink:0;">${iconoDoc}</span>`;
         return `
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.76rem;padding:4px 0;">
-            <span style="cursor:pointer;color:var(--acc,#4a9eff);display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80%;" onclick="abrirLightboxProduccion('${escJsHtml(doc.url)}', '${escJsHtml(doc.nombre)}')" title="Ver documento">${miniHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(doc.nombre || 'Documento')}</span></span>
+            <span style="cursor:pointer;color:var(--acc,#4a9eff);display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80%;" onclick="abrirLightboxProduccion('${(doc.url||'').replace(/'/g,"\\'")}', '${(doc.nombre||'').replace(/'/g,"\\'")}')" title="Ver documento">${miniHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(doc.nombre || 'Documento')}</span></span>
             <span style="color:var(--err);cursor:pointer;flex-shrink:0;margin-left:8px;" onclick="window._musEliminarDoc('${d.id}', ${i})" title="Quitar de la lista (no borra el archivo de Cloudinary)">✕</span>
           </div>`;
       }).join('');
@@ -2556,7 +2533,7 @@ async function cargarListaMusicos(){
           ${docsHtml || '<div style="font-size:0.72rem;color:var(--muted);">Sin documentos adjuntos.</div>'}
           <label style="display:inline-block;margin-top:6px;font-size:0.76rem;color:var(--acc,#4a9eff);cursor:pointer;">
             📎 Adjuntar documento
-            <input type="file" style="display:none;" onchange="window._musSubirDocumento('${d.id}', '${escJsHtml(m.nombre)}', this.files[0]); this.value='';">
+            <input type="file" style="display:none;" onchange="window._musSubirDocumento('${d.id}', '${(m.nombre||'').replace(/'/g,"\\'")}", this.files[0]); this.value='';">
           </label>
           <span id="musDocStatus-${d.id}" style="font-size:0.72rem;color:var(--muted);margin-left:8px;"></span>
         </div>

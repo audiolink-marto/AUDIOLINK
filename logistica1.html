@@ -4,15 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Logística</title>
-<!-- AUDIOLINK · logistica.html · v2.9
-     V2.9: la pestaña "🎛️ Bitácora" del modal de Reportes deja de ser
-     solo lectura — ahora se puede editar Preamp/Gain por canal
-     directamente desde acá (mismo patrón visual que bitacora.html) y
-     guardar con un botón "💾 Guardar bitácora", que hace update() sobre
-     el mismo campo `inputList` de la sesión (sin campos nuevos). El link
-     externo bitacora.html se mantiene igual, como respaldo para el
-     ingeniero en campo. No se tocó bitacora.html, el resto del modal de
-     Reportes, tomas, ni ninguna otra lógica.
+<!-- AUDIOLINK · logistica.html · v2.8
      V2.8: bloque "RESUMEN DEL DÍA" al final de la sección de tomas en el
      PDF (exportarPDFReporte) — total de tomas, cuántas Usar/Descartar/
      sin definir, rating promedio, y desglose por instrumento. Calculado
@@ -1294,58 +1286,28 @@ async function eliminarToma(tomaId){
   }
 }
 
-/* ============ BITÁCORA EDITABLE DESDE LOGISTICA (v2.9) ============
-   bitacoraEditLista: copia local editable del inputList de la sesión
-   abierta en el modal de Reportes. Se llena al abrir la pestaña
-   Bitácora (renderBitacoraLista) y se guarda con guardarBitacoraReportes()
-   haciendo update({inputList: ...}) sobre el mismo documento de sesión —
-   mismo campo que ya usa bitacora.html, sin esquema nuevo. El link
-   externo sigue funcionando igual, independiente de esto. */
-let bitacoraEditLista = [];
-
 function renderBitacoraLista(s){
   const cont = document.getElementById('repBitacoraLista');
   const lista = Array.isArray(s.inputList) ? s.inputList : [];
-  bitacoraEditLista = lista.map(it => ({...it}));
   if(!lista.length){
     cont.innerHTML = '<span class="inputlist-empty">Esta sesión no tiene input list generado.</span>';
     return;
   }
-  cont.innerHTML = bitacoraEditLista.map((it, i) => `
-      <div class="toma-item" style="align-items:flex-start;">
+  const sinLlenar = lista.every(it => !it.preamp && !it.gain);
+  cont.innerHTML = (sinLlenar
+    ? '<span class="inputlist-empty">Aún no se ha llenado la bitácora desde el link del ingeniero.</span>'
+    : '') + lista.map(it => `
+      <div class="toma-item">
         <div class="info">
           <strong>Ch${it.canal} — ${escapeHtml(it.nombre || '—')}</strong>
-          <div class="row2" style="margin-top:8px;">
-            <div class="field" style="margin-bottom:0;">
-              <label>Preamp</label>
-              <input type="text" placeholder="Ej: Neve 1073" value="${escapeHtml(it.preamp || '')}"
-                oninput="bitacoraEditLista[${i}].preamp = this.value">
-            </div>
-            <div class="field" style="margin-bottom:0;">
-              <label>Gain</label>
-              <input type="text" placeholder="Ej: -6dB" value="${escapeHtml(it.gain || '')}"
-                oninput="bitacoraEditLista[${i}].gain = this.value">
-            </div>
+          <div style="color:var(--muted);margin-top:2px;">
+            Preamp: ${it.preamp ? escapeHtml(it.preamp) : '<span class="inputlist-empty">sin llenar</span>'}
+            &nbsp;·&nbsp;
+            Gain: ${it.gain ? escapeHtml(it.gain) : '<span class="inputlist-empty">sin llenar</span>'}
           </div>
         </div>
-      </div>`).join('')
-    + `<button class="btn" style="width:100%;margin-top:6px;" onclick="guardarBitacoraReportes()">💾 Guardar bitácora</button>
-       <div class="inputlist-empty" id="bitacoraEstado" style="text-align:center;margin-top:6px;"></div>`;
+      </div>`).join('');
 }
-
-async function guardarBitacoraReportes(){
-  if(!reporteSesionId) return;
-  const estado = document.getElementById('bitacoraEstado');
-  if(estado) estado.textContent = 'Guardando…';
-  try{
-    await sesionDocRef(reporteSesionId).update({ inputList: bitacoraEditLista });
-    if(estado) estado.textContent = '✓ Guardado';
-  } catch(err){
-    console.error('Error guardando bitácora desde Reportes:', err);
-    if(estado) estado.textContent = 'Error guardando. Intenta de nuevo.';
-  }
-}
-/* ============ FIN BITÁCORA EDITABLE DESDE LOGISTICA ============ */
 
 function renderTomasLista(){
   const cont = document.getElementById('repTomasLista');
@@ -1487,6 +1449,9 @@ function exportarPDFReporte(){
     });
     y += 4;
 
+    // Resumen automático del día (v2.8) — calculado sobre tomasReporte,
+    // sin datos nuevos: total, usar/descartar/sin definir, rating
+    // promedio, desglose por instrumento.
     const totalTomas = tomasReporte.length;
     const usarCount = tomasReporte.filter(t => t.usar === true).length;
     const descartarCount = tomasReporte.filter(t => t.usar === false).length;
