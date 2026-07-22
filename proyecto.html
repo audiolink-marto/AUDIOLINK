@@ -4,7 +4,56 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v4.9
+<!-- AUDIOLINK · proyecto.html · v4.13
+     V4.13: Portal de clientes migra a clientes.html (mismo patrón que
+     Estudios/Músicos en v4.12 — ver plan de migración acordado). Se
+     retiran de acá: el modal modalPortalBg, las funciones
+     clientesAccesoCache/abrirModalPortalClientes/cerrarModalPortalClientes/
+     cargarClientesAccesoYRender/getClientesUnicos/renderListaPortalClientes/
+     window._pcActivar/_pcReenviar/_pcRevocar/_pcPreview, la referencia
+     clientesAccesoRef y la app secundaria appPortal/authPortal (Firebase
+     Auth) — confirmado por grep que nada más en este archivo las usaba.
+     También se retira la entrada "Portal de clientes" de sbFootExtra.
+     Ahora vive todo en clientes.html, con acceso real de Auth (antes solo
+     mostraba el estado en modo lectura ahí). No se tocó Equipo interno,
+     Cotizador, Producción, Dashboard, PDF, ni ninguna otra función/
+     colección existente.
+     V4.12: Estudios y Músicos migran a hojas propias (estudios.html /
+     musicos.html — mismas colecciones Firestore 'estudios'/'musicos',
+     mismo CRUD, sin cambios de lógica ni de datos). Se retiran de acá:
+     los modales modalEstudiosBg/modalMusicosBg, sus funciones
+     (abrirModalEstudios...guardarMusico, incl. slugMusico) y sus entradas
+     en sbFootExtra del NAV_CONFIG (ahora llegan como ítems reales de
+     nav.js v1.2, disponibles en todo el ecosistema, no solo acá). No se
+     tocó nada de Portal de clientes, Equipo interno, Cotizador,
+     Producción, Dashboard, PDF, ni ninguna otra función/colección
+     existente — subirArchivoCloudinary() sigue acá intacta porque la
+     sigue usando Producción musical.
+     V4.11: nuevo módulo clientes.html (colección Firestore 'clientes').
+     Se agrega un selector opcional "Cliente registrado" en el formulario
+     de proyecto, arriba de los campos existentes Cliente/Artista y Correo
+     del cliente. Al elegir un cliente de la lista, se pre-llenan esos dos
+     campos de texto (que siguen siendo editables/sobreescribibles a mano,
+     igual que siempre). Se guarda además `clienteId` (opcional, null si no
+     se vincula) en el documento del proyecto — es un campo nuevo y
+     aditivo: los proyectos existentes sin clienteId siguen funcionando
+     exactamente igual en PDF, portal, resumen financiero y todo lo demás,
+     porque ninguna de esas funciones lee clienteId, solo clienteArtista/
+     clienteEmail como antes. No se tocó guardarProyecto (salvo agregar el
+     campo), editarProyectoActual, limpiarFormulario (solo se agregó el
+     reset del selector nuevo), ni ninguna otra función, PDF, cálculo o
+     lógica existente.
+     V4.10: fix de desborde horizontal en mobile en la vista de detalle de
+     proyecto (botones PDF Cliente/Interno/Editar/Ver sesiones/Cotizador/
+     Producción se salían de pantalla). Causa: el bloque @media(max-width:640px)
+     con las reglas mobile de .pdf-actions, .row2 y .modal estaba ubicado
+     ANTES de las reglas base (sin media query) de esas mismas clases más
+     abajo en la hoja de estilos. Al empatar en especificidad, ganaba la
+     regla que aparece después en el archivo — es decir, la regla de
+     escritorio anulaba silenciosamente la regla mobile en todo momento.
+     Se movió el bloque completo (mismo contenido, ninguna propiedad
+     cambiada) a después de esas reglas base. No se tocó ninguna lógica de
+     cálculo, Firestore, PDF, ni ningún otro módulo.
      V4.9: se corrige un bug donde un nombre de músico o de archivo adjunto
      que contuviera una comilla doble (") rompía el atributo HTML onchange/
      onclick correspondiente (la comilla doble cerraba el atributo antes de
@@ -373,13 +422,6 @@ header{
 .header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
 .btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
-@media (max-width:640px){
-  header{display:none;}
-  .row2{grid-template-columns:1fr;}
-  .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .pdf-actions .btn{width:100%;}
-  .modal{padding:20px;}
-}
 .brand{display:flex;align-items:center;gap:14px;}
 nav.links{display:flex;gap:8px;margin-left:20px;}
 nav.links a{
@@ -747,6 +789,18 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   padding:5px 14px;font-size:0.78rem;color:var(--gold);
 }
 .pdf-actions{display:flex;gap:10px;margin-top:20px;}
+
+/* V4.10: bloque reubicado aquí (antes vivía arriba, antes de .row2/.pdf-actions/
+   .modal, por lo que esas reglas base lo anulaban al aparecer después en la
+   hoja de estilos — empate de especificidad resuelto por orden de aparición).
+   Mismo contenido exacto, solo cambia la posición. */
+@media (max-width:640px){
+  header{display:none;}
+  .row2{grid-template-columns:1fr;}
+  .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .pdf-actions .btn{width:100%;}
+  .modal{padding:20px;}
+}
 .back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
 .back-link:hover{color:var(--gold);}
 .empty{text-align:center;padding:60px 20px;color:var(--faint);}
@@ -771,10 +825,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 window.NAV_CONFIG = {
   activo: 'proyecto',
   sbFootExtra: [
-    {icon:'🔐', label:'Portal de clientes', onclick:'abrirModalPortalClientes()'},
-    {icon:'👤', label:'Equipo interno', onclick:'abrirModalEquipoInterno()'},
-    {icon:'🏢', label:'Estudios', onclick:'abrirModalEstudios()'},
-    {icon:'🎻', label:'Músicos', onclick:'abrirModalMusicos()'}
+    {icon:'👤', label:'Equipo interno', onclick:'abrirModalEquipoInterno()'}
   ],
   masMobileExtra: [
     {icon:'➕', label:'Nuevo Proyecto', onclick:"abrirModalNuevo();toggleMasMobile()"}
@@ -856,6 +907,12 @@ window.NAV_CONFIG = {
         <option value="finalizado">Finalizado</option>
       </select>
     </div>
+    <div class="field">
+      <label>Cliente registrado (opcional)</label>
+      <select id="fClienteId" onchange="aplicarClienteSeleccionado()">
+        <option value="">— Sin vincular / escribir manualmente abajo —</option>
+      </select>
+    </div>
     <div class="row2">
       <div class="field">
         <label>Cliente / Artista</label>
@@ -917,21 +974,6 @@ window.NAV_CONFIG = {
   </div>
 </div>
 
-<!-- MODAL PORTAL DE CLIENTES (v2.0) -->
-<div class="modal-bg" id="modalPortalBg">
-  <div class="modal">
-    <h2>🔐 Portal de clientes</h2>
-    <div class="field">
-      <input type="text" id="portalBuscador" placeholder="Buscar por nombre o correo..." oninput="renderListaPortalClientes()">
-    </div>
-    <div id="portalErr" style="color:var(--err);font-size:0.82rem;margin-bottom:10px;"></div>
-    <div id="portalLista" style="display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto;"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="cerrarModalPortalClientes()">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL EQUIPO INTERNO (v2.1) -->
 <div class="modal-bg" id="modalEquipoBg">
   <div class="modal">
@@ -946,120 +988,6 @@ window.NAV_CONFIG = {
     <div id="equipoLista" style="display:flex;flex-direction:column;gap:8px;max-height:45vh;overflow-y:auto;margin-top:14px;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cerrarModalEquipoInterno()">Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL ESTUDIOS (v2.8) -->
-<div class="modal-bg" id="modalEstudiosBg">
-  <div class="modal" style="max-width:560px;">
-    <h2>🏢 Estudios</h2>
-    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px;">
-      Estos estudios alimentan el selector "Entorno Operativo" del Cotizador.
-    </div>
-    <input type="hidden" id="estudioEditId">
-    <div class="field">
-      <label>Nombre del estudio</label>
-      <input type="text" id="estudioNombre" placeholder="Ej. Universidad ICESI">
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Nombre Sala A</label>
-        <input type="text" id="estudioSalaANombre" placeholder="Estudio A">
-      </div>
-      <div class="field">
-        <label>Tarifa Sala A (COP)</label>
-        <input type="number" id="estudioSalaATarifa" placeholder="0" min="0">
-      </div>
-    </div>
-    <div class="field">
-      <label>Specs / Gear Sala A (opcional)</label>
-      <textarea id="estudioSalaASpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Nombre Sala B</label>
-        <input type="text" id="estudioSalaBNombre" placeholder="Estudio B">
-      </div>
-      <div class="field">
-        <label>Tarifa Sala B (COP)</label>
-        <input type="number" id="estudioSalaBTarifa" placeholder="0" min="0">
-      </div>
-    </div>
-    <div class="field">
-      <label>Specs / Gear Sala B (opcional)</label>
-      <textarea id="estudioSalaBSpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Nombre Sala C</label>
-        <input type="text" id="estudioSalaCNombre" placeholder="Estudio C">
-      </div>
-      <div class="field">
-        <label>Tarifa Sala C (COP)</label>
-        <input type="number" id="estudioSalaCTarifa" placeholder="0" min="0">
-      </div>
-    </div>
-    <div class="field">
-      <label>Specs / Gear Sala C (opcional)</label>
-      <textarea id="estudioSalaCSpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
-    </div>
-    <div class="field" style="display:flex;align-items:center;gap:8px;">
-      <input type="checkbox" id="estudioSpecsVisibles" style="width:auto;">
-      <label style="margin:0;font-size:0.85rem;">Mostrar especificaciones técnicas en el cotizador</label>
-    </div>
-    <div id="estudioErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
-    <div class="row2" style="margin-top:6px;">
-      <button class="btn btn-ghost" id="btnEstudioCancelar" style="display:none;" onclick="cancelarEdicionEstudio()">Cancelar edición</button>
-      <button class="btn" onclick="guardarEstudio()">💾 Guardar estudio</button>
-    </div>
-    <div id="estudiosLista" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="cerrarModalEstudios()">Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL MÚSICOS (v4.5 · documentos v4.6) -->
-<div class="modal-bg" id="modalMusicosBg">
-  <div class="modal">
-    <h2>🎻 Músicos</h2>
-    <p style="font-size:0.82rem;color:var(--muted);margin:-8px 0 16px;">
-      Catálogo reutilizable de músicos/sesionistas. Sirve para precargar sus datos en contratos de sesión y en producción musical.
-    </p>
-    <input type="hidden" id="musicoEditId">
-    <div class="field">
-      <label>Nombre completo</label>
-      <input type="text" id="musicoNombre" placeholder="Ej. Alejandro Londoño">
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Cédula</label>
-        <input type="text" id="musicoCedula" placeholder="Ej. 1234567890">
-      </div>
-      <div class="field">
-        <label>Instrumento principal</label>
-        <input type="text" id="musicoInstrumento" placeholder="Ej. Piano / Percusión / Voz">
-      </div>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Correo</label>
-        <input type="email" id="musicoCorreo" placeholder="correo@ejemplo.com">
-      </div>
-      <div class="field">
-        <label>Teléfono</label>
-        <input type="text" id="musicoTelefono" placeholder="Ej. 3001234567">
-      </div>
-    </div>
-    <div id="musicoErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
-    <div class="row2" style="margin-top:6px;">
-      <button class="btn btn-ghost" id="btnMusicoCancelar" style="display:none;" onclick="cancelarEdicionMusico()">Cancelar edición</button>
-      <button class="btn" onclick="guardarMusico()">💾 Guardar músico</button>
-    </div>
-    <div id="musicosLista" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="cerrarModalMusicos()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1216,15 +1144,7 @@ const auth = firebase.auth();
 // v4.1: comentado — Firebase Storage requiere plan Blaze, no activado.
 // const storage = firebase.storage(); // v4.0 — audio de Producción musical
 const proyectosRef = db.collection('proyectos');
-const clientesAccesoRef = db.collection('clientesAcceso');
-
-// ===== APP SECUNDARIA (v2.0) =====
-// signInWithEmailAndPassword / createUserWithEmailAndPassword cierran/reemplazan
-// la sesión activa en la instancia donde se llaman. Usamos una segunda instancia
-// de Firebase solo para crear/gestionar la cuenta del cliente, sin tocar tu
-// sesión de staff en la app principal. Mismo patrón usado en PsicoGestión.
-const appPortal = firebase.initializeApp(firebaseConfig, 'portal-activador');
-const authPortal = appPortal.auth();
+const clientesRef = db.collection('clientes');
 
 // ============ GUARD DE SESIÓN ============
 let sesionValidada = false;
@@ -1281,6 +1201,30 @@ const COMERCIAL_LABEL = {
   en_curso: "En curso",
   finalizado: "Finalizado"
 };
+
+// clientesLista: colección 'clientes' (v4.11), solo para poblar el selector
+// "Cliente registrado" del formulario. clienteArtista/clienteEmail (texto
+// libre) siguen siendo la fuente real de esos datos en cada proyecto; el
+// selector solo los pre-llena como atajo.
+let clientesLista = [];
+clientesRef.orderBy('nombre').onSnapshot(snap => {
+  clientesLista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const sel = document.getElementById('fClienteId');
+  if(!sel) return;
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">— Sin vincular / escribir manualmente abajo —</option>' +
+    clientesLista.map(c => `<option value="${c.id}">${escapeHtml(c.nombre || c.email || 'Sin nombre')}</option>`).join('');
+  sel.value = actual;
+}, err => console.error('Error escuchando clientes:', err));
+
+function aplicarClienteSeleccionado(){
+  const id = document.getElementById('fClienteId').value;
+  if(!id) return;
+  const c = clientesLista.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('fCliente').value = c.nombre || '';
+  document.getElementById('fCorreoCliente').value = c.email || '';
+}
 
 // ============ LISTENER TIEMPO REAL ============
 proyectosRef.orderBy('creadoEn', 'desc').onSnapshot(snap => {
@@ -1593,18 +1537,6 @@ function escJsHtml(str){
     .replace(/"/g, '&quot;');
 }
 
-// v4.6: carpeta dinámica por músico en Cloudinary (Dynamic Folder Mode).
-// nombre-slug + parte del id del doc, para que sea legible en el Media
-// Library de Cloudinary y nunca choque entre dos músicos de nombre parecido.
-function slugMusico(nombre, id){
-  const slug = (nombre || 'musico')
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return `musicos/${slug || 'musico'}_${(id || '').slice(0, 6)}`;
-}
-
 // ============ MODAL ============
 function abrirModalNuevo(){
   editando = false;
@@ -1622,6 +1554,7 @@ function limpiarFormulario(){
   document.getElementById('fNombre').value = '';
   document.getElementById('fTipo').value = 'propio';
   document.getElementById('fEstado').value = 'ok';
+  document.getElementById('fClienteId').value = '';
   document.getElementById('fCliente').value = '';
   document.getElementById('fCorreoCliente').value = '';
   document.getElementById('fProductor').value = '';
@@ -1799,6 +1732,7 @@ async function guardarProyecto(){
     estadoComercial: document.getElementById('fEstadoComercial').value,
     clienteArtista: document.getElementById('fCliente').value.trim(),
     clienteEmail: document.getElementById('fCorreoCliente').value.trim().toLowerCase(),
+    clienteId: document.getElementById('fClienteId').value || null,
     productorEjecutivo: document.getElementById('fProductor').value.trim(),
     etapaActual: document.getElementById('fEtapa').value,
     fechaEntregaEstimada: document.getElementById('fFechaEntrega').value || null,
@@ -1909,6 +1843,7 @@ function editarProyectoActual(){
   document.getElementById('fTipo').value = p.tipo || 'propio';
   document.getElementById('fEstado').value = p.estado || 'ok';
   document.getElementById('fEstadoComercial').value = p.estadoComercial || 'cotizacion';
+  document.getElementById('fClienteId').value = p.clienteId || '';
   document.getElementById('fCliente').value = p.clienteArtista || '';
   document.getElementById('fCorreoCliente').value = p.clienteEmail || '';
   document.getElementById('fProductor').value = p.productorEjecutivo || '';
@@ -2110,139 +2045,6 @@ function exportarPDF(modo){
   window.open(blobUrl, '_blank');
 }
 
-// ============ MODAL: PORTAL DE CLIENTES (v2.0) ============
-// Deduplica proyectos por clienteEmail. Usa clientesAccesoRef (doc id = email)
-// con authUid/portalRevocado como fuente de verdad, igual que en PsicoGestión.
-let clientesAccesoCache = {}; // email -> {authUid, portalRevocado}
-
-function abrirModalPortalClientes(){
-  document.getElementById('portalErr').textContent = '';
-  document.getElementById('portalBuscador').value = '';
-  cargarClientesAccesoYRender();
-  document.getElementById('modalPortalBg').classList.add('active');
-}
-
-function cerrarModalPortalClientes(){
-  document.getElementById('modalPortalBg').classList.remove('active');
-}
-
-async function cargarClientesAccesoYRender(){
-  try{
-    const snap = await clientesAccesoRef.get();
-    clientesAccesoCache = {};
-    snap.forEach(d => clientesAccesoCache[d.id] = d.data());
-  } catch(err){
-    console.error(err);
-    document.getElementById('portalErr').textContent = 'No se pudo cargar el estado de accesos.';
-  }
-  renderListaPortalClientes();
-}
-
-function getClientesUnicos(){
-  const term = document.getElementById('portalBuscador').value.trim().toLowerCase();
-  const mapa = {};
-  proyectos.forEach(p => {
-    const email = (p.clienteEmail || '').trim().toLowerCase();
-    if(!email) return;
-    if(!mapa[email]){
-      mapa[email] = { email, nombre: p.clienteArtista || email };
-    }
-  });
-  return Object.values(mapa)
-    .filter(c => !term || c.nombre.toLowerCase().includes(term) || c.email.includes(term))
-    .sort((a,b) => a.nombre.localeCompare(b.nombre));
-}
-
-function renderListaPortalClientes(){
-  const cont = document.getElementById('portalLista');
-  const clientes = getClientesUnicos();
-  if(clientes.length === 0){
-    cont.innerHTML = '<div class="empty" style="padding:20px;">No hay proyectos con correo de cliente registrado.</div>';
-    return;
-  }
-  cont.innerHTML = clientes.map(c => {
-    const acc = clientesAccesoCache[c.email];
-    let badgeClass, badgeTxt, acciones;
-    if(!acc || !acc.authUid){
-      badgeClass = 'warn'; badgeTxt = 'Sin activar';
-      acciones = `<button class="btn" onclick="window._pcActivar('${c.email}')">Activar</button>`;
-    } else if(acc.portalRevocado){
-      badgeClass = 'err'; badgeTxt = 'Revocado';
-      acciones = `
-        <button class="btn btn-ghost" onclick="window._pcReenviar('${c.email}')">Reenviar correo</button>
-        <button class="btn" onclick="window._pcRevocar('${c.email}', false)">Reactivar</button>`;
-    } else {
-      badgeClass = 'ok'; badgeTxt = 'Activado';
-      acciones = `
-        <button class="btn btn-ghost" onclick="window._pcReenviar('${c.email}')">Reenviar correo</button>
-        <button class="btn btn-ghost" onclick="window._pcRevocar('${c.email}', true)">Revocar</button>`;
-    }
-    return `
-      <div style="border:1px solid var(--brd);border-radius:8px;padding:14px 16px;background:var(--surf-light);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <strong>${escapeHtml(c.nombre)}</strong>
-          <span class="badge ${badgeClass}">${badgeTxt}</span>
-        </div>
-        <div style="color:var(--muted);font-size:0.82rem;margin-bottom:10px;">${escapeHtml(c.email)}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${acciones}
-          <button class="btn btn-ghost" onclick="window._pcPreview('${c.email}')">👁️ Vista previa</button>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-window._pcActivar = async function(email){
-  if(!confirm(`¿Activar el portal para ${email}? Se creará una cuenta y se le enviará un correo para crear su contraseña.`)) return;
-  try{
-    const passTemp = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-    const cred = await authPortal.createUserWithEmailAndPassword(email, passTemp);
-    await clientesAccesoRef.doc(email).set({
-      authUid: cred.user.uid,
-      portalRevocado: false,
-      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    await authPortal.sendPasswordResetEmail(email);
-    await authPortal.signOut();
-    clientesAccesoCache[email] = { authUid: cred.user.uid, portalRevocado: false };
-    renderListaPortalClientes();
-  } catch(err){
-    console.error(err);
-    if(err.code === 'auth/email-already-in-use'){
-      alert('Ese correo ya tiene una cuenta de portal creada. Verifica el correo o usa "Reenviar correo".');
-    } else {
-      alert('No pudimos activar el portal. Revisa la consola.');
-    }
-  }
-};
-
-window._pcReenviar = async function(email){
-  try{
-    await authPortal.sendPasswordResetEmail(email);
-    alert(`Correo de acceso reenviado a ${email}.`);
-  } catch(err){
-    console.error(err);
-    alert('No pudimos reenviar el correo.');
-  }
-};
-
-window._pcRevocar = async function(email, nuevoEstado){
-  const accion = nuevoEstado ? 'revocar' : 'reactivar';
-  if(!confirm(`¿Seguro que quieres ${accion} el acceso al portal de ${email}?`)) return;
-  try{
-    await clientesAccesoRef.doc(email).set({ portalRevocado: nuevoEstado }, { merge: true });
-    clientesAccesoCache[email] = { ...(clientesAccesoCache[email] || {}), portalRevocado: nuevoEstado };
-    renderListaPortalClientes();
-  } catch(err){
-    console.error(err);
-    alert('No pudimos actualizar el acceso.');
-  }
-};
-
-window._pcPreview = function(email){
-  window.open(`portal.html?preview=${encodeURIComponent(email)}`, '_blank');
-};
-
 // ============ MODAL: EQUIPO INTERNO (v2.1) ============
 // Colección equipoInterno, id de documento = correo. Se guarda activo:true
 // porque el guard de sesión existente (login.html, proyecto.html, logistica.html,
@@ -2312,371 +2114,6 @@ window._eiQuitar = async function(correo){
   } catch(err){
     console.error(err);
     alert('No pudimos eliminar el correo.');
-  }
-};
-
-// ============ ESTUDIOS (v2.8) ============
-// Colección Firestore 'estudios'. Alimenta el selector "Entorno Operativo"
-// de cotizador.html — antes esas 3 opciones (ICESI/Externo/Home Studio)
-// estaban hardcodeadas en el JS del cotizador; ahora viven aquí y son
-// editables sin tocar código. Cada doc: {nombre, salaA:{nombre,tarifa},
-// salaB:{...}, salaC:{...}, specsVisibles, activo, creadoEn}.
-async function abrirModalEstudios(){
-  document.getElementById('estudioErr').textContent = '';
-  cancelarEdicionEstudio();
-  await sembrarEstudiosSemillaSiVacio();
-  cargarListaEstudios();
-  document.getElementById('modalEstudiosBg').classList.add('active');
-}
-
-function cerrarModalEstudios(){
-  document.getElementById('modalEstudiosBg').classList.remove('active');
-}
-
-function cancelarEdicionEstudio(){
-  document.getElementById('estudioEditId').value = '';
-  document.getElementById('estudioNombre').value = '';
-  document.getElementById('estudioSalaANombre').value = '';
-  document.getElementById('estudioSalaATarifa').value = '';
-  document.getElementById('estudioSalaASpecs').value = '';
-  document.getElementById('estudioSalaBNombre').value = '';
-  document.getElementById('estudioSalaBTarifa').value = '';
-  document.getElementById('estudioSalaBSpecs').value = '';
-  document.getElementById('estudioSalaCNombre').value = '';
-  document.getElementById('estudioSalaCTarifa').value = '';
-  document.getElementById('estudioSalaCSpecs').value = '';
-  document.getElementById('estudioSpecsVisibles').checked = false;
-  document.getElementById('btnEstudioCancelar').style.display = 'none';
-  document.getElementById('estudioErr').textContent = '';
-}
-
-// Primera vez que se abre el modal y la colección está vacía: crea los 3
-// entornos que antes estaban fijos en el código del cotizador, para que
-// el comportamiento no cambie para nadie y de ahí en adelante sean
-// editables como cualquier otro estudio.
-async function sembrarEstudiosSemillaSiVacio(){
-  try{
-    const snap = await db.collection('estudios').limit(1).get();
-    if(!snap.empty) return;
-    const semilla = [
-      { id:'icesi', nombre:'Universidad ICESI',
-        salaA:{nombre:'Estudio A',tarifa:270000,specs:'Control A + Iso Booths A1 y A2 + Live Room compartido con Control B\nEntorno de alta gama con alta versatilidad de ruteo y captura multi-ambientes.\nPreamps: 24 API, 8 Millenia, 2 BAE 1073, 4 Manley Force.'},
-        salaB:{nombre:'Estudio B',tarifa:230000,specs:'Control B + Iso Booth B1 + Live Room\nDiseño acústico calibrado para respuesta controlada y grabaciones en bloque.\nPreamps: 8 ISA828 modificados, 8 Yamaha, 2 Camilo Silva, 1 Avalon 737.'},
-        salaC:{nombre:'Estudio C',tarifa:160000,specs:'Control C + Live Room independiente en otro piso\nEspacio acústico controlado para tomas independientes y procesamiento de señales directas.\nPreamps: 2 Camilo Silva, 1 Manley Core, 16 Yamaha.'},
-        specsVisibles:true },
-      { id:'externo', nombre:'Estudio Externo (Variable)',
-        salaA:{nombre:'Estudio 1',tarifa:0,specs:''}, salaB:{nombre:'Estudio 2',tarifa:0,specs:''}, salaC:{nombre:'Estudio 3',tarifa:0,specs:''},
-        specsVisibles:false },
-      { id:'home_studio', nombre:'Home Studio / Línea Directa',
-        salaA:{nombre:'Estudio en Casa 1',tarifa:0,specs:''}, salaB:{nombre:'Estudio en Casa 2',tarifa:0,specs:''}, salaC:{nombre:'Estudio en Casa 3',tarifa:0,specs:''},
-        specsVisibles:false }
-    ];
-    const batch = db.batch();
-    semilla.forEach(e => {
-      const ref = db.collection('estudios').doc(e.id);
-      batch.set(ref, { nombre:e.nombre, salaA:e.salaA, salaB:e.salaB, salaC:e.salaC, specsVisibles:e.specsVisibles, activo:true, creadoEn:new Date().toISOString() });
-    });
-    await batch.commit();
-  } catch(err){
-    console.error('Error sembrando estudios semilla:', err);
-  }
-}
-
-async function cargarListaEstudios(){
-  const cont = document.getElementById('estudiosLista');
-  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
-  try{
-    const snap = await db.collection('estudios').orderBy('nombre').get();
-    if(snap.empty){
-      cont.innerHTML = '<div class="empty" style="padding:16px;">Sin estudios registrados.</div>';
-      return;
-    }
-    cont.innerHTML = snap.docs.map(d => {
-      const e = d.data();
-      const inactivo = e.activo === false;
-      return `
-      <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--brd);border-radius:8px;padding:10px 14px;background:var(--surf-light);${inactivo ? 'opacity:0.5;' : ''}">
-        <div>
-          <div style="font-size:0.88rem;font-weight:500;">${escapeHtml(e.nombre || d.id)}${inactivo ? ' <span style="color:var(--muted);font-size:0.72rem;">(inactivo)</span>' : ''}</div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">
-            ${escapeHtml(e.salaA?.nombre||'')}: $${Number(e.salaA?.tarifa||0).toLocaleString('es-CO')} ·
-            ${escapeHtml(e.salaB?.nombre||'')}: $${Number(e.salaB?.tarifa||0).toLocaleString('es-CO')} ·
-            ${escapeHtml(e.salaC?.nombre||'')}: $${Number(e.salaC?.tarifa||0).toLocaleString('es-CO')}
-          </div>
-        </div>
-        <div style="display:flex;gap:10px;flex-shrink:0;">
-          <span style="cursor:pointer;font-size:0.9rem;" onclick="window._estEditar('${d.id}')" title="Editar">✎</span>
-          <span style="color:var(--err);cursor:pointer;font-size:0.9rem;" onclick="window._estToggleActivo('${d.id}', ${inactivo})" title="${inactivo ? 'Reactivar' : 'Desactivar'}">${inactivo ? '↺' : '✕'}</span>
-        </div>
-      </div>`;
-    }).join('');
-  } catch(err){
-    console.error(err);
-    cont.innerHTML = '<div class="empty" style="padding:16px;">No pudimos cargar la lista.</div>';
-  }
-}
-
-async function guardarEstudio(){
-  const errEl = document.getElementById('estudioErr');
-  errEl.textContent = '';
-  const nombre = document.getElementById('estudioNombre').value.trim();
-  if(!nombre){
-    errEl.textContent = 'Ingresa el nombre del estudio.';
-    return;
-  }
-  const data = {
-    nombre,
-    salaA:{ nombre: document.getElementById('estudioSalaANombre').value.trim() || 'Sala A', tarifa: Number(document.getElementById('estudioSalaATarifa').value) || 0, specs: document.getElementById('estudioSalaASpecs').value.trim() },
-    salaB:{ nombre: document.getElementById('estudioSalaBNombre').value.trim() || 'Sala B', tarifa: Number(document.getElementById('estudioSalaBTarifa').value) || 0, specs: document.getElementById('estudioSalaBSpecs').value.trim() },
-    salaC:{ nombre: document.getElementById('estudioSalaCNombre').value.trim() || 'Sala C', tarifa: Number(document.getElementById('estudioSalaCTarifa').value) || 0, specs: document.getElementById('estudioSalaCSpecs').value.trim() },
-    specsVisibles: document.getElementById('estudioSpecsVisibles').checked,
-    activo: true
-  };
-  const editId = document.getElementById('estudioEditId').value;
-  try{
-    if(editId){
-      await db.collection('estudios').doc(editId).update(data);
-    } else {
-      data.creadoEn = new Date().toISOString();
-      await db.collection('estudios').add(data);
-    }
-    cancelarEdicionEstudio();
-    cargarListaEstudios();
-  } catch(err){
-    console.error(err);
-    errEl.textContent = 'No pudimos guardar el estudio. Intenta de nuevo.';
-  }
-}
-
-window._estEditar = async function(id){
-  try{
-    const doc = await db.collection('estudios').doc(id).get();
-    if(!doc.exists) return;
-    const e = doc.data();
-    document.getElementById('estudioEditId').value = id;
-    document.getElementById('estudioNombre').value = e.nombre || '';
-    document.getElementById('estudioSalaANombre').value = e.salaA?.nombre || '';
-    document.getElementById('estudioSalaATarifa').value = e.salaA?.tarifa || '';
-    document.getElementById('estudioSalaASpecs').value = e.salaA?.specs || '';
-    document.getElementById('estudioSalaBNombre').value = e.salaB?.nombre || '';
-    document.getElementById('estudioSalaBTarifa').value = e.salaB?.tarifa || '';
-    document.getElementById('estudioSalaBSpecs').value = e.salaB?.specs || '';
-    document.getElementById('estudioSalaCNombre').value = e.salaC?.nombre || '';
-    document.getElementById('estudioSalaCTarifa').value = e.salaC?.tarifa || '';
-    document.getElementById('estudioSalaCSpecs').value = e.salaC?.specs || '';
-    document.getElementById('estudioSpecsVisibles').checked = !!e.specsVisibles;
-    document.getElementById('btnEstudioCancelar').style.display = 'inline-block';
-    document.getElementById('modalEstudiosBg').querySelector('.modal').scrollTop = 0;
-  } catch(err){
-    console.error(err);
-  }
-};
-
-window._estToggleActivo = async function(id, activar){
-  const confirmTxt = activar ? '¿Reactivar este estudio?' : '¿Desactivar este estudio? Dejará de aparecer en el Cotizador, pero no se borra.';
-  if(!confirm(confirmTxt)) return;
-  try{
-    await db.collection('estudios').doc(id).update({ activo: activar });
-    cargarListaEstudios();
-  } catch(err){
-    console.error(err);
-    alert('No pudimos actualizar el estudio.');
-  }
-};
-
-// ============ MÚSICOS (v4.5 · documentos v4.6) ============
-// Catálogo maestro de músicos/sesionistas, mismo patrón CRUD que Estudios
-// (activo:false en vez de borrar). Sin semilla: arranca vacío.
-// v4.6: cada músico puede tener documentos adjuntos (documentos: [{url,
-// nombre, subidoEn}]), subidos a una carpeta propia en Cloudinary.
-async function abrirModalMusicos(){
-  document.getElementById('musicoErr').textContent = '';
-  cancelarEdicionMusico();
-  cargarListaMusicos();
-  document.getElementById('modalMusicosBg').classList.add('active');
-}
-
-function cerrarModalMusicos(){
-  document.getElementById('modalMusicosBg').classList.remove('active');
-}
-
-function cancelarEdicionMusico(){
-  document.getElementById('musicoEditId').value = '';
-  document.getElementById('musicoNombre').value = '';
-  document.getElementById('musicoCedula').value = '';
-  document.getElementById('musicoInstrumento').value = '';
-  document.getElementById('musicoCorreo').value = '';
-  document.getElementById('musicoTelefono').value = '';
-  document.getElementById('btnMusicoCancelar').style.display = 'none';
-  document.getElementById('musicoErr').textContent = '';
-}
-
-async function cargarListaMusicos(){
-  const cont = document.getElementById('musicosLista');
-  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
-  try{
-    const snap = await db.collection('musicos').orderBy('nombre').get();
-    if(snap.empty){
-      cont.innerHTML = '<div class="empty" style="padding:16px;">Sin músicos registrados.</div>';
-      return;
-    }
-    cont.innerHTML = snap.docs.map(d => {
-      const m = d.data();
-      const inactivo = m.activo === false;
-      const documentos = Array.isArray(m.documentos) ? m.documentos : [];
-      const docsHtml = documentos.map((doc, i) => {
-        const extDoc = ((doc.nombre||'').split('.').pop() || '').toLowerCase();
-        const esImg = ['jpg','jpeg','png','webp','gif'].includes(extDoc);
-        const esAudio = ['mp3','wav','m4a','ogg','aac'].includes(extDoc);
-        const iconoDoc = esAudio ? '🎵' : (extDoc === 'pdf' ? '📕' : '📄');
-        const miniHtml = esImg && doc.url
-          ? `<img src="${doc.url.replace('/upload/', '/upload/w_28,h_28,c_fill,q_auto,f_auto/')}" alt="" style="width:20px;height:20px;object-fit:cover;border-radius:4px;flex-shrink:0;">`
-          : `<span style="flex-shrink:0;">${iconoDoc}</span>`;
-        return `
-          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.76rem;padding:4px 0;">
-            <span style="cursor:pointer;color:var(--acc,#4a9eff);display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80%;" onclick="abrirLightboxProduccion('${escJsHtml(doc.url)}', '${escJsHtml(doc.nombre)}')" title="Ver documento">${miniHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(doc.nombre || 'Documento')}</span></span>
-            <span style="color:var(--err);cursor:pointer;flex-shrink:0;margin-left:8px;" onclick="window._musEliminarDoc('${d.id}', ${i})" title="Quitar de la lista (no borra el archivo de Cloudinary)">✕</span>
-          </div>`;
-      }).join('');
-      return `
-      <div style="border:1px solid var(--brd);border-radius:8px;padding:10px 14px;background:var(--surf-light);${inactivo ? 'opacity:0.5;' : ''}">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:0.88rem;font-weight:500;">${escapeHtml(m.nombre || d.id)}${inactivo ? ' <span style="color:var(--muted);font-size:0.72rem;">(inactivo)</span>' : ''}</div>
-            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">
-              ${escapeHtml(m.instrumento||'')} · CC ${escapeHtml(m.cedula||'')} ${m.telefono ? ' · '+escapeHtml(m.telefono) : ''}
-            </div>
-          </div>
-          <div style="display:flex;gap:10px;flex-shrink:0;">
-            <span style="cursor:pointer;font-size:0.9rem;" onclick="window._musEditar('${d.id}')" title="Editar">✎</span>
-            <span style="color:var(--err);cursor:pointer;font-size:0.9rem;" onclick="window._musToggleActivo('${d.id}', ${inactivo})" title="${inactivo ? 'Reactivar' : 'Desactivar'}">${inactivo ? '↺' : '✕'}</span>
-          </div>
-        </div>
-        <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--brd);">
-          ${docsHtml || '<div style="font-size:0.72rem;color:var(--muted);">Sin documentos adjuntos.</div>'}
-          <label style="display:inline-block;margin-top:6px;font-size:0.76rem;color:var(--acc,#4a9eff);cursor:pointer;">
-            📎 Adjuntar documento
-            <input type="file" style="display:none;" onchange="window._musSubirDocumento('${d.id}', '${escJsHtml(m.nombre)}', this.files[0]); this.value='';">
-          </label>
-          <span id="musDocStatus-${d.id}" style="font-size:0.72rem;color:var(--muted);margin-left:8px;"></span>
-        </div>
-      </div>`;
-    }).join('');
-  } catch(err){
-    console.error(err);
-    cont.innerHTML = '<div class="empty" style="padding:16px;">No pudimos cargar la lista.</div>';
-  }
-}
-
-async function guardarMusico(){
-  const errEl = document.getElementById('musicoErr');
-  errEl.textContent = '';
-  const nombre = document.getElementById('musicoNombre').value.trim();
-  if(!nombre){
-    errEl.textContent = 'Ingresa el nombre del músico.';
-    return;
-  }
-  const data = {
-    nombre,
-    cedula: document.getElementById('musicoCedula').value.trim(),
-    instrumento: document.getElementById('musicoInstrumento').value.trim(),
-    correo: document.getElementById('musicoCorreo').value.trim(),
-    telefono: document.getElementById('musicoTelefono').value.trim(),
-    activo: true
-  };
-  const editId = document.getElementById('musicoEditId').value;
-  try{
-    if(editId){
-      await db.collection('musicos').doc(editId).update(data);
-    } else {
-      data.creadoEn = new Date().toISOString();
-      await db.collection('musicos').add(data);
-    }
-    cancelarEdicionMusico();
-    cargarListaMusicos();
-  } catch(err){
-    console.error(err);
-    errEl.textContent = 'No pudimos guardar el músico. Intenta de nuevo.';
-  }
-}
-
-window._musEditar = async function(id){
-  try{
-    const doc = await db.collection('musicos').doc(id).get();
-    if(!doc.exists) return;
-    const m = doc.data();
-    document.getElementById('musicoEditId').value = id;
-    document.getElementById('musicoNombre').value = m.nombre || '';
-    document.getElementById('musicoCedula').value = m.cedula || '';
-    document.getElementById('musicoInstrumento').value = m.instrumento || '';
-    document.getElementById('musicoCorreo').value = m.correo || '';
-    document.getElementById('musicoTelefono').value = m.telefono || '';
-    document.getElementById('btnMusicoCancelar').style.display = 'inline-block';
-    document.getElementById('modalMusicosBg').querySelector('.modal').scrollTop = 0;
-  } catch(err){
-    console.error(err);
-  }
-};
-
-window._musToggleActivo = async function(id, activar){
-  const confirmTxt = activar ? '¿Reactivar este músico?' : '¿Desactivar este músico? Dejará de aparecer disponible para nuevos contratos, pero no se borra.';
-  if(!confirm(confirmTxt)) return;
-  try{
-    await db.collection('musicos').doc(id).update({ activo: activar });
-    cargarListaMusicos();
-  } catch(err){
-    console.error(err);
-    alert('No pudimos actualizar el músico.');
-  }
-};
-
-// v4.6: sube el documento a una carpeta propia del músico en Cloudinary
-// (subirArchivoCloudinary sin tocar su lógica interna, solo usando el
-// 2º parámetro nuevo) y agrega el registro al array documentos con
-// arrayUnion. No reemplaza documentos anteriores, solo suma.
-window._musSubirDocumento = async function(id, nombreMusico, file){
-  if(!file) return;
-  const statusEl = document.getElementById('musDocStatus-' + id);
-  if(statusEl) statusEl.textContent = 'Subiendo...';
-  try{
-    // v4.8: prueba temporal sin carpeta — carpeta calculada pero no usada,
-    // se deja lista para revertir fácil cuando termine el diagnóstico.
-    const carpeta = slugMusico(nombreMusico, id);
-    const url = await subirArchivoCloudinary(file);
-    await db.collection('musicos').doc(id).update({
-      documentos: firebase.firestore.FieldValue.arrayUnion({
-        url,
-        nombre: file.name,
-        subidoEn: new Date().toISOString()
-      })
-    });
-    cargarListaMusicos();
-  } catch(err){
-    console.error(err);
-    if(statusEl) statusEl.textContent = 'Error al subir.';
-    alert('No pudimos subir el documento. Intenta de nuevo.');
-  }
-};
-
-// v4.6: quita el documento del array (arrayRemove necesita el objeto
-// EXACTO, por eso primero se relee el doc y se toma documentos[index]
-// tal cual está guardado). No borra el archivo de Cloudinary — mismo
-// criterio no-destructivo que _musToggleActivo.
-window._musEliminarDoc = async function(id, index){
-  if(!confirm('¿Quitar este documento de la lista? El archivo no se borra de Cloudinary, solo deja de aparecer aquí.')) return;
-  try{
-    const doc = await db.collection('musicos').doc(id).get();
-    if(!doc.exists) return;
-    const documentos = doc.data().documentos || [];
-    const target = documentos[index];
-    if(!target) return;
-    await db.collection('musicos').doc(id).update({
-      documentos: firebase.firestore.FieldValue.arrayRemove(target)
-    });
-    cargarListaMusicos();
-  } catch(err){
-    console.error(err);
-    alert('No pudimos quitar el documento.');
   }
 };
 

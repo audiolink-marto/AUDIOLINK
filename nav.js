@@ -1,4 +1,19 @@
-/* AUDIOLINK · nav.js · v1.0
+/* AUDIOLINK · nav.js · v1.2
+   V1.2: se agregan los ítems "Estudios" (estudios.html) y "Músicos"
+   (musicos.html) a ITEMS, entre Clientes y Logística — mismos catálogos
+   maestros que antes vivían como modales dentro de proyecto.html (ver
+   plan de migración acordado). Como ya son ítems reales de ITEMS[], se
+   retiraron de proyecto.html los accesos duplicados que tenía en su
+   sbFootExtra (abrirModalEstudios()/abrirModalMusicos()) — ahora entran
+   por acá, con href real, disponibles en TODO el ecosistema (antes solo
+   se podían abrir desde Proyectos). Se agregan también al filtro del
+   mobile-bottomnav (junto a cotizador y clientes) para que la barra
+   inferior mobile no crezca de 4 accesos — quedan disponibles ahí vía
+   sidebar desktop y panel "···" mobile. No se tocó ninguna otra función,
+   ítem existente ni la lógica de inyección/colapsar/tema.
+   V1.1: se agrega el ítem "Clientes" (clientes.html) a ITEMS, entre
+   Proyectos y Logística. No se tocó ninguna otra función, ítem existente
+   ni la lógica de inyección/colapsar/tema.
    Navegación compartida (sidebar desktop + mobile topbar + panel "···" +
    bottomnav) para todo el ecosistema. Antes este bloque de HTML/CSS/JS
    estaba copiado y pegado en cada página (index/cotizador/logistica/
@@ -35,10 +50,20 @@
   const ITEMS = [
     { id:'dashboard', href:'index.html',     icon:'🏠', label:'Dashboard'  },
     { id:'proyecto',  href:'proyecto.html',  icon:'📁', label:'Proyectos'  },
+    { id:'clientes',  href:'clientes.html',  icon:'👤', label:'Clientes'   },
+    { id:'estudios',  href:'estudios.html',  icon:'🏢', label:'Estudios'   },
+    { id:'musicos',   href:'musicos.html',   icon:'🎻', label:'Músicos'    },
     { id:'logistica', href:'logistica.html', icon:'🎚️', label:'Logística' },
     { id:'pagos',     href:'pagos.html',     icon:'💳', label:'Pagos'      },
     { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador'  }
   ];
+
+  // Ítems que se sacan del mobile-bottomnav (para no saturar la barra de 4
+  // accesos) pero que igual necesitan quedar accesibles en mobile: se
+  // listan aparte en el panel "···". Antes solo estaba 'clientes'
+  // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
+  // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
+  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
 
@@ -91,6 +116,9 @@
 </div>
 
 <div class="mas-mobile-panel" id="masMobilePanel">
+  ${ITEMS.filter(it => idsFueraBottomnav.includes(it.id) && it.id !== activo).map(it =>
+    `<a href="${it.href}" class="mas-mobile-item" style="text-decoration:none;"><i>${it.icon}</i>${it.label}</a>`
+  ).join('\n  ')}
   ${extraMasMobileHtml()}
   ${soportaTema ? '<div class="mas-mobile-item" onclick="toggleTema()"><i>🌙</i>Cambiar tema</div>' : ''}
   <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
@@ -98,7 +126,7 @@
 </div>
 
 <nav class="mobile-bottomnav">
-  ${ITEMS.filter(it => it.id !== 'cotizador').map(it =>
+  ${ITEMS.filter(it => it.id !== 'cotizador' && !idsFueraBottomnav.includes(it.id)).map(it =>
     `<a href="${it.href}"${it.id === activo ? ' class="active"' : ''}><i>${it.icon}</i>${it.label}</a>`
   ).join('\n  ')}
 </nav>`;

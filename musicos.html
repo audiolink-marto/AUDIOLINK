@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Músicos</title>
+<!-- AUDIOLINK · musicos.html · v1.1
+     V1.1: fix de arranque — mismo bug que estudios.html v1.1:
+     escapeHtml()/escJsHtml() habían quedado como texto suelto (sin
+     <script>) por un error de ensamblado, y de paso slugMusico() se
+     había reescrito a mano en vez de copiarse exacta del original. Se
+     corrige: escapeHtml/escJsHtml en su propio <script>, y slugMusico()
+     ahora es copia literal de proyecto.html (línea 1660 original). No se
+     tocó ninguna otra función ni la lógica de Músicos/Cloudinary (V1.0).
+     V1.0: extraído de proyecto.html v4.11 (modal "Músicos", V4.5-V4.9).
+     Mismo criterio que estudios.html: se copia el módulo tal cual (mismos
+     ids, misma colección Firestore 'musicos', mismo flujo de documentos
+     adjuntos vía Cloudinary), solo se adapta el contenedor (modal → página
+     fija). abrirModalMusicos()/cerrarModalMusicos() se reemplazan por
+     iniciarMusicos(), llamada una sola vez al cargar. IMPORTANTE (pedido
+     explícito): subirArchivoCloudinary(), _musSubirDocumento() y
+     slugMusico() se copiaron EXACTOS a como quedaron después del fix v4.8
+     — _musSubirDocumento sigue sin mandar el 2º parámetro (assetFolder) a
+     subirArchivoCloudinary(), que era la causa del bloqueo de subidas que
+     tuvimos. No se reintrodujo carpeta por músico. cargarListaMusicos(),
+     guardarMusico(), _musEditar(), _musToggleActivo(), _musEliminarDoc()
+     y el lightbox de documentos (abrirLightboxProduccion/
+     cerrarLightboxProduccion, mismo que usaba Producción) quedan intactos.
+     proyecto.html mantiene su propia copia hasta confirmar que esta
+     migración funciona. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<!-- v4.1: comentado — requiere plan Blaze, no activado. Ver nota arriba.
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+-->
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+// Anti-flash: aplica tema guardado ANTES de pintar el body
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;
+  opacity:0.5;
+}
+.waveform-bg svg{
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:100%;
+  height:220px;
+}
+.waveform-bg path{
+  fill:none;
+  stroke:var(--gold);
+  stroke-width:1.2;
+  opacity:0.14;
+}
+.waveform-bg path.w2{opacity:0.09;}
+.waveform-bg path.w3{opacity:0.06;}
+@keyframes wave-drift{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
+.waveform-bg svg{
+  width:200%;
+  animation:wave-drift 22s linear infinite;
+}
+.waveform-bg svg.w-slow{animation-duration:34s;}
+header, main{position:relative;z-index:1;}
+header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--brd);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--surf);
+  flex-wrap:wrap;
+  gap:12px;
+}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
+.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+.brand{display:flex;align-items:center;gap:14px;}
+nav.links{display:flex;gap:8px;margin-left:20px;}
+nav.links a{
+  color:var(--muted);font-size:0.82rem;text-decoration:none;
+  padding:6px 12px;border-radius:6px;transition:all 0.2s;
+}
+nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg);}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+.btn{
+  background:var(--gold-bg);
+  border:1px solid var(--gold);
+  color:var(--gold);
+  padding:9px 18px;
+  border-radius:6px;
+  font-size:0.85rem;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+/* ===== NAV V2.7: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
+:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
+  background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;z-index:90;overflow:hidden;
+  transition:width 0.18s ease;
+}
+.sidebar.collapsed{width:var(--sb-c);}
+.sb-brand{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
+}
+.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
+.sidebar.collapsed .sb-brand h1{opacity:0;}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-item{
+  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
+  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
+  transition:background 0.15s,color 0.15s;
+}
+.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
+.sb-item:hover{background:var(--surf-light);color:var(--txt);}
+.sb-item.active{background:var(--gold-bg);color:var(--gold);}
+.sidebar.collapsed .sb-item span{display:none;}
+.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.sb-toggle{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
+  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
+}
+.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
+.sb-toggle i{transition:transform 0.2s;display:inline-block;}
+.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
+.sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
+.sidebar.collapsed .sb-credit{opacity:0;}
+.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
+.main-wrap.expanded{margin-left:var(--sb-c);}
+
+.mobile-topbar{display:none;}
+.mobile-bottomnav{display:none;}
+.mas-mobile-panel{display:none;}
+
+@media (max-width:768px){
+  .sidebar{display:none;}
+  .main-wrap{margin-left:0;}
+  header{display:none;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
+    position:relative;z-index:1;
+  }
+  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
+  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  main{padding-bottom:78px !important;}
+  .mobile-bottomnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
+    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
+  }
+  .mobile-bottomnav a{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
+  }
+  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
+  .mobile-bottomnav a.active{color:var(--gold);}
+  .mas-mobile-panel{
+    display:none;position:fixed;top:60px;right:14px;z-index:81;
+    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
+  }
+  .mas-mobile-panel.show{display:block;}
+  .mas-mobile-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
+  }
+  .mas-mobile-item:hover{background:var(--surf-light);}
+  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
+}
+
+main{padding:28px;max-width:1200px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.card{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:10px;
+  padding:20px;
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.card-top-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.btn-ir-sesiones{
+  background:transparent;border:1px solid var(--brd);color:var(--muted);
+  width:28px;height:28px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  text-decoration:none;
+}
+.btn-ir-sesiones:hover{border-color:var(--gold);color:var(--gold);}
+.card h3{font-size:1.05rem;font-weight:600;}
+.badge{
+  font-size:0.7rem;
+  padding:3px 10px;
+  border-radius:20px;
+  font-weight:600;
+  letter-spacing:0.03em;
+  text-transform:uppercase;
+}
+.badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.badge.prod{background:rgba(90,140,220,0.15);color:#6ea3e8;}
+.card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;}
+.card .meta-saldo{font-size:0.82rem;color:var(--warn);font-weight:600;margin-bottom:4px;}
+.card .etapa{
+  display:inline-block;
+  margin-top:10px;
+  font-size:0.75rem;
+  color:var(--gold);
+  border:1px solid var(--brd);
+  padding:3px 10px;
+  border-radius:6px;
+  background:var(--surf-light);
+}
+.tipo-tag{font-size:0.68rem;color:var(--faint);text-transform:uppercase;letter-spacing:0.06em;}
+
+/* Modal */
+.modal-bg{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.7);
+  z-index:100;
+  align-items:flex-start;
+  justify-content:center;
+  overflow-y:auto;
+  padding:40px 20px;
+}
+.modal-bg.active{display:flex;}
+.modal{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:12px;
+  max-width:640px;
+  width:100%;
+  padding:28px;
+}
+.modal h2{color:var(--gold);font-size:1.1rem;margin-bottom:20px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field select,.field textarea{
+  width:100%;
+  background:var(--surf-light);
+  border:1px solid var(--brd);
+  color:var(--txt);
+  padding:10px 12px;
+  border-radius:6px;
+  font-size:0.9rem;
+  font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--gold-bg);
+}
+.field textarea{resize:vertical;min-height:70px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.equipo-row{display:flex;gap:8px;margin-bottom:8px;}
+.equipo-row input{flex:1;}
+.equipo-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 12px;cursor:pointer;
+}
+.item-row{display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;margin-bottom:8px;align-items:center;}
+.item-row input{width:100%;}
+.instr-grupo{border:1px solid var(--brd);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.instr-grupo-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer;background:var(--surf-light);}
+.instr-grupo-header span{font-size:0.88rem;color:var(--muted);}
+.instr-grupo-body{padding:10px 12px;display:none;}
+.instr-grupo.abierto .instr-grupo-body{display:block;}
+.instr-pieza-row{display:grid;grid-template-columns:1fr 64px 30px;gap:8px;margin-bottom:6px;align-items:center;}
+.instr-pieza-row input[type="number"]{width:64px;padding:8px 6px;}
+.instr-pieza-row button,.instr-footer-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 8px;cursor:pointer;height:34px;
+}
+.instr-unidad-row{margin:2px 0 8px 14px;padding-left:10px;border-left:2px solid var(--brd);}
+.instr-unidad-row input{font-size:0.82rem;margin-bottom:4px;}
+.instr-footer-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.instr-footer-row select{flex:1;min-width:140px;}
+.instr-footer-row .link-add{align-self:center;}
+@media (max-width:600px){
+  .instr-pieza-row{grid-template-columns:1fr;}
+  .instr-pieza-row input[type="number"]{width:100%;}
+}
+.item-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 8px;cursor:pointer;height:38px;
+}
+.cotiz-total{
+  display:flex;justify-content:flex-end;align-items:center;gap:10px;
+  margin-top:10px;padding-top:12px;border-top:1px solid var(--brd);
+  font-size:1rem;font-weight:600;color:var(--gold);
+}
+.cotiz-item-lista{
+  border:1px solid var(--brd);border-radius:8px;padding:12px 14px;
+  margin-bottom:8px;background:var(--surf-light);cursor:pointer;
+}
+.cotiz-item-lista:hover{border-color:var(--gold);}
+.cotiz-item-lista .top{display:flex;justify-content:space-between;align-items:center;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.link-add{color:var(--gold);font-size:0.8rem;cursor:pointer;display:inline-block;margin-top:4px;}
+.field input[type="file"]{padding:8px 10px;font-size:0.82rem;color:var(--muted);}
+.upload-status{font-size:0.76rem;color:var(--muted);margin-top:6px;min-height:16px;}
+.upload-status.err{color:var(--err);}
+.upload-status.ok{color:var(--ok);}
+
+/* Lightbox producción (v3.9) — mismo patrón visual que pagos.html */
+.lightbox-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);
+  z-index:200;align-items:center;justify-content:center;padding:30px;
+}
+.lightbox-bg.active{display:flex;}
+.lightbox-content{position:relative;max-width:90vw;max-height:90vh;display:flex;align-items:center;gap:14px;}
+.lightbox-content img{max-width:80vw;max-height:85vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
+.lightbox-content iframe{width:80vw;height:85vh;border:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
+.lightbox-content audio{width:70vw;max-width:480px;}
+.lightbox-content .lightbox-otro{
+  background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:30px 40px;
+  text-align:center;color:var(--muted);
+}
+.lightbox-content .lightbox-otro a{color:var(--gold);font-weight:600;text-decoration:none;}
+.lightbox-close{
+  position:absolute;top:-38px;right:0;background:transparent;border:none;color:var(--txt);
+  font-size:1.6rem;cursor:pointer;line-height:1;
+}
+.produccion-item-lista{background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+.produccion-item-lista .top{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+
+/* Detalle */
+.detalle{display:none;}
+.detalle.active{display:block;}
+.detalle-head{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:24px;margin-bottom:20px;
+}
+.detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
+.resumen-financiero{display:flex;gap:24px;flex-wrap:wrap;background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:14px 18px;margin-bottom:16px;}
+.resumen-financiero .monto-item{font-size:0.85rem;}
+.resumen-financiero .monto-item .lbl{color:var(--muted);display:block;font-size:0.72rem;}
+.resumen-financiero .monto-item .val{font-weight:600;font-size:1rem;}
+.resumen-financiero .monto-item.saldo .val{color:var(--warn);}
+.resumen-financiero .monto-item.saldo.pagado .val{color:var(--ok);}
+.dash-etapa-bar{display:flex;gap:3px;margin:6px 0 14px;}
+.dash-etapa-bar span{flex:1;height:6px;border-radius:3px;background:var(--brd);}
+.dash-etapa-bar span.hecha{background:var(--ok);}
+.dash-etapa-bar span.actual{background:var(--gold);}
+/* Ruta de etapas (v4.4) — traída tal cual de portal.html (mismas clases:
+   .etapa-ruta, .etapa-nodo-row, .etapa-nodo-col, .etapa-linea,
+   .etapa-nodo-txt) para unificar el dashboard con el portal de clientes. */
+.etapa-ruta{margin-top:14px;}
+.etapa-nodo-row{display:flex;gap:12px;}
+.etapa-nodo-col{display:flex;flex-direction:column;align-items:center;}
+.etapa-nodo{width:18px;height:18px;min-width:18px;border-radius:50%;border:2px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;background:var(--surf);}
+.etapa-nodo.hecha{border-color:var(--ok);background:var(--ok);color:var(--bg);}
+.etapa-nodo.actual{border-color:var(--gold);background:var(--gold-bg);box-shadow:0 0 0 3px var(--gold-bg);position:relative;}
+.etapa-nodo.actual::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--gold);
+  animation:etapaPulso 2.2s ease-out infinite;
+}
+@keyframes etapaPulso{
+  0%{transform:scale(0.85);opacity:0.9;}
+  100%{transform:scale(1.9);opacity:0;}
+}
+.etapa-nodo.pendiente{opacity:0.55;}
+.etapa-linea{width:2px;flex:1;min-height:22px;background:var(--brd);margin:2px 0;}
+.etapa-linea.hecha{background:var(--ok);}
+.etapa-nodo-txt{padding-bottom:18px;}
+.etapa-nodo-txt span{display:block;font-size:0.85rem;font-weight:600;color:var(--txt);}
+.etapa-nodo-txt span.pendiente{color:var(--faint);font-weight:500;}
+.etapa-nodo-txt span.actual{color:var(--gold);}
+.etapa-nodo-txt span.hecha{color:var(--ok);}
+.etapa-nodo-txt small{display:block;margin-top:2px;font-size:0.72rem;color:var(--muted);}
+.etapa-nodo-txt small.etapa-actual-tag{color:var(--gold);}
+@media (min-width:640px){
+  .etapa-ruta{display:flex;align-items:flex-start;}
+  .etapa-nodo-row{flex:1;flex-direction:column;gap:6px;}
+  .etapa-nodo-col{flex-direction:row;width:100%;align-items:center;}
+  .etapa-linea{width:auto;flex:1;height:2px;min-height:0;margin:0 4px;}
+  .etapa-nodo-txt{padding-bottom:0;text-align:center;}
+}
+.dash-financiera-bar{height:8px;border-radius:4px;background:var(--brd);overflow:hidden;margin:6px 0 14px;}
+.dash-financiera-bar div{height:100%;background:#6ea3e8;}
+.dash-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.dash-card{background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:12px 14px;}
+.dash-card .lbl{font-size:0.72rem;color:var(--muted);display:block;margin-bottom:4px;}
+.dash-card .val{font-size:1.3rem;font-weight:600;}
+@media (max-width:600px){.dash-cards{grid-template-columns:1fr 1fr;}}
+.dash-calendario{background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:14px 18px;margin-bottom:16px;position:relative;}
+.dash-cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:0.85rem;}
+.dash-cal-head button{background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:6px;cursor:pointer;padding:2px 8px;}
+.dash-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:0.74rem;}
+.dash-cal-grid .dow{color:var(--muted);padding-bottom:4px;}
+.dash-cal-day{position:relative;padding:6px 0;border-radius:6px;cursor:default;}
+.dash-cal-day.con-evento{cursor:pointer;}
+.dash-cal-day.con-evento:hover{background:var(--surf-light);}
+.dash-cal-dots{display:flex;gap:2px;justify-content:center;margin-top:2px;}
+.dash-cal-dots span{width:5px;height:5px;border-radius:50%;}
+.dot-pasada{background:var(--ok);}
+.dot-proxima{background:#6ea3e8;}
+.dot-entrega{background:var(--warn);}
+.dash-cal-tooltip{
+  position:absolute;z-index:20;background:var(--surf);border:1px solid var(--brd);border-radius:8px;
+  padding:10px 12px;font-size:0.78rem;min-width:180px;box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.dash-cal-tooltip a{color:var(--gold);}
+.dash-proxima-sesion{font-size:0.85rem;color:var(--muted);margin-bottom:16px;}
+.detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
+.chip{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;
+  padding:6px 12px;font-size:0.8rem;color:var(--muted);
+}
+.narrativa-box{
+  background:var(--surf-light);border-left:2px solid var(--gold);
+  padding:14px 16px;margin-top:16px;font-size:0.88rem;color:var(--txt);
+  border-radius:0 6px 6px 0;line-height:1.5;
+}
+.equipo-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.equipo-chip{
+  background:var(--gold-bg);border:1px solid var(--gold);border-radius:20px;
+  padding:5px 14px;font-size:0.78rem;color:var(--gold);
+}
+.pdf-actions{display:flex;gap:10px;margin-top:20px;}
+
+/* V4.10: bloque reubicado aquí (antes vivía arriba, antes de .row2/.pdf-actions/
+   .modal, por lo que esas reglas base lo anulaban al aparecer después en la
+   hoja de estilos — empate de especificidad resuelto por orden de aparición).
+   Mismo contenido exacto, solo cambia la posición. */
+@media (max-width:640px){
+  header{display:none;}
+  .row2{grid-template-columns:1fr;}
+  .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .pdf-actions .btn{width:100%;}
+  .modal{padding:20px;}
+}
+.back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
+.back-link:hover{color:var(--gold);}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+</style>
+
+</head>
+<body>
+
+<div class="bg-waves">
+  <svg viewBox="0 0 1400 300" preserveAspectRatio="none">
+    <path class="w1" d="M0,150 Q25,100 50,150 T100,150 T150,150 T200,150 T250,150 T300,150 T350,150 T400,150 T450,150 T500,150 T550,150 T600,150 T650,150 T700,150 T750,150 T800,150 T850,150 T900,150 T950,150 T1000,150 T1050,150 T1100,150 T1150,150 T1200,150 T1250,150 T1300,150 T1350,150 T1400,150"/>
+    <path class="w2" d="M0,150 Q25,120 50,150 T100,150 T150,150 T200,150 T250,150 T300,150 T350,150 T400,150 T450,150 T500,150 T550,150 T600,150 T650,150 T700,150 T750,150 T800,150 T850,150 T900,150 T950,150 T1000,150 T1050,150 T1100,150 T1150,150 T1200,150 T1250,150 T1300,150 T1350,150 T1400,150"/>
+    <path class="w3" d="M0,180 Q25,140 50,180 T100,180 T150,180 T200,180 T250,180 T300,180 T350,180 T400,180 T450,180 T500,180 T550,180 T600,180 T650,180 T700,180 T750,180 T800,180 T850,180 T900,180 T950,180 T1000,180 T1050,180 T1100,180 T1150,180 T1200,180 T1250,180 T1300,180 T1350,180 T1400,180"/>
+  </svg>
+</div>
+
+<script>
+window.NAV_CONFIG = {
+  activo: 'musicos',
+  sbFootExtra: [],
+  masMobileExtra: []
+};
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+  <div class="header-actions" style="padding:20px 24px 0;">
+    <h2 style="font-family:var(--T);font-size:1.4rem;">🎻 Músicos</h2>
+  </div>
+  <div style="padding:20px 24px 60px;">
+<div class="modal" style="max-width:560px;margin:0 auto;">
+    <h2>🎻 Músicos</h2>
+    <p style="font-size:0.82rem;color:var(--muted);margin:-8px 0 16px;">
+      Catálogo reutilizable de músicos/sesionistas. Sirve para precargar sus datos en contratos de sesión y en producción musical.
+    </p>
+    <input type="hidden" id="musicoEditId">
+    <div class="field">
+      <label>Nombre completo</label>
+      <input type="text" id="musicoNombre" placeholder="Ej. Alejandro Londoño">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Cédula</label>
+        <input type="text" id="musicoCedula" placeholder="Ej. 1234567890">
+      </div>
+      <div class="field">
+        <label>Instrumento principal</label>
+        <input type="text" id="musicoInstrumento" placeholder="Ej. Piano / Percusión / Voz">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Correo</label>
+        <input type="email" id="musicoCorreo" placeholder="correo@ejemplo.com">
+      </div>
+      <div class="field">
+        <label>Teléfono</label>
+        <input type="text" id="musicoTelefono" placeholder="Ej. 3001234567">
+      </div>
+    </div>
+    <div id="musicoErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
+    <div class="row2" style="margin-top:6px;">
+      <button class="btn btn-ghost" id="btnMusicoCancelar" style="display:none;" onclick="cancelarEdicionMusico()">Cancelar edición</button>
+      <button class="btn" onclick="guardarMusico()">💾 Guardar músico</button>
+    </div>
+    <div id="musicosLista" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;"></div>
+  </div>
+
+  </div>
+</div>
+
+<!-- LIGHTBOX ARCHIVO PRODUCCIÓN (v3.9) -->
+<div class="lightbox-bg" id="lightboxProdBg" onclick="if(event.target===this) cerrarLightboxProduccion()">
+  <div class="lightbox-content">
+    <button class="lightbox-close" onclick="cerrarLightboxProduccion()">✕</button>
+    <div id="lightboxProdBody"></div>
+  </div>
+</div>
+
+
+<script>
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+// v4.9: escapa un string para insertarlo de forma segura dentro de un
+// string de JS (comillas simples) que a su vez vive dentro de un atributo
+// HTML (comillas dobles). Sin esto, un texto con " rompe el atributo.
+function escJsHtml(str){
+  return String(str || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;');
+}
+
+</script>
+
+<script>
+// ============ FIREBASE CONFIG ============
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ============ GUARD DE SESIÓN ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    window.location.href = 'login.html';
+    return;
+  }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+    iniciarMusicos();
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+// v4.6: carpeta dinámica por músico en Cloudinary (Dynamic Folder Mode).
+// nombre-slug + parte del id del doc, para que sea legible en el Media
+// Library de Cloudinary y nunca choque entre dos músicos de nombre parecido.
+function slugMusico(nombre, id){
+  const slug = (nombre || 'musico')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `musicos/${slug || 'musico'}_${(id || '').slice(0, 6)}`;
+}
+
+// ============ MÚSICOS (v4.5 · documentos v4.6) ============
+// Catálogo maestro de músicos/sesionistas, mismo patrón CRUD que Estudios
+// (activo:false en vez de borrar). Sin semilla: arranca vacío.
+// v4.6: cada músico puede tener documentos adjuntos (documentos: [{url,
+// nombre, subidoEn}]), subidos a una carpeta propia en Cloudinary.
+function iniciarMusicos(){
+  document.getElementById('musicoErr').textContent = '';
+  cancelarEdicionMusico();
+  cargarListaMusicos();
+}
+
+function cancelarEdicionMusico(){
+  document.getElementById('musicoEditId').value = '';
+  document.getElementById('musicoNombre').value = '';
+  document.getElementById('musicoCedula').value = '';
+  document.getElementById('musicoInstrumento').value = '';
+  document.getElementById('musicoCorreo').value = '';
+  document.getElementById('musicoTelefono').value = '';
+  document.getElementById('btnMusicoCancelar').style.display = 'none';
+  document.getElementById('musicoErr').textContent = '';
+}
+
+async function cargarListaMusicos(){
+  const cont = document.getElementById('musicosLista');
+  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  try{
+    const snap = await db.collection('musicos').orderBy('nombre').get();
+    if(snap.empty){
+      cont.innerHTML = '<div class="empty" style="padding:16px;">Sin músicos registrados.</div>';
+      return;
+    }
+    cont.innerHTML = snap.docs.map(d => {
+      const m = d.data();
+      const inactivo = m.activo === false;
+      const documentos = Array.isArray(m.documentos) ? m.documentos : [];
+      const docsHtml = documentos.map((doc, i) => {
+        const extDoc = ((doc.nombre||'').split('.').pop() || '').toLowerCase();
+        const esImg = ['jpg','jpeg','png','webp','gif'].includes(extDoc);
+        const esAudio = ['mp3','wav','m4a','ogg','aac'].includes(extDoc);
+        const iconoDoc = esAudio ? '🎵' : (extDoc === 'pdf' ? '📕' : '📄');
+        const miniHtml = esImg && doc.url
+          ? `<img src="${doc.url.replace('/upload/', '/upload/w_28,h_28,c_fill,q_auto,f_auto/')}" alt="" style="width:20px;height:20px;object-fit:cover;border-radius:4px;flex-shrink:0;">`
+          : `<span style="flex-shrink:0;">${iconoDoc}</span>`;
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.76rem;padding:4px 0;">
+            <span style="cursor:pointer;color:var(--acc,#4a9eff);display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80%;" onclick="abrirLightboxProduccion('${escJsHtml(doc.url)}', '${escJsHtml(doc.nombre)}')" title="Ver documento">${miniHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(doc.nombre || 'Documento')}</span></span>
+            <span style="color:var(--err);cursor:pointer;flex-shrink:0;margin-left:8px;" onclick="window._musEliminarDoc('${d.id}', ${i})" title="Quitar de la lista (no borra el archivo de Cloudinary)">✕</span>
+          </div>`;
+      }).join('');
+      return `
+      <div style="border:1px solid var(--brd);border-radius:8px;padding:10px 14px;background:var(--surf-light);${inactivo ? 'opacity:0.5;' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:0.88rem;font-weight:500;">${escapeHtml(m.nombre || d.id)}${inactivo ? ' <span style="color:var(--muted);font-size:0.72rem;">(inactivo)</span>' : ''}</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">
+              ${escapeHtml(m.instrumento||'')} · CC ${escapeHtml(m.cedula||'')} ${m.telefono ? ' · '+escapeHtml(m.telefono) : ''}
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-shrink:0;">
+            <span style="cursor:pointer;font-size:0.9rem;" onclick="window._musEditar('${d.id}')" title="Editar">✎</span>
+            <span style="color:var(--err);cursor:pointer;font-size:0.9rem;" onclick="window._musToggleActivo('${d.id}', ${inactivo})" title="${inactivo ? 'Reactivar' : 'Desactivar'}">${inactivo ? '↺' : '✕'}</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--brd);">
+          ${docsHtml || '<div style="font-size:0.72rem;color:var(--muted);">Sin documentos adjuntos.</div>'}
+          <label style="display:inline-block;margin-top:6px;font-size:0.76rem;color:var(--acc,#4a9eff);cursor:pointer;">
+            📎 Adjuntar documento
+            <input type="file" style="display:none;" onchange="window._musSubirDocumento('${d.id}', '${escJsHtml(m.nombre)}', this.files[0]); this.value='';">
+          </label>
+          <span id="musDocStatus-${d.id}" style="font-size:0.72rem;color:var(--muted);margin-left:8px;"></span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:16px;">No pudimos cargar la lista.</div>';
+  }
+}
+
+async function guardarMusico(){
+  const errEl = document.getElementById('musicoErr');
+  errEl.textContent = '';
+  const nombre = document.getElementById('musicoNombre').value.trim();
+  if(!nombre){
+    errEl.textContent = 'Ingresa el nombre del músico.';
+    return;
+  }
+  const data = {
+    nombre,
+    cedula: document.getElementById('musicoCedula').value.trim(),
+    instrumento: document.getElementById('musicoInstrumento').value.trim(),
+    correo: document.getElementById('musicoCorreo').value.trim(),
+    telefono: document.getElementById('musicoTelefono').value.trim(),
+    activo: true
+  };
+  const editId = document.getElementById('musicoEditId').value;
+  try{
+    if(editId){
+      await db.collection('musicos').doc(editId).update(data);
+    } else {
+      data.creadoEn = new Date().toISOString();
+      await db.collection('musicos').add(data);
+    }
+    cancelarEdicionMusico();
+    cargarListaMusicos();
+  } catch(err){
+    console.error(err);
+    errEl.textContent = 'No pudimos guardar el músico. Intenta de nuevo.';
+  }
+}
+
+window._musEditar = async function(id){
+  try{
+    const doc = await db.collection('musicos').doc(id).get();
+    if(!doc.exists) return;
+    const m = doc.data();
+    document.getElementById('musicoEditId').value = id;
+    document.getElementById('musicoNombre').value = m.nombre || '';
+    document.getElementById('musicoCedula').value = m.cedula || '';
+    document.getElementById('musicoInstrumento').value = m.instrumento || '';
+    document.getElementById('musicoCorreo').value = m.correo || '';
+    document.getElementById('musicoTelefono').value = m.telefono || '';
+    document.getElementById('btnMusicoCancelar').style.display = 'inline-block';
+    document.getElementById('modalMusicosBg').querySelector('.modal').scrollTop = 0;
+  } catch(err){
+    console.error(err);
+  }
+};
+
+window._musToggleActivo = async function(id, activar){
+  const confirmTxt = activar ? '¿Reactivar este músico?' : '¿Desactivar este músico? Dejará de aparecer disponible para nuevos contratos, pero no se borra.';
+  if(!confirm(confirmTxt)) return;
+  try{
+    await db.collection('musicos').doc(id).update({ activo: activar });
+    cargarListaMusicos();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos actualizar el músico.');
+  }
+};
+
+// v4.6: sube el documento a una carpeta propia del músico en Cloudinary
+// (subirArchivoCloudinary sin tocar su lógica interna, solo usando el
+// 2º parámetro nuevo) y agrega el registro al array documentos con
+// arrayUnion. No reemplaza documentos anteriores, solo suma.
+window._musSubirDocumento = async function(id, nombreMusico, file){
+  if(!file) return;
+  const statusEl = document.getElementById('musDocStatus-' + id);
+  if(statusEl) statusEl.textContent = 'Subiendo...';
+  try{
+    // v4.8: prueba temporal sin carpeta — carpeta calculada pero no usada,
+    // se deja lista para revertir fácil cuando termine el diagnóstico.
+    const carpeta = slugMusico(nombreMusico, id);
+    const url = await subirArchivoCloudinary(file);
+    await db.collection('musicos').doc(id).update({
+      documentos: firebase.firestore.FieldValue.arrayUnion({
+        url,
+        nombre: file.name,
+        subidoEn: new Date().toISOString()
+      })
+    });
+    cargarListaMusicos();
+  } catch(err){
+    console.error(err);
+    if(statusEl) statusEl.textContent = 'Error al subir.';
+    alert('No pudimos subir el documento. Intenta de nuevo.');
+  }
+};
+
+// v4.6: quita el documento del array (arrayRemove necesita el objeto
+// EXACTO, por eso primero se relee el doc y se toma documentos[index]
+// tal cual está guardado). No borra el archivo de Cloudinary — mismo
+// criterio no-destructivo que _musToggleActivo.
+window._musEliminarDoc = async function(id, index){
+  if(!confirm('¿Quitar este documento de la lista? El archivo no se borra de Cloudinary, solo deja de aparecer aquí.')) return;
+  try{
+    const doc = await db.collection('musicos').doc(id).get();
+    if(!doc.exists) return;
+    const documentos = doc.data().documentos || [];
+    const target = documentos[index];
+    if(!target) return;
+    await db.collection('musicos').doc(id).update({
+      documentos: firebase.firestore.FieldValue.arrayRemove(target)
+    });
+    cargarListaMusicos();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos quitar el documento.');
+  }
+};
+
+
+function abrirLightboxProduccion(url, nombre){
+  const ext = (nombre.split('.').pop() || '').toLowerCase();
+  const body = document.getElementById('lightboxProdBody');
+  if(['jpg','jpeg','png','webp','gif'].includes(ext)){
+    body.innerHTML = `<img src="${url}" alt="${nombre}">`;
+  } else if(ext === 'pdf'){
+    body.innerHTML = `<iframe src="${url}"></iframe>`;
+  } else if(['mp3','wav','m4a','ogg','aac'].includes(ext)){
+    body.innerHTML = `<audio controls src="${url}"></audio>`;
+  } else {
+    body.innerHTML = `<div class="lightbox-otro">${nombre || 'Archivo'}<br><br><a href="${url}" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div>`;
+  }
+  document.getElementById('lightboxProdBg').classList.add('active');
+}
+function cerrarLightboxProduccion(){
+  document.getElementById('lightboxProdBg').classList.remove('active');
+  document.getElementById('lightboxProdBody').innerHTML = '';
+}
+
+
+// ============ CLOUDINARY ============
+const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
+const CLOUDINARY_UPLOAD_PRESET = 'AUDIOLINK APP';
+
+async function subirArchivoCloudinary(file, assetFolder){
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  if(assetFolder) formData.append('asset_folder', assetFolder);
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if(!resp.ok) throw new Error('Cloudinary respondió con error ' + resp.status);
+  const data = await resp.json();
+  return data.secure_url;
+}
+
+</script>
+</body>
+</html>

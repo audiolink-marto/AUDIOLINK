@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Clientes</title>
+<!-- AUDIOLINK · clientes.html · v1.1
+     V1.1: se migra acá el Portal de clientes completo (antes modal en
+     proyecto.html, ver plan de migración acordado). Ahora esta página
+     puede activar/reenviar/revocar acceso real (Firebase Auth vía app
+     secundaria appPortal/authPortal, mismo patrón que proyecto.html) y
+     ya no solo mostrarlo en modo lectura. El listener existente sobre
+     clientesAccesoRef (v1.0) se reutiliza tal cual — no se duplica —
+     así que clientesAccesoCache queda siempre al día sin necesidad de
+     recargarlo al abrir el modal. Se agrega un listener propio sobre
+     proyectosRef (variable nueva proyectosParaPortal) porque
+     getClientesUnicos() necesita ver los proyectos en vivo y v1.0 solo
+     los consultaba puntualmente (sembrarDesdeProyectos). El badge de
+     estado del portal en la vista Detalle ahora es clickeable y abre el
+     modal prefiltrado por el email de ese cliente; el badge del listado
+     (dentro de las tarjetas) se deja como estaba, solo informativo, para
+     no chocar con el click que abre el detalle. Se agrega también un
+     botón "Portal de clientes" en el header del listado para abrir el
+     modal general sin filtro. Se agrega portalActionCodeSettings
+     (url: https://audiolink-marto.github.io/AUDIOLINK/portal.html) en
+     ambas llamadas a sendPasswordResetEmail (_pcActivar y _pcReenviar) —
+     antes el correo dejaba al cliente en una página genérica de Firebase
+     sin volver al portal; ahora el correo trae un botón "Continuar" de
+     regreso a portal.html. proyecto.html se limpia en paralelo (→ v4.13):
+     se retira de ahí el modal y las funciones equivalentes, que quedan
+     viviendo solo acá.
+     V1.0: primera versión. CRUD de clientes (colección Firestore 'clientes',
+     doc id = auto-generado por Firestore, no el email — así se puede editar
+     el correo después sin romper el documento). Campos: nombre, email,
+     telefono, notas, activo, fechaCreacion. El historial de proyectos de
+     cada cliente NO se guarda duplicado aquí: se consulta en vivo con un
+     query a proyectos.where('clienteId','==', id). Incluye botón "Sembrar
+     desde proyectos existentes": lee todos los proyectos, deduplica por
+     clienteEmail (mismo criterio que ya usaba getClientesUnicos() en
+     proyecto.html) y crea un doc en 'clientes' por cada uno que no exista
+     todavía (match por email en minúsculas).
+     Nav v2.7 estándar (sidebar desktop colapsable + mobile topbar/
+     bottomnav/panel "···") vía nav.js v1.1, mismo patrón que el resto de
+     Audiolink. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+.btn{
+  background:var(--gold-bg);
+  border:1px solid var(--gold);
+  color:var(--gold);
+  padding:9px 18px;
+  border-radius:6px;
+  font-size:0.85rem;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+.btn-sm{padding:6px 12px;font-size:0.78rem;}
+/* ===== NAV V2.7: sidebar desktop + bottomnav mobile (mismo patrón que el resto del ecosistema) ===== */
+:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
+  background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;z-index:90;overflow:hidden;
+  transition:width 0.18s ease;
+}
+.sidebar.collapsed{width:var(--sb-c);}
+.sb-brand{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
+}
+.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
+.sidebar.collapsed .sb-brand h1{opacity:0;}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-item{
+  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
+  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
+  transition:background 0.15s,color 0.15s;
+}
+.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
+.sb-item:hover{background:var(--surf-light);color:var(--txt);}
+.sb-item.active{background:var(--gold-bg);color:var(--gold);}
+.sidebar.collapsed .sb-item span{display:none;}
+.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.sb-toggle{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
+  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
+}
+.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
+.sb-toggle i{transition:transform 0.2s;display:inline-block;}
+.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
+.sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
+.sidebar.collapsed .sb-credit{opacity:0;}
+.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
+.main-wrap.expanded{margin-left:var(--sb-c);}
+.mobile-topbar{display:none;}
+.mobile-bottomnav{display:none;}
+.mas-mobile-panel{display:none;}
+@media (max-width:768px){
+  .sidebar{display:none;}
+  .main-wrap{margin-left:0;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
+    position:relative;z-index:1;
+  }
+  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
+  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  main{padding-bottom:78px !important;}
+  .mobile-bottomnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
+    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
+  }
+  .mobile-bottomnav a{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
+  }
+  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
+  .mobile-bottomnav a.active{color:var(--gold);}
+  .mas-mobile-panel{
+    display:none;position:fixed;top:60px;right:14px;z-index:81;
+    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
+  }
+  .mas-mobile-panel.show{display:block;}
+  .mas-mobile-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
+  }
+  .mas-mobile-item:hover{background:var(--surf-light);}
+  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
+}
+main{padding:28px;max-width:1200px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:12px;flex-wrap:wrap;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.top-actions-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.buscador{
+  background:var(--surf);border:1px solid var(--brd);color:var(--txt);
+  padding:9px 14px;border-radius:6px;font-size:0.85rem;font-family:inherit;
+  width:260px;max-width:100%;
+}
+.buscador:focus{outline:none;border-color:var(--gold);}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.card{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:18px;cursor:pointer;transition:border-color 0.2s,transform 0.15s;
+}
+.card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.card h3{font-size:1rem;margin-bottom:6px;color:var(--txt);}
+.card .email{font-size:0.8rem;color:var(--muted);margin-bottom:10px;word-break:break-all;}
+.card-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.badge{
+  display:inline-block;padding:3px 9px;border-radius:20px;font-size:0.68rem;
+  font-weight:600;letter-spacing:0.02em;
+}
+.badge.ok{background:rgba(76,175,125,0.14);color:var(--ok);}
+.badge.warn{background:rgba(217,164,65,0.14);color:var(--warn);}
+.badge.err{background:rgba(212,87,74,0.14);color:var(--err);}
+.badge.faint{background:var(--surf-light);color:var(--faint);}
+.badge.clickable{cursor:pointer;}
+.badge.clickable:hover{filter:brightness(1.15);}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:0.9rem;}
+.empty .btn{margin-top:16px;}
+/* ===== DETALLE DE CLIENTE ===== */
+.detalle{display:none;}
+.detalle.active{display:block;}
+#vistaListado.oculta{display:none;}
+.back-link{color:var(--muted);font-size:0.82rem;cursor:pointer;display:inline-block;margin-bottom:18px;}
+.back-link:hover{color:var(--gold);}
+.detalle-card{
+  background:var(--surf);border:1px solid var(--brd);border-radius:12px;
+  padding:24px;margin-bottom:20px;
+}
+.detalle-card h2{font-family:var(--T);font-size:1.4rem;color:var(--gold);margin-bottom:4px;}
+.detalle-card .email{color:var(--muted);font-size:0.88rem;margin-bottom:16px;}
+.detalle-campos{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.dc-item .lbl{font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;letter-spacing:0.03em;}
+.dc-item .val{font-size:0.92rem;}
+.notas-box{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
+  padding:14px;font-size:0.85rem;color:var(--muted);white-space:pre-wrap;margin-top:8px;
+}
+.detalle-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+.seccion-titulo{font-size:0.82rem;color:var(--muted);letter-spacing:0.05em;margin:24px 0 12px;text-transform:uppercase;}
+.proy-item{
+  background:var(--surf);border:1px solid var(--brd);border-radius:8px;
+  padding:14px 16px;margin-bottom:8px;display:flex;justify-content:space-between;
+  align-items:center;gap:12px;text-decoration:none;color:var(--txt);cursor:pointer;
+  flex-wrap:wrap;
+}
+.proy-item:hover{border-color:var(--gold);}
+.proy-item .nombre{font-weight:500;font-size:0.9rem;}
+.proy-item .etapa{font-size:0.72rem;color:var(--muted);}
+/* ===== MODAL ===== */
+.modal-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);
+  z-index:200;align-items:center;justify-content:center;padding:20px;
+}
+.modal-bg.active{display:flex;}
+.modal{
+  background:var(--surf);border:1px solid var(--brd);border-radius:12px;
+  max-width:520px;width:100%;padding:28px;max-height:90vh;overflow-y:auto;
+}
+.modal h2{color:var(--gold);font-size:1.1rem;margin-bottom:20px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field textarea{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);
+  color:var(--txt);padding:10px 12px;border-radius:6px;font-size:0.9rem;font-family:inherit;
+}
+.field input:focus,.field textarea:focus{
+  outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);
+}
+.field textarea{resize:vertical;min-height:70px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;}
+@media (max-width:640px){
+  .detalle-campos{grid-template-columns:1fr;}
+  .modal{padding:20px;}
+}
+</style>
+</head>
+<body>
+
+<script>
+window.NAV_CONFIG = {
+  activo: 'clientes',
+  masMobileExtra: [
+    {icon:'➕', label:'Nuevo Cliente', onclick:"abrirModalNuevo();toggleMasMobile()"},
+    {icon:'🔐', label:'Portal de clientes', onclick:"abrirModalPortalClientes();toggleMasMobile()"}
+  ]
+};
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<main>
+
+  <!-- LISTADO -->
+  <div id="vistaListado">
+    <div class="top-actions">
+      <h2>CLIENTES</h2>
+      <div class="top-actions-right">
+        <input type="text" class="buscador" id="buscador" placeholder="Buscar por nombre o correo..." oninput="renderListado()">
+        <button class="btn btn-ghost btn-sm" onclick="sembrarDesdeProyectos()" title="Crear clientes a partir de los proyectos existentes que aún no tienen ficha">↺ Sembrar desde proyectos</button>
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalPortalClientes()" title="Ver y gestionar el acceso al portal de todos los clientes">🔐 Portal de clientes</button>
+        <button class="btn" onclick="abrirModalNuevo()">+ Nuevo Cliente</button>
+      </div>
+    </div>
+    <div class="grid" id="gridClientes"></div>
+    <div class="empty" id="emptyState" style="display:none;">
+      No hay clientes registrados todavía.<br>
+      <button class="btn" onclick="abrirModalNuevo()">+ Crear el primero</button>
+    </div>
+  </div>
+
+  <!-- DETALLE -->
+  <div class="detalle" id="vistaDetalle">
+    <span class="back-link" onclick="volverListado()">← Volver a clientes</span>
+    <div class="detalle-card" id="detalleContent"></div>
+    <div class="seccion-titulo">Proyectos de este cliente</div>
+    <div id="listaProyectosCliente"></div>
+  </div>
+
+</main>
+</div><!-- /main-wrap -->
+
+<!-- MODAL CREAR/EDITAR -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitulo">Nuevo Cliente</h2>
+    <div class="field">
+      <label>Nombre</label>
+      <input type="text" id="fNombre" placeholder="Ej: Negro Novoa">
+    </div>
+    <div class="field">
+      <label>Correo</label>
+      <input type="email" id="fEmail" placeholder="cliente@correo.com">
+    </div>
+    <div class="field">
+      <label>Teléfono</label>
+      <input type="text" id="fTelefono" placeholder="Ej: 300 123 4567">
+    </div>
+    <div class="field">
+      <label>Notas</label>
+      <textarea id="fNotas" placeholder="Preferencias, contexto, referencias..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn" onclick="guardarCliente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PORTAL DE CLIENTES (v1.1 — migrado de proyecto.html v2.0) -->
+<div class="modal-bg" id="modalPortalBg">
+  <div class="modal">
+    <h2>🔐 Portal de clientes</h2>
+    <div class="field">
+      <input type="text" id="portalBuscador" placeholder="Buscar por nombre o correo..." oninput="renderListaPortalClientes()">
+    </div>
+    <div id="portalErr" style="color:var(--err);font-size:0.82rem;margin-bottom:10px;"></div>
+    <div id="portalLista" style="display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModalPortalClientes()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ FIREBASE CONFIG ============
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const clientesRef = db.collection('clientes');
+const clientesAccesoRef = db.collection('clientesAcceso');
+const proyectosRef = db.collection('proyectos');
+
+// ===== APP SECUNDARIA (v1.1 — migrado de proyecto.html v2.0) =====
+// signInWithEmailAndPassword / createUserWithEmailAndPassword cierran/reemplazan
+// la sesión activa en la instancia donde se llaman. Usamos una segunda instancia
+// de Firebase solo para crear/gestionar la cuenta del cliente, sin tocar tu
+// sesión de staff en la app principal. Mismo patrón usado en proyecto.html.
+const appPortal = firebase.initializeApp(firebaseConfig, 'portal-activador');
+const authPortal = appPortal.auth();
+// v1.1: sin esto, Firebase deja al cliente en una página genérica propia
+// tras crear/cambiar su contraseña, sin volver a nuestro portal. Con
+// url apuntando a portal.html, el correo muestra un botón "Continuar"
+// que lo trae de vuelta acá. handleCodeInApp:false porque portal.html
+// no procesa el oobCode — solo queremos el link de regreso.
+const portalActionCodeSettings = {
+  url: 'https://audiolink-marto.github.io/AUDIOLINK/portal.html',
+  handleCodeInApp: false
+};
+
+// ============ GUARD DE SESIÓN ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){ window.location.href = 'login.html'; return; }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+// ============ ESTADO ============
+let clientes = [];
+let clientesAccesoCache = {}; // email -> {authUid, portalRevocado}
+let clienteActualId = null;
+let editando = false;
+
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+
+// ============ LISTENER TIEMPO REAL ============
+clientesRef.orderBy('nombre').onSnapshot(snap => {
+  clientes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderListado();
+  if(clienteActualId) renderDetalle();
+}, err => console.error('Error escuchando clientes:', err));
+
+clientesAccesoRef.onSnapshot(snap => {
+  clientesAccesoCache = {};
+  snap.forEach(d => clientesAccesoCache[d.id] = d.data());
+  renderListado();
+  if(clienteActualId) renderDetalle();
+}, err => console.error('Error escuchando clientesAcceso:', err));
+
+// v1.1: listener propio en vivo (proyectosRef ya existía pero solo se
+// consultaba puntual en sembrarDesdeProyectos). Lo necesita
+// getClientesUnicos() del Portal de clientes migrado.
+let proyectosParaPortal = [];
+proyectosRef.onSnapshot(snap => {
+  proyectosParaPortal = snap.docs.map(d => d.data());
+}, err => console.error('Error escuchando proyectos (portal):', err));
+
+function estadoPortal(email){
+  const acc = email ? clientesAccesoCache[email.toLowerCase()] : null;
+  if(!acc) return { label:'Sin portal', cls:'faint' };
+  if(acc.portalRevocado) return { label:'Portal revocado', cls:'warn' };
+  return { label:'Portal activo', cls:'ok' };
+}
+
+// ============ MODAL: PORTAL DE CLIENTES (v1.1 — migrado de proyecto.html v2.0) ============
+// clientesAccesoCache ya se mantiene actualizado en vivo por el onSnapshot
+// de más arriba (v1.0) — a diferencia de proyecto.html, acá NO hace falta
+// una función de recarga manual al abrir el modal.
+function abrirModalPortalClientes(emailPrefill){
+  document.getElementById('portalErr').textContent = '';
+  document.getElementById('portalBuscador').value = emailPrefill || '';
+  renderListaPortalClientes();
+  document.getElementById('modalPortalBg').classList.add('active');
+}
+
+function cerrarModalPortalClientes(){
+  document.getElementById('modalPortalBg').classList.remove('active');
+}
+
+function getClientesUnicos(){
+  const term = document.getElementById('portalBuscador').value.trim().toLowerCase();
+  const mapa = {};
+  proyectosParaPortal.forEach(p => {   // ← único cambio real: proyectos → proyectosParaPortal
+    const email = (p.clienteEmail || '').trim().toLowerCase();
+    if(!email) return;
+    if(!mapa[email]){
+      mapa[email] = { email, nombre: p.clienteArtista || email };
+    }
+  });
+  return Object.values(mapa)
+    .filter(c => !term || c.nombre.toLowerCase().includes(term) || c.email.includes(term))
+    .sort((a,b) => a.nombre.localeCompare(b.nombre));
+}
+
+function renderListaPortalClientes(){
+  const cont = document.getElementById('portalLista');
+  const clientesPortal = getClientesUnicos();
+  if(clientesPortal.length === 0){
+    cont.innerHTML = '<div class="empty" style="padding:20px;">No hay proyectos con correo de cliente registrado.</div>';
+    return;
+  }
+  cont.innerHTML = clientesPortal.map(c => {
+    const acc = clientesAccesoCache[c.email];
+    let badgeClass, badgeTxt, acciones;
+    if(!acc || !acc.authUid){
+      badgeClass = 'warn'; badgeTxt = 'Sin activar';
+      acciones = `<button class="btn" onclick="window._pcActivar('${c.email}')">Activar</button>`;
+    } else if(acc.portalRevocado){
+      badgeClass = 'err'; badgeTxt = 'Revocado';
+      acciones = `
+        <button class="btn btn-ghost" onclick="window._pcReenviar('${c.email}')">Reenviar correo</button>
+        <button class="btn" onclick="window._pcRevocar('${c.email}', false)">Reactivar</button>`;
+    } else {
+      badgeClass = 'ok'; badgeTxt = 'Activado';
+      acciones = `
+        <button class="btn btn-ghost" onclick="window._pcReenviar('${c.email}')">Reenviar correo</button>
+        <button class="btn btn-ghost" onclick="window._pcRevocar('${c.email}', true)">Revocar</button>`;
+    }
+    return `
+      <div style="border:1px solid var(--brd);border-radius:8px;padding:14px 16px;background:var(--surf-light);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <strong>${escapeHtml(c.nombre)}</strong>
+          <span class="badge ${badgeClass}">${badgeTxt}</span>
+        </div>
+        <div style="color:var(--muted);font-size:0.82rem;margin-bottom:10px;">${escapeHtml(c.email)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${acciones}
+          <button class="btn btn-ghost" onclick="window._pcPreview('${c.email}')">👁️ Vista previa</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+window._pcActivar = async function(email){
+  if(!confirm(`¿Activar el portal para ${email}? Se creará una cuenta y se le enviará un correo para crear su contraseña.`)) return;
+  try{
+    const passTemp = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const cred = await authPortal.createUserWithEmailAndPassword(email, passTemp);
+    await clientesAccesoRef.doc(email).set({
+      authUid: cred.user.uid,
+      portalRevocado: false,
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await authPortal.sendPasswordResetEmail(email, portalActionCodeSettings);
+    await authPortal.signOut();
+    clientesAccesoCache[email] = { authUid: cred.user.uid, portalRevocado: false };
+    renderListaPortalClientes();
+  } catch(err){
+    console.error(err);
+    if(err.code === 'auth/email-already-in-use'){
+      alert('Ese correo ya tiene una cuenta de portal creada. Verifica el correo o usa "Reenviar correo".');
+    } else {
+      alert('No pudimos activar el portal. Revisa la consola.');
+    }
+  }
+};
+
+window._pcReenviar = async function(email){
+  try{
+    await authPortal.sendPasswordResetEmail(email, portalActionCodeSettings);
+    alert(`Correo de acceso reenviado a ${email}.`);
+  } catch(err){
+    console.error(err);
+    alert('No pudimos reenviar el correo.');
+  }
+};
+
+window._pcRevocar = async function(email, nuevoEstado){
+  const accion = nuevoEstado ? 'revocar' : 'reactivar';
+  if(!confirm(`¿Seguro que quieres ${accion} el acceso al portal de ${email}?`)) return;
+  try{
+    await clientesAccesoRef.doc(email).set({ portalRevocado: nuevoEstado }, { merge: true });
+    clientesAccesoCache[email] = { ...(clientesAccesoCache[email] || {}), portalRevocado: nuevoEstado };
+    renderListaPortalClientes();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos actualizar el acceso.');
+  }
+};
+
+window._pcPreview = function(email){
+  window.open(`portal.html?preview=${encodeURIComponent(email)}`, '_blank');
+};
+
+// ============ LISTADO ============
+function renderListado(){
+  const q = (document.getElementById('buscador').value || '').trim().toLowerCase();
+  const filtrados = clientes.filter(c =>
+    !q || (c.nombre||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q)
+  );
+  const grid = document.getElementById('gridClientes');
+  document.getElementById('emptyState').style.display = clientes.length ? 'none' : 'block';
+  grid.style.display = clientes.length ? 'grid' : 'none';
+  grid.innerHTML = filtrados.map(c => {
+    const portal = estadoPortal(c.email);
+    return `
+    <div class="card" onclick="verDetalle('${c.id}')">
+      <h3>${escapeHtml(c.nombre || 'Sin nombre')}</h3>
+      <div class="email">${escapeHtml(c.email || 'Sin correo')}</div>
+      <div class="card-meta">
+        <span class="badge ${portal.cls}">${portal.label}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============ DETALLE ============
+function verDetalle(id){
+  clienteActualId = id;
+  document.getElementById('vistaListado').classList.add('oculta');
+  document.getElementById('vistaDetalle').classList.add('active');
+  renderDetalle();
+  cargarProyectosCliente(id);
+}
+
+function volverListado(){
+  clienteActualId = null;
+  document.getElementById('vistaListado').classList.remove('oculta');
+  document.getElementById('vistaDetalle').classList.remove('active');
+}
+
+function renderDetalle(){
+  const c = clientes.find(x => x.id === clienteActualId);
+  if(!c) return;
+  const portal = estadoPortal(c.email);
+  document.getElementById('detalleContent').innerHTML = `
+    <h2>${escapeHtml(c.nombre || 'Sin nombre')}</h2>
+    <div class="email">${escapeHtml(c.email || 'Sin correo')}</div>
+    <span class="badge clickable ${portal.cls}" onclick="abrirModalPortalClientes('${escapeHtml(c.email || '')}')" title="Gestionar acceso al portal de este cliente">${portal.label}</span>
+    <div class="detalle-campos" style="margin-top:16px;">
+      <div class="dc-item"><span class="lbl">Teléfono</span><span class="val">${escapeHtml(c.telefono || '—')}</span></div>
+    </div>
+    ${c.notas ? `<div class="notas-box">${escapeHtml(c.notas)}</div>` : ''}
+    <div class="detalle-actions">
+      <button class="btn btn-ghost" onclick="editarClienteActual()">✎ Editar</button>
+    </div>
+  `;
+}
+
+async function cargarProyectosCliente(clienteId){
+  const cont = document.getElementById('listaProyectosCliente');
+  cont.innerHTML = '<div class="empty" style="padding:24px;">Cargando...</div>';
+  try{
+    const snap = await proyectosRef.where('clienteId', '==', clienteId).get();
+    if(snap.empty){
+      cont.innerHTML = '<div class="empty" style="padding:24px;">Este cliente aún no tiene proyectos vinculados (o fueron creados antes de asignarle un cliente registrado).</div>';
+      return;
+    }
+    cont.innerHTML = snap.docs.map(d => {
+      const p = d.data();
+      return `
+      <a class="proy-item" href="proyecto.html?verDetalle=${d.id}">
+        <span class="nombre">${escapeHtml(p.nombre || 'Sin nombre')}</span>
+        <span class="etapa">${escapeHtml(p.etapaActual || '—')}</span>
+      </a>`;
+    }).join('');
+  } catch(e){
+    console.error('Error cargando proyectos del cliente:', e);
+    cont.innerHTML = '<div class="empty" style="padding:24px;">No se pudieron cargar los proyectos.</div>';
+  }
+}
+
+// ============ MODAL CREAR/EDITAR ============
+function abrirModalNuevo(){
+  editando = false;
+  document.getElementById('modalTitulo').textContent = 'Nuevo Cliente';
+  document.getElementById('fNombre').value = '';
+  document.getElementById('fEmail').value = '';
+  document.getElementById('fTelefono').value = '';
+  document.getElementById('fNotas').value = '';
+  document.getElementById('modalBg').classList.add('active');
+}
+
+function editarClienteActual(){
+  const c = clientes.find(x => x.id === clienteActualId);
+  if(!c) return;
+  editando = true;
+  document.getElementById('modalTitulo').textContent = 'Editar Cliente';
+  document.getElementById('fNombre').value = c.nombre || '';
+  document.getElementById('fEmail').value = c.email || '';
+  document.getElementById('fTelefono').value = c.telefono || '';
+  document.getElementById('fNotas').value = c.notas || '';
+  document.getElementById('modalBg').classList.add('active');
+}
+
+function cerrarModal(){
+  document.getElementById('modalBg').classList.remove('active');
+}
+
+async function guardarCliente(){
+  const nombre = document.getElementById('fNombre').value.trim();
+  const email = document.getElementById('fEmail').value.trim().toLowerCase();
+  if(!nombre){ alert('El nombre es obligatorio.'); return; }
+  const datos = {
+    nombre,
+    email,
+    telefono: document.getElementById('fTelefono').value.trim(),
+    notas: document.getElementById('fNotas').value.trim(),
+    activo: true
+  };
+  try{
+    if(editando && clienteActualId){
+      await clientesRef.doc(clienteActualId).update(datos);
+    } else {
+      datos.fechaCreacion = firebase.firestore.FieldValue.serverTimestamp();
+      await clientesRef.add(datos);
+    }
+    cerrarModal();
+  } catch(e){
+    console.error('Error guardando cliente:', e);
+    alert('No se pudo guardar el cliente. Revisa la consola.');
+  }
+}
+
+// ============ SEMBRAR DESDE PROYECTOS EXISTENTES ============
+// Lee todos los proyectos, deduplica por clienteEmail (mismo criterio que
+// getClientesUnicos() en proyecto.html) y crea un doc en 'clientes' por
+// cada email que no tenga ficha todavía. No modifica los proyectos.
+async function sembrarDesdeProyectos(){
+  if(!confirm('Esto revisará todos los proyectos y creará una ficha de cliente para cada correo que aún no tenga una. No se modifican los proyectos. ¿Continuar?')) return;
+  try{
+    const snapProyectos = await proyectosRef.get();
+    const yaExistentes = new Set(clientes.map(c => (c.email||'').toLowerCase()).filter(Boolean));
+    const nuevos = {}; // email -> nombre
+    snapProyectos.forEach(d => {
+      const p = d.data();
+      const email = (p.clienteEmail || '').trim().toLowerCase();
+      if(!email || yaExistentes.has(email) || nuevos[email]) return;
+      nuevos[email] = p.clienteArtista || email;
+    });
+    const emails = Object.keys(nuevos);
+    if(!emails.length){
+      alert('No hay clientes nuevos por sembrar — todos los correos de los proyectos existentes ya tienen ficha.');
+      return;
+    }
+    const batch = db.batch();
+    emails.forEach(email => {
+      const ref = clientesRef.doc();
+      batch.set(ref, {
+        nombre: nuevos[email],
+        email,
+        telefono: '',
+        notas: '',
+        activo: true,
+        fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+    alert(`Se crearon ${emails.length} cliente(s) nuevo(s) a partir de los proyectos existentes.`);
+  } catch(e){
+    console.error('Error sembrando clientes:', e);
+    alert('No se pudo completar la siembra. Revisa la consola.');
+  }
+}
+</script>
+</body>
+</html>
