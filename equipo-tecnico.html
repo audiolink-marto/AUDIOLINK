@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Equipo Técnico</title>
+<!-- AUDIOLINK · equipo-tecnico.html · v1
+     v1: primera versión. Catálogo de equipo técnico (Ingeniero de
+     Grabación, Asistente, etc.) — colección Firestore NUEVA y separada
+     'equipoTecnico' (NO es equipoInterno, que es solo el guard de login
+     de todo el ecosistema; mezclar tarifas de negocio ahí sería un
+     riesgo si algún día cambian los permisos de esa colección).
+     Campos por técnico: nombre, rol (texto libre), tarifa, activo.
+     Pensado para que cotizador.html cargue de acá el datalist de
+     "Ingeniería de Grabación" y autocomplete la tarifa al elegir un
+     nombre existente (mismo patrón que onCambioConsentMusico() en
+     logistica.html) — ese ajuste en cotizador.html queda para un paso
+     aparte, este archivo es solo el catálogo.
+     Estructura, estilos, sidebar/nav.js, tema claro/oscuro y guard de
+     sesión calcados de logistica.html/cotizador.html, sin inventar
+     patrones nuevos. El formulario de alta/edición NO es modal flotante
+     — es un panel en el mismo flujo de la página (mismo criterio que el
+     editor de sesión de logistica.html v2.16): oculta la lista y
+     muestra el formulario en su lugar, con "← Volver a la lista". -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0.5;}
+.waveform-bg svg{position:absolute;bottom:0;left:0;width:200%;height:220px;animation:wave-drift 22s linear infinite;}
+.waveform-bg svg.w-slow{animation-duration:34s;}
+.waveform-bg path{fill:none;stroke:var(--gold);stroke-width:1.2;opacity:0.14;}
+.waveform-bg path.w2{opacity:0.09;}
+.waveform-bg path.w3{opacity:0.06;}
+@keyframes wave-drift{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+header, main{position:relative;z-index:1;}
+
+/* ===== NAV V1.4: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
+:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
+  background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;z-index:90;overflow:hidden;
+  transition:width 0.18s ease;
+}
+.sidebar.collapsed{width:var(--sb-c);}
+.sb-brand{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
+}
+.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
+.sidebar.collapsed .sb-brand h1{opacity:0;}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-item{
+  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
+  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
+  transition:background 0.15s,color 0.15s;
+}
+.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
+.sb-item:hover{background:var(--surf-light);color:var(--txt);}
+.sb-item.active{background:var(--gold-bg);color:var(--gold);}
+.sidebar.collapsed .sb-item span{display:none;}
+.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.sb-toggle{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
+  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
+}
+.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
+.sb-toggle i{transition:transform 0.2s;display:inline-block;}
+.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
+.sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
+.sidebar.collapsed .sb-credit{opacity:0;}
+.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
+.main-wrap.expanded{margin-left:var(--sb-c);}
+
+.mobile-topbar{display:none;}
+.mobile-bottomnav{display:none;}
+.mas-mobile-panel{display:none;}
+
+@media (max-width:768px){
+  .sidebar{display:none;}
+  .main-wrap{margin-left:0;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
+    position:relative;z-index:1;
+  }
+  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
+  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  main{padding-bottom:78px !important;}
+  .mobile-bottomnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
+    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
+  }
+  .mobile-bottomnav a{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
+  }
+  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
+  .mobile-bottomnav a.active{color:var(--gold);}
+  .mas-mobile-panel{
+    display:none;position:fixed;top:60px;right:14px;z-index:81;
+    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
+  }
+  .mas-mobile-panel.show{display:block;}
+  .mas-mobile-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
+  }
+  .mas-mobile-item:hover{background:var(--surf-light);}
+  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
+  .top-actions{flex-wrap:wrap;gap:10px;}
+  .top-actions .btn{flex:1 1 100%;}
+  .modal-actions{flex-wrap:wrap;}
+  .modal-actions button{flex:1 1 auto;}
+  #btnEliminar{flex:1 1 100%;order:3;}
+  .row2{grid-template-columns:1fr;}
+}
+
+.btn{
+  background:var(--gold-bg);
+  border:1px solid var(--gold);
+  color:var(--gold);
+  padding:9px 18px;
+  border-radius:6px;
+  font-size:0.85rem;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+main{padding:28px;max-width:1200px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.card{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:10px;
+  padding:20px;
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.card h3{font-size:1.05rem;font-weight:600;color:var(--gold);}
+.card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;}
+.card .tarifa{font-size:0.9rem;color:var(--txt);margin-top:8px;font-family:var(--M);}
+.badge{
+  font-size:0.7rem;padding:3px 10px;border-radius:20px;font-weight:600;
+  letter-spacing:0.03em;text-transform:uppercase;flex-shrink:0;
+}
+.badge.vis{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge.priv{background:rgba(212,87,74,0.15);color:var(--err);}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+
+/* Panel en flujo (NO modal flotante) — mismo criterio que el editor de
+   sesión de logistica.html v2.16: reemplaza la lista mientras se usa. */
+.tecnico-panel{display:none;}
+.tecnico-panel.active{display:block;margin-top:4px;}
+.form-section{
+  border:1px solid var(--brd);border-radius:10px;padding:16px;margin-bottom:16px;
+  background:rgba(255,255,255,0.015);
+}
+.form-section-head{
+  display:flex;align-items:center;gap:8px;margin-bottom:14px;
+  font-size:0.8rem;color:var(--gold);text-transform:uppercase;letter-spacing:0.04em;
+  font-weight:600;
+}
+.form-section .field:last-child{margin-bottom:0;}
+@media(max-width:640px){
+  .form-section{padding:12px;}
+}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);
+  padding:10px 12px;border-radius:6px;font-size:0.9rem;font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);
+}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.checkbox-field{display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+.checkbox-field input{width:auto;}
+.checkbox-field label{margin:0;font-size:0.85rem;color:var(--txt);}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+</style>
+</head>
+<body>
+
+<div class="waveform-bg">
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none" class="w-slow">
+    <path class="w1" d="M0,110 Q35,40 70,110 T140,110 T210,110 T280,110 T350,110 T420,110 T490,110 T560,110 T630,110 T700,110 T770,110 T840,110 T910,110 T980,110 T1050,110 T1120,110 T1190,110 T1260,110 T1330,110 T1400,110"/>
+  </svg>
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none">
+    <path class="w2" d="M0,150 Q30,90 60,150 T120,150 T180,150 T240,150 T300,150 T360,150 T420,150 T480,150 T540,150 T600,150 T660,150 T720,150 T780,150 T840,150 T900,150 T960,150 T1020,150 T1080,150 T1140,150 T1200,150 T1260,150 T1320,150 T1380,150 T1400,150"/>
+  </svg>
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none" class="w-slow">
+    <path class="w3" d="M0,180 Q25,140 50,180 T100,180 T150,180 T200,180 T250,180 T300,180 T350,180 T400,180 T450,180 T500,180 T550,180 T600,180 T650,180 T700,180 T750,180 T800,180 T850,180 T900,180 T950,180 T1000,180 T1050,180 T1100,180 T1150,180 T1200,180 T1250,180 T1300,180 T1350,180 T1400,180"/>
+  </svg>
+</div>
+
+<!-- SIDEBAR DESKTOP / MOBILE — patrón compartido nav.js -->
+<script>
+window.NAV_CONFIG = { activo: 'equipo-tecnico' };
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<header style="display:none;"></header>
+
+<main>
+
+  <div class="top-actions">
+    <h2>EQUIPO TÉCNICO</h2>
+    <button class="btn" onclick="abrirPanelNuevo()" id="btnNuevo">+ Nuevo técnico</button>
+  </div>
+
+  <div class="grid" id="gridTecnicos"></div>
+  <div class="empty" id="emptyState" style="display:none;">No hay técnicos registrados aún.</div>
+
+  <!-- PANEL DE ALTA/EDICIÓN — en flujo (no modal), mismo criterio que el
+       editor de sesión de logistica.html v2.16 -->
+  <div class="tecnico-panel" id="panelTecnico">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="panelTitulo" style="margin-bottom:0;">Nuevo técnico</h2>
+      <button type="button" onclick="cerrarPanel()" class="btn btn-ghost">← Volver a la lista</button>
+    </div>
+    <div class="form-section">
+      <div class="form-section-head">🎚️ Datos del técnico</div>
+      <div class="field">
+        <label>Nombre</label>
+        <input type="text" id="fNombre" placeholder="Ej: German Albano">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Rol</label>
+          <input type="text" id="fRol" placeholder="Ej: Ingeniero de Grabación">
+        </div>
+        <div class="field">
+          <label>Tarifa</label>
+          <input type="number" id="fTarifa" min="0" placeholder="Ej: 80000">
+        </div>
+      </div>
+      <div class="checkbox-field">
+        <input type="checkbox" id="fActivo" checked>
+        <label for="fActivo">Activo (aparece en el catálogo del Cotizador)</label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarPanel()">Cancelar</button>
+      <button class="btn" onclick="guardarTecnico()">Guardar</button>
+      <button class="btn btn-ghost" style="display:none;color:var(--err);border-color:var(--err);" id="btnEliminar" onclick="eliminarTecnico()">Eliminar</button>
+    </div>
+  </div>
+
+</main>
+</div><!-- /main-wrap -->
+
+<script>
+// ============ FIREBASE CONFIG ============
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const equipoTecnicoRef = db.collection('equipoTecnico');
+
+// ============ GUARD DE SESIÓN (mismo patrón que logistica.html/cotizador.html) ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    window.location.href = 'login.html';
+    return;
+  }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+    initEquipoTecnico();
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+// cerrarSesion(), toggleTema(), toggleMasMobile() y el colapsar del sidebar
+// viven en nav.js (compartido por todo el ecosistema) — no se duplican acá.
+
+// ============ ESTADO ============
+let tecnicos = [];
+let tecnicoActualId = null;
+let unsubscribeTecnicos = null;
+
+function initEquipoTecnico(){
+  unsubscribeTecnicos = equipoTecnicoRef.orderBy('nombre').onSnapshot(snap => {
+    tecnicos = [];
+    snap.forEach(d => tecnicos.push({ id: d.id, ...d.data() }));
+    renderTecnicos();
+  }, err => {
+    console.error('Error cargando equipoTecnico:', err);
+  });
+}
+
+function renderTecnicos(){
+  const grid = document.getElementById('gridTecnicos');
+  const empty = document.getElementById('emptyState');
+  if(tecnicos.length === 0){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = tecnicos.map(t => `
+    <div class="card" onclick="abrirPanelEditar('${t.id}')">
+      <div class="card-top">
+        <h3>${t.nombre || '—'}</h3>
+        <span class="badge ${t.activo !== false ? 'vis' : 'priv'}">${t.activo !== false ? 'Activo' : 'Inactivo'}</span>
+      </div>
+      <div class="meta">${t.rol || 'Sin rol asignado'}</div>
+      <div class="tarifa">${typeof formatCOP === 'function' ? formatCOP(t.tarifa || 0) : (t.tarifa || 0)}</div>
+    </div>
+  `).join('');
+}
+
+// ============ PANEL (alta/edición) ============
+function abrirPanelNuevo(){
+  tecnicoActualId = null;
+  document.getElementById('panelTitulo').textContent = 'Nuevo técnico';
+  document.getElementById('fNombre').value = '';
+  document.getElementById('fRol').value = '';
+  document.getElementById('fTarifa').value = '';
+  document.getElementById('fActivo').checked = true;
+  document.getElementById('btnEliminar').style.display = 'none';
+  mostrarPanel();
+}
+
+function abrirPanelEditar(id){
+  const t = tecnicos.find(x => x.id === id);
+  if(!t) return;
+  tecnicoActualId = id;
+  document.getElementById('panelTitulo').textContent = 'Editar técnico';
+  document.getElementById('fNombre').value = t.nombre || '';
+  document.getElementById('fRol').value = t.rol || '';
+  document.getElementById('fTarifa').value = t.tarifa || '';
+  document.getElementById('fActivo').checked = t.activo !== false;
+  document.getElementById('btnEliminar').style.display = 'inline-block';
+  mostrarPanel();
+}
+
+function mostrarPanel(){
+  document.getElementById('gridTecnicos').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.querySelector('.top-actions').style.display = 'none';
+  document.getElementById('panelTecnico').classList.add('active');
+}
+
+function cerrarPanel(){
+  document.getElementById('panelTecnico').classList.remove('active');
+  document.querySelector('.top-actions').style.display = '';
+  document.getElementById('gridTecnicos').style.display = '';
+  renderTecnicos();
+}
+
+async function guardarTecnico(){
+  const nombre = document.getElementById('fNombre').value.trim();
+  const rol = document.getElementById('fRol').value.trim();
+  const tarifa = Number(document.getElementById('fTarifa').value) || 0;
+  const activo = document.getElementById('fActivo').checked;
+
+  if(!nombre){
+    alert('Ingresa el nombre del técnico.');
+    return;
+  }
+
+  const data = { nombre, rol, tarifa, activo };
+
+  try{
+    if(tecnicoActualId){
+      await equipoTecnicoRef.doc(tecnicoActualId).update(data);
+    } else {
+      await equipoTecnicoRef.add(data);
+    }
+    cerrarPanel();
+  } catch(e){
+    console.error('Error guardando técnico:', e);
+    alert('Error guardando el técnico. Revisa la consola.');
+  }
+}
+
+async function eliminarTecnico(){
+  if(!tecnicoActualId) return;
+  if(!confirm('¿Eliminar este técnico del catálogo? Esta acción no se puede deshacer.')) return;
+  try{
+    await equipoTecnicoRef.doc(tecnicoActualId).delete();
+    cerrarPanel();
+  } catch(e){
+    console.error('Error eliminando técnico:', e);
+    alert('Error eliminando el técnico. Revisa la consola.');
+  }
+}
+</script>
+
+</body>
+</html>

@@ -4,7 +4,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v4.13
+<!-- AUDIOLINK · proyecto.html · v4.16
+     V4.16: se agrega campo "Cant. Temas" (fCantTemas, numérico, default 1)
+     a la ficha del proyecto, junto a Etapa actual/Entrega estimada. Se
+     guarda como `cantTemas` en el documento del proyecto y se precarga al
+     editar. Pensado para que cotizador.html pueda heredarlo automáticamente
+     al vincular el proyecto, en vez de escribirlo a mano cada vez. No se
+     tocó ningún otro campo, función de guardado, ni el resto de la ficha.
+     V4.15: Cotizador (simple, texto libre) migra a cotizacion-rapida.html
+     (mismo patrón que v4.14 con Producción musical). Se retiran de acá:
+     el modal modalCotizadorBg, las funciones cotizacionesRef/
+     abrirModalCotizador/cerrarModalCotizador/cargarListaCotizaciones/
+     agregarFilaItem/recalcularTotalCotizacion/abrirFormularioCotizacion/
+     volverListadoCotizaciones/recolectarDatosCotizacion/guardarCotizacion/
+     generarPDFCotizacion, y el CSS exclusivo .item-row/.cotiz-total/
+     .cotiz-item-lista — confirmado por grep que nada más en este archivo
+     los usaba (.link-add SÍ se mantiene: lo usan también Equipo e
+     Instrumentación). El botón "🧾 Cotizador" del detalle ahora abre
+     cotizacion-rapida.html?id={proyectoActualId} en pestaña nueva, mismo
+     patrón que Producción y que "🧮 Cotizador Pro" (cotizador.html) — se
+     mantienen los 3 como herramientas separadas, no se fusionó nada. No
+     se tocó Equipo interno, Dashboard, PDF de proyecto, ni ninguna otra
+     función/colección existente.
+     V4.14: Producción musical migra a produccion.html (mismo patrón de
+     migración ya usado en v4.13 con Portal de clientes, y v4.12 con
+     Estudios/Músicos). Se retiran de acá: el modal modalProduccionBg, el
+     lightbox lightboxProdBg, las funciones produccionRef/abrirModalProduccion/
+     cerrarModalProduccion/cargarListaProduccion/limpiarFormularioProduccion/
+     abrirFormularioProduccion/volverListadoProduccion/abrirLightboxProduccion/
+     cerrarLightboxProduccion/subirArchivoCloudinary/subirArchivoProduccion/
+     guardarProduccion/borrarProduccion, las constantes CLOUDINARY_CLOUD_NAME/
+     CLOUDINARY_UPLOAD_PRESET/EXTENSIONES_AUDIO/PRODUCCION_TIPO_LABEL, y el
+     CSS exclusivo .produccion-item-lista/.upload-status/.lightbox-bg/
+     .lightbox-content — confirmado por grep que nada más en este archivo
+     los usaba. El botón "🎵 Producción" del detalle ahora abre
+     produccion.html?id={proyectoActualId} en pestaña nueva, mismo patrón
+     que ya existía para "🧮 Cotizador Pro" (cotizador.html). No se tocó
+     Cotizador (simple ni Pro), Equipo interno, Dashboard, PDF, ni ninguna
+     otra función/colección existente.
+     V4.13: Portal de clientes migra a clientes.html (mismo patrón que
      V4.13: Portal de clientes migra a clientes.html (mismo patrón que
      Estudios/Músicos en v4.12 — ver plan de migración acordado). Se
      retiran de acá: el modal modalPortalBg, las funciones
@@ -629,8 +667,6 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   background:transparent;border:1px solid var(--brd);color:var(--err);
   border-radius:6px;padding:0 12px;cursor:pointer;
 }
-.item-row{display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;margin-bottom:8px;align-items:center;}
-.item-row input{width:100%;}
 .instr-grupo{border:1px solid var(--brd);border-radius:8px;margin-bottom:8px;overflow:hidden;}
 .instr-grupo-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer;background:var(--surf-light);}
 .instr-grupo-header span{font-size:0.88rem;color:var(--muted);}
@@ -651,50 +687,9 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   .instr-pieza-row{grid-template-columns:1fr;}
   .instr-pieza-row input[type="number"]{width:100%;}
 }
-.item-row button{
-  background:transparent;border:1px solid var(--brd);color:var(--err);
-  border-radius:6px;padding:0 8px;cursor:pointer;height:38px;
-}
-.cotiz-total{
-  display:flex;justify-content:flex-end;align-items:center;gap:10px;
-  margin-top:10px;padding-top:12px;border-top:1px solid var(--brd);
-  font-size:1rem;font-weight:600;color:var(--gold);
-}
-.cotiz-item-lista{
-  border:1px solid var(--brd);border-radius:8px;padding:12px 14px;
-  margin-bottom:8px;background:var(--surf-light);cursor:pointer;
-}
-.cotiz-item-lista:hover{border-color:var(--gold);}
-.cotiz-item-lista .top{display:flex;justify-content:space-between;align-items:center;}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
 .link-add{color:var(--gold);font-size:0.8rem;cursor:pointer;display:inline-block;margin-top:4px;}
 .field input[type="file"]{padding:8px 10px;font-size:0.82rem;color:var(--muted);}
-.upload-status{font-size:0.76rem;color:var(--muted);margin-top:6px;min-height:16px;}
-.upload-status.err{color:var(--err);}
-.upload-status.ok{color:var(--ok);}
-
-/* Lightbox producción (v3.9) — mismo patrón visual que pagos.html */
-.lightbox-bg{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);
-  z-index:200;align-items:center;justify-content:center;padding:30px;
-}
-.lightbox-bg.active{display:flex;}
-.lightbox-content{position:relative;max-width:90vw;max-height:90vh;display:flex;align-items:center;gap:14px;}
-.lightbox-content img{max-width:80vw;max-height:85vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
-.lightbox-content iframe{width:80vw;height:85vh;border:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
-.lightbox-content audio{width:70vw;max-width:480px;}
-.lightbox-content .lightbox-otro{
-  background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:30px 40px;
-  text-align:center;color:var(--muted);
-}
-.lightbox-content .lightbox-otro a{color:var(--gold);font-weight:600;text-decoration:none;}
-.lightbox-close{
-  position:absolute;top:-38px;right:0;background:transparent;border:none;color:var(--txt);
-  font-size:1.6rem;cursor:pointer;line-height:1;
-}
-.produccion-item-lista{background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
-.produccion-item-lista .top{display:flex;justify-content:space-between;align-items:center;gap:10px;}
-
 /* Detalle */
 .detalle{display:none;}
 .detalle.active{display:block;}
@@ -865,8 +860,8 @@ window.NAV_CONFIG = {
       <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
       <button class="btn btn-ghost" onclick="editarProyectoActual()">✎ Editar</button>
       <button class="btn btn-ghost" onclick="verSesiones()">📅 Ver sesiones</button>
-      <button class="btn btn-ghost" onclick="abrirModalCotizador()">🧾 Cotizador</button>
-      <button class="btn btn-ghost" onclick="abrirModalProduccion()">🎵 Producción</button>
+      <button class="btn btn-ghost" onclick="window.open('cotizacion-rapida.html?id=' + proyectoActualId, '_blank')">🧾 Cotizador</button>
+      <button class="btn btn-ghost" onclick="window.open('produccion.html?id=' + proyectoActualId, '_blank')">🎵 Producción</button>
     </div>
   </div>
 
@@ -945,6 +940,10 @@ window.NAV_CONFIG = {
       </div>
     </div>
     <div class="field">
+      <label>Cant. Temas</label>
+      <input type="number" id="fCantTemas" value="1" min="1">
+    </div>
+    <div class="field">
       <label>Equipo asignado</label>
       <div id="equipoContainer"></div>
       <span class="link-add" onclick="agregarFilaEquipo()">+ agregar integrante</span>
@@ -989,147 +988,6 @@ window.NAV_CONFIG = {
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cerrarModalEquipoInterno()">Cerrar</button>
     </div>
-  </div>
-</div>
-
-<!-- MODAL COTIZADOR (v2.2) -->
-<div class="modal-bg" id="modalCotizadorBg">
-  <div class="modal" style="max-width:720px;">
-
-    <!-- Vista A: listado de cotizaciones del proyecto -->
-    <div id="cotizVistaListado">
-      <h2>🧾 Cotizaciones del proyecto</h2>
-      <div id="cotizListaVacio" class="empty" style="display:none;padding:30px;">Aún no hay cotizaciones para este proyecto.</div>
-      <div id="cotizLista"></div>
-      <div class="modal-actions" style="justify-content:space-between;">
-        <button class="btn btn-ghost" onclick="cerrarModalCotizador()">Cerrar</button>
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-ghost" onclick="window.open('cotizador.html?id=' + proyectoActualId, '_blank')">🧮 Cotizador Pro</button>
-          <button class="btn" onclick="abrirFormularioCotizacion()">+ Nueva cotización</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Vista B: formulario de ítems -->
-    <div id="cotizVistaForm" style="display:none;">
-      <h2 id="cotizFormTitulo">Nueva cotización</h2>
-      <div class="row2">
-        <div class="field">
-          <label>Estado</label>
-          <select id="cotizEstado">
-            <option value="borrador">Borrador</option>
-            <option value="enviada">Enviada</option>
-            <option value="aceptada">Aceptada</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Validez de la oferta</label>
-          <input type="date" id="cotizValidez">
-        </div>
-      </div>
-      <div class="field">
-        <label>Ítems</label>
-        <div id="cotizItemsContainer"></div>
-        <span class="link-add" onclick="agregarFilaItem()">+ agregar ítem</span>
-      </div>
-      <div class="field">
-        <label>Notas / condiciones</label>
-        <textarea id="cotizNotas" placeholder="Ej: 50% anticipo, entrega en 15 días hábiles..."></textarea>
-      </div>
-      <div class="cotiz-total">Total: <span id="cotizTotalTxt">$0</span></div>
-      <div class="modal-actions" style="justify-content:space-between;">
-        <button class="btn btn-ghost" onclick="volverListadoCotizaciones()">← Volver</button>
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-ghost" onclick="guardarCotizacion(false)">Guardar</button>
-          <button class="btn" onclick="guardarCotizacion(true)">Guardar y generar PDF</button>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- LIGHTBOX ARCHIVO PRODUCCIÓN (v3.9) -->
-<div class="lightbox-bg" id="lightboxProdBg" onclick="if(event.target===this) cerrarLightboxProduccion()">
-  <div class="lightbox-content">
-    <button class="lightbox-close" onclick="cerrarLightboxProduccion()">✕</button>
-    <div id="lightboxProdBody"></div>
-  </div>
-</div>
-
-<!-- MODAL PRODUCCIÓN MUSICAL -->
-<div class="modal-bg" id="modalProduccionBg">
-  <div class="modal" style="max-width:640px;">
-
-    <!-- Vista A: listado -->
-    <div id="produccionVistaListado">
-      <h2>🎵 Producción musical</h2>
-      <div id="produccionListaVacio" class="empty" style="display:none;padding:30px;">Aún no hay scores ni arreglos para este proyecto.</div>
-      <div id="produccionLista"></div>
-      <div class="modal-actions" style="justify-content:space-between;">
-        <button class="btn btn-ghost" onclick="cerrarModalProduccion()">Cerrar</button>
-        <button class="btn" onclick="abrirFormularioProduccion()">+ Nuevo ítem</button>
-      </div>
-    </div>
-
-    <!-- Vista B: formulario -->
-    <div id="produccionVistaForm" style="display:none;">
-      <h2 id="produccionFormTitulo">Nuevo ítem</h2>
-      <div class="field">
-        <label>Título</label>
-        <input type="text" id="prodTitulo" placeholder="Ej: Arreglo cuerdas - Tema 3">
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label>Tipo</label>
-          <select id="prodTipo">
-            <option value="score">Score</option>
-            <option value="arreglo">Arreglo</option>
-            <option value="referencia">Referencia</option>
-            <option value="mezcla">Mezcla</option>
-            <option value="otro">Otro</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Visibilidad</label>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-            <input type="checkbox" id="prodVisibleCliente" style="width:auto;">
-            <label for="prodVisibleCliente" style="margin:0;color:var(--txt);font-size:0.86rem;">Visible para el cliente</label>
-          </div>
-        </div>
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label>BPM</label>
-          <input type="number" id="prodBpm" min="0" placeholder="Ej: 120">
-        </div>
-        <div class="field">
-          <label>Tonalidad</label>
-          <input type="text" id="prodTonalidad" placeholder="Ej: Sol mayor">
-        </div>
-      </div>
-      <div class="field">
-        <label>Enlace externo (opcional)</label>
-        <input type="text" id="prodEnlace" placeholder="Ej: enlace de Drive, Spotify...">
-      </div>
-      <div class="field">
-        <label>Archivo (opcional — score, PDF, audio de referencia...)</label>
-        <input type="file" id="prodArchivo">
-        <div class="upload-status" id="prodUploadStatus"></div>
-      </div>
-      <div class="field">
-        <label>Notas</label>
-        <textarea id="prodNotas" placeholder="Notas del arreglo, indicaciones, versión..."></textarea>
-      </div>
-      <div class="modal-actions" style="justify-content:space-between;">
-        <button class="btn btn-ghost" onclick="volverListadoProduccion()">← Volver</button>
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-ghost" id="btnBorrarProduccion" onclick="borrarProduccion()" style="display:none;color:var(--err);">Borrar</button>
-          <button class="btn" id="btnGuardarProduccion" onclick="guardarProduccion()">Guardar</button>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>
 
@@ -1560,6 +1418,7 @@ function limpiarFormulario(){
   document.getElementById('fProductor').value = '';
   document.getElementById('fEtapa').value = 'preproduccion';
   document.getElementById('fFechaEntrega').value = '';
+  document.getElementById('fCantTemas').value = 1;
   document.getElementById('fNarrativa').value = '';
   document.getElementById('fPresupuesto').value = '';
   document.getElementById('fNotasInternas').value = '';
@@ -1736,6 +1595,7 @@ async function guardarProyecto(){
     productorEjecutivo: document.getElementById('fProductor').value.trim(),
     etapaActual: document.getElementById('fEtapa').value,
     fechaEntregaEstimada: document.getElementById('fFechaEntrega').value || null,
+    cantTemas: Number(document.getElementById('fCantTemas').value) || 1,
     equipo,
     narrativa: document.getElementById('fNarrativa').value.trim(),
     instrumentacion: instrumentacionState,
@@ -1849,6 +1709,7 @@ function editarProyectoActual(){
   document.getElementById('fProductor').value = p.productorEjecutivo || '';
   document.getElementById('fEtapa').value = p.etapaActual || 'preproduccion';
   document.getElementById('fFechaEntrega').value = p.fechaEntregaEstimada ? p.fechaEntregaEstimada.split('T')[0] : '';
+  document.getElementById('fCantTemas').value = p.cantTemas || 1;
   document.getElementById('fNarrativa').value = p.narrativa || '';
   document.getElementById('fPresupuesto').value = (p.costos && p.costos.presupuesto) || '';
   document.getElementById('fNotasInternas').value = (p.costos && p.costos.notasInternas) || '';
@@ -2117,616 +1978,6 @@ window._eiQuitar = async function(correo){
   }
 };
 
-// ============ COTIZADOR (v2.2) ============
-// Subcolección proyectos/{id}/cotizaciones, mismo patrón que sesiones en
-// logistica.html. Items: [{concepto, cantidad, precio}]. Total calculado
-// en vivo y guardado también en el doc para no recalcular al listar.
-let cotizacionesProyecto = [];
-let cotizacionActualId = null;
-
-function cotizacionesRef(){
-  return proyectosRef.doc(proyectoActualId).collection('cotizaciones');
-}
-
-function abrirModalCotizador(){
-  if(!proyectoActualId) return;
-  document.getElementById('cotizVistaForm').style.display = 'none';
-  document.getElementById('cotizVistaListado').style.display = 'block';
-  cargarListaCotizaciones();
-  document.getElementById('modalCotizadorBg').classList.add('active');
-}
-
-function cerrarModalCotizador(){
-  document.getElementById('modalCotizadorBg').classList.remove('active');
-}
-
-async function cargarListaCotizaciones(){
-  const cont = document.getElementById('cotizLista');
-  const vacio = document.getElementById('cotizListaVacio');
-  cont.innerHTML = '<div class="empty" style="padding:20px;">Cargando...</div>';
-  try{
-    const snap = await cotizacionesRef().orderBy('creadoEn', 'desc').get();
-    cotizacionesProyecto = [];
-    snap.forEach(d => cotizacionesProyecto.push({ id: d.id, ...d.data() }));
-    if(cotizacionesProyecto.length === 0){
-      cont.innerHTML = '';
-      vacio.style.display = 'block';
-      return;
-    }
-    vacio.style.display = 'none';
-    const ESTADO_LABEL = { borrador:'Borrador', enviada:'Enviada', aceptada:'En Producción' };
-    const ESTADO_BADGE = { borrador:'warn', enviada:'ok', aceptada:'prod' };
-    cont.innerHTML = cotizacionesProyecto.map(c => {
-      const fecha = c.creadoEn && c.creadoEn.toDate ? c.creadoEn.toDate().toLocaleDateString('es-CO') : '—';
-      return `
-        <div class="cotiz-item-lista" onclick="abrirFormularioCotizacion('${c.id}')">
-          <div class="top">
-            <strong>$${(c.total || 0).toLocaleString('es-CO')}</strong>
-            <span class="badge ${ESTADO_BADGE[c.estado] || 'warn'}">${ESTADO_LABEL[c.estado] || 'Borrador'}</span>
-          </div>
-          <div style="color:var(--muted);font-size:0.8rem;margin-top:4px;">${(c.items||[]).length} ítem(s) · ${fecha}</div>
-        </div>`;
-    }).join('');
-  } catch(err){
-    console.error(err);
-    cont.innerHTML = '<div class="empty" style="padding:20px;">No pudimos cargar las cotizaciones.</div>';
-  }
-}
-
-function agregarFilaItem(concepto='', cantidad=1, precio=''){
-  const container = document.getElementById('cotizItemsContainer');
-  const row = document.createElement('div');
-  row.className = 'item-row';
-  row.innerHTML = `
-    <input type="text" placeholder="Concepto (ej: Mezcla 5 temas)" class="item-concepto" value="${escapeHtml(concepto)}" oninput="recalcularTotalCotizacion()">
-    <input type="number" placeholder="Cant." min="0" step="1" class="item-cantidad" value="${cantidad}" oninput="recalcularTotalCotizacion()">
-    <input type="number" placeholder="Precio unit." min="0" class="item-precio" value="${precio}" oninput="recalcularTotalCotizacion()">
-    <button onclick="this.parentElement.remove(); recalcularTotalCotizacion();">✕</button>
-  `;
-  container.appendChild(row);
-}
-
-function recalcularTotalCotizacion(){
-  let total = 0;
-  document.querySelectorAll('#cotizItemsContainer .item-row').forEach(row => {
-    const cant = Number(row.querySelector('.item-cantidad').value) || 0;
-    const precio = Number(row.querySelector('.item-precio').value) || 0;
-    total += cant * precio;
-  });
-  document.getElementById('cotizTotalTxt').textContent = '$' + total.toLocaleString('es-CO');
-  return total;
-}
-
-function abrirFormularioCotizacion(id = null){
-  cotizacionActualId = id;
-  document.getElementById('cotizVistaListado').style.display = 'none';
-  document.getElementById('cotizVistaForm').style.display = 'block';
-  document.getElementById('cotizItemsContainer').innerHTML = '';
-
-  if(id){
-    const c = cotizacionesProyecto.find(x => x.id === id);
-    document.getElementById('cotizFormTitulo').textContent = 'Editar cotización';
-    document.getElementById('cotizEstado').value = c.estado || 'borrador';
-    document.getElementById('cotizValidez').value = c.validez || '';
-    document.getElementById('cotizNotas').value = c.notas || '';
-    if(c.items && c.items.length){
-      c.items.forEach(it => agregarFilaItem(it.concepto, it.cantidad, it.precio));
-    } else {
-      agregarFilaItem();
-    }
-  } else {
-    document.getElementById('cotizFormTitulo').textContent = 'Nueva cotización';
-    document.getElementById('cotizEstado').value = 'borrador';
-    document.getElementById('cotizValidez').value = '';
-    document.getElementById('cotizNotas').value = '';
-    agregarFilaItem();
-  }
-  recalcularTotalCotizacion();
-}
-
-function volverListadoCotizaciones(){
-  document.getElementById('cotizVistaForm').style.display = 'none';
-  document.getElementById('cotizVistaListado').style.display = 'block';
-  cargarListaCotizaciones();
-}
-
-function recolectarDatosCotizacion(){
-  const items = [];
-  document.querySelectorAll('#cotizItemsContainer .item-row').forEach(row => {
-    const concepto = row.querySelector('.item-concepto').value.trim();
-    const cantidad = Number(row.querySelector('.item-cantidad').value) || 0;
-    const precio = Number(row.querySelector('.item-precio').value) || 0;
-    if(concepto || cantidad || precio) items.push({ concepto, cantidad, precio });
-  });
-  return {
-    estado: document.getElementById('cotizEstado').value,
-    validez: document.getElementById('cotizValidez').value || null,
-    notas: document.getElementById('cotizNotas').value.trim(),
-    items,
-    total: items.reduce((acc, it) => acc + (it.cantidad * it.precio), 0)
-  };
-}
-
-async function guardarCotizacion(conPDF){
-  const data = recolectarDatosCotizacion();
-  if(data.items.length === 0){
-    alert('Agrega al menos un ítem a la cotización.');
-    return;
-  }
-
-  // V2.9: solo puede haber UNA cotización 'aceptada' por proyecto. Si el
-  // usuario está marcando esta como aceptada y ya existe otra distinta con
-  // ese mismo estado, se le pregunta antes de continuar. Si confirma, la
-  // anterior pasa automáticamente a 'enviada' (no se borra ni se pierde,
-  // solo cambia de estado). Si cancela, no se guarda nada y el formulario
-  // se queda abierto tal cual estaba.
-  if(data.estado === 'aceptada'){
-    const otraAceptada = cotizacionesProyecto.find(c => c.estado === 'aceptada' && c.id !== cotizacionActualId);
-    if(otraAceptada){
-      const totalOtra = (otraAceptada.total || 0).toLocaleString('es-CO');
-      const confirmar = confirm(`Ya existe una cotización aceptada para este proyecto ($${totalOtra}). ¿Quieres reemplazarla? Esa cotización pasará automáticamente a estado "Enviada".`);
-      if(!confirmar) return;
-      try{
-        await cotizacionesRef().doc(otraAceptada.id).update({ estado: 'enviada' });
-      } catch(errRevertir){
-        console.error('Error revirtiendo la cotización aceptada anterior:', errRevertir);
-        alert('No se pudo actualizar la cotización aceptada anterior. Revisa la consola e inténtalo de nuevo.');
-        return;
-      }
-    }
-  }
-
-  try{
-    let idGuardado = cotizacionActualId;
-    if(cotizacionActualId){
-      await cotizacionesRef().doc(cotizacionActualId).update(data);
-    } else {
-      data.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
-      const docRef = await cotizacionesRef().add(data);
-      idGuardado = docRef.id;
-      cotizacionActualId = idGuardado;
-    }
-    if(conPDF) generarPDFCotizacion(data);
-    volverListadoCotizaciones();
-  } catch(err){
-    console.error(err);
-    alert('Error guardando la cotización. Revisa la consola.');
-  }
-}
-
-// ============ PRODUCCIÓN MUSICAL (V3.8) — subcolección proyectos/{id}/produccion ============
-// Mismo patrón CRUD que cotizaciones/estudios: doble vista (listado/formulario)
-// dentro de un solo modal. Archivo opcional vía Cloudinary, mismo cloud/preset
-// que ya usa pagos.html para comprobantes (subirComprobanteCloudinary), solo
-// que aquí se llama subirArchivoProduccion para no confundir su propósito.
-const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
-const CLOUDINARY_UPLOAD_PRESET = 'AUDIOLINK APP';
-
-let produccionProyecto = [];
-let produccionActualId = null;
-
-function produccionRef(){
-  return proyectosRef.doc(proyectoActualId).collection('produccion');
-}
-
-const PRODUCCION_TIPO_LABEL = {
-  score: 'Score', arreglo: 'Arreglo', referencia: 'Referencia', mezcla: 'Mezcla', otro: 'Otro'
-};
-
-function abrirModalProduccion(){
-  if(!proyectoActualId) return;
-  document.getElementById('produccionVistaForm').style.display = 'none';
-  document.getElementById('produccionVistaListado').style.display = 'block';
-  cargarListaProduccion();
-  document.getElementById('modalProduccionBg').classList.add('active');
-}
-
-function cerrarModalProduccion(){
-  document.getElementById('modalProduccionBg').classList.remove('active');
-}
-
-async function cargarListaProduccion(){
-  const cont = document.getElementById('produccionLista');
-  const vacio = document.getElementById('produccionListaVacio');
-  cont.innerHTML = '<div class="empty" style="padding:20px;">Cargando...</div>';
-  try{
-    const snap = await produccionRef().orderBy('creadoEn', 'desc').get();
-    produccionProyecto = [];
-    snap.forEach(d => produccionProyecto.push({ id: d.id, ...d.data() }));
-    if(produccionProyecto.length === 0){
-      cont.innerHTML = '';
-      vacio.style.display = 'block';
-      return;
-    }
-    vacio.style.display = 'none';
-    cont.innerHTML = produccionProyecto.map(it => {
-      const fecha = it.creadoEn && it.creadoEn.toDate ? it.creadoEn.toDate().toLocaleDateString('es-CO') : '—';
-      const detalles = [
-        it.bpm ? `${it.bpm} BPM` : null,
-        it.tonalidad || null,
-        it.autor || null,
-        fecha
-      ].filter(Boolean).join(' · ');
-      return `
-        <div class="produccion-item-lista" onclick="abrirFormularioProduccion('${it.id}')">
-          <div class="top">
-            <strong>${it.titulo || 'Sin título'}</strong>
-            <div style="display:flex;align-items:center;gap:8px;">
-              ${it.archivoUrl ? `<button class="btn-ir-sesiones" title="Ver archivo adjunto" onclick="event.stopPropagation(); abrirLightboxProduccion('${it.archivoUrl}', '${(it.archivoNombre || '').replace(/'/g, "\\'")}')">📎</button>` : ''}
-              ${!it.archivoUrl && it.enlaceExterno ? `<button class="btn-ir-sesiones" title="Abrir enlace externo" onclick="event.stopPropagation(); window.open('${it.enlaceExterno.replace(/'/g, "\\'")}', '_blank', 'noopener')">🔗</button>` : ''}
-              <span class="badge ${it.visibleCliente ? 'ok' : 'warn'}">${PRODUCCION_TIPO_LABEL[it.tipo] || 'Otro'}</span>
-            </div>
-          </div>
-          <div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">${detalles}</div>
-        </div>`;
-    }).join('');
-  } catch(err){
-    console.error(err);
-    cont.innerHTML = '<div class="empty" style="padding:20px;color:var(--err);">Error cargando los ítems. Revisa la consola.</div>';
-  }
-}
-
-function limpiarFormularioProduccion(){
-  document.getElementById('prodTitulo').value = '';
-  document.getElementById('prodTipo').value = 'score';
-  document.getElementById('prodVisibleCliente').checked = false;
-  document.getElementById('prodBpm').value = '';
-  document.getElementById('prodTonalidad').value = '';
-  document.getElementById('prodEnlace').value = '';
-  document.getElementById('prodArchivo').value = '';
-  document.getElementById('prodNotas').value = '';
-  document.getElementById('prodUploadStatus').textContent = '';
-  document.getElementById('prodUploadStatus').className = 'upload-status';
-}
-
-function abrirFormularioProduccion(id = null){
-  limpiarFormularioProduccion();
-  produccionActualId = id;
-  const btnBorrar = document.getElementById('btnBorrarProduccion');
-  if(id){
-    const it = produccionProyecto.find(x => x.id === id);
-    document.getElementById('produccionFormTitulo').textContent = 'Editar ítem';
-    if(it){
-      document.getElementById('prodTitulo').value = it.titulo || '';
-      document.getElementById('prodTipo').value = it.tipo || 'score';
-      document.getElementById('prodVisibleCliente').checked = !!it.visibleCliente;
-      document.getElementById('prodBpm').value = it.bpm || '';
-      document.getElementById('prodTonalidad').value = it.tonalidad || '';
-      document.getElementById('prodEnlace').value = it.enlaceExterno || '';
-      if(it.archivoUrl){
-        document.getElementById('prodUploadStatus').textContent = 'Archivo ya cargado — subir uno nuevo lo reemplaza.';
-        document.getElementById('prodUploadStatus').className = 'upload-status ok';
-      }
-      document.getElementById('prodNotas').value = it.notas || '';
-    }
-    btnBorrar.style.display = 'inline-block';
-  } else {
-    document.getElementById('produccionFormTitulo').textContent = 'Nuevo ítem';
-    btnBorrar.style.display = 'none';
-  }
-  document.getElementById('produccionVistaListado').style.display = 'none';
-  document.getElementById('produccionVistaForm').style.display = 'block';
-}
-
-function volverListadoProduccion(){
-  document.getElementById('produccionVistaForm').style.display = 'none';
-  document.getElementById('produccionVistaListado').style.display = 'block';
-  cargarListaProduccion();
-}
-
-// Lightbox de archivo adjunto (v3.9) — detecta tipo por extensión del
-// nombre original guardado (archivoNombre). No usa Cloudinary transforms
-// como pagos.html (paginado PDF); acá solo se necesita ver/escuchar/descargar.
-function abrirLightboxProduccion(url, nombre){
-  const ext = (nombre.split('.').pop() || '').toLowerCase();
-  const body = document.getElementById('lightboxProdBody');
-  if(['jpg','jpeg','png','webp','gif'].includes(ext)){
-    body.innerHTML = `<img src="${url}" alt="${nombre}">`;
-  } else if(ext === 'pdf'){
-    body.innerHTML = `<iframe src="${url}"></iframe>`;
-  } else if(['mp3','wav','m4a','ogg','aac'].includes(ext)){
-    body.innerHTML = `<audio controls src="${url}"></audio>`;
-  } else {
-    body.innerHTML = `<div class="lightbox-otro">${nombre || 'Archivo'}<br><br><a href="${url}" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div>`;
-  }
-  document.getElementById('lightboxProdBg').classList.add('active');
-}
-function cerrarLightboxProduccion(){
-  document.getElementById('lightboxProdBg').classList.remove('active');
-  document.getElementById('lightboxProdBody').innerHTML = '';
-}
-
-// v4.0 — el audio (mp3/wav/m4a/ogg/aac) va a Firebase Storage en vez de
-// Cloudinary, para no competir por el cupo de créditos de Cloudinary
-// (reservado ahora para foto/video/PDF). Imagen/video/PDF siguen exactamente
-// igual que antes, sin ningún cambio en su ruta ni en subirArchivoCloudinary.
-const EXTENSIONES_AUDIO = ['mp3','wav','m4a','ogg','aac'];
-
-// v4.6: 2º parámetro opcional assetFolder. Si no se manda (todos los
-// llamados previos a v4.6 siguen igual), Cloudinary usa el Asset Folder
-// por defecto del preset ("AUDIOLINK APP"), comportamiento sin cambios.
-async function subirArchivoCloudinary(file, assetFolder){
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-  if(assetFolder) formData.append('asset_folder', assetFolder);
-  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
-    method: 'POST',
-    body: formData
-  });
-  if(!resp.ok) throw new Error('Cloudinary respondió con error ' + resp.status);
-  const data = await resp.json();
-  return data.secure_url;
-}
-
-// v4.1: comentado — dependía de `storage` (Firebase Storage), que quedó
-// deshabilitado por requerir plan Blaze. Se deja aquí por si se retoma.
-// async function subirArchivoStorage(file){
-//   const ref = storage.ref().child(`produccion-audio/${Date.now()}_${file.name}`);
-//   await ref.put(file);
-//   return ref.getDownloadURL();
-// }
-
-// v4.1: el audio ya no se sube por este flujo (ver nota de versión arriba).
-// Si el archivo es audio, se lanza un error controlado con mensaje para el
-// usuario en vez de intentar subirlo; guardarProduccion() lo captura y lo
-// muestra en pantalla. Imagen/video/PDF no cambian: siguen por Cloudinary.
-async function subirArchivoProduccion(file){
-  const ext = (file.name.split('.').pop() || '').toLowerCase();
-  if(EXTENSIONES_AUDIO.includes(ext)){
-    throw new Error('AUDIO_NO_SOPORTADO');
-  }
-  const url = await subirArchivoCloudinary(file);
-  return { secure_url: url };
-}
-
-async function guardarProduccion(){
-  const titulo = document.getElementById('prodTitulo').value.trim();
-  if(!titulo){
-    alert('El título es obligatorio.');
-    return;
-  }
-
-  const btnGuardar = document.getElementById('btnGuardarProduccion');
-  const status = document.getElementById('prodUploadStatus');
-  btnGuardar.disabled = true;
-
-  const data = {
-    titulo,
-    tipo: document.getElementById('prodTipo').value,
-    visibleCliente: document.getElementById('prodVisibleCliente').checked,
-    bpm: document.getElementById('prodBpm').value ? Number(document.getElementById('prodBpm').value) : null,
-    tonalidad: document.getElementById('prodTonalidad').value.trim() || null,
-    enlaceExterno: document.getElementById('prodEnlace').value.trim() || null,
-    notas: document.getElementById('prodNotas').value.trim() || null,
-    autor: (auth.currentUser && auth.currentUser.email) || null
-  };
-
-  try{
-    const archivo = document.getElementById('prodArchivo').files[0];
-    if(archivo){
-      status.textContent = 'Subiendo archivo...';
-      status.className = 'upload-status';
-      const resultado = await subirArchivoProduccion(archivo);
-      data.archivoUrl = resultado.secure_url;
-      data.archivoNombre = archivo.name;
-    }
-
-    if(produccionActualId){
-      await produccionRef().doc(produccionActualId).update(data);
-    } else {
-      data.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
-      await produccionRef().add(data);
-    }
-    volverListadoProduccion();
-  } catch(err){
-    if(err.message === 'AUDIO_NO_SOPORTADO'){
-      status.textContent = 'Los archivos de audio no se suben directamente: pega el link en "Enlace externo" (Drive, WeTransfer, etc.) y guarda de nuevo.';
-    } else {
-      console.error(err);
-      status.textContent = 'Error guardando el ítem. Revisa la consola.';
-    }
-    status.className = 'upload-status err';
-  } finally {
-    btnGuardar.disabled = false;
-  }
-}
-
-async function borrarProduccion(){
-  if(!produccionActualId) return;
-  if(!confirm('¿Borrar este ítem de producción? Esta acción no se puede deshacer.')) return;
-  try{
-    await produccionRef().doc(produccionActualId).delete();
-    volverListadoProduccion();
-  } catch(err){
-    console.error(err);
-    alert('Error borrando el ítem. Revisa la consola.');
-  }
-}
-
-function generarPDFCotizacion(data){
-  const p = proyectos.find(x => x.id === proyectoActualId);
-  if(!p) return;
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const goldRGB = [196, 152, 44];
-  const darkRGB = [17, 17, 17];
-  const mutedRGB = [122, 112, 96];
-  const cardBgRGB = [250, 250, 250];
-  const cardBrdRGB = [229, 229, 229];
-  const pageW = 210;
-  const pageH = doc.internal.pageSize.height;
-  const marginX = 18;
-  const bottomLimit = pageH - 24;
-
-  // ---- Categorización por palabras clave del concepto ----
-  // Cubre tanto los conceptos que llegan del Cotizador Pro (cotizador.html,
-  // que ya trae prefijos como "Backline -", "Postproducción de Audio -",
-  // etc.) como los del Cotizador simple (texto libre), que caen en "Otros".
-  const GRUPOS_DEF = [
-    { nombre: 'Infraestructura — Salas de Grabación', test: c => /infraestructura/i.test(c) },
-    { nombre: 'Equipos — Backline / Instrumentación', test: c => /backline/i.test(c) },
-    { nombre: 'Personal Operativo & Soporte', test: c => /(soporte técnico|preproducción logística|personal de ejecución|ensamble)/i.test(c) },
-    { nombre: 'Producción & Postproducción de Audio', test: c => /(preproducción -|roles creativos|postproducción)/i.test(c) },
-    { nombre: 'Honorarios e Impuestos', test: c => /(honorarios|impuestos)/i.test(c) },
-    { nombre: 'Otros Rubros', test: () => true }
-  ];
-  const grupos = GRUPOS_DEF.map(g => ({ nombre: g.nombre, items: [], subtotal: 0 }));
-  data.items.forEach(it => {
-    const idx = GRUPOS_DEF.findIndex(g => g.test(it.concepto || ''));
-    const grupo = grupos[idx === -1 ? grupos.length - 1 : idx];
-    grupo.items.push(it);
-    grupo.subtotal += it.cantidad * it.precio;
-  });
-  const gruposConItems = grupos.filter(g => g.items.length > 0);
-
-  function checkPageBreak(alturaNecesaria){
-    if(y + alturaNecesaria > bottomLimit){
-      doc.addPage();
-      y = 20;
-    }
-  }
-
-  // ---- Encabezado ----
-  doc.setFillColor(...darkRGB);
-  doc.rect(0, 0, pageW, 38, 'F');
-  doc.setDrawColor(...goldRGB);
-  doc.setLineWidth(0.6);
-  doc.line(0, 38, pageW, 38);
-  doc.setTextColor(...goldRGB);
-  doc.setFont('times', 'bold');
-  doc.setFontSize(22);
-  doc.text('AUDIOLINK', marginX, 21);
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(200, 200, 195);
-  doc.text('PROPUESTA OPERATIVA Y ECONÓMICA', marginX, 28);
-  doc.setTextColor(...goldRGB);
-  doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }).toUpperCase(), pageW - marginX, 28, { align:'right' });
-
-  let y = 52;
-
-  // ---- Dos tarjetas de info (Titular del Proyecto / Trazabilidad) ----
-  const cardW = (pageW - marginX*2 - 10) / 2;
-  const cardH = 30;
-  doc.setDrawColor(...cardBrdRGB);
-  doc.setFillColor(...cardBgRGB);
-  doc.roundedRect(marginX, y, cardW, cardH, 2, 2, 'FD');
-  doc.roundedRect(marginX + cardW + 10, y, cardW, cardH, 2, 2, 'FD');
-
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...mutedRGB);
-  doc.text('TITULAR DEL PROYECTO', marginX + 5, y + 8);
-  doc.text('TRAZABILIDAD', marginX + cardW + 15, y + 8);
-
-  doc.setFont('times', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...darkRGB);
-  doc.text(`Cliente/Artista: ${p.clienteArtista || '—'}`, marginX + 5, y + 15);
-  doc.text(`Proyecto: ${p.nombre || 'Sin nombre'}`, marginX + 5, y + 21, { maxWidth: cardW - 10 });
-
-  doc.text(`Prod. Ejecutivo: ${p.productorEjecutivo || '—'}`, marginX + cardW + 15, y + 15);
-  const validezTxt = data.validez ? new Date(data.validez).toLocaleDateString('es-CO') : 'No definida';
-  doc.text(`Válida hasta: ${validezTxt}`, marginX + cardW + 15, y + 21);
-  doc.text(`Estado: ${(data.estado || 'borrador').toUpperCase()}`, marginX + cardW + 15, y + 27);
-
-  y += cardH + 12;
-
-  // ---- Tabla agrupada ----
-  gruposConItems.forEach(grupo => {
-    checkPageBreak(9 + grupo.items.length*7 + 10);
-
-    doc.setFillColor(240, 237, 231);
-    doc.setDrawColor(...goldRGB);
-    doc.setLineWidth(1);
-    doc.rect(marginX, y - 5.5, pageW - marginX*2, 8, 'F');
-    doc.line(marginX, y - 5.5, marginX, y + 2.5);
-    doc.setFont('courier', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...darkRGB);
-    doc.text(grupo.nombre.toUpperCase(), marginX + 4, y);
-    y += 8;
-
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(...mutedRGB);
-    doc.text('CONCEPTO', marginX + 3, y);
-    doc.text('CANT.', marginX + 108, y, { align:'right' });
-    doc.text('P. UNIT.', marginX + 140, y, { align:'right' });
-    doc.text('SUBTOTAL', pageW - marginX - 3, y, { align:'right' });
-    y += 6;
-
-    doc.setFont('times', 'normal');
-    doc.setFontSize(9.5);
-    doc.setTextColor(40, 40, 40);
-    grupo.items.forEach(it => {
-      checkPageBreak(7);
-      const subtotal = it.cantidad * it.precio;
-      doc.text(String(it.concepto || '—'), marginX + 3, y, { maxWidth: 95 });
-      doc.text(String(it.cantidad), marginX + 108, y, { align:'right' });
-      doc.text('$' + it.precio.toLocaleString('es-CO'), marginX + 140, y, { align:'right' });
-      doc.text('$' + subtotal.toLocaleString('es-CO'), pageW - marginX - 3, y, { align:'right' });
-      y += 7;
-    });
-
-    doc.setDrawColor(...goldRGB);
-    doc.setLineWidth(0.2);
-    doc.line(marginX, y - 2, pageW - marginX, y - 2);
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...mutedRGB);
-    doc.text(`Subtotal parcial: $${grupo.subtotal.toLocaleString('es-CO')}`, pageW - marginX - 3, y + 3, { align:'right' });
-    y += 12;
-  });
-
-  // ---- Total ----
-  checkPageBreak(20);
-  doc.setDrawColor(...goldRGB);
-  doc.setLineWidth(0.6);
-  doc.line(marginX, y, pageW - marginX, y);
-  y += 9;
-  doc.setFont('times', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(...goldRGB);
-  doc.text('INVERSIÓN ESTIMADA TOTAL: $' + data.total.toLocaleString('es-CO'), pageW - marginX, y, { align:'right' });
-
-  // ---- Notas ----
-  if(data.notas){
-    y += 14;
-    checkPageBreak(20);
-    doc.setFont('courier', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...darkRGB);
-    doc.text('NOTAS / CONDICIONES', marginX, y);
-    y += 6;
-    doc.setFont('times', 'normal');
-    doc.setFontSize(9.5);
-    doc.setTextColor(70, 70, 70);
-    const splitNotas = doc.splitTextToSize(data.notas, pageW - marginX*2);
-    checkPageBreak(splitNotas.length * 5 + 4);
-    doc.text(splitNotas, marginX, y);
-  }
-
-  // ---- Pie de página en todas las páginas generadas ----
-  const totalPaginas = doc.internal.getNumberOfPages();
-  for(let i = 1; i <= totalPaginas; i++){
-    doc.setPage(i);
-    const ph = doc.internal.pageSize.height;
-    doc.setDrawColor(...cardBrdRGB);
-    doc.setLineWidth(0.2);
-    doc.line(marginX, ph - 15, pageW - marginX, ph - 15);
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...mutedRGB);
-    doc.text('AUDIOLINK — Producción y Logística Musical', marginX, ph - 10);
-    doc.text(`Cotización sujeta a confirmación · Pág. ${i}/${totalPaginas}`, pageW - marginX, ph - 10, { align:'right' });
-  }
-
-  const blobUrl = doc.output('bloburl');
-  window.open(blobUrl, '_blank');
-}
 </script>
 
 </body>

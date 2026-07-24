@@ -3,7 +3,8 @@ rules_version = '2';
 // AUDIOLINK — Reglas de Firestore
 // Cubre: proyectos, proyectos/{id}/sesiones, proyectos/{id}/cotizaciones,
 // proyectos/{id}/pagos, proyectos/{id}/produccion, equipoInterno,
-// clientesAcceso, estudios, musicos.
+// clientesAcceso, estudios, musicos, clientes, equipoTecnico,
+// proyectos/{id}/sesiones/{id}/consentimientos.
 //
 // IMPORTANTE — léelo antes de publicar:
 // 1. El PRIMER correo de equipoInterno hay que crearlo manualmente desde la
@@ -104,6 +105,34 @@ rules_version = '2';
 // músicos/sesionistas (proyecto.html v4.5). Mismo patrón que estudios: solo
 // equipo interno lee y escribe. No se tocó ninguna otra condición ni match
 // existente.
+//
+// v2.3: se agrega el bloque /clientes/{clienteId} — ficha de clientes
+// (clientes.html v1.0 / proyecto.html v4.11, selector "Cliente registrado").
+// Mismo patrón exacto que estudios y musicos: solo equipo interno lee y
+// escribe (crear, editar, y el batch de "Sembrar desde proyectos"). El
+// cliente nunca accede a esta colección directamente — su acceso al portal
+// sigue siendo por clientesAcceso, sin cambios. No se tocó ninguna otra
+// condición, match o colección existente.
+// v2.6: se agrega el match /sesiones/{sesionId}/consentimientos/{id} —
+// subcolección nueva de consentimiento.html (v1.0), página standalone sin
+// login donde un músico acepta el consentimiento de uso y la tarifa
+// acordada de una sesión puntual (link generado desde logistica.html
+// v2.10, con nombre/correo/tarifa en la URL — esos datos NO se guardan en
+// el documento de la sesión). Mismo patrón EXACTO que la excepción sin
+// login de /tomas (v1.8): solo equipo interno tiene lectura/escritura
+// total; sin login, SOLO se puede crear un documento con ese esquema
+// exacto — nunca leer, editar ni borrar desde el link público. No se tocó
+// ninguna otra regla, colección ni match existente, incluida la de tomas.
+//
+// v1.8 (esta entrega): se agrega el bloque /equipoTecnico/{tecnicoId} —
+// catálogo de técnicos (equipo-tecnico.html, CRUD plano sin subcolecciones:
+// colección `equipoTecnico`) que alimenta el selector "Técnicos asignados"
+// de logistica.html v2.24 (guarda `tecnicosAsignados` dentro de cada
+// sesión, ya cubierto por el match de /sesiones existente — ese campo no
+// necesita regla propia). MISMO PATRÓN EXACTO que estudios/musicos/
+// clientes: solo equipo interno lee y escribe; el cliente nunca accede a
+// esta colección. No se tocó ninguna otra regla, condición, match ni
+// colección existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -162,6 +191,20 @@ service cloud.firestore {
             get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.clienteEmail == request.auth.token.email.lower() &&
             get(/databases/$(database)/documents/proyectos/$(proyectoId)).data.visibleCliente != false &&
             get(/databases/$(database)/documents/proyectos/$(proyectoId)/sesiones/$(sesionId)).data.visibleCliente != false;
+        }
+        // ---- Consentimientos (subcolección, v2.6) ----
+        // Registro de aceptación del músico (consentimiento de uso +
+        // tarifa) para consentimiento.html. Mismo patrón que tomas.
+        match /consentimientos/{consentimientoId} {
+          // Equipo interno: acceso total (leer, editar, borrar si hace falta).
+          allow read, write: if esStaff();
+          // Excepción sin login: SOLO crear, SOLO con este esquema exacto.
+          // Nunca leer, editar ni borrar desde el link público.
+          allow create: if
+            request.resource.data.keys().hasOnly(['nombre','correo','tarifa','aceptado','creadoEn']) &&
+            request.resource.data.nombre is string &&
+            request.resource.data.correo is string &&
+            request.resource.data.aceptado == true;
         }
       }
       // ---------- COTIZACIONES (subcolección) ----------
@@ -262,6 +305,26 @@ service cloud.firestore {
     // sesión y producción musical. Solo equipo interno lee y escribe; el
     // cliente nunca accede a esto. Mismo patrón que estudios.
     match /musicos/{musicoId} {
+      allow read, write: if esStaff();
+    }
+    // ---------- CLIENTES (v2.3 — clientes.html v1.0 / proyecto.html v4.11) ----------
+    // Ficha de cliente (nombre, email, teléfono, notas) y catálogo para el
+    // selector "Cliente registrado" del formulario de proyecto. Solo equipo
+    // interno lee y escribe — incluye crear, editar y el batch de "Sembrar
+    // desde proyectos existentes". El cliente nunca accede a esta colección
+    // directamente; su propio acceso al portal sigue siendo por
+    // clientesAcceso, sin cambios.
+    match /clientes/{clienteId} {
+      allow read, write: if esStaff();
+    }
+    // ---------- EQUIPO TÉCNICO (v1.8 — equipo-tecnico.html) ----------
+    // Catálogo de técnicos (nombre, rol, tarifa, teléfono, activo) que
+    // alimenta el selector "Técnicos asignados" de logistica.html v2.24.
+    // CRUD plano sin subcolecciones, colección `equipoTecnico`. Mismo
+    // patrón exacto que estudios/musicos/clientes: solo equipo interno lee
+    // y escribe (crear, editar, borrar). El cliente nunca accede a esta
+    // colección directamente.
+    match /equipoTecnico/{tecnicoId} {
       allow read, write: if esStaff();
     }
   }

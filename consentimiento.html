@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Consentimiento de Sesión</title>
+<!-- AUDIOLINK · consentimiento.html · v1.0
+     Página standalone, SIN el sistema logueado (mismo criterio que
+     bitacora.html v2.0): sin firebase-auth, sin listado de proyectos.
+     Se abre con ?p={proyectoId}&s={sesionId}&nombre=&correo=&tarifa=
+     — nombre/correo/tarifa se arman en el link (logistica.html v2.8,
+     botón "Generar link de consentimiento") en vez de guardarse en el
+     modelo de datos de la sesión, para no acoplar musicos.html/tarifas
+     a logistica.html. Si vienen en la URL se precargan y quedan
+     de solo lectura; si no vienen, el músico los escribe a mano.
+
+     Lee el documento de la sesión (actividad/fecha/estudio, solo
+     lectura) y muestra: (1) datos de la sesión, (2) texto de
+     consentimiento — VER PLACEHOLDER más abajo, pendiente de redactar
+     con el texto legal real —, (3) tarifa acordada, (4) checkbox
+     "Acepto" + nombre + correo + botón Confirmar.
+
+     Al confirmar, add() en sesiones/{id}/consentimientos (create-only,
+     igual patrón que sesiones/{id}/tomas de bitacora.html): no se puede
+     leer, editar ni borrar desde este link, solo crear un registro con
+     ese esquema exacto. Requiere 1 regla nueva de Firestore sin auth
+     (ver comentario al final del archivo) — no reemplaza ninguna regla
+     existente, solo agrega esta excepción puntual. No se tocó
+     bitacora.html, logistica.html (salvo el botón nuevo), musicos.html
+     ni ningún otro archivo. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<style>
+:root{
+  --bg:#0b0b0d; --surf:#16161a; --surf2:#1d1d22; --brd:#2a2a30;
+  --txt:#f2f0eb; --muted:#9a978f; --faint:#65625c;
+  --gold:#c9a24b; --gold-bg:rgba(201,162,75,0.12);
+  --ok:#4caf7d; --err:#d4574a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:'DM Sans', sans-serif;
+  min-height:100vh; padding:20px 14px 60px;
+}
+.wrap{max-width:640px;margin:0 auto;}
+h1{
+  font-family:'Playfair Display', serif; font-size:1.5rem; color:var(--gold);
+  margin-bottom:4px;
+}
+.subt{color:var(--muted); font-size:0.85rem; margin-bottom:24px;}
+.card{
+  background:var(--surf); border:1px solid var(--brd); border-radius:12px;
+  padding:18px; margin-bottom:14px;
+}
+.card h3{
+  font-size:0.78rem; color:var(--gold); text-transform:uppercase;
+  letter-spacing:0.04em; margin-bottom:10px;
+}
+.dato{font-size:0.95rem; margin-bottom:4px;}
+.dato span{color:var(--muted);}
+.consent-texto{
+  font-size:0.88rem; line-height:1.6; color:var(--txt);
+  max-height:260px; overflow-y:auto; padding-right:6px;
+}
+.consent-texto.placeholder{color:var(--faint); font-style:italic;}
+.tarifa-valor{
+  font-family:'JetBrains Mono', monospace; font-size:1.3rem; color:var(--gold);
+}
+.field{margin-bottom:14px;}
+.field label{
+  display:block; font-size:0.72rem; color:var(--muted); margin-bottom:5px;
+  text-transform:uppercase; letter-spacing:0.03em;
+}
+.field input{
+  width:100%; background:var(--surf2); border:1px solid var(--brd); border-radius:8px;
+  padding:10px 12px; color:var(--txt); font-size:0.95rem;
+}
+.field input:focus{outline:none; border-color:var(--gold);}
+.field input:disabled{opacity:0.7;}
+.check-row{
+  display:flex; align-items:flex-start; gap:10px; margin:16px 0;
+  font-size:0.88rem; line-height:1.4;
+}
+.check-row input{width:18px; height:18px; margin-top:2px; flex-shrink:0;}
+.btn-guardar{
+  position:sticky; bottom:14px; width:100%; background:var(--gold); color:#151109;
+  border:none; border-radius:10px; padding:15px; font-size:1rem; font-weight:700;
+  cursor:pointer; margin-top:6px; box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.btn-guardar:disabled{opacity:0.4; cursor:not-allowed;}
+.estado{
+  text-align:center; padding:8px; font-size:0.82rem; color:var(--muted); min-height:20px;
+}
+.estado.ok{color:var(--ok);}
+.estado.err{color:var(--err);}
+.empty, .error-box{
+  text-align:center; padding:60px 20px; color:var(--faint); font-size:0.9rem;
+}
+.error-box{color:var(--err);}
+.confirmado-box{
+  background:var(--surf); border:1px solid var(--ok); border-radius:12px;
+  padding:24px; text-align:center;
+}
+.confirmado-box .check-icon{font-size:2.4rem; margin-bottom:10px;}
+.confirmado-box h3{color:var(--ok); font-size:1.05rem; margin-bottom:6px;}
+.confirmado-box p{color:var(--muted); font-size:0.85rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Consentimiento de Sesión</h1>
+  <div class="subt" id="subtitulo">Cargando sesión…</div>
+  <div id="contenido"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const proyectoId = params.get('p');
+const sesionId = params.get('s');
+const nombrePrefill = params.get('nombre') || '';
+const correoPrefill = params.get('correo') || '';
+const tarifaPrefill = params.get('tarifa') || '';
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let sesionRef = null;
+let aceptado = false;
+
+async function cargar(){
+  const cont = document.getElementById('contenido');
+  const subt = document.getElementById('subtitulo');
+
+  if(!proyectoId || !sesionId){
+    subt.textContent = '';
+    cont.innerHTML = '<div class="error-box">Link inválido: faltan datos de la sesión.</div>';
+    return;
+  }
+
+  sesionRef = db.collection('proyectos').doc(proyectoId).collection('sesiones').doc(sesionId);
+
+  try{
+    const snap = await sesionRef.get();
+    if(!snap.exists){
+      subt.textContent = '';
+      cont.innerHTML = '<div class="error-box">Esta sesión no existe o el link ya no es válido.</div>';
+      return;
+    }
+    const s = snap.data();
+    subt.textContent = `${s.actividad || 'Sesión'} · ${s.fecha || ''} · ${s.sala || ''}`;
+
+    cont.innerHTML = `
+      <div class="card">
+        <h3>Datos de la sesión</h3>
+        <div class="dato"><span>Actividad:</span> ${escapeHtml(s.actividad || '—')}</div>
+        <div class="dato"><span>Fecha:</span> ${escapeHtml(s.fecha || '—')}</div>
+        <div class="dato"><span>Estudio/sala:</span> ${escapeHtml(s.sala || '—')}</div>
+      </div>
+
+      <div class="card">
+        <h3>Consentimiento de uso</h3>
+        <div class="consent-texto placeholder">
+          [PLACEHOLDER — pendiente redactar el texto legal de consentimiento
+          de uso de la grabación/interpretación. Reemplazar este bloque por
+          el texto definitivo cuando esté listo.]
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Tarifa acordada</h3>
+        <div class="tarifa-valor">${tarifaPrefill ? formatCOP(Number(tarifaPrefill)) : 'No especificada'}</div>
+      </div>
+
+      <div class="card">
+        <h3>Tus datos</h3>
+        <div class="field">
+          <label>Nombre completo</label>
+          <input type="text" id="fNombre" value="${escapeHtml(nombrePrefill)}" ${nombrePrefill ? 'disabled' : ''} placeholder="Tu nombre">
+        </div>
+        <div class="field">
+          <label>Correo</label>
+          <input type="email" id="fCorreo" value="${escapeHtml(correoPrefill)}" ${correoPrefill ? 'disabled' : ''} placeholder="tu@correo.com">
+        </div>
+        <label class="check-row">
+          <input type="checkbox" id="fAcepto" onchange="aceptado = this.checked; document.getElementById('btnConfirmar').disabled = !aceptado;">
+          <span>He leído y acepto el consentimiento de uso y la tarifa acordada arriba descritos.</span>
+        </label>
+      </div>
+
+      <button class="btn-guardar" id="btnConfirmar" onclick="confirmar()" disabled>Confirmar</button>
+      <div class="estado" id="estado"></div>
+    `;
+  } catch(err){
+    console.error(err);
+    subt.textContent = '';
+    cont.innerHTML = '<div class="error-box">Error cargando la sesión. Revisa tu conexión e intenta de nuevo.</div>';
+  }
+}
+
+async function confirmar(){
+  const estado = document.getElementById('estado');
+  const btn = document.getElementById('btnConfirmar');
+  const nombre = (nombrePrefill || document.getElementById('fNombre').value).trim();
+  const correo = (correoPrefill || document.getElementById('fCorreo').value).trim();
+
+  if(!nombre || !correo){
+    estado.textContent = 'Ingresa tu nombre y correo.';
+    estado.className = 'estado err';
+    return;
+  }
+  if(!aceptado){
+    estado.textContent = 'Marca la casilla de aceptación para continuar.';
+    estado.className = 'estado err';
+    return;
+  }
+
+  btn.disabled = true;
+  estado.textContent = 'Guardando…';
+  estado.className = 'estado';
+
+  const data = {
+    nombre,
+    correo,
+    tarifa: tarifaPrefill ? Number(tarifaPrefill) : null,
+    aceptado: true,
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try{
+    await sesionRef.collection('consentimientos').add(data);
+    document.getElementById('contenido').innerHTML = `
+      <div class="confirmado-box">
+        <div class="check-icon">✓</div>
+        <h3>Consentimiento registrado</h3>
+        <p>Gracias, ${escapeHtml(nombre)}. Ya quedó guardado en la sesión.</p>
+      </div>
+    `;
+  } catch(err){
+    console.error(err);
+    estado.textContent = 'Error guardando. Intenta de nuevo.';
+    estado.className = 'estado err';
+    btn.disabled = false;
+  }
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
+
+cargar();
+</script>
+
+<!--
+REGLA DE FIRESTORE SUGERIDA (agregar manualmente en Firebase Console →
+Firestore → Rules, dentro del match de
+/proyectos/{proyectoId}/sesiones/{sesionId} que ya exista — el mismo
+bloque donde vive la regla de bitacora.html):
+
+match /proyectos/{proyectoId}/sesiones/{sesionId} {
+  // ... tus reglas actuales (incluida la de bitacora.html) se mantienen ...
+
+  match /consentimientos/{consentimientoId} {
+    allow read, write: if esStaff(); // equipo interno: acceso total
+    allow create: if
+      request.resource.data.keys().hasOnly(['nombre','correo','tarifa','aceptado','creadoEn']) &&
+      request.resource.data.nombre is string &&
+      request.resource.data.correo is string &&
+      request.resource.data.aceptado == true;
+      // sin login, SOLO puede crear un consentimiento con ese esquema exacto
+      // — nunca leer, editar ni borrar desde el link público.
+  }
+}
+
+Esto no reemplaza ninguna regla existente, solo agrega esta excepción
+puntual para esta subcolección nueva.
+-->
+</body>
+</html>

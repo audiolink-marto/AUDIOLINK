@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Clientes</title>
-<!-- AUDIOLINK · clientes.html · v1.1
+<!-- AUDIOLINK · clientes.html · v1.2
+     V1.2: se agrega botón "🔗 Copiar link" en cada tarjeta del listado
+     del Portal de clientes (renderListaPortalClientes), visible siempre
+     sin importar el estado (Sin activar / Activado / Revocado). Copia
+     al portapapeles la misma URL genérica ya usada en
+     portalActionCodeSettings (portal.html) — no depende de correo,
+     WhatsApp ni ninguna integración nueva; el envío queda 100% manual
+     por el canal que el staff prefiera. Nueva función _pcCopiarLink()
+     usa navigator.clipboard.writeText con fallback de alert si el
+     navegador lo bloquea, y da feedback breve cambiando el texto del
+     botón a "✅ Copiado" por 1.5s.
      V1.1: se migra acá el Portal de clientes completo (antes modal en
      proyecto.html, ver plan de migración acordado). Ahora esta página
      puede activar/reenviar/revocar acceso real (Firebase Auth vía app
@@ -526,6 +536,7 @@ function renderListaPortalClientes(){
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           ${acciones}
           <button class="btn btn-ghost" onclick="window._pcPreview('${c.email}')">👁️ Vista previa</button>
+          <button class="btn btn-ghost" id="btnCopiar-${c.email.replace(/[^a-zA-Z0-9]/g,'')}" onclick="window._pcCopiarLink('${c.email.replace(/[^a-zA-Z0-9]/g,'')}')">🔗 Copiar link</button>
         </div>
       </div>`;
   }).join('');
@@ -575,6 +586,27 @@ window._pcRevocar = async function(email, nuevoEstado){
   } catch(err){
     console.error(err);
     alert('No pudimos actualizar el acceso.');
+  }
+};
+
+// v1.2: link genérico del portal — el cliente entra ahí y hace login con
+// su propio email/contraseña. Mismo dominio ya usado en portalActionCodeSettings.
+const PORTAL_URL = 'https://audiolink-marto.github.io/AUDIOLINK/portal.html';
+
+window._pcCopiarLink = function(btnId){
+  const btn = document.getElementById(`btnCopiar-${btnId}`);
+  const textoOriginal = btn ? btn.textContent : '';
+  const marcarCopiado = () => {
+    if(!btn) return;
+    btn.textContent = '✅ Copiado';
+    setTimeout(() => { btn.textContent = textoOriginal; }, 1500);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(PORTAL_URL).then(marcarCopiado).catch(() => {
+      alert(`Copia manual: ${PORTAL_URL}`);
+    });
+  } else {
+    alert(`Copia manual: ${PORTAL_URL}`);
   }
 };
 

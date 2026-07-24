@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Producción musical</title>
+<!-- AUDIOLINK · produccion.html · v1.0
+     V1.0: primera versión. Módulo "Producción musical" migrado desde
+     proyecto.html v4.13 (mismo patrón de migración ya usado con
+     clientes.html/estudios.html/musicos.html): antes vivía como modal
+     dentro del detalle de cada proyecto, ahora es página propia que se
+     abre con window.open('produccion.html?id='+proyectoActualId,'_blank'),
+     mismo patrón que ya existía para "Cotizador Pro" (cotizador.html).
+     Sin cambios de lógica ni de datos: misma subcolección Firestore
+     proyectos/{id}/produccion, mismos campos, mismo flujo CRUD (listado/
+     formulario dentro de la vista, ya no dentro de un modal-bg sino como
+     contenido directo de <main>), mismo subirArchivoCloudinary() (Cloudinary
+     cloud 'dv7lelmoy', preset 'AUDIOLINK APP'), mismo lightbox de archivo
+     adjunto. proyecto.html se limpia en paralelo (→ v4.14): se retira de
+     ahí el modal modalProduccionBg, el lightbox lightboxProdBg y todas las
+     funciones/CSS asociadas — confirmado por grep que nada más en ese
+     archivo las usaba. El botón "🎵 Producción" del detalle ahora abre
+     esta página en pestaña nueva en vez de un modal. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;
+  opacity:0.5;
+}
+.waveform-bg svg{
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:100%;
+  height:220px;
+}
+.waveform-bg path{
+  fill:none;
+  stroke:var(--gold);
+  stroke-width:1.2;
+  opacity:0.14;
+}
+.waveform-bg path.w2{opacity:0.09;}
+.waveform-bg path.w3{opacity:0.06;}
+@keyframes wave-drift{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
+.waveform-bg svg{
+  width:200%;
+  animation:wave-drift 22s linear infinite;
+}
+.waveform-bg svg.w-slow{animation-duration:34s;}
+header, main{position:relative;z-index:1;}
+header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--brd);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--surf);
+  flex-wrap:wrap;
+  gap:12px;
+}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
+.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+.brand{display:flex;align-items:center;gap:14px;}
+nav.links{display:flex;gap:8px;margin-left:20px;}
+nav.links a{
+  color:var(--muted);font-size:0.82rem;text-decoration:none;
+  padding:6px 12px;border-radius:6px;transition:all 0.2s;
+}
+nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg);}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+.btn{
+  background:var(--gold-bg);
+  border:1px solid var(--gold);
+  color:var(--gold);
+  padding:9px 18px;
+  border-radius:6px;
+  font-size:0.85rem;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+/* ===== NAV V2.7: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
+:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
+  background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;z-index:90;overflow:hidden;
+  transition:width 0.18s ease;
+}
+.sidebar.collapsed{width:var(--sb-c);}
+.sb-brand{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
+}
+.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
+.sidebar.collapsed .sb-brand h1{opacity:0;}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-item{
+  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
+  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
+  transition:background 0.15s,color 0.15s;
+}
+.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
+.sb-item:hover{background:var(--surf-light);color:var(--txt);}
+.sb-item.active{background:var(--gold-bg);color:var(--gold);}
+.sidebar.collapsed .sb-item span{display:none;}
+.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.sb-toggle{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
+  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
+}
+.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
+.sb-toggle i{transition:transform 0.2s;display:inline-block;}
+.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
+.sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
+.sidebar.collapsed .sb-credit{opacity:0;}
+.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
+.main-wrap.expanded{margin-left:var(--sb-c);}
+
+.mobile-topbar{display:none;}
+.mobile-bottomnav{display:none;}
+.mas-mobile-panel{display:none;}
+
+@media (max-width:768px){
+  .sidebar{display:none;}
+  .main-wrap{margin-left:0;}
+  header{display:none;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
+    position:relative;z-index:1;
+  }
+  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
+  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  main{padding-bottom:78px !important;}
+  .mobile-bottomnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
+    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
+  }
+  .mobile-bottomnav a{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
+  }
+  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
+  .mobile-bottomnav a.active{color:var(--gold);}
+  .mas-mobile-panel{
+    display:none;position:fixed;top:60px;right:14px;z-index:81;
+    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
+  }
+  .mas-mobile-panel.show{display:block;}
+  .mas-mobile-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
+  }
+  .mas-mobile-item:hover{background:var(--surf-light);}
+  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
+}
+
+main{padding:28px;max-width:1200px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.card{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:10px;
+  padding:20px;
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.card-top-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.btn-ir-sesiones{
+  background:transparent;border:1px solid var(--brd);color:var(--muted);
+  width:28px;height:28px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  text-decoration:none;
+}
+.btn-ir-sesiones:hover{border-color:var(--gold);color:var(--gold);}
+.card h3{font-size:1.05rem;font-weight:600;}
+.badge{
+  font-size:0.7rem;
+  padding:3px 10px;
+  border-radius:20px;
+  font-weight:600;
+  letter-spacing:0.03em;
+  text-transform:uppercase;
+}
+.badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.badge.prod{background:rgba(90,140,220,0.15);color:#6ea3e8;}
+.card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;}
+.card .meta-saldo{font-size:0.82rem;color:var(--warn);font-weight:600;margin-bottom:4px;}
+.card .etapa{
+  display:inline-block;
+  margin-top:10px;
+  font-size:0.75rem;
+  color:var(--gold);
+  border:1px solid var(--brd);
+  padding:3px 10px;
+  border-radius:6px;
+  background:var(--surf-light);
+}
+.tipo-tag{font-size:0.68rem;color:var(--faint);text-transform:uppercase;letter-spacing:0.06em;}
+
+/* Modal */
+.modal-bg{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.7);
+  z-index:100;
+  align-items:flex-start;
+  justify-content:center;
+  overflow-y:auto;
+  padding:40px 20px;
+}
+.modal-bg.active{display:flex;}
+.modal{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:12px;
+  max-width:640px;
+  width:100%;
+  padding:28px;
+}
+.modal h2{color:var(--gold);font-size:1.1rem;margin-bottom:20px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field select,.field textarea{
+  width:100%;
+  background:var(--surf-light);
+  border:1px solid var(--brd);
+  color:var(--txt);
+  padding:10px 12px;
+  border-radius:6px;
+  font-size:0.9rem;
+  font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--gold-bg);
+}
+.field textarea{resize:vertical;min-height:70px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.equipo-row{display:flex;gap:8px;margin-bottom:8px;}
+.equipo-row input{flex:1;}
+.equipo-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 12px;cursor:pointer;
+}
+.item-row{display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;margin-bottom:8px;align-items:center;}
+.item-row input{width:100%;}
+.instr-grupo{border:1px solid var(--brd);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.instr-grupo-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer;background:var(--surf-light);}
+.instr-grupo-header span{font-size:0.88rem;color:var(--muted);}
+.instr-grupo-body{padding:10px 12px;display:none;}
+.instr-grupo.abierto .instr-grupo-body{display:block;}
+.instr-pieza-row{display:grid;grid-template-columns:1fr 64px 30px;gap:8px;margin-bottom:6px;align-items:center;}
+.instr-pieza-row input[type="number"]{width:64px;padding:8px 6px;}
+.instr-pieza-row button,.instr-footer-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 8px;cursor:pointer;height:34px;
+}
+.instr-unidad-row{margin:2px 0 8px 14px;padding-left:10px;border-left:2px solid var(--brd);}
+.instr-unidad-row input{font-size:0.82rem;margin-bottom:4px;}
+.instr-footer-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.instr-footer-row select{flex:1;min-width:140px;}
+.instr-footer-row .link-add{align-self:center;}
+@media (max-width:600px){
+  .instr-pieza-row{grid-template-columns:1fr;}
+  .instr-pieza-row input[type="number"]{width:100%;}
+}
+.item-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 8px;cursor:pointer;height:38px;
+}
+.cotiz-total{
+  display:flex;justify-content:flex-end;align-items:center;gap:10px;
+  margin-top:10px;padding-top:12px;border-top:1px solid var(--brd);
+  font-size:1rem;font-weight:600;color:var(--gold);
+}
+.cotiz-item-lista{
+  border:1px solid var(--brd);border-radius:8px;padding:12px 14px;
+  margin-bottom:8px;background:var(--surf-light);cursor:pointer;
+}
+.cotiz-item-lista:hover{border-color:var(--gold);}
+.cotiz-item-lista .top{display:flex;justify-content:space-between;align-items:center;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.link-add{color:var(--gold);font-size:0.8rem;cursor:pointer;display:inline-block;margin-top:4px;}
+.field input[type="file"]{padding:8px 10px;font-size:0.82rem;color:var(--muted);}
+.upload-status{font-size:0.76rem;color:var(--muted);margin-top:6px;min-height:16px;}
+.upload-status.err{color:var(--err);}
+.upload-status.ok{color:var(--ok);}
+
+/* Lightbox producción (v3.9) — mismo patrón visual que pagos.html */
+.lightbox-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);
+  z-index:200;align-items:center;justify-content:center;padding:30px;
+}
+.lightbox-bg.active{display:flex;}
+.lightbox-content{position:relative;max-width:90vw;max-height:90vh;display:flex;align-items:center;gap:14px;}
+.lightbox-content img{max-width:80vw;max-height:85vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
+.lightbox-content iframe{width:80vw;height:85vh;border:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
+.lightbox-content audio{width:70vw;max-width:480px;}
+.lightbox-content .lightbox-otro{
+  background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:30px 40px;
+  text-align:center;color:var(--muted);
+}
+.lightbox-content .lightbox-otro a{color:var(--gold);font-weight:600;text-decoration:none;}
+.lightbox-close{
+  position:absolute;top:-38px;right:0;background:transparent;border:none;color:var(--txt);
+  font-size:1.6rem;cursor:pointer;line-height:1;
+}
+.produccion-item-lista{background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+.produccion-item-lista .top{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+
+/* Detalle */
+.detalle{display:none;}
+.detalle.active{display:block;}
+.detalle-head{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:24px;margin-bottom:20px;
+}
+.detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
+.resumen-financiero{display:flex;gap:24px;flex-wrap:wrap;background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:14px 18px;margin-bottom:16px;}
+.resumen-financiero .monto-item{font-size:0.85rem;}
+.resumen-financiero .monto-item .lbl{color:var(--muted);display:block;font-size:0.72rem;}
+.resumen-financiero .monto-item .val{font-weight:600;font-size:1rem;}
+.resumen-financiero .monto-item.saldo .val{color:var(--warn);}
+.resumen-financiero .monto-item.saldo.pagado .val{color:var(--ok);}
+.dash-etapa-bar{display:flex;gap:3px;margin:6px 0 14px;}
+.dash-etapa-bar span{flex:1;height:6px;border-radius:3px;background:var(--brd);}
+.dash-etapa-bar span.hecha{background:var(--ok);}
+.dash-etapa-bar span.actual{background:var(--gold);}
+/* Ruta de etapas (v4.4) — traída tal cual de portal.html (mismas clases:
+   .etapa-ruta, .etapa-nodo-row, .etapa-nodo-col, .etapa-linea,
+   .etapa-nodo-txt) para unificar el dashboard con el portal de clientes. */
+.etapa-ruta{margin-top:14px;}
+.etapa-nodo-row{display:flex;gap:12px;}
+.etapa-nodo-col{display:flex;flex-direction:column;align-items:center;}
+.etapa-nodo{width:18px;height:18px;min-width:18px;border-radius:50%;border:2px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;background:var(--surf);}
+.etapa-nodo.hecha{border-color:var(--ok);background:var(--ok);color:var(--bg);}
+.etapa-nodo.actual{border-color:var(--gold);background:var(--gold-bg);box-shadow:0 0 0 3px var(--gold-bg);position:relative;}
+.etapa-nodo.actual::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--gold);
+  animation:etapaPulso 2.2s ease-out infinite;
+}
+@keyframes etapaPulso{
+  0%{transform:scale(0.85);opacity:0.9;}
+  100%{transform:scale(1.9);opacity:0;}
+}
+.etapa-nodo.pendiente{opacity:0.55;}
+.etapa-linea{width:2px;flex:1;min-height:22px;background:var(--brd);margin:2px 0;}
+.etapa-linea.hecha{background:var(--ok);}
+.etapa-nodo-txt{padding-bottom:18px;}
+.etapa-nodo-txt span{display:block;font-size:0.85rem;font-weight:600;color:var(--txt);}
+.etapa-nodo-txt span.pendiente{color:var(--faint);font-weight:500;}
+.etapa-nodo-txt span.actual{color:var(--gold);}
+.etapa-nodo-txt span.hecha{color:var(--ok);}
+.etapa-nodo-txt small{display:block;margin-top:2px;font-size:0.72rem;color:var(--muted);}
+.etapa-nodo-txt small.etapa-actual-tag{color:var(--gold);}
+@media (min-width:640px){
+  .etapa-ruta{display:flex;align-items:flex-start;}
+  .etapa-nodo-row{flex:1;flex-direction:column;gap:6px;}
+  .etapa-nodo-col{flex-direction:row;width:100%;align-items:center;}
+  .etapa-linea{width:auto;flex:1;height:2px;min-height:0;margin:0 4px;}
+  .etapa-nodo-txt{padding-bottom:0;text-align:center;}
+}
+.dash-financiera-bar{height:8px;border-radius:4px;background:var(--brd);overflow:hidden;margin:6px 0 14px;}
+.dash-financiera-bar div{height:100%;background:#6ea3e8;}
+.dash-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.dash-card{background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:12px 14px;}
+.dash-card .lbl{font-size:0.72rem;color:var(--muted);display:block;margin-bottom:4px;}
+.dash-card .val{font-size:1.3rem;font-weight:600;}
+@media (max-width:600px){.dash-cards{grid-template-columns:1fr 1fr;}}
+.dash-calendario{background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:14px 18px;margin-bottom:16px;position:relative;}
+.dash-cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:0.85rem;}
+.dash-cal-head button{background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:6px;cursor:pointer;padding:2px 8px;}
+.dash-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:0.74rem;}
+.dash-cal-grid .dow{color:var(--muted);padding-bottom:4px;}
+.dash-cal-day{position:relative;padding:6px 0;border-radius:6px;cursor:default;}
+.dash-cal-day.con-evento{cursor:pointer;}
+.dash-cal-day.con-evento:hover{background:var(--surf-light);}
+.dash-cal-dots{display:flex;gap:2px;justify-content:center;margin-top:2px;}
+.dash-cal-dots span{width:5px;height:5px;border-radius:50%;}
+.dot-pasada{background:var(--ok);}
+.dot-proxima{background:#6ea3e8;}
+.dot-entrega{background:var(--warn);}
+.dash-cal-tooltip{
+  position:absolute;z-index:20;background:var(--surf);border:1px solid var(--brd);border-radius:8px;
+  padding:10px 12px;font-size:0.78rem;min-width:180px;box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.dash-cal-tooltip a{color:var(--gold);}
+.dash-proxima-sesion{font-size:0.85rem;color:var(--muted);margin-bottom:16px;}
+.detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
+.chip{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;
+  padding:6px 12px;font-size:0.8rem;color:var(--muted);
+}
+.narrativa-box{
+  background:var(--surf-light);border-left:2px solid var(--gold);
+  padding:14px 16px;margin-top:16px;font-size:0.88rem;color:var(--txt);
+  border-radius:0 6px 6px 0;line-height:1.5;
+}
+.equipo-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.equipo-chip{
+  background:var(--gold-bg);border:1px solid var(--gold);border-radius:20px;
+  padding:5px 14px;font-size:0.78rem;color:var(--gold);
+}
+.pdf-actions{display:flex;gap:10px;margin-top:20px;}
+
+/* V4.10: bloque reubicado aquí (antes vivía arriba, antes de .row2/.pdf-actions/
+   .modal, por lo que esas reglas base lo anulaban al aparecer después en la
+   hoja de estilos — empate de especificidad resuelto por orden de aparición).
+   Mismo contenido exacto, solo cambia la posición. */
+@media (max-width:640px){
+  header{display:none;}
+  .row2{grid-template-columns:1fr;}
+  .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .pdf-actions .btn{width:100%;}
+  .modal{padding:20px;}
+}
+.back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
+.back-link:hover{color:var(--gold);}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+</style>
+</head>
+<body>
+
+<div id="nav-mount"></div>
+<script>
+window.NAV_CONFIG = { activo: "proyecto" };
+</script>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<header>
+  <div class="brand" style="visibility:hidden;position:absolute;"></div>
+  <div class="header-actions">
+    <span id="produccionProyectoTitulo" style="color:var(--muted);font-size:0.85rem;"></span>
+  </div>
+</header>
+
+<main>
+  <span class="back-link" id="backLink" onclick="volverAlProyecto()">← Volver al proyecto</span>
+
+  <div id="produccionVistaListado" style="max-width:640px;margin-top:16px;">
+    <h2>🎵 Producción musical</h2>
+    <div id="produccionListaVacio" class="empty" style="display:none;padding:30px;">Aún no hay scores ni arreglos para este proyecto.</div>
+    <div id="produccionLista"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button class="btn" onclick="abrirFormularioProduccion()">+ Nuevo ítem</button>
+    </div>
+  </div>
+
+  <div id="produccionVistaForm" style="display:none;max-width:640px;margin-top:16px;">
+    <h2 id="produccionFormTitulo">Nuevo ítem</h2>
+    <div class="field">
+      <label>Título</label>
+      <input type="text" id="prodTitulo" placeholder="Ej: Arreglo cuerdas - Tema 3">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Tipo</label>
+        <select id="prodTipo">
+          <option value="score">Score</option>
+          <option value="arreglo">Arreglo</option>
+          <option value="referencia">Referencia</option>
+          <option value="mezcla">Mezcla</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Visibilidad</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+          <input type="checkbox" id="prodVisibleCliente" style="width:auto;">
+          <label for="prodVisibleCliente" style="margin:0;color:var(--txt);font-size:0.86rem;">Visible para el cliente</label>
+        </div>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>BPM</label>
+        <input type="number" id="prodBpm" min="0" placeholder="Ej: 120">
+      </div>
+      <div class="field">
+        <label>Tonalidad</label>
+        <input type="text" id="prodTonalidad" placeholder="Ej: Sol mayor">
+      </div>
+    </div>
+    <div class="field">
+      <label>Enlace externo (opcional)</label>
+      <input type="text" id="prodEnlace" placeholder="Ej: enlace de Drive, Spotify...">
+    </div>
+    <div class="field">
+      <label>Archivo (opcional — score, PDF, audio de referencia...)</label>
+      <input type="file" id="prodArchivo">
+      <div class="upload-status" id="prodUploadStatus"></div>
+    </div>
+    <div class="field">
+      <label>Notas</label>
+      <textarea id="prodNotas" placeholder="Notas del arreglo, indicaciones, versión..."></textarea>
+    </div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-ghost" onclick="volverListadoProduccion()">← Volver</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost" id="btnBorrarProduccion" onclick="borrarProduccion()" style="display:none;color:var(--err);">Borrar</button>
+        <button class="btn" id="btnGuardarProduccion" onclick="guardarProduccion()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div><!-- /main-wrap -->
+
+<div class="lightbox-bg" id="lightboxProdBg" onclick="if(event.target===this) cerrarLightboxProduccion()">
+  <div class="lightbox-content">
+    <button class="lightbox-close" onclick="cerrarLightboxProduccion()">✕</button>
+    <div id="lightboxProdBody"></div>
+  </div>
+</div>
+
+
+<script>
+// ============ FIREBASE CONFIG ============
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const proyectosRef = db.collection('proyectos');
+
+// ============ GUARD DE SESIÓN ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){ window.location.href = 'login.html'; return; }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+
+// ============ CONTEXTO DEL PROYECTO (via ?id=) ============
+const proyectoActualId = new URLSearchParams(window.location.search).get('id');
+if(!proyectoActualId){
+  document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);">Falta el parámetro ?id= del proyecto. Abre esta página desde el detalle de un proyecto en proyecto.html.</div>';
+}
+
+function volverAlProyecto(){
+  window.location.href = 'proyecto.html?id=' + proyectoActualId;
+}
+
+proyectosRef.doc(proyectoActualId).get().then(doc => {
+  if(doc.exists){
+    const p = doc.data();
+    document.getElementById('produccionProyectoTitulo').textContent = '📁 ' + (p.nombre || p.clienteArtista || proyectoActualId);
+  }
+}).catch(err => console.error('Error cargando proyecto:', err));
+
+// ============ PRODUCCIÓN MUSICAL — subcolección proyectos/{id}/produccion ============
+// Migrado tal cual desde proyecto.html v4.13, sin cambios de lógica.
+const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
+const CLOUDINARY_UPLOAD_PRESET = 'AUDIOLINK APP';
+
+let produccionProyecto = [];
+let produccionActualId = null;
+
+function produccionRef(){
+  return proyectosRef.doc(proyectoActualId).collection('produccion');
+}
+
+const PRODUCCION_TIPO_LABEL = {
+  score: 'Score', arreglo: 'Arreglo', referencia: 'Referencia', mezcla: 'Mezcla', otro: 'Otro'
+};
+
+async function cargarListaProduccion(){
+  const cont = document.getElementById('produccionLista');
+  const vacio = document.getElementById('produccionListaVacio');
+  cont.innerHTML = '<div class="empty" style="padding:20px;">Cargando...</div>';
+  try{
+    const snap = await produccionRef().orderBy('creadoEn', 'desc').get();
+    produccionProyecto = [];
+    snap.forEach(d => produccionProyecto.push({ id: d.id, ...d.data() }));
+    if(produccionProyecto.length === 0){
+      cont.innerHTML = '';
+      vacio.style.display = 'block';
+      return;
+    }
+    vacio.style.display = 'none';
+    cont.innerHTML = produccionProyecto.map(it => {
+      const fecha = it.creadoEn && it.creadoEn.toDate ? it.creadoEn.toDate().toLocaleDateString('es-CO') : '—';
+      const detalles = [
+        it.bpm ? `${it.bpm} BPM` : null,
+        it.tonalidad || null,
+        it.autor || null,
+        fecha
+      ].filter(Boolean).join(' · ');
+      return `
+        <div class="produccion-item-lista" onclick="abrirFormularioProduccion('${it.id}')">
+          <div class="top">
+            <strong>${it.titulo || 'Sin título'}</strong>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${it.archivoUrl ? `<button class="btn-ir-sesiones" title="Ver archivo adjunto" onclick="event.stopPropagation(); abrirLightboxProduccion('${it.archivoUrl}', '${(it.archivoNombre || '').replace(/'/g, "\\'")}')">📎</button>` : ''}
+              ${!it.archivoUrl && it.enlaceExterno ? `<button class="btn-ir-sesiones" title="Abrir enlace externo" onclick="event.stopPropagation(); window.open('${it.enlaceExterno.replace(/'/g, "\\'")}', '_blank', 'noopener')">🔗</button>` : ''}
+              <span class="badge ${it.visibleCliente ? 'ok' : 'warn'}">${PRODUCCION_TIPO_LABEL[it.tipo] || 'Otro'}</span>
+            </div>
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">${detalles}</div>
+        </div>`;
+    }).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:20px;color:var(--err);">Error cargando los ítems. Revisa la consola.</div>';
+  }
+}
+
+function limpiarFormularioProduccion(){
+  document.getElementById('prodTitulo').value = '';
+  document.getElementById('prodTipo').value = 'score';
+  document.getElementById('prodVisibleCliente').checked = false;
+  document.getElementById('prodBpm').value = '';
+  document.getElementById('prodTonalidad').value = '';
+  document.getElementById('prodEnlace').value = '';
+  document.getElementById('prodArchivo').value = '';
+  document.getElementById('prodNotas').value = '';
+  document.getElementById('prodUploadStatus').textContent = '';
+  document.getElementById('prodUploadStatus').className = 'upload-status';
+}
+
+function abrirFormularioProduccion(id = null){
+  limpiarFormularioProduccion();
+  produccionActualId = id;
+  const btnBorrar = document.getElementById('btnBorrarProduccion');
+  if(id){
+    const it = produccionProyecto.find(x => x.id === id);
+    document.getElementById('produccionFormTitulo').textContent = 'Editar ítem';
+    if(it){
+      document.getElementById('prodTitulo').value = it.titulo || '';
+      document.getElementById('prodTipo').value = it.tipo || 'score';
+      document.getElementById('prodVisibleCliente').checked = !!it.visibleCliente;
+      document.getElementById('prodBpm').value = it.bpm || '';
+      document.getElementById('prodTonalidad').value = it.tonalidad || '';
+      document.getElementById('prodEnlace').value = it.enlaceExterno || '';
+      if(it.archivoUrl){
+        document.getElementById('prodUploadStatus').textContent = 'Archivo ya cargado — subir uno nuevo lo reemplaza.';
+        document.getElementById('prodUploadStatus').className = 'upload-status ok';
+      }
+      document.getElementById('prodNotas').value = it.notas || '';
+    }
+    btnBorrar.style.display = 'inline-block';
+  } else {
+    document.getElementById('produccionFormTitulo').textContent = 'Nuevo ítem';
+    btnBorrar.style.display = 'none';
+  }
+  document.getElementById('produccionVistaListado').style.display = 'none';
+  document.getElementById('produccionVistaForm').style.display = 'block';
+}
+
+function volverListadoProduccion(){
+  document.getElementById('produccionVistaForm').style.display = 'none';
+  document.getElementById('produccionVistaListado').style.display = 'block';
+  cargarListaProduccion();
+}
+
+function abrirLightboxProduccion(url, nombre){
+  const ext = (nombre.split('.').pop() || '').toLowerCase();
+  const body = document.getElementById('lightboxProdBody');
+  if(['jpg','jpeg','png','webp','gif'].includes(ext)){
+    body.innerHTML = `<img src="${url}" alt="${nombre}">`;
+  } else if(ext === 'pdf'){
+    body.innerHTML = `<iframe src="${url}"></iframe>`;
+  } else if(['mp3','wav','m4a','ogg','aac'].includes(ext)){
+    body.innerHTML = `<audio controls src="${url}"></audio>`;
+  } else {
+    body.innerHTML = `<div class="lightbox-otro">${nombre || 'Archivo'}<br><br><a href="${url}" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div>`;
+  }
+  document.getElementById('lightboxProdBg').classList.add('active');
+}
+function cerrarLightboxProduccion(){
+  document.getElementById('lightboxProdBg').classList.remove('active');
+  document.getElementById('lightboxProdBody').innerHTML = '';
+}
+
+const EXTENSIONES_AUDIO = ['mp3','wav','m4a','ogg','aac'];
+
+async function subirArchivoCloudinary(file, assetFolder){
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  if(assetFolder) formData.append('asset_folder', assetFolder);
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if(!resp.ok) throw new Error('Cloudinary respondió con error ' + resp.status);
+  const data = await resp.json();
+  return data.secure_url;
+}
+
+async function subirArchivoProduccion(file){
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if(EXTENSIONES_AUDIO.includes(ext)){
+    throw new Error('AUDIO_NO_SOPORTADO');
+  }
+  const url = await subirArchivoCloudinary(file);
+  return { secure_url: url };
+}
+
+async function guardarProduccion(){
+  const titulo = document.getElementById('prodTitulo').value.trim();
+  if(!titulo){
+    alert('El título es obligatorio.');
+    return;
+  }
+
+  const btnGuardar = document.getElementById('btnGuardarProduccion');
+  const status = document.getElementById('prodUploadStatus');
+  btnGuardar.disabled = true;
+
+  const data = {
+    titulo,
+    tipo: document.getElementById('prodTipo').value,
+    visibleCliente: document.getElementById('prodVisibleCliente').checked,
+    bpm: document.getElementById('prodBpm').value ? Number(document.getElementById('prodBpm').value) : null,
+    tonalidad: document.getElementById('prodTonalidad').value.trim() || null,
+    enlaceExterno: document.getElementById('prodEnlace').value.trim() || null,
+    notas: document.getElementById('prodNotas').value.trim() || null,
+    autor: (auth.currentUser && auth.currentUser.email) || null
+  };
+
+  try{
+    const archivo = document.getElementById('prodArchivo').files[0];
+    if(archivo){
+      status.textContent = 'Subiendo archivo...';
+      status.className = 'upload-status';
+      const resultado = await subirArchivoProduccion(archivo);
+      data.archivoUrl = resultado.secure_url;
+      data.archivoNombre = archivo.name;
+    }
+
+    if(produccionActualId){
+      await produccionRef().doc(produccionActualId).update(data);
+    } else {
+      data.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
+      await produccionRef().add(data);
+    }
+    volverListadoProduccion();
+  } catch(err){
+    if(err.message === 'AUDIO_NO_SOPORTADO'){
+      status.textContent = 'Los archivos de audio no se suben directamente: pega el link en "Enlace externo" (Drive, WeTransfer, etc.) y guarda de nuevo.';
+    } else {
+      console.error(err);
+      status.textContent = 'Error guardando el ítem. Revisa la consola.';
+    }
+    status.className = 'upload-status err';
+  } finally {
+    btnGuardar.disabled = false;
+  }
+}
+
+async function borrarProduccion(){
+  if(!produccionActualId) return;
+  if(!confirm('¿Borrar este ítem de producción? Esta acción no se puede deshacer.')) return;
+  try{
+    await produccionRef().doc(produccionActualId).delete();
+    volverListadoProduccion();
+  } catch(err){
+    console.error(err);
+    alert('Error borrando el ítem. Revisa la consola.');
+  }
+}
+
+if(proyectoActualId) cargarListaProduccion();
+</script>
+</body>
+</html>

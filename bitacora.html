@@ -4,7 +4,96 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Bitácora de Grabación</title>
-<!-- AUDIOLINK · bitacora.html · v2.2
+<!-- AUDIOLINK · bitacora.html · v2.9
+     V2.9: dos cambios. (1) Nuevo campo "Nombre Interfaz" (ej: "Apollo Sala
+     A") separado del ya existente "Canal Interfaz" (ej: "12") — se guarda
+     como `nombreInterfaz` dentro de cada ítem de inputList, mismo patrón
+     que los demás campos, y también entra en el buscador. (2) Fusión
+     anti-choque en guardar(): antes de escribir, se trae la versión más
+     reciente de Firestore y se compara canal por canal usando el `canal`
+     interno (nunca se toca, es el identificador estable). Solo se
+     sobreescriben los campos que ESTE técnico cambió desde que abrió la
+     página (comparando contra `inputListBase`, la foto tomada al cargar);
+     todo lo que haya cambiado otro técnico mientras tanto —en otros
+     canales o en otros campos del mismo canal— se respeta. Los canales
+     manuales nuevos (sin match de `canal` en el remoto) se agregan al
+     final; los canales que otro técnico haya agregado mientras tanto
+     también se conservan. No se tocó la sección Tomas ni las reglas de
+     Firestore (sigue permitiendo solo el campo inputList).
+
+     AUDIOLINK · bitacora.html · v2.8
+     V2.8: ajustes de usabilidad en celular, solo CSS, sin tocar lógica.
+     (1) Los campos de Preamp/Gain/Instrumento/Interfaz y el campo de
+     orden (v2.6) tenían letra menor a 16px — eso hace que Safari en
+     iPhone haga zoom automático cada vez que el ingeniero toca el
+     campo, en plena sesión. Se suben a 16px (con más padding para que
+     no se vean gigantes). (2) Los botones ▲▼ de reordenar eran muy
+     chicos para tocar con el dedo — se agrandan a un tamaño de toque
+     cómodo (min 34px), igual que el campo de orden. No se tocó ningún
+     comportamiento, guardar(), Firestore ni la sección Tomas.
+     V2.7: dos ajustes de UI, sin tocar lógica de datos. (1) El campo
+     "Instrumento" ahora dispara un redibujo al salir del campo
+     (onchange) además de guardar en cada letra (oninput) — antes el
+     color de grupo (consola digital, v2.6) solo se actualizaba en la
+     siguiente recarga o al mover/guardar, ahora se ve apenas terminas
+     de escribir el nombre del instrumento. (2) Se quita el fondo blanco
+     feo que mete el autofill del navegador (Chrome, etc.) en los campos
+     de texto sueltos (Preamp, Instrumento, Interfaz, Gain, nombre de
+     canal manual, código DAW): `autocomplete="off"` en esos inputs +
+     regla CSS que fuerza el fondo oscuro incluso si el navegador
+     autocompleta igual. No se tocó guardar(), Firestore, orden/CH
+     (v2.6), ni la sección Tomas.
+     V2.6: se oculta el badge "CH{canal índice}" de cada tarjeta — ya no
+     se muestra en ningún lado. El campo `canal` interno se queda
+     guardado por dentro (invisible), solo para que logistica.html lo
+     siga usando en el matching de Preamp/Gain por nombre — no se toca
+     esa lógica. En su lugar aparece un campito numérico editable con el
+     `orden` visible: se puede escribir el número directo (ej. cambiar
+     "5" por "1") o seguir usando las flechitas ▲▼ — ambos caminos
+     mueven el mismo campo `orden`, ya existente desde v2.5. El buscador
+     de arriba ahora filtra por ese `orden` visible en vez del canal
+     índice interno. Pensado para trabajar como consola digital: el
+     orden en pantalla lo decide el ingeniero, sin importar qué canal
+     traía cada input del patch original (logistica.html), y así se
+     pueden agrupar mic+DI del mismo instrumento aunque vengan de
+     interfaces/preamps distintos. No se tocó guardar(), Firestore,
+     sección Tomas, ni ninguna otra lógica.
+     V2.5: (1) nuevo campo "Instrumento (agrupar)" por canal — texto
+     libre, cuando dos o más renglones consecutivos (ya ordenados) tienen
+     el mismo texto ahí, se agrupan visualmente bajo un encabezado común
+     con borde dorado (mic+DI del mismo instrumento, aunque vengan de
+     piezas distintas del catálogo — no depende de ninguna estructura
+     fija); (2) botones ▲▼ por canal para reordenar la lista a mano —
+     mueven el renglón intercambiando su nuevo campo `orden` con el
+     vecino inmediato en el orden visual actual, el "Ch" interno (usado
+     para el matching de Preamp/Gain por nombre) nunca se toca. Ambos
+     campos (`orden`, `instrumento`) viajan en el mismo update() de
+     guardar() sobre `inputList`, sin cambiar las reglas de Firestore.
+     Sesiones viejas sin `orden` lo reciben por defecto = su Ch al cargar.
+     V2.4: se agrega campo "Canal Interfaz" a cada tarjeta (input físico
+     real en la interfaz de audio, distinto del Ch consecutivo que ya
+     traía cada renglón) — mismo patrón que Preamp/Gain: se guarda como
+     `canalInterfaz` dentro de cada ítem de `inputList`, viaja en el mismo
+     update() de guardar(), y también se incluye por defecto (vacío) en
+     los canales manuales añadidos con "➕ Añadir canal". No se tocó
+     ninguna otra lógica ni las reglas de Firestore (siguen permitiendo
+     solo tocar el campo `inputList`, este cambio va dentro de ese mismo
+     campo).
+     V2.3: en la sección Bitácora, botón "➕ Añadir canal" al final de la
+     lista — pensado para cuando el ING necesita un canal extra en plena
+     grabación que no estaba en la instrumentación original (ej. Caja
+     directa + mic). El canal nuevo entra con número consecutivo al
+     último del inputList, nombre en texto libre (placeholder "Ej: Caja
+     Directa") y Preamp/Gain vacíos igual que los demás. Solo los canales
+     agregados así llevan botón "🗑️" para borrarlos — los que ya traía
+     el inputList generado por logistica.html no se pueden borrar desde
+     acá. Se guarda con el mismo botón "Guardar bitácora" y el mismo
+     `sesionRef.update({inputList: inputListActual})' de siempre — no se
+     tocó `guardar()`, la sección Tomas, ni ninguna otra lógica. La regla
+     de Firestore sugerida ya solo permite tocar el campo `inputList` sin
+     login, así que no hace falta cambiarla.
+
+     AUDIOLINK · bitacora.html · v2.2
      V2.2: nuevo campo de texto libre "Nombre/código en el DAW" (opcional)
      en el formulario de Tomas. Se guarda como `codigoDaw` junto a los
      demás campos de la toma — coexiste con (no reemplaza) el sistema de
@@ -97,6 +186,92 @@ h1{
   font-size:0.75rem; letter-spacing:0.04em; margin-bottom:2px;
 }
 .card .nombre{font-size:1.05rem; font-weight:600; margin-bottom:12px;}
+.card .nombre-row{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+.card .nombre-input{
+  flex:1; background:var(--surf2); border:1px solid var(--brd); border-radius:8px;
+  padding:8px 10px; color:var(--txt); font-size:0.95rem; font-weight:600;
+}
+.card .nombre-input:focus{outline:none; border-color:var(--gold);}
+.btn-borrar-canal{
+  background:none; border:1px solid var(--brd); border-radius:8px; color:var(--muted);
+  font-size:0.9rem; padding:7px 10px; cursor:pointer; line-height:1;
+}
+.btn-borrar-canal:active{opacity:0.7;}
+.mover-btns{display:flex;gap:4px;}
+.btn-mover{
+  background:none;border:1px solid var(--brd);border-radius:6px;color:var(--muted);
+  font-size:0.85rem;padding:8px 12px;cursor:pointer;line-height:1;
+  min-width:34px;min-height:34px;
+}
+.btn-mover:active{opacity:0.7;background:var(--surf2);}
+
+/* v2.6: sistema tipo consola digital — color fijo por grupo (calculado
+   por texto, se repite si hay más de 8 grupos), grupos colapsables,
+   toolbar sticky con buscador + chips de navegación, y vista compacta
+   tipo "channel strip" para listas largas (grabaciones en bloque). */
+.grupo-instrumento{
+  border:1px solid var(--gc,var(--gold));border-radius:12px;padding:8px 8px 2px;margin-bottom:12px;
+  background:var(--gc-bg,rgba(196,152,44,0.04));scroll-margin-top:90px;
+}
+.grupo-header{
+  font-family:'Playfair Display',serif;color:var(--gc,var(--gold));font-size:0.9rem;
+  font-weight:700;margin-bottom:6px;padding:2px 4px;display:flex;align-items:center;
+  justify-content:space-between;gap:8px;cursor:pointer;user-select:none;
+}
+.grupo-header .colapsar-flecha{font-size:0.75rem;transition:transform 0.15s;flex-shrink:0;}
+.grupo-header.colapsado .colapsar-flecha{transform:rotate(-90deg);}
+.grupo-count{font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--muted);font-weight:400;}
+.grupo-instrumento .card-agrupada{margin-bottom:8px;border-left:3px solid var(--gc,var(--gold));}
+.grupo-instrumento .card-agrupada:last-child{margin-bottom:0;}
+.grupo-instrumento.colapsado .card-agrupada{display:none;}
+
+.strip-row{
+  background:var(--surf); border:1px solid var(--brd); border-radius:10px;
+  padding:8px 10px; margin-bottom:8px; scroll-margin-top:90px;
+}
+.strip-row.card-agrupada{background:var(--surf2);}
+.strip-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.strip-ch{
+  font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--gold);
+  background:var(--gold-bg);border-radius:5px;padding:2px 6px;flex-shrink:0;
+}
+.strip-ch-input{
+  width:44px;min-height:34px;text-align:center;border:1px solid var(--gold);outline:none;
+  font-size:1rem;-moz-appearance:textfield;
+}
+.strip-ch-input::-webkit-outer-spin-button,.strip-ch-input::-webkit-inner-spin-button{
+  -webkit-appearance:none;margin:0;
+}
+.strip-nombre{font-size:0.9rem;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.strip-fields{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;}
+.strip-fields .field{margin-bottom:0;}
+.strip-fields .field label{font-size:0.62rem;margin-bottom:3px;}
+.strip-fields .field input{padding:8px;font-size:1rem;}
+@media (max-width:480px){.strip-fields{grid-template-columns:1fr 1fr;}}
+
+#bitacoraToolbar{
+  position:sticky;top:0;background:var(--bg);z-index:5;padding:10px 0 8px;
+  margin-bottom:6px;border-bottom:1px solid var(--brd);
+}
+.bitacora-buscador{
+  width:100%;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;
+  padding:9px 12px;color:var(--txt);font-size:0.88rem;margin-bottom:8px;
+}
+.bitacora-buscador:focus{outline:none;border-color:var(--gold);}
+.chips-nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+.chip-nav{
+  flex-shrink:0;font-size:0.72rem;font-weight:600;padding:5px 11px;border-radius:20px;
+  border:1px solid var(--gc,var(--brd));color:var(--gc,var(--muted));background:var(--gc-bg,transparent);
+  cursor:pointer;white-space:nowrap;
+}
+.chip-nav.sin-grupo{border-color:var(--brd);color:var(--muted);background:transparent;}
+
+.btn-anadir-canal{
+  width:100%; background:var(--surf2); border:1px dashed var(--brd); border-radius:10px;
+  padding:12px; color:var(--gold); font-size:0.88rem; font-weight:600; cursor:pointer;
+  margin-bottom:14px;
+}
+.btn-anadir-canal:active{opacity:0.8;}
 .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 .field label{
   display:block; font-size:0.72rem; color:var(--muted); margin-bottom:5px;
@@ -107,6 +282,14 @@ h1{
   padding:10px 12px; color:var(--txt); font-size:0.95rem;
 }
 .field input:focus{outline:none; border-color:var(--gold);}
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--txt);
+  -webkit-box-shadow:0 0 0px 1000px var(--surf2) inset;
+  box-shadow:0 0 0px 1000px var(--surf2) inset;
+  transition:background-color 9999s ease-in-out 0s;
+}
 .btn-guardar{
   position:sticky; bottom:14px; width:100%; background:var(--gold); color:#151109;
   border:none; border-radius:10px; padding:15px; font-size:1rem; font-weight:700;
@@ -178,6 +361,7 @@ h1{
     <button class="tab-btn" id="tabBtn_tomas" onclick="cambiarTab('tomas')">🎙️ Tomas</button>
   </div>
   <div class="panel activa" id="panel_bitacora">
+    <div id="bitacoraToolbar"></div>
     <div id="contenido"></div>
   </div>
   <div class="panel" id="panel_tomas">
@@ -194,6 +378,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 let inputListActual = [];
+let inputListBase = []; // v2.9: foto al cargar, para fusión anti-choque
 let sesionRef = null;
 let sesionData = null;
 
@@ -219,7 +404,10 @@ async function cargar(){
     const s = snap.data();
     sesionData = s;
     subt.textContent = `${s.actividad || 'Sesión'} · ${s.fecha || ''} · ${s.sala || ''}`;
-    inputListActual = Array.isArray(s.inputList) ? s.inputList.map(it => ({...it})) : [];
+    inputListActual = Array.isArray(s.inputList) ? s.inputList.map((it, i) => ({ orden: (it.orden !== undefined && it.orden !== null) ? it.orden : (it.canal || i + 1), ...it })) : [];
+    // v2.9: foto de cómo estaba el inputList al cargar, para la fusión
+    // anti-choque en guardar() — nunca se modifica después de aquí.
+    inputListBase = JSON.parse(JSON.stringify(inputListActual));
 
     document.getElementById('tabsBox').style.display = 'flex';
     renderFormTomas(s);
@@ -229,25 +417,7 @@ async function cargar(){
       return;
     }
 
-    cont.innerHTML = inputListActual.map((it, i) => `
-      <div class="card">
-        <div class="canal">CH${it.canal}</div>
-        <div class="nombre">${escapeHtml(it.nombre || '—')}</div>
-        <div class="row2">
-          <div class="field">
-            <label>Preamp</label>
-            <input type="text" placeholder="Ej: Neve 1073" value="${escapeHtml(it.preamp || '')}" oninput="inputListActual[${i}].preamp = this.value">
-          </div>
-          <div class="field">
-            <label>Gain</label>
-            <input type="text" placeholder="Ej: -6dB" value="${escapeHtml(it.gain || '')}" oninput="inputListActual[${i}].gain = this.value">
-          </div>
-        </div>
-      </div>
-    `).join('') + `
-      <button class="btn-guardar" onclick="guardar()">Guardar bitácora</button>
-      <div class="estado" id="estado"></div>
-    `;
+    renderInputList();
   } catch(err){
     console.error(err);
     subt.textContent = '';
@@ -255,14 +425,270 @@ async function cargar(){
   }
 }
 
+// ============ AÑADIR / BORRAR CANAL (v2.3) ============
+// Canal extra que el ING agrega desde acá cuando necesita un mic o línea
+// que no estaba en la instrumentación original (ej. Caja directa + mic).
+// Se marca con `manual:true` — solo esos se pueden editar de nombre y
+// borrar desde esta página; los que ya traía el inputList generado por
+// logistica.html quedan fijos, para no perder la plantilla.
+function anadirCanal(){
+  const ultimoCanal = inputListActual.reduce((max, it) => Math.max(max, Number(it.canal) || 0), 0);
+  const ultimoOrden = inputListActual.reduce((max, it) => Math.max(max, Number(it.orden) || 0), 0);
+  inputListActual.push({ canal: ultimoCanal + 1, orden: ultimoOrden + 1, nombre: '', preamp: '', gain: '', canalInterfaz: '', nombreInterfaz: '', instrumento: '', manual: true });
+  renderInputList();
+}
+
+// v2.5: reordenar a mano. Trabaja sobre inputListActual YA ordenado por
+// `orden` (ver renderInputList) — mover arriba/abajo intercambia el valor
+// de `orden` con el vecino inmediato en ese orden visual, no con el canal
+// interno (que nunca se toca). i = índice dentro del arreglo YA ordenado
+// que se le pasa a render, así que se resuelve buscando por referencia.
+function moverCanal(it, direccion){
+  const ordenados = [...inputListActual].sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
+  const pos = ordenados.indexOf(it);
+  const vecino = ordenados[pos + direccion];
+  if(!vecino) return;
+  const tmp = it.orden;
+  it.orden = vecino.orden;
+  vecino.orden = tmp;
+  renderInputList();
+}
+
+// v2.6: escribir el número de orden a mano (mismo campo `orden` que
+// mueven las flechitas ▲▼, otro camino al mismo resultado). No exige
+// número único al tipear — el orden final siempre se resuelve por
+// comparación numérica al ordenar (renderInputList), así que aunque
+// quede un valor repetido momentáneamente la lista no se rompe.
+function cambiarOrdenManual(it, valor){
+  const n = Number(valor);
+  if(valor === '' || isNaN(n)) return;
+  it.orden = n;
+  renderInputList();
+}
+
+function borrarCanal(i){
+  if(!inputListActual[i] || !inputListActual[i].manual) return;
+  inputListActual.splice(i, 1);
+  renderInputList();
+}
+
+// v2.6: paleta fija de colores por grupo (consola digital) — se elige
+// por hash simple del texto de la etiqueta, así el mismo nombre de
+// instrumento siempre sale del mismo color en toda la sesión.
+const PALETA_GRUPOS = ['#c9a24b','#5ba3d9','#7fc78f','#d97fae','#d9945b','#8f8fe0','#6ecac0','#d9605b'];
+function colorParaGrupo(etiqueta){
+  let hash = 0;
+  for(let i = 0; i < etiqueta.length; i++) hash = (hash * 31 + etiqueta.charCodeAt(i)) >>> 0;
+  return PALETA_GRUPOS[hash % PALETA_GRUPOS.length];
+}
+function hexToRgba(hex, alpha){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
+}
+
+// gruposColapsados: estado local (no se guarda), qué grupos están
+// colapsados en esta pantalla. filtroTexto: buscador en vivo.
+let gruposColapsados = {};
+let filtroTexto = '';
+
+function slugEtiqueta(etiqueta){
+  return 'grupo-' + etiqueta.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+// v2.5: agrupa visualmente renglones consecutivos (ya ordenados por
+// `orden`) que comparten el mismo texto en `instrumento` — así el ING
+// puede juntar mic+DI del mismo instrumento aunque vengan de piezas
+// distintas del catálogo, sin depender de ninguna estructura fija.
+function armarGruposVisuales(lista){
+  const grupos = [];
+  lista.forEach(it => {
+    const etiqueta = (it.instrumento || '').trim();
+    const anterior = grupos[grupos.length - 1];
+    if(etiqueta && anterior && anterior.etiqueta === etiqueta){
+      anterior.items.push(it);
+    } else {
+      grupos.push({ etiqueta, items: [it] });
+    }
+  });
+  return grupos;
+}
+
+function toggleGrupo(etiqueta){
+  gruposColapsados[etiqueta] = !gruposColapsados[etiqueta];
+  renderInputList();
+}
+
+function scrollAGrupo(etiqueta){
+  const el = document.getElementById(etiqueta ? slugEtiqueta(etiqueta) : 'sin-grupo-bitacora');
+  if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function renderToolbar(gruposUnicos, hayNoAgrupados){
+  const box = document.getElementById('bitacoraToolbar');
+  if(!box) return;
+  const chips = gruposUnicos.map(etq => {
+    const c = colorParaGrupo(etq);
+    return `<button type="button" class="chip-nav" style="--gc:${c};--gc-bg:${hexToRgba(c,0.12)};" onclick="scrollAGrupo('${etq.replace(/'/g,"\\'")}')">${escapeHtml(etq)}</button>`;
+  }).join('') + (hayNoAgrupados ? `<button type="button" class="chip-nav sin-grupo" onclick="scrollAGrupo('')">Sin agrupar</button>` : '');
+  box.innerHTML = `
+    <input type="text" class="bitacora-buscador" placeholder="🔍 Buscar por nombre, orden, canal o nombre de interfaz…" value="${escapeHtml(filtroTexto)}" oninput="filtroTexto = this.value; renderInputList();">
+    ${chips ? `<div class="chips-nav">${chips}</div>` : ''}
+  `;
+}
+
+function renderInputList(){
+  const cont = document.getElementById('contenido');
+  const ordenados = [...inputListActual].sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
+
+  // Toolbar se arma con TODOS los grupos (sin filtrar), para que los
+  // chips de navegación no desaparezcan mientras se busca.
+  const todosGrupos = armarGruposVisuales(ordenados);
+  const gruposUnicos = [...new Set(todosGrupos.filter(g => g.etiqueta).map(g => g.etiqueta))];
+  const hayNoAgrupados = todosGrupos.some(g => !g.etiqueta);
+  renderToolbar(gruposUnicos, hayNoAgrupados);
+
+  const filtro = filtroTexto.trim().toLowerCase();
+  const filtrados = filtro ? ordenados.filter(it =>
+    (it.nombre || '').toLowerCase().includes(filtro) ||
+    (it.instrumento || '').toLowerCase().includes(filtro) ||
+    String(it.orden || '').includes(filtro) ||
+    (it.canalInterfaz || '').toLowerCase().includes(filtro) ||
+    (it.nombreInterfaz || '').toLowerCase().includes(filtro)
+  ) : ordenados;
+
+  if(filtro && !filtrados.length){
+    cont.innerHTML = `<div class="empty">Sin resultados para "${escapeHtml(filtroTexto)}".</div>
+      <button type="button" class="btn-anadir-canal" onclick="anadirCanal()">➕ Añadir canal</button>
+      <button class="btn-guardar" onclick="guardar()">Guardar bitácora</button>
+      <div class="estado" id="estado"></div>`;
+    return;
+  }
+
+  const grupos = armarGruposVisuales(filtrados);
+  cont.innerHTML = grupos.map(grupo => {
+    const filas = grupo.items.map(it => {
+      const i = inputListActual.indexOf(it);
+      return `
+      <div class="strip-row${grupo.etiqueta ? ' card-agrupada' : ''}" id="${!grupo.etiqueta ? 'sin-grupo-bitacora' : ''}">
+        <div class="strip-top">
+          <input type="number" class="strip-ch strip-ch-input" value="${it.orden}" onchange="cambiarOrdenManual(inputListActual[${i}], this.value)">
+          ${it.manual ? `
+            <input type="text" autocomplete="off" class="nombre-input" style="font-size:0.85rem;padding:6px 8px;" placeholder="Ej: Caja Directa" value="${escapeHtml(it.nombre || '')}" oninput="inputListActual[${i}].nombre = this.value">
+            <button type="button" class="btn-borrar-canal" onclick="borrarCanal(${i})">🗑️</button>
+          ` : `<span class="strip-nombre">${escapeHtml(it.nombre || '—')}</span>`}
+          <div class="mover-btns">
+            <button type="button" class="btn-mover" onclick='moverCanal(inputListActual[${i}], -1)'>▲</button>
+            <button type="button" class="btn-mover" onclick='moverCanal(inputListActual[${i}], 1)'>▼</button>
+          </div>
+        </div>
+        <div class="strip-fields">
+          <div class="field">
+            <label>Instrumento</label>
+            <input type="text" autocomplete="off" placeholder="Ej: Baby Bass" value="${escapeHtml(it.instrumento || '')}" oninput="inputListActual[${i}].instrumento = this.value" onchange="renderInputList()">
+          </div>
+          <div class="field">
+            <label>Nombre Interfaz</label>
+            <input type="text" autocomplete="off" placeholder="Ej: Apollo Sala A" value="${escapeHtml(it.nombreInterfaz || '')}" oninput="inputListActual[${i}].nombreInterfaz = this.value">
+          </div>
+          <div class="field">
+            <label>Canal Interfaz</label>
+            <input type="text" autocomplete="off" placeholder="Ej: 12" value="${escapeHtml(it.canalInterfaz || '')}" oninput="inputListActual[${i}].canalInterfaz = this.value">
+          </div>
+          <div class="field">
+            <label>Preamp</label>
+            <input type="text" autocomplete="off" placeholder="Ej: Neve 1073" value="${escapeHtml(it.preamp || '')}" oninput="inputListActual[${i}].preamp = this.value">
+          </div>
+          <div class="field">
+            <label>Gain</label>
+            <input type="text" autocomplete="off" placeholder="Ej: -6dB" value="${escapeHtml(it.gain || '')}" oninput="inputListActual[${i}].gain = this.value">
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    if(!grupo.etiqueta) return filas;
+    const c = colorParaGrupo(grupo.etiqueta);
+    const colapsado = !!gruposColapsados[grupo.etiqueta];
+    return `<div class="grupo-instrumento${colapsado ? ' colapsado' : ''}" id="${slugEtiqueta(grupo.etiqueta)}" style="--gc:${c};--gc-bg:${hexToRgba(c,0.05)};">
+      <div class="grupo-header${colapsado ? ' colapsado' : ''}" onclick="toggleGrupo('${grupo.etiqueta.replace(/'/g,"\\'")}')">
+        <span><span class="colapsar-flecha">▾</span> 🎚️ ${escapeHtml(grupo.etiqueta)}</span>
+        <span class="grupo-count">${grupo.items.length} canal${grupo.items.length !== 1 ? 'es' : ''}</span>
+      </div>
+      ${filas}
+    </div>`;
+  }).join('') + `
+    <button type="button" class="btn-anadir-canal" onclick="anadirCanal()">➕ Añadir canal</button>
+    <button class="btn-guardar" onclick="guardar()">Guardar bitácora</button>
+    <div class="estado" id="estado"></div>
+  `;
+}
+
+// v2.9: fusión anti-choque, canal por canal, usando el `canal` interno
+// (nunca se toca, es el identificador estable de cada renglón — incluso
+// si el ING reordena o renombra, el `canal` sigue siendo el mismo).
+// Idea: para cada campo de cada canal, solo mando lo que YO cambié desde
+// que abrí la página (comparado contra inputListBase, la foto tomada al
+// cargar). Todo lo demás lo tomo de la versión más reciente de Firestore,
+// para no pisar lo que haya escrito otro técnico mientras yo trabajaba.
+function fusionarInputList(remoto){
+  const baseMap = new Map(inputListBase.map(it => [String(it.canal), it]));
+  const remotoMap = new Map(remoto.map(it => [String(it.canal), it]));
+  const usados = new Set();
+  const resultado = [];
+
+  // 1) recorro el remoto (lo más reciente) como base del resultado, y le
+  // aplico encima solo mis cambios campo por campo.
+  remoto.forEach(itRemoto => {
+    const clave = String(itRemoto.canal);
+    usados.add(clave);
+    const itLocal = inputListActual.find(it => String(it.canal) === clave);
+    if(!itLocal){
+      // yo borré este canal (manual) en mi pantalla: se respeta el borrado
+      // solo si el canal era manual; si no era manual, no se puede borrar
+      // desde acá de todas formas, así que lo conservo tal cual venga.
+      resultado.push(itRemoto);
+      return;
+    }
+    const itBase = baseMap.get(clave) || {};
+    const fusionado = { ...itRemoto };
+    Object.keys(itLocal).forEach(campo => {
+      const valorLocal = itLocal[campo];
+      const valorBase = itBase[campo];
+      const cambieYo = JSON.stringify(valorLocal) !== JSON.stringify(valorBase);
+      if(cambieYo) fusionado[campo] = valorLocal;
+    });
+    resultado.push(fusionado);
+  });
+
+  // 2) canales manuales que yo agregué y todavía no existen en el remoto.
+  inputListActual.forEach(itLocal => {
+    const clave = String(itLocal.canal);
+    if(!usados.has(clave)) resultado.push(itLocal);
+  });
+
+  return resultado;
+}
+
 async function guardar(){
   const estado = document.getElementById('estado');
   estado.textContent = 'Guardando…';
   estado.className = 'estado';
   try{
-    await sesionRef.update({ inputList: inputListActual });
-    estado.textContent = '✓ Guardado';
-    estado.className = 'estado ok';
+    const snapReciente = await sesionRef.get();
+    const remoto = snapReciente.exists && Array.isArray(snapReciente.data().inputList)
+      ? snapReciente.data().inputList
+      : inputListActual;
+    const fusionado = fusionarInputList(remoto);
+
+    await sesionRef.update({ inputList: fusionado });
+
+    // sincronizo mi copia local con lo que quedó guardado, para que la
+    // próxima fusión compare contra el estado real más reciente.
+    inputListActual = fusionado.map((it, i) => ({ orden: (it.orden !== undefined && it.orden !== null) ? it.orden : (it.canal || i + 1), ...it }));
+    inputListBase = JSON.parse(JSON.stringify(inputListActual));
+    renderInputList();
+
+    document.getElementById('estado').textContent = '✓ Guardado';
+    document.getElementById('estado').className = 'estado ok';
   } catch(err){
     console.error(err);
     estado.textContent = 'Error guardando. Intenta de nuevo.';
@@ -343,7 +769,7 @@ function renderFormTomas(s){
       </div>
       <div class="field">
         <label>Nombre/código en el DAW (opcional)</label>
-        <input type="text" id="tomaCodigoDaw" placeholder="Ej: GTR_Comp_02">
+        <input type="text" autocomplete="off" id="tomaCodigoDaw" placeholder="Ej: GTR_Comp_02">
       </div>
       <div class="estrellas" id="tomaEstrellas">
         <span onclick="setRatingToma(1)">★</span><span onclick="setRatingToma(2)">★</span>

@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Cotización rápida</title>
+<!-- AUDIOLINK · cotizacion-rapida.html · v1.0
+     V1.0: primera versión. Módulo "Cotizador" (simple, texto libre) migrado
+     desde proyecto.html v4.14 (mismo patrón ya usado con produccion.html):
+     antes vivía como modal dentro del detalle del proyecto, ahora es página
+     propia que se abre con window.open('cotizacion-rapida.html?id='+
+     proyectoActualId,'_blank'). Se nombra distinto a cotizador.html (que
+     es el "Cotizador Pro", con specs de salas desde Firestore) para no
+     confundir los dos flujos — siguen siendo herramientas separadas, cada
+     una para un caso de uso distinto (rápido con texto libre vs. completo
+     con catálogo de precios). Sin cambios de lógica ni de datos: misma
+     subcolección Firestore proyectos/{id}/cotizaciones, mismos campos,
+     mismo flujo (listado/formulario), misma regla de "solo una cotización
+     aceptada por proyecto", mismo generarPDFCotizacion() (ahora adaptado
+     para traer el proyecto con un get() puntual en vez de buscarlo en el
+     array `proyectos` que ya no existe en esta página). proyecto.html se
+     limpia en paralelo (→ v4.15): se retira de ahí el modal
+     modalCotizadorBg y las funciones/CSS asociadas al Cotizador simple —
+     confirmado por grep que nada más en ese archivo las usaba. El botón
+     "🧾 Cotizador" del detalle ahora abre esta página en pestaña nueva. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;
+  opacity:0.5;
+}
+.waveform-bg svg{
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:100%;
+  height:220px;
+}
+.waveform-bg path{
+  fill:none;
+  stroke:var(--gold);
+  stroke-width:1.2;
+  opacity:0.14;
+}
+.waveform-bg path.w2{opacity:0.09;}
+.waveform-bg path.w3{opacity:0.06;}
+@keyframes wave-drift{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
+.waveform-bg svg{
+  width:200%;
+  animation:wave-drift 22s linear infinite;
+}
+.waveform-bg svg.w-slow{animation-duration:34s;}
+header, main{position:relative;z-index:1;}
+header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--brd);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--surf);
+  flex-wrap:wrap;
+  gap:12px;
+}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
+.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+.brand{display:flex;align-items:center;gap:14px;}
+nav.links{display:flex;gap:8px;margin-left:20px;}
+nav.links a{
+  color:var(--muted);font-size:0.82rem;text-decoration:none;
+  padding:6px 12px;border-radius:6px;transition:all 0.2s;
+}
+nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg);}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+.btn{
+  background:var(--gold-bg);
+  border:1px solid var(--gold);
+  color:var(--gold);
+  padding:9px 18px;
+  border-radius:6px;
+  font-size:0.85rem;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+/* ===== NAV V2.7: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
+:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
+  background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;z-index:90;overflow:hidden;
+  transition:width 0.18s ease;
+}
+.sidebar.collapsed{width:var(--sb-c);}
+.sb-brand{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
+}
+.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
+.sidebar.collapsed .sb-brand h1{opacity:0;}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-item{
+  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
+  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
+  transition:background 0.15s,color 0.15s;
+}
+.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
+.sb-item:hover{background:var(--surf-light);color:var(--txt);}
+.sb-item.active{background:var(--gold-bg);color:var(--gold);}
+.sidebar.collapsed .sb-item span{display:none;}
+.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.sb-toggle{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
+  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
+}
+.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
+.sb-toggle i{transition:transform 0.2s;display:inline-block;}
+.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
+.sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
+.sidebar.collapsed .sb-credit{opacity:0;}
+.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
+.main-wrap.expanded{margin-left:var(--sb-c);}
+
+.mobile-topbar{display:none;}
+.mobile-bottomnav{display:none;}
+.mas-mobile-panel{display:none;}
+
+@media (max-width:768px){
+  .sidebar{display:none;}
+  .main-wrap{margin-left:0;}
+  header{display:none;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
+    position:relative;z-index:1;
+  }
+  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
+  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  main{padding-bottom:78px !important;}
+  .mobile-bottomnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
+    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
+  }
+  .mobile-bottomnav a{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
+  }
+  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
+  .mobile-bottomnav a.active{color:var(--gold);}
+  .mas-mobile-panel{
+    display:none;position:fixed;top:60px;right:14px;z-index:81;
+    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
+  }
+  .mas-mobile-panel.show{display:block;}
+  .mas-mobile-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
+  }
+  .mas-mobile-item:hover{background:var(--surf-light);}
+  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
+}
+
+main{padding:28px;max-width:1200px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.card{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:10px;
+  padding:20px;
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.card-top-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.btn-ir-sesiones{
+  background:transparent;border:1px solid var(--brd);color:var(--muted);
+  width:28px;height:28px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  text-decoration:none;
+}
+.btn-ir-sesiones:hover{border-color:var(--gold);color:var(--gold);}
+.card h3{font-size:1.05rem;font-weight:600;}
+.badge{
+  font-size:0.7rem;
+  padding:3px 10px;
+  border-radius:20px;
+  font-weight:600;
+  letter-spacing:0.03em;
+  text-transform:uppercase;
+}
+.badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.badge.prod{background:rgba(90,140,220,0.15);color:#6ea3e8;}
+.card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;}
+.card .meta-saldo{font-size:0.82rem;color:var(--warn);font-weight:600;margin-bottom:4px;}
+.card .etapa{
+  display:inline-block;
+  margin-top:10px;
+  font-size:0.75rem;
+  color:var(--gold);
+  border:1px solid var(--brd);
+  padding:3px 10px;
+  border-radius:6px;
+  background:var(--surf-light);
+}
+.tipo-tag{font-size:0.68rem;color:var(--faint);text-transform:uppercase;letter-spacing:0.06em;}
+
+/* Modal */
+.modal-bg{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.7);
+  z-index:100;
+  align-items:flex-start;
+  justify-content:center;
+  overflow-y:auto;
+  padding:40px 20px;
+}
+.modal-bg.active{display:flex;}
+.modal{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:12px;
+  max-width:640px;
+  width:100%;
+  padding:28px;
+}
+.modal h2{color:var(--gold);font-size:1.1rem;margin-bottom:20px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field select,.field textarea{
+  width:100%;
+  background:var(--surf-light);
+  border:1px solid var(--brd);
+  color:var(--txt);
+  padding:10px 12px;
+  border-radius:6px;
+  font-size:0.9rem;
+  font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--gold-bg);
+}
+.field textarea{resize:vertical;min-height:70px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.equipo-row{display:flex;gap:8px;margin-bottom:8px;}
+.equipo-row input{flex:1;}
+.equipo-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 12px;cursor:pointer;
+}
+.item-row{display:grid;grid-template-columns:1fr 70px 110px 32px;gap:8px;margin-bottom:8px;align-items:center;}
+.item-row input{width:100%;}
+.instr-grupo{border:1px solid var(--brd);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.instr-grupo-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer;background:var(--surf-light);}
+.instr-grupo-header span{font-size:0.88rem;color:var(--muted);}
+.instr-grupo-body{padding:10px 12px;display:none;}
+.instr-grupo.abierto .instr-grupo-body{display:block;}
+.instr-pieza-row{display:grid;grid-template-columns:1fr 64px 30px;gap:8px;margin-bottom:6px;align-items:center;}
+.instr-pieza-row input[type="number"]{width:64px;padding:8px 6px;}
+.instr-pieza-row button,.instr-footer-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 8px;cursor:pointer;height:34px;
+}
+.instr-unidad-row{margin:2px 0 8px 14px;padding-left:10px;border-left:2px solid var(--brd);}
+.instr-unidad-row input{font-size:0.82rem;margin-bottom:4px;}
+.instr-footer-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.instr-footer-row select{flex:1;min-width:140px;}
+.instr-footer-row .link-add{align-self:center;}
+@media (max-width:600px){
+  .instr-pieza-row{grid-template-columns:1fr;}
+  .instr-pieza-row input[type="number"]{width:100%;}
+}
+.item-row button{
+  background:transparent;border:1px solid var(--brd);color:var(--err);
+  border-radius:6px;padding:0 8px;cursor:pointer;height:38px;
+}
+.cotiz-total{
+  display:flex;justify-content:flex-end;align-items:center;gap:10px;
+  margin-top:10px;padding-top:12px;border-top:1px solid var(--brd);
+  font-size:1rem;font-weight:600;color:var(--gold);
+}
+.cotiz-item-lista{
+  border:1px solid var(--brd);border-radius:8px;padding:12px 14px;
+  margin-bottom:8px;background:var(--surf-light);cursor:pointer;
+}
+.cotiz-item-lista:hover{border-color:var(--gold);}
+.cotiz-item-lista .top{display:flex;justify-content:space-between;align-items:center;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.link-add{color:var(--gold);font-size:0.8rem;cursor:pointer;display:inline-block;margin-top:4px;}
+.field input[type="file"]{padding:8px 10px;font-size:0.82rem;color:var(--muted);}
+.upload-status{font-size:0.76rem;color:var(--muted);margin-top:6px;min-height:16px;}
+.upload-status.err{color:var(--err);}
+.upload-status.ok{color:var(--ok);}
+
+/* Lightbox producción (v3.9) — mismo patrón visual que pagos.html */
+.lightbox-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);
+  z-index:200;align-items:center;justify-content:center;padding:30px;
+}
+.lightbox-bg.active{display:flex;}
+.lightbox-content{position:relative;max-width:90vw;max-height:90vh;display:flex;align-items:center;gap:14px;}
+.lightbox-content img{max-width:80vw;max-height:85vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
+.lightbox-content iframe{width:80vw;height:85vh;border:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,0.6);}
+.lightbox-content audio{width:70vw;max-width:480px;}
+.lightbox-content .lightbox-otro{
+  background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:30px 40px;
+  text-align:center;color:var(--muted);
+}
+.lightbox-content .lightbox-otro a{color:var(--gold);font-weight:600;text-decoration:none;}
+.lightbox-close{
+  position:absolute;top:-38px;right:0;background:transparent;border:none;color:var(--txt);
+  font-size:1.6rem;cursor:pointer;line-height:1;
+}
+.produccion-item-lista{background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+.produccion-item-lista .top{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+
+/* Detalle */
+.detalle{display:none;}
+.detalle.active{display:block;}
+.detalle-head{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:24px;margin-bottom:20px;
+}
+.detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
+.resumen-financiero{display:flex;gap:24px;flex-wrap:wrap;background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:14px 18px;margin-bottom:16px;}
+.resumen-financiero .monto-item{font-size:0.85rem;}
+.resumen-financiero .monto-item .lbl{color:var(--muted);display:block;font-size:0.72rem;}
+.resumen-financiero .monto-item .val{font-weight:600;font-size:1rem;}
+.resumen-financiero .monto-item.saldo .val{color:var(--warn);}
+.resumen-financiero .monto-item.saldo.pagado .val{color:var(--ok);}
+.dash-etapa-bar{display:flex;gap:3px;margin:6px 0 14px;}
+.dash-etapa-bar span{flex:1;height:6px;border-radius:3px;background:var(--brd);}
+.dash-etapa-bar span.hecha{background:var(--ok);}
+.dash-etapa-bar span.actual{background:var(--gold);}
+/* Ruta de etapas (v4.4) — traída tal cual de portal.html (mismas clases:
+   .etapa-ruta, .etapa-nodo-row, .etapa-nodo-col, .etapa-linea,
+   .etapa-nodo-txt) para unificar el dashboard con el portal de clientes. */
+.etapa-ruta{margin-top:14px;}
+.etapa-nodo-row{display:flex;gap:12px;}
+.etapa-nodo-col{display:flex;flex-direction:column;align-items:center;}
+.etapa-nodo{width:18px;height:18px;min-width:18px;border-radius:50%;border:2px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;background:var(--surf);}
+.etapa-nodo.hecha{border-color:var(--ok);background:var(--ok);color:var(--bg);}
+.etapa-nodo.actual{border-color:var(--gold);background:var(--gold-bg);box-shadow:0 0 0 3px var(--gold-bg);position:relative;}
+.etapa-nodo.actual::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--gold);
+  animation:etapaPulso 2.2s ease-out infinite;
+}
+@keyframes etapaPulso{
+  0%{transform:scale(0.85);opacity:0.9;}
+  100%{transform:scale(1.9);opacity:0;}
+}
+.etapa-nodo.pendiente{opacity:0.55;}
+.etapa-linea{width:2px;flex:1;min-height:22px;background:var(--brd);margin:2px 0;}
+.etapa-linea.hecha{background:var(--ok);}
+.etapa-nodo-txt{padding-bottom:18px;}
+.etapa-nodo-txt span{display:block;font-size:0.85rem;font-weight:600;color:var(--txt);}
+.etapa-nodo-txt span.pendiente{color:var(--faint);font-weight:500;}
+.etapa-nodo-txt span.actual{color:var(--gold);}
+.etapa-nodo-txt span.hecha{color:var(--ok);}
+.etapa-nodo-txt small{display:block;margin-top:2px;font-size:0.72rem;color:var(--muted);}
+.etapa-nodo-txt small.etapa-actual-tag{color:var(--gold);}
+@media (min-width:640px){
+  .etapa-ruta{display:flex;align-items:flex-start;}
+  .etapa-nodo-row{flex:1;flex-direction:column;gap:6px;}
+  .etapa-nodo-col{flex-direction:row;width:100%;align-items:center;}
+  .etapa-linea{width:auto;flex:1;height:2px;min-height:0;margin:0 4px;}
+  .etapa-nodo-txt{padding-bottom:0;text-align:center;}
+}
+.dash-financiera-bar{height:8px;border-radius:4px;background:var(--brd);overflow:hidden;margin:6px 0 14px;}
+.dash-financiera-bar div{height:100%;background:#6ea3e8;}
+.dash-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.dash-card{background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:12px 14px;}
+.dash-card .lbl{font-size:0.72rem;color:var(--muted);display:block;margin-bottom:4px;}
+.dash-card .val{font-size:1.3rem;font-weight:600;}
+@media (max-width:600px){.dash-cards{grid-template-columns:1fr 1fr;}}
+.dash-calendario{background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);border-radius:8px;padding:14px 18px;margin-bottom:16px;position:relative;}
+.dash-cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:0.85rem;}
+.dash-cal-head button{background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:6px;cursor:pointer;padding:2px 8px;}
+.dash-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:0.74rem;}
+.dash-cal-grid .dow{color:var(--muted);padding-bottom:4px;}
+.dash-cal-day{position:relative;padding:6px 0;border-radius:6px;cursor:default;}
+.dash-cal-day.con-evento{cursor:pointer;}
+.dash-cal-day.con-evento:hover{background:var(--surf-light);}
+.dash-cal-dots{display:flex;gap:2px;justify-content:center;margin-top:2px;}
+.dash-cal-dots span{width:5px;height:5px;border-radius:50%;}
+.dot-pasada{background:var(--ok);}
+.dot-proxima{background:#6ea3e8;}
+.dot-entrega{background:var(--warn);}
+.dash-cal-tooltip{
+  position:absolute;z-index:20;background:var(--surf);border:1px solid var(--brd);border-radius:8px;
+  padding:10px 12px;font-size:0.78rem;min-width:180px;box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.dash-cal-tooltip a{color:var(--gold);}
+.dash-proxima-sesion{font-size:0.85rem;color:var(--muted);margin-bottom:16px;}
+.detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
+.chip{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;
+  padding:6px 12px;font-size:0.8rem;color:var(--muted);
+}
+.narrativa-box{
+  background:var(--surf-light);border-left:2px solid var(--gold);
+  padding:14px 16px;margin-top:16px;font-size:0.88rem;color:var(--txt);
+  border-radius:0 6px 6px 0;line-height:1.5;
+}
+.equipo-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.equipo-chip{
+  background:var(--gold-bg);border:1px solid var(--gold);border-radius:20px;
+  padding:5px 14px;font-size:0.78rem;color:var(--gold);
+}
+.pdf-actions{display:flex;gap:10px;margin-top:20px;}
+
+/* V4.10: bloque reubicado aquí (antes vivía arriba, antes de .row2/.pdf-actions/
+   .modal, por lo que esas reglas base lo anulaban al aparecer después en la
+   hoja de estilos — empate de especificidad resuelto por orden de aparición).
+   Mismo contenido exacto, solo cambia la posición. */
+@media (max-width:640px){
+  header{display:none;}
+  .row2{grid-template-columns:1fr;}
+  .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .pdf-actions .btn{width:100%;}
+  .modal{padding:20px;}
+}
+.back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
+.back-link:hover{color:var(--gold);}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+</style>
+</head>
+<body>
+
+<div id="nav-mount"></div>
+<script>
+window.NAV_CONFIG = { activo: "proyecto" };
+</script>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<header>
+  <div class="brand" style="visibility:hidden;position:absolute;"></div>
+  <div class="header-actions">
+    <span id="cotizProyectoTitulo" style="color:var(--muted);font-size:0.85rem;"></span>
+  </div>
+</header>
+
+<main>
+  <span class="back-link" id="backLink" onclick="volverAlProyecto()">← Volver al proyecto</span>
+
+  <div id="cotizVistaListado" style="max-width:720px;margin-top:16px;">
+    <h2>🧾 Cotizaciones del proyecto</h2>
+    <div id="cotizListaVacio" class="empty" style="display:none;padding:30px;">Aún no hay cotizaciones para este proyecto.</div>
+    <div id="cotizLista"></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-ghost" onclick="window.open('cotizador.html?id=' + proyectoActualId, '_blank')">🧮 Cotizador Pro</button>
+      <button class="btn" onclick="abrirFormularioCotizacion()">+ Nueva cotización</button>
+    </div>
+  </div>
+
+  <div id="cotizVistaForm" style="display:none;max-width:720px;margin-top:16px;">
+    <h2 id="cotizFormTitulo">Nueva cotización</h2>
+    <div class="row2">
+      <div class="field">
+        <label>Estado</label>
+        <select id="cotizEstado">
+          <option value="borrador">Borrador</option>
+          <option value="enviada">Enviada</option>
+          <option value="aceptada">Aceptada</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Validez de la oferta</label>
+        <input type="date" id="cotizValidez">
+      </div>
+    </div>
+    <div class="field">
+      <label>Ítems</label>
+      <div id="cotizItemsContainer"></div>
+      <span class="link-add" onclick="agregarFilaItem()">+ agregar ítem</span>
+    </div>
+    <div class="field">
+      <label>Notas / condiciones</label>
+      <textarea id="cotizNotas" placeholder="Ej: 50% anticipo, entrega en 15 días hábiles..."></textarea>
+    </div>
+    <div class="cotiz-total">Total: <span id="cotizTotalTxt">$0</span></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-ghost" onclick="volverListadoCotizaciones()">← Volver</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost" onclick="guardarCotizacion(false)">Guardar</button>
+        <button class="btn" onclick="guardarCotizacion(true)">Guardar y generar PDF</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div><!-- /main-wrap -->
+
+
+<script>
+// ============ FIREBASE CONFIG ============
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const proyectosRef = db.collection('proyectos');
+
+// ============ GUARD DE SESIÓN ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){ window.location.href = 'login.html'; return; }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+
+// ============ CONTEXTO DEL PROYECTO (via ?id=) ============
+const proyectoActualId = new URLSearchParams(window.location.search).get('id');
+if(!proyectoActualId){
+  document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);">Falta el parámetro ?id= del proyecto. Abre esta página desde el detalle de un proyecto en proyecto.html.</div>';
+}
+
+function volverAlProyecto(){
+  window.location.href = 'proyecto.html?id=' + proyectoActualId;
+}
+
+let proyectoActualData = null;
+proyectosRef.doc(proyectoActualId).get().then(doc => {
+  if(doc.exists){
+    proyectoActualData = { id: doc.id, ...doc.data() };
+    document.getElementById('cotizProyectoTitulo').textContent = '📁 ' + (proyectoActualData.nombre || proyectoActualData.clienteArtista || proyectoActualId);
+  }
+}).catch(err => console.error('Error cargando proyecto:', err));
+
+// ============ COTIZADOR — subcolección proyectos/{id}/cotizaciones ============
+// Migrado tal cual desde proyecto.html v4.14, sin cambios de lógica.
+let cotizacionesProyecto = [];
+let cotizacionActualId = null;
+
+function cotizacionesRef(){
+  return proyectosRef.doc(proyectoActualId).collection('cotizaciones');
+}
+
+async function cargarListaCotizaciones(){
+  const cont = document.getElementById('cotizLista');
+  const vacio = document.getElementById('cotizListaVacio');
+  cont.innerHTML = '<div class="empty" style="padding:20px;">Cargando...</div>';
+  try{
+    const snap = await cotizacionesRef().orderBy('creadoEn', 'desc').get();
+    cotizacionesProyecto = [];
+    snap.forEach(d => cotizacionesProyecto.push({ id: d.id, ...d.data() }));
+    if(cotizacionesProyecto.length === 0){
+      cont.innerHTML = '';
+      vacio.style.display = 'block';
+      return;
+    }
+    vacio.style.display = 'none';
+    const ESTADO_LABEL = { borrador:'Borrador', enviada:'Enviada', aceptada:'En Producción' };
+    const ESTADO_BADGE = { borrador:'warn', enviada:'ok', aceptada:'prod' };
+    cont.innerHTML = cotizacionesProyecto.map(c => {
+      const fecha = c.creadoEn && c.creadoEn.toDate ? c.creadoEn.toDate().toLocaleDateString('es-CO') : '—';
+      return `
+        <div class="cotiz-item-lista" onclick="abrirFormularioCotizacion('${c.id}')">
+          <div class="top">
+            <strong>$${(c.total || 0).toLocaleString('es-CO')}</strong>
+            <span class="badge ${ESTADO_BADGE[c.estado] || 'warn'}">${ESTADO_LABEL[c.estado] || 'Borrador'}</span>
+          </div>
+          <div style="color:var(--muted);font-size:0.8rem;margin-top:4px;">${(c.items||[]).length} ítem(s) · ${fecha}</div>
+        </div>`;
+    }).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:20px;">No pudimos cargar las cotizaciones.</div>';
+  }
+}
+
+function agregarFilaItem(concepto='', cantidad=1, precio=''){
+  const container = document.getElementById('cotizItemsContainer');
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Concepto (ej: Mezcla 5 temas)" class="item-concepto" value="${escapeHtml(concepto)}" oninput="recalcularTotalCotizacion()">
+    <input type="number" placeholder="Cant." min="0" step="1" class="item-cantidad" value="${cantidad}" oninput="recalcularTotalCotizacion()">
+    <input type="number" placeholder="Precio unit." min="0" class="item-precio" value="${precio}" oninput="recalcularTotalCotizacion()">
+    <button onclick="this.parentElement.remove(); recalcularTotalCotizacion();">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function recalcularTotalCotizacion(){
+  let total = 0;
+  document.querySelectorAll('#cotizItemsContainer .item-row').forEach(row => {
+    const cant = Number(row.querySelector('.item-cantidad').value) || 0;
+    const precio = Number(row.querySelector('.item-precio').value) || 0;
+    total += cant * precio;
+  });
+  document.getElementById('cotizTotalTxt').textContent = '$' + total.toLocaleString('es-CO');
+  return total;
+}
+
+function abrirFormularioCotizacion(id = null){
+  cotizacionActualId = id;
+  document.getElementById('cotizVistaListado').style.display = 'none';
+  document.getElementById('cotizVistaForm').style.display = 'block';
+  document.getElementById('cotizItemsContainer').innerHTML = '';
+
+  if(id){
+    const c = cotizacionesProyecto.find(x => x.id === id);
+    document.getElementById('cotizFormTitulo').textContent = 'Editar cotización';
+    document.getElementById('cotizEstado').value = c.estado || 'borrador';
+    document.getElementById('cotizValidez').value = c.validez || '';
+    document.getElementById('cotizNotas').value = c.notas || '';
+    if(c.items && c.items.length){
+      c.items.forEach(it => agregarFilaItem(it.concepto, it.cantidad, it.precio));
+    } else {
+      agregarFilaItem();
+    }
+  } else {
+    document.getElementById('cotizFormTitulo').textContent = 'Nueva cotización';
+    document.getElementById('cotizEstado').value = 'borrador';
+    document.getElementById('cotizValidez').value = '';
+    document.getElementById('cotizNotas').value = '';
+    agregarFilaItem();
+  }
+  recalcularTotalCotizacion();
+}
+
+function volverListadoCotizaciones(){
+  document.getElementById('cotizVistaForm').style.display = 'none';
+  document.getElementById('cotizVistaListado').style.display = 'block';
+  cargarListaCotizaciones();
+}
+
+function recolectarDatosCotizacion(){
+  const items = [];
+  document.querySelectorAll('#cotizItemsContainer .item-row').forEach(row => {
+    const concepto = row.querySelector('.item-concepto').value.trim();
+    const cantidad = Number(row.querySelector('.item-cantidad').value) || 0;
+    const precio = Number(row.querySelector('.item-precio').value) || 0;
+    if(concepto || cantidad || precio) items.push({ concepto, cantidad, precio });
+  });
+  return {
+    estado: document.getElementById('cotizEstado').value,
+    validez: document.getElementById('cotizValidez').value || null,
+    notas: document.getElementById('cotizNotas').value.trim(),
+    items,
+    total: items.reduce((acc, it) => acc + (it.cantidad * it.precio), 0)
+  };
+}
+
+async function guardarCotizacion(conPDF){
+  const data = recolectarDatosCotizacion();
+  if(data.items.length === 0){
+    alert('Agrega al menos un ítem a la cotización.');
+    return;
+  }
+
+  // Solo puede haber UNA cotización 'aceptada' por proyecto. Si el usuario
+  // marca esta como aceptada y ya existe otra distinta con ese estado, se
+  // pregunta antes de continuar; la anterior pasa a 'enviada' (no se borra).
+  if(data.estado === 'aceptada'){
+    const otraAceptada = cotizacionesProyecto.find(c => c.estado === 'aceptada' && c.id !== cotizacionActualId);
+    if(otraAceptada){
+      const totalOtra = (otraAceptada.total || 0).toLocaleString('es-CO');
+      const confirmar = confirm(`Ya existe una cotización aceptada para este proyecto ($${totalOtra}). ¿Quieres reemplazarla? Esa cotización pasará automáticamente a estado "Enviada".`);
+      if(!confirmar) return;
+      try{
+        await cotizacionesRef().doc(otraAceptada.id).update({ estado: 'enviada' });
+      } catch(errRevertir){
+        console.error('Error revirtiendo la cotización aceptada anterior:', errRevertir);
+        alert('No se pudo actualizar la cotización aceptada anterior. Revisa la consola e inténtalo de nuevo.');
+        return;
+      }
+    }
+  }
+
+  try{
+    let idGuardado = cotizacionActualId;
+    if(cotizacionActualId){
+      await cotizacionesRef().doc(cotizacionActualId).update(data);
+    } else {
+      data.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
+      const docRef = await cotizacionesRef().add(data);
+      idGuardado = docRef.id;
+      cotizacionActualId = idGuardado;
+    }
+    if(conPDF) generarPDFCotizacion(data);
+    volverListadoCotizaciones();
+  } catch(err){
+    console.error(err);
+    alert('Error guardando la cotización. Revisa la consola.');
+  }
+}
+
+// v1.0 (produccion.html/cotizacion-rapida.html): antes usaba
+// proyectos.find(x=>x.id===proyectoActualId) sobre el array en vivo del
+// listado de proyecto.html, que ya no existe acá. Ahora usa
+// proyectoActualData, cargado una vez al abrir la página (mismo dato,
+// mismo momento — el proyecto no se edita desde esta pantalla).
+function generarPDFCotizacion(data){
+  const p = proyectoActualData;
+  if(!p) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const goldRGB = [196, 152, 44];
+  const darkRGB = [17, 17, 17];
+  const mutedRGB = [122, 112, 96];
+  const cardBgRGB = [250, 250, 250];
+  const cardBrdRGB = [229, 229, 229];
+  const pageW = 210;
+  const pageH = doc.internal.pageSize.height;
+  const marginX = 18;
+  const bottomLimit = pageH - 24;
+
+  // ---- Categorización por palabras clave del concepto ----
+  // Cubre tanto los conceptos que llegan del Cotizador Pro (cotizador.html,
+  // que ya trae prefijos como "Backline -", "Postproducción de Audio -",
+  // etc.) como los del Cotizador simple (texto libre), que caen en "Otros".
+  const GRUPOS_DEF = [
+    { nombre: 'Infraestructura — Salas de Grabación', test: c => /infraestructura/i.test(c) },
+    { nombre: 'Equipos — Backline / Instrumentación', test: c => /backline/i.test(c) },
+    { nombre: 'Personal Operativo & Soporte', test: c => /(soporte técnico|preproducción logística|personal de ejecución|ensamble)/i.test(c) },
+    { nombre: 'Producción & Postproducción de Audio', test: c => /(preproducción -|roles creativos|postproducción)/i.test(c) },
+    { nombre: 'Honorarios e Impuestos', test: c => /(honorarios|impuestos)/i.test(c) },
+    { nombre: 'Otros Rubros', test: () => true }
+  ];
+  const grupos = GRUPOS_DEF.map(g => ({ nombre: g.nombre, items: [], subtotal: 0 }));
+  data.items.forEach(it => {
+    const idx = GRUPOS_DEF.findIndex(g => g.test(it.concepto || ''));
+    const grupo = grupos[idx === -1 ? grupos.length - 1 : idx];
+    grupo.items.push(it);
+    grupo.subtotal += it.cantidad * it.precio;
+  });
+  const gruposConItems = grupos.filter(g => g.items.length > 0);
+
+  function checkPageBreak(alturaNecesaria){
+    if(y + alturaNecesaria > bottomLimit){
+      doc.addPage();
+      y = 20;
+    }
+  }
+
+  // ---- Encabezado ----
+  doc.setFillColor(...darkRGB);
+  doc.rect(0, 0, pageW, 38, 'F');
+  doc.setDrawColor(...goldRGB);
+  doc.setLineWidth(0.6);
+  doc.line(0, 38, pageW, 38);
+  doc.setTextColor(...goldRGB);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(22);
+  doc.text('AUDIOLINK', marginX, 21);
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(200, 200, 195);
+  doc.text('PROPUESTA OPERATIVA Y ECONÓMICA', marginX, 28);
+  doc.setTextColor(...goldRGB);
+  doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }).toUpperCase(), pageW - marginX, 28, { align:'right' });
+
+  let y = 52;
+
+  // ---- Dos tarjetas de info (Titular del Proyecto / Trazabilidad) ----
+  const cardW = (pageW - marginX*2 - 10) / 2;
+  const cardH = 30;
+  doc.setDrawColor(...cardBrdRGB);
+  doc.setFillColor(...cardBgRGB);
+  doc.roundedRect(marginX, y, cardW, cardH, 2, 2, 'FD');
+  doc.roundedRect(marginX + cardW + 10, y, cardW, cardH, 2, 2, 'FD');
+
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...mutedRGB);
+  doc.text('TITULAR DEL PROYECTO', marginX + 5, y + 8);
+  doc.text('TRAZABILIDAD', marginX + cardW + 15, y + 8);
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...darkRGB);
+  doc.text(`Cliente/Artista: ${p.clienteArtista || '—'}`, marginX + 5, y + 15);
+  doc.text(`Proyecto: ${p.nombre || 'Sin nombre'}`, marginX + 5, y + 21, { maxWidth: cardW - 10 });
+
+  doc.text(`Prod. Ejecutivo: ${p.productorEjecutivo || '—'}`, marginX + cardW + 15, y + 15);
+  const validezTxt = data.validez ? new Date(data.validez).toLocaleDateString('es-CO') : 'No definida';
+  doc.text(`Válida hasta: ${validezTxt}`, marginX + cardW + 15, y + 21);
+  doc.text(`Estado: ${(data.estado || 'borrador').toUpperCase()}`, marginX + cardW + 15, y + 27);
+
+  y += cardH + 12;
+
+  // ---- Tabla agrupada ----
+  gruposConItems.forEach(grupo => {
+    checkPageBreak(9 + grupo.items.length*7 + 10);
+
+    doc.setFillColor(240, 237, 231);
+    doc.setDrawColor(...goldRGB);
+    doc.setLineWidth(1);
+    doc.rect(marginX, y - 5.5, pageW - marginX*2, 8, 'F');
+    doc.line(marginX, y - 5.5, marginX, y + 2.5);
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...darkRGB);
+    doc.text(grupo.nombre.toUpperCase(), marginX + 4, y);
+    y += 8;
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...mutedRGB);
+    doc.text('CONCEPTO', marginX + 3, y);
+    doc.text('CANT.', marginX + 108, y, { align:'right' });
+    doc.text('P. UNIT.', marginX + 140, y, { align:'right' });
+    doc.text('SUBTOTAL', pageW - marginX - 3, y, { align:'right' });
+    y += 6;
+
+    doc.setFont('times', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(40, 40, 40);
+    grupo.items.forEach(it => {
+      checkPageBreak(7);
+      const subtotal = it.cantidad * it.precio;
+      doc.text(String(it.concepto || '—'), marginX + 3, y, { maxWidth: 95 });
+      doc.text(String(it.cantidad), marginX + 108, y, { align:'right' });
+      doc.text('$' + it.precio.toLocaleString('es-CO'), marginX + 140, y, { align:'right' });
+      doc.text('$' + subtotal.toLocaleString('es-CO'), pageW - marginX - 3, y, { align:'right' });
+      y += 7;
+    });
+
+    doc.setDrawColor(...goldRGB);
+    doc.setLineWidth(0.2);
+    doc.line(marginX, y - 2, pageW - marginX, y - 2);
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...mutedRGB);
+    doc.text(`Subtotal parcial: $${grupo.subtotal.toLocaleString('es-CO')}`, pageW - marginX - 3, y + 3, { align:'right' });
+    y += 12;
+  });
+
+  // ---- Total ----
+  checkPageBreak(20);
+  doc.setDrawColor(...goldRGB);
+  doc.setLineWidth(0.6);
+  doc.line(marginX, y, pageW - marginX, y);
+  y += 9;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(...goldRGB);
+  doc.text('INVERSIÓN ESTIMADA TOTAL: $' + data.total.toLocaleString('es-CO'), pageW - marginX, y, { align:'right' });
+
+  // ---- Notas ----
+  if(data.notas){
+    y += 14;
+    checkPageBreak(20);
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...darkRGB);
+    doc.text('NOTAS / CONDICIONES', marginX, y);
+    y += 6;
+    doc.setFont('times', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(70, 70, 70);
+    const splitNotas = doc.splitTextToSize(data.notas, pageW - marginX*2);
+    checkPageBreak(splitNotas.length * 5 + 4);
+    doc.text(splitNotas, marginX, y);
+  }
+
+  // ---- Pie de página en todas las páginas generadas ----
+  const totalPaginas = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= totalPaginas; i++){
+    doc.setPage(i);
+    const ph = doc.internal.pageSize.height;
+    doc.setDrawColor(...cardBrdRGB);
+    doc.setLineWidth(0.2);
+    doc.line(marginX, ph - 15, pageW - marginX, ph - 15);
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...mutedRGB);
+    doc.text('AUDIOLINK — Producción y Logística Musical', marginX, ph - 10);
+    doc.text(`Cotización sujeta a confirmación · Pág. ${i}/${totalPaginas}`, pageW - marginX, ph - 10, { align:'right' });
+  }
+
+  const blobUrl = doc.output('bloburl');
+  window.open(blobUrl, '_blank');
+}
+</script>
+</body>
+</html>

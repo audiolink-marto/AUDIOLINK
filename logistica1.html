@@ -5,25 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Logística</title>
 <!-- AUDIOLINK · logistica.html · v2.36
-     v2.36: (1) la pestaña Bitácora del modal de Reportes ahora tiene un
-     listener en vivo (onSnapshot) sobre el documento de la sesión, así
-     que si el IGE guarda cambios desde bitacora.html mientras el modal
-     está abierto en logística, la lista se refresca sola (antes era una
-     foto fija tomada al abrir el modal); se cancela igual que
-     unsubTomasReporte al cerrar. No se tocó la agrupación/render ya
-     existente, solo se la vuelve a invocar con datos frescos. (2) el
-     input list de solo lectura (#inputListBox) del editor de sesión
-     ahora vive en su propio recuadro con título "Input list (canales)",
-     separado de los selectores de instrumentación. (3) se quitó el
-     campo manual "Equipo técnico" (rol/nombre libre, sección "Equipo e
-     instrumentación") del formulario, la tarjeta de sesión, el guardado
-     (`equipoTecnico`) y el PDF — quedó reemplazado en la práctica por
-     "Técnicos asignados" (v2.24, catálogo /equipoTecnico). No se borra
-     el campo `equipoTecnico` de sesiones viejas en Firestore, solo se
-     dejó de escribir/leer/mostrar. No se tocó instrumentación, inputList,
-     tomas, ni ninguna otra lógica de cálculo existente.
-
-     AUDIOLINK · logistica.html · v2.35
+     v2.36: renderBitacoraLista() (Reportes → Bitácora) ahora ordena por
+     `orden` y agrupa visualmente los canales consecutivos que comparten
+     `instrumento`, igual que armarGruposVisuales()/renderInputList() de
+     bitacora.html (mismo criterio de color por grupo — colorParaGrupo,
+     PALETA_GRUPOS — y mismo colapsable). Solo cambia el orden/agrupación
+     visual de esa lista; los campos editables (Nombre Interfaz, Canal
+     Interfaz, Preamp, Gain) y guardarBitacoraReportes() siguen iguales.
+     No se tocó inputListBox/renderInputListSesion ni ningún otro campo.
      v2.35: se propaga el nuevo campo `nombreInterfaz` (ej: "Apollo Sala A",
      agregado en bitacora.html v2.9 junto a `canalInterfaz`) por los mismos
      puntos donde ya se preservaba `canalInterfaz` desde v2.33: (1)
@@ -741,6 +730,11 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 }
 .badge.vis{background:rgba(76,175,125,0.15);color:var(--ok);}
 .badge.priv{background:rgba(212,87,74,0.15);color:var(--err);}
+.equipo-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.equipo-chip{
+  background:var(--gold-bg);border:1px solid var(--gold);border-radius:20px;
+  padding:3px 10px;font-size:0.72rem;color:var(--gold);
+}
 .empty{text-align:center;padding:60px 20px;color:var(--faint);}
 .btn-reportes{
   background:transparent;border:1px solid var(--brd);
@@ -771,6 +765,24 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .toma-usar button.no.activa{border-color:var(--err);color:var(--err);background:rgba(212,87,74,0.12);}
 .toma-form textarea{width:100%;min-height:50px;padding:10px;font-size:0.9rem;margin-bottom:10px;}
 .toma-form .btn{width:100%;padding:14px;font-size:0.95rem;}
+/* v2.36: agrupación visual por instrumento en Reportes → Bitácora,
+   mismo criterio que bitacora.html (color fijo por grupo, colapsable). */
+.grupo-instrumento{
+  border:1px solid var(--gc,var(--gold));border-radius:12px;padding:8px 8px 2px;margin-bottom:12px;
+  background:var(--gc-bg,rgba(196,152,44,0.04));
+}
+.grupo-header{
+  font-family:var(--T);color:var(--gc,var(--gold));font-size:0.9rem;
+  font-weight:700;margin-bottom:6px;padding:2px 4px;display:flex;align-items:center;
+  justify-content:space-between;gap:8px;cursor:pointer;user-select:none;
+}
+.grupo-header .colapsar-flecha{font-size:0.75rem;transition:transform 0.15s;flex-shrink:0;}
+.grupo-header.colapsado .colapsar-flecha{transform:rotate(-90deg);}
+.grupo-count{font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--muted);font-weight:400;}
+.grupo-instrumento .toma-item{margin-bottom:8px;border-left:3px solid var(--gc,var(--gold));}
+.grupo-instrumento .toma-item:last-child{margin-bottom:0;}
+.grupo-instrumento.colapsado .toma-item{display:none;}
+
 .toma-item{
   display:flex;justify-content:space-between;align-items:center;gap:8px;
   background:var(--surf-light);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:0.85rem;
@@ -1008,13 +1020,15 @@ window.NAV_CONFIG = { activo: 'logistica' };
     </div>
 
     <div class="form-section">
-      <div class="form-section-head">🎚️ Instrumentación</div>
+      <div class="form-section-head">🎚️ Equipo e instrumentación</div>
+      <div class="field">
+        <label>Equipo técnico</label>
+        <div id="equipoContainer"></div>
+        <span class="link-add" onclick="agregarFilaEquipo()">+ agregar integrante</span>
+      </div>
       <div class="field">
         <label>Instrumentación de esta sesión</label>
         <div id="instrSesionContainer"></div>
-      </div>
-      <div class="field">
-        <label>Input list (canales)</label>
         <div class="inputlist-box" id="inputListBox"></div>
       </div>
     </div>
@@ -1395,6 +1409,10 @@ function renderSesiones(){
       </div>
       <div class="meta">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')}</div>
       <div class="meta">⏱️ ${escapeHtml(s.horaInicio || '--:--')} – ${escapeHtml(s.horaFin || '--:--')}</div>
+      ${s.equipoTecnico && s.equipoTecnico.length ? `
+        <div class="equipo-list">
+          ${s.equipoTecnico.map(e => `<span class="equipo-chip">${escapeHtml(e.rol)}: ${escapeHtml(e.nombre)}</span>`).join('')}
+        </div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1443,6 +1461,12 @@ async function abrirModalEditar(id){
   document.getElementById('fActividad').value = s.actividad || '';
   document.getElementById('fNotasInternas').value = s.notasInternas || '';
   document.getElementById('fVisibleCliente').checked = s.visibleCliente !== false;
+  document.getElementById('equipoContainer').innerHTML = '';
+  if(s.equipoTecnico && s.equipoTecnico.length){
+    s.equipoTecnico.forEach(e => agregarFilaEquipo(e.rol, e.nombre));
+  } else {
+    agregarFilaEquipo();
+  }
   instrSesionKeys = Array.isArray(s.instrumentacionSesion) ? [...s.instrumentacionSesion] : [];
   instrSesionIndividual = (s.instrumentacionSesionIndividual && typeof s.instrumentacionSesionIndividual === 'object') ? {...s.instrumentacionSesionIndividual} : {};
   instrSesionPiezasSel = {};
@@ -1520,6 +1544,20 @@ function limpiarFormulario(){
   document.getElementById('fActividad').value = '';
   document.getElementById('fNotasInternas').value = '';
   document.getElementById('fVisibleCliente').checked = true;
+  document.getElementById('equipoContainer').innerHTML = '';
+  agregarFilaEquipo();
+}
+
+function agregarFilaEquipo(rol='', nombre=''){
+  const container = document.getElementById('equipoContainer');
+  const row = document.createElement('div');
+  row.className = 'equipo-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Rol (ej: Técnico)" class="equipo-rol" value="${escapeHtml(rol)}">
+    <input type="text" placeholder="Nombre" class="equipo-nombre" value="${escapeHtml(nombre)}">
+    <button onclick="this.parentElement.remove()">✕</button>
+  `;
+  container.appendChild(row);
 }
 
 // ============ PICKER DE HORA — ruedas (v2.18) ============
@@ -2073,6 +2111,13 @@ async function guardarSesion(){
     alert('Fecha y actividad son obligatorias.');
     return;
   }
+  const equipoTecnico = [];
+  document.querySelectorAll('#equipoContainer .equipo-row').forEach(row => {
+    const rol = row.querySelector('.equipo-rol').value.trim();
+    const nom = row.querySelector('.equipo-nombre').value.trim();
+    if(rol || nom) equipoTecnico.push({ rol, nombre: nom });
+  });
+
   const estudioSel = document.getElementById('fEstudio');
   const estudioId = estudioSel.value;
   const estudioNombre = estudioId ? estudioSel.options[estudioSel.selectedIndex].textContent : '';
@@ -2088,6 +2133,7 @@ async function guardarSesion(){
     horaInicio: document.getElementById('fHoraInicio').value,
     horaFin: document.getElementById('fHoraFin').value,
     actividad,
+    equipoTecnico,
     notasInternas: document.getElementById('fNotasInternas').value.trim(),
     visibleCliente: document.getElementById('fVisibleCliente').checked,
     instrumentacionSesion: instrSesionKeys,
@@ -2298,7 +2344,6 @@ let reporteSesionId = null;
 let ratingTomaActual = 0;
 let usarTomaActual = null;
 let unsubTomasReporte = null;
-let unsubSesionReporte = null;
 let tomasReporte = [];
 
 function sesionDocRef(id){
@@ -2363,25 +2408,12 @@ function abrirModalReportes(sesionId){
       renderTomasLista();
     }, err => console.error('Error cargando tomas:', err));
 
-  /* v2.36: listener en vivo sobre el documento de la sesión, solo para
-     mantener la pestaña Bitácora sincronizada con lo último que haya
-     guardado el IGE desde bitacora.html mientras el modal está abierto
-     (antes se veía una foto fija tomada al abrir). No reemplaza la
-     agrupación ya hecha en renderBitacoraLista, solo la vuelve a llamar
-     con el inputList fresco. */
-  if(unsubSesionReporte) unsubSesionReporte();
-  unsubSesionReporte = sesionDocRef(sesionId).onSnapshot(docSnap => {
-    if(!docSnap.exists) return;
-    renderBitacoraLista({ id: docSnap.id, ...docSnap.data() });
-  }, err => console.error('Error en listener de sesión (Reportes):', err));
-
   document.getElementById('modalReportesBg').classList.add('active');
 }
 
 function cerrarModalReportes(){
   document.getElementById('modalReportesBg').classList.remove('active');
   if(unsubTomasReporte) { unsubTomasReporte(); unsubTomasReporte = null; }
-  if(unsubSesionReporte) { unsubSesionReporte(); unsubSesionReporte = null; }
   reporteSesionId = null;
   tomasReporte = [];
 }
@@ -2474,6 +2506,39 @@ async function eliminarToma(tomaId){
    externo sigue funcionando igual, independiente de esto. */
 let bitacoraEditLista = [];
 
+// v2.36: mismo criterio de color/agrupación que bitacora.html
+// (colorParaGrupo/armarGruposVisuales) — se duplica acá porque logistica.html
+// no carga bitacora.html. gruposColapsadosBitacora es estado local (no se
+// guarda), solo para colapsar/expandir dentro de este modal.
+const PALETA_GRUPOS = ['#c9a24b','#5ba3d9','#7fc78f','#d97fae','#d9945b','#8f8fe0','#6ecac0','#d9605b'];
+function colorParaGrupo(etiqueta){
+  let hash = 0;
+  for(let i = 0; i < etiqueta.length; i++) hash = (hash * 31 + etiqueta.charCodeAt(i)) >>> 0;
+  return PALETA_GRUPOS[hash % PALETA_GRUPOS.length];
+}
+function hexToRgba(hex, alpha){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
+}
+function armarGruposVisuales(lista){
+  const grupos = [];
+  lista.forEach(it => {
+    const etiqueta = (it.instrumento || '').trim();
+    const anterior = grupos[grupos.length - 1];
+    if(etiqueta && anterior && anterior.etiqueta === etiqueta){
+      anterior.items.push(it);
+    } else {
+      grupos.push({ etiqueta, items: [it] });
+    }
+  });
+  return grupos;
+}
+let gruposColapsadosBitacora = {};
+function toggleGrupoBitacora(etiqueta){
+  gruposColapsadosBitacora[etiqueta] = !gruposColapsadosBitacora[etiqueta];
+  renderBitacoraLista({ inputList: bitacoraEditLista });
+}
+
 function renderBitacoraLista(s){
   const cont = document.getElementById('repBitacoraLista');
   const lista = Array.isArray(s.inputList) ? s.inputList : [];
@@ -2482,7 +2547,15 @@ function renderBitacoraLista(s){
     cont.innerHTML = '<span class="inputlist-empty">Esta sesión no tiene input list generado.</span>';
     return;
   }
-  cont.innerHTML = bitacoraEditLista.map((it, i) => `
+  // v2.36: mismo orden que bitacora.html (por `orden`) y misma agrupación
+  // visual por instrumento consecutivo (armarGruposVisuales).
+  const ordenados = [...bitacoraEditLista].sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
+  const grupos = armarGruposVisuales(ordenados);
+
+  cont.innerHTML = grupos.map(grupo => {
+    const filas = grupo.items.map(it => {
+      const i = bitacoraEditLista.indexOf(it);
+      return `
       <div class="toma-item" style="align-items:flex-start;">
         <div class="info" style="width:100%;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
@@ -2512,7 +2585,19 @@ function renderBitacoraLista(s){
             </div>
           </div>
         </div>
-      </div>`).join('')
+      </div>`;
+    }).join('');
+    if(!grupo.etiqueta) return filas;
+    const c = colorParaGrupo(grupo.etiqueta);
+    const colapsado = !!gruposColapsadosBitacora[grupo.etiqueta];
+    return `<div class="grupo-instrumento${colapsado ? ' colapsado' : ''}" style="--gc:${c};--gc-bg:${hexToRgba(c,0.05)};">
+      <div class="grupo-header${colapsado ? ' colapsado' : ''}" onclick="toggleGrupoBitacora('${grupo.etiqueta.replace(/'/g,"\\'")}')">
+        <span><span class="colapsar-flecha">▾</span> 🎚️ ${escapeHtml(grupo.etiqueta)}</span>
+        <span class="grupo-count">${grupo.items.length} canal${grupo.items.length !== 1 ? 'es' : ''}</span>
+      </div>
+      ${filas}
+    </div>`;
+  }).join('')
     + `<button class="btn" style="width:100%;margin-top:6px;" onclick="guardarBitacoraReportes()">💾 Guardar bitácora</button>
        <div class="inputlist-empty" id="bitacoraEstado" style="text-align:center;margin-top:6px;"></div>`;
 }
@@ -2806,7 +2891,8 @@ function exportarPDF(modo){
 
   sesionesFiltradas.forEach(s => {
     const notasHeight = (modo === 'interno' && s.notasInternas) ? doc.splitTextToSize(s.notasInternas, pageW - marginX*2 - 4).length * 5 + 8 : 0;
-    const bloqueAltura = 30 + notasHeight;
+    const equipoHeight = (s.equipoTecnico && s.equipoTecnico.length) ? 6.5 : 0;
+    const bloqueAltura = 30 + equipoHeight + notasHeight;
 
     if(y + bloqueAltura > pageHFull - 22){
       pintarFooter();
@@ -2831,6 +2917,13 @@ function exportarPDF(modo){
     doc.text(`${fechaLegible}  ·  Sala: ${s.sala || '—'}  ·  ${s.horaInicio || '--:--'}–${s.horaFin || '--:--'}`, marginX + 6, y + 9);
 
     let yy = y + 16;
+    if(s.equipoTecnico && s.equipoTecnico.length){
+      doc.setFontSize(9);
+      doc.setTextColor(70, 70, 70);
+      const equipoStr = s.equipoTecnico.map(e => `${e.rol}: ${e.nombre}`).join('  ·  ');
+      doc.text(equipoStr, marginX + 6, yy);
+      yy += 7;
+    }
 
     if(modo === 'interno' && s.notasInternas){
       doc.setFontSize(8);

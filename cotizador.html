@@ -4,7 +4,122 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AUDIOLINK - Central de Operaciones & Cotizador V8.7</title>
-<!-- AUDIOLINK · cotizador.html · v9.1
+<!-- AUDIOLINK · cotizador.html · v9.12
+     V9.12: se reconstruye el bloque manual de Músicos de Sesión (Tarifa A,
+     Tarifa B y Ensamble de Percusión de 3 músicos) que existía antes de
+     v9.4 y se había quitado al agregar el automático desde sesiones.
+     Vuelve SOLO para cotizaciones sueltas (sin proyecto vinculado) — con
+     proyecto vinculado se oculta y desmarca, igual que bloque-salas-manuales,
+     porque ahí ya se cobra automático vía musicosDesdeSesionesCache.
+     Tarifas reconstruidas en $0 a propósito (no había forma de recuperar
+     los valores originales) — AUDIOLINK las ajusta directamente. Se
+     conecta a validarYCalcular(), exportarPDF() y recolectarItemsPlanos().
+     V9.11: las 3 salas manuales (checkboxes Estudio A/B/C) ahora se
+     ocultan cuando hay proyecto vinculado (todo se cobra automático vía
+     salasDesdeSesionesCache) y se desmarcan al ocultarse, igual que ya
+     pasa con "Entorno Operativo Principal". Se mantiene la cotización
+     suelta (sin proyecto vinculado) intacta — ahí las salas manuales y
+     el selector de Entorno siguen visibles y funcionando igual que
+     siempre, por decisión explícita de AUDIOLINK. No se tocó ningún
+     cálculo ni la lógica de tieneSalaA/B/C existente.
+     V9.10: el chip verde "Salas de Sesión" ahora también muestra las
+     specs/preamps de cada sala (mismo campo 'specs' de salaA/B/C en
+     Firestore que ya usan las salas manuales), solo cuando el estudio
+     tiene 'specsVisibles' activo — mismo criterio que actualizarNombresSalas()
+     para las salas manuales. No se tocó ningún cálculo ni las salas
+     manuales A/B/C.
+     V9.9: (1) el chip verde "Salas de Sesión" ahora muestra también el
+     nombre del estudio de cada sala (ESTUDIOS_DATA[s.estudioId].nombre),
+     no solo el nombre de la sala; (2) el selector "Entorno Operativo
+     Principal" se oculta cuando hay proyecto vinculado y se hereda
+     automáticamente el estudio más usado en las sesiones de ese proyecto
+     (conteo por estudioId dentro de escucharTecnicosDesdeSesiones(), solo
+     se aplica si cambia respecto al valor actual, para no resetear
+     tarifas manuales editadas en cada actualización del snapshot). Sin
+     proyecto vinculado, el selector vuelve a mostrarse igual que antes
+     (cotización suelta). No se tocó la lógica de las salas manuales
+     A/B/C ni ningún cálculo existente.
+     V9.8: mejora visual de las 3 cajas "automático desde sesión" (Técnicos/
+     Músicos/Salas de Sesión) — pasan de texto plano separado por <br> a
+     tarjetas tipo "chip" con color por categoría (azul Técnicos, morado
+     Músicos, verde Salas), usando nuevas variables --blue/--purple (y el
+     --green ya existente) definidas para ambos temas (oscuro/claro). Solo
+     cambia el render de esas 3 cajas (renderTecnicosSesionesUI(),
+     renderMusicosSesionesUI(), renderSalasSesionesUI()) y su HTML/CSS
+     asociado — no se tocó ningún cálculo, subtotal, ni la exportación PDF.
+     V9.7: se completa la funcionalidad de "salas automáticas desde
+     sesiones" que había quedado a medias en una edición anterior (el
+     código ya sumaba salasDesdeSesionesCache en 3 lugares —subtotal,
+     PDF y guardado en proyecto— pero esa variable nunca se declaraba ni
+     se llenaba, lo que producía un ReferenceError en cada
+     validarYCalcular() y rompía en cascada el cálculo y el guardado).
+     Se agrega: (1) declaración y llenado de salasDesdeSesionesCache
+     dentro de escucharTecnicosDesdeSesiones(), agrupando por s.sala
+     (campo de logistica.html) y sumando horas, con la tarifa vigente
+     tomada de ESTUDIOS_DATA[s.estudioId]; (2) caja visible "Salas de
+     Sesión" (mismo patrón que Técnicos/Músicos de Sesión) vía
+     renderSalasSesionesUI(). No se tocó la lógica de salas manuales
+     (checkboxes Estudio A/B/C) ni ninguna fórmula existente.
+     V9.6: (1) las salas del estudio (Estudio A/B/C) ahora se ocultan (y
+     se desmarcan si estaban chequeadas) cuando el estudio seleccionado
+     no tiene esa sala configurada en Firestore — antes se mostraban
+     igual como "Sala B"/"Sala C" genéricas con tarifa $0, aunque el
+     estudio real solo tuviera 1 o 2 salas; (2) el cliente SÍ se hereda
+     desde v9.2 (aplicarDatosProyectoVinculado(), campo client-name) —
+     confirmado, sin cambios necesarios ahí; (3) el campo "Nombre del
+     Tema / Proyecto" se oculta cuando hay un proyecto vinculado (queda
+     sincronizado automáticamente con proyectoVinculadoData.nombre, ya
+     no hace falta escribirlo aparte) y vuelve a aparecer si se trabaja
+     una cotización suelta sin vincular, para no romper ese caso. No se
+     tocó ninguna fórmula de cálculo, el borrador local, ni la
+     exportación a PDF.
+     V9.5: se retira el rubro manual "Ingeniería de Grabación" (chk-ing,
+     grupo "Soporte Técnico Especializado" completo, y su datalist
+     lista-ingenieros) — quedaba redundante con los Técnicos de Sesión
+     automáticos (v9.2): cualquier ingeniero que grabe una sesión ya se
+     cobra solo con estar en tecnicosAsignados de logistica.html, y
+     mantener el checkbox manual abría la puerta a cobrarlo dos veces por
+     descuido. Se quitan sus 3 bloques de lógica (subtotal, PDF, guardado
+     en Firestore). No se tocó ninguna otra fórmula de cálculo, el
+     borrador local, ni la exportación a PDF de los rubros que sí quedan.
+     V9.4: (1) las listas automáticas de Técnicos y Músicos de Sesión ahora
+     muestran también el rol/instrumento de cada persona (t.rol desde
+     tecnicosAsignados, m.instrumento desde musicosAsignados — ambos ya
+     existían en logistica.html, solo faltaba mostrarlos acá); (2) se
+     retiran los rubros manuales "Músicos de Sesión (Tarifa A)", "(Tarifa
+     B)" y "Ensamble de Percusión (3 Músicos)" — checkboxes, inputs y sus
+     3 bloques de lógica (subtotal, PDF, guardado en Firestore) quedan
+     reemplazados por el bloque automático de músicos desde sesiones
+     (v9.3); (3) fix en cargarEstudiosDesdeFirestore(): se descartan
+     documentos de la colección 'estudios' sin campo `nombre` (o solo
+     espacios), que aparecían como una opción vacía en el selector
+     "Entorno Operativo Principal" — no se tocó el filtro de 'activo'
+     existente. No se tocó ninguna otra fórmula de cálculo, el borrador
+     local, ni la exportación a PDF de los rubros que sí quedan.
+     V9.3: tres cambios sobre el bloque de herencia automática desde el
+     proyecto/sesiones vinculadas: (1) aplicarDatosProyectoVinculado()
+     ahora también autocompleta "Cant. Temas" (track-qty) desde
+     proyectoVinculadoData.cantTemas (proyecto.html v4.16), con el mismo
+     criterio no-destructivo que ya usa para cliente/tema (solo si el
+     campo sigue en su valor por defecto "1"); (2) nuevo bloque "Músicos
+     de Sesión (automático, desde Logística)", mismo patrón que el de
+     Técnicos (v9.2): escucha proyectos/{id}/sesiones, lee el campo
+     musicosAsignados (logistica.html v2.32, con su nuevo subcampo
+     canales) y suma tarifa×canales por CADA aparición del músico (si
+     toca en 3 sesiones del proyecto, se cobra 3 veces — pedido
+     explícito, no se deduplica). Se suma a subtotalEjecucion, igual que
+     técnicos, y entra automáticamente al PDF y a
+     recolectarItemsPlanos(); (3) tanto la lista de técnicos como la de
+     músicos ahora muestran el valor $ calculado al lado de cada persona
+     y un total dentro de su propia caja (no se agrega fila nueva en el
+     resumen general, para no duplicar visualmente lo que ya estaba
+     sumado en Subtotal Ejecución); (4) FIX: los técnicos automáticos
+     (v9.2) nunca se habían agregado a recolectarItemsPlanos() — se
+     veían bien en pantalla y en el PDF, pero no quedaban guardados al
+     usar "Guardar Cotización en el Proyecto". Se agrega ahí, misma
+     fuente (tecnicosDesdeSesionesCache) que ya usan validarYCalcular()
+     y exportarPDF(). No se tocó ninguna fórmula de cálculo existente,
+     el borrador local, ni la exportación a PDF de los rubros manuales.
      V9.1: fix de contraste en tema claro. Varios textos (h1, títulos de
      panel, inputs de texto y numéricos, subtítulo de sala) tenían el color
      hardcodeado en blanco (#FFFFFF) o en un gris fijo (#9A8F7A) en vez de
@@ -122,6 +237,10 @@
   --faint: #3A342B;
   --green: #4A9C6A;
   --green-bg: rgba(74,156,106,0.1);
+  --blue: #4A87C9;
+  --blue-bg: rgba(74,135,201,0.1);
+  --purple: #A56AC9;
+  --purple-bg: rgba(165,106,201,0.1);
   --T: "Playfair Display", Georgia, serif;
   --S: "DM Sans", system-ui, sans-serif;
   --M: "JetBrains Mono", monospace;
@@ -138,6 +257,10 @@
   --faint: #a39d8f;
   --green: #3a8f63;
   --green-bg: rgba(58,143,99,0.10);
+  --blue: #3d6fa8;
+  --blue-bg: rgba(61,111,168,0.10);
+  --purple: #8a53a8;
+  --purple-bg: rgba(138,83,168,0.10);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -331,6 +454,40 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: var(--txt)
 }
 .room-specs strong { color: var(--gold); font-weight: 500; }
 .room-layout { display: block; font-family: var(--M); font-size: 10px; margin-bottom: 2px; color: var(--muted); }
+
+/* v9.8: chips de color para las cajas "automático desde sesión" (Técnicos/
+   Músicos/Salas). Cada caja define --accent/--accent-bg vía una clase de
+   color (.acc-blue/.acc-purple/.acc-green) que heredan sus chips hijos —
+   así el HTML de renderTecnicosSesionesUI() etc. solo arma chips planos,
+   sin repetir el color en cada uno. No afecta ningún otro componente. */
+.acc-blue   { --accent: var(--blue);   --accent-bg: var(--blue-bg); }
+.acc-purple { --accent: var(--purple); --accent-bg: var(--purple-bg); }
+.acc-green  { --accent: var(--green);  --accent-bg: var(--green-bg); }
+
+.sesion-auto-label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.82rem; font-weight: 600; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.sesion-auto-label .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
+}
+.sesion-chip-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.sesion-chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 12px; border-radius: 8px; background: var(--accent-bg);
+  border-left: 3px solid var(--accent);
+}
+.sesion-chip .chip-info { display: flex; flex-direction: column; min-width: 0; }
+.sesion-chip .chip-name { color: var(--txt); font-size: 0.83rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sesion-chip .chip-sub { color: var(--muted); font-size: 0.74rem; }
+.sesion-chip .chip-total { font-family: var(--M); font-size: 0.8rem; font-weight: 700; color: var(--accent); white-space: nowrap; flex-shrink: 0; }
+.sesion-auto-total {
+  margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--brd);
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.83rem; color: var(--accent); font-weight: 700;
+}
+.sesion-auto-total span:last-child { font-family: var(--M); }
 
 .input-controls { display: flex; align-items: flex-end; gap: 6px; }
 .input-unit-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -569,7 +726,6 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
 </head>
 <body>
 
-<datalist id="lista-ingenieros"><option value="German Albano"></option></datalist>
 <datalist id="lista-dir-mus"><option value="Alejandro Londoño"></option></datalist>
 <datalist id="lista-arreglos"><option value="El Negro"></option></datalist>
 <datalist id="lista-mezcla"><option value="German Albano"></option><option value="Camilo Silva"></option></datalist>
@@ -631,7 +787,7 @@ window.NAV_CONFIG = {
         <label class="calc-label">Nombre del Cliente *</label>
         <input type="text" id="client-name" class="text-input" placeholder="Obligatorio" oninput="validarYCalcular()">
       </div>
-      <div class="info-group">
+      <div class="info-group" id="row-track-name">
         <label class="calc-label">Nombre del Tema / Proyecto *</label>
         <input type="text" id="track-name" class="text-input" placeholder="Obligatorio" oninput="validarYCalcular()">
       </div>
@@ -639,7 +795,7 @@ window.NAV_CONFIG = {
         <label class="calc-label">Cant. Temas</label>
         <input type="number" id="track-qty" class="text-input" value="1" min="1" oninput="validarYCalcular()">
       </div>
-      <div class="info-group">
+      <div class="info-group" id="row-entorno">
         <label class="calc-label">Entorno Operativo Principal</label>
         <select id="selector-entorno" class="text-input" onchange="cambiarEntorno()">
           <option value="">Cargando estudios...</option>
@@ -657,10 +813,10 @@ window.NAV_CONFIG = {
           1. Infraestructura de Salas e Ingeniería
         </h2>
         
-        <div class="calc-group">
+        <div class="calc-group" id="bloque-salas-manuales">
           <span class="calc-label">Horas de Captura / Tracking</span>
           
-          <div class="row-input" style="flex-wrap: wrap;">
+          <div class="row-input" id="row-sala-a" style="flex-wrap: wrap;">
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
               <div class="input-main">
                 <div class="checkbox-container">
@@ -683,7 +839,7 @@ window.NAV_CONFIG = {
             <div class="room-specs" id="specs-sala-a"></div>
           </div>
           
-          <div class="row-input" style="flex-wrap: wrap;">
+          <div class="row-input" id="row-sala-b" style="flex-wrap: wrap;">
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
               <div class="input-main">
                 <div class="checkbox-container">
@@ -706,7 +862,7 @@ window.NAV_CONFIG = {
             <div class="room-specs" id="specs-sala-b"></div>
           </div>
           
-          <div class="row-input" style="flex-wrap: wrap;">
+          <div class="row-input" id="row-sala-c" style="flex-wrap: wrap;">
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
               <div class="input-main">
                 <div class="checkbox-container">
@@ -730,27 +886,18 @@ window.NAV_CONFIG = {
           </div>
         </div>
 
-        <div class="calc-group">
-          <span class="calc-label">Soporte Técnico Especializado</span>
-          <div class="row-input">
-            <div class="input-main">
-              <div class="checkbox-container">
-                <input type="checkbox" id="chk-ing" onchange="validarYCalcular()">
-                <label for="chk-ing">Ingeniería de Grabación</label>
-              </div>
-              <input type="text" id="name-ing" placeholder="Nombre del ingeniero asignado" class="inline-name-input" list="lista-ingenieros" oninput="validarYCalcular()">
+        <!-- SALAS DE SESIÓN — AUTOMÁTICO (v9.7). Mismo patrón que Técnicos/
+             Músicos de Sesión: solo lectura, se calcula solo cuando hay
+             proyecto vinculado, agrupando horas por sala desde las sesiones
+             de logistica.html (campo 'sala', v2.24+), con la tarifa vigente
+             tomada del estudio de cada sesión (ESTUDIOS_DATA). Se suma al
+             mismo "Subtotal Salas" que las salas marcadas manualmente. -->
+        <div class="row-input acc-green" id="row-salas-sesiones" style="display:none;flex-wrap:wrap;">
+          <div style="width:100%;">
+            <div class="input-main" style="margin-bottom:6px;">
+              <label class="sesion-auto-label"><span class="dot"></span>Salas de Sesión (automático, desde Logística)</label>
             </div>
-            <div class="input-controls">
-              <div class="input-unit-group">
-                <span class="input-unit-label">Horas</span>
-                <input type="number" id="num-ing" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
-              </div>
-              <span class="mult">×</span>
-              <div class="input-unit-group">
-                <span class="input-unit-label">Tarifa COP</span>
-                <input type="number" id="rate-ing" value="80000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
-              </div>
-            </div>
+            <div id="salasSesionesLista"></div>
           </div>
         </div>
 
@@ -962,68 +1109,95 @@ window.NAV_CONFIG = {
             </div>
           </div>
 
-          <div class="row-input">
-            <div class="input-main">
-              <div class="checkbox-container">
-                <input type="checkbox" id="chk-musicos-1" onchange="validarYCalcular()">
-                <label for="chk-musicos-1">Músicos de Sesión (Tarifa A)</label>
-              </div>
-            </div>
-            <div class="input-controls">
-              <div class="input-unit-group">
-                <span class="input-unit-label">Músicos</span>
-                <input type="number" id="num-canales-1" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
-              </div>
-              <span class="mult">×</span>
-              <div class="input-unit-group">
-                <span class="input-unit-label">Tarifa COP</span>
-                <input type="number" id="rate-musicos-1" value="100000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
-              </div>
-            </div>
-          </div>
-
-          <div class="row-input">
-            <div class="input-main">
-              <div class="checkbox-container">
-                <input type="checkbox" id="chk-musicos-2" onchange="validarYCalcular()">
-                <label for="chk-musicos-2">Músicos de Sesión (Tarifa B)</label>
-              </div>
-            </div>
-            <div class="input-controls">
-              <div class="input-unit-group">
-                <span class="input-unit-label">Músicos</span>
-                <input type="number" id="num-canales-2" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
-              </div>
-              <span class="mult">×</span>
-              <div class="input-unit-group">
-                <span class="input-unit-label">Tarifa COP</span>
-                <input type="number" id="rate-musicos-2" value="150000" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
-              </div>
-            </div>
-          </div>
-
-          <div class="row-input" style="flex-wrap: wrap;">
-            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+          <!-- MÚSICOS DE SESIÓN — MANUAL (v9.12). Reconstruido: existía
+               antes de v9.4 y se había quitado al agregar el bloque
+               automático desde sesiones. Vuelve SOLO para cotizaciones
+               sueltas (sin proyecto vinculado) — con proyecto vinculado
+               todo se cobra automático vía musicosDesdeSesionesCache, así
+               que este bloque se oculta y desmarca (mismo criterio que
+               bloque-salas-manuales). Tarifas reconstruidas en $0 a
+               propósito — AUDIOLINK las ajusta directamente. -->
+          <div class="calc-group" id="bloque-musicos-manual" style="margin-bottom:16px;">
+            <div class="row-input">
               <div class="input-main">
                 <div class="checkbox-container">
-                  <input type="checkbox" id="chk-ensamble-percu" onchange="validarYCalcular()">
-                  <label for="chk-ensamble-percu">Ensamble de Percusión (3 Músicos)</label>
+                  <input type="checkbox" id="chk-musicos-a" onchange="validarYCalcular()">
+                  <label for="chk-musicos-a">Músicos de Sesión (Tarifa A)</label>
                 </div>
               </div>
               <div class="input-controls">
                 <div class="input-unit-group">
-                  <span class="input-unit-label">Jornadas</span>
-                  <input type="number" id="num-ensamble-percu" value="1" min="1" class="qty-input" onchange="validarYCalcular()">
+                  <span class="input-unit-label">Músicos</span>
+                  <input type="number" id="num-musicos-a" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
                 </div>
                 <span class="mult">×</span>
                 <div class="input-unit-group">
                   <span class="input-unit-label">Tarifa COP</span>
-                  <input type="number" id="rate-ensamble-percu" value="450000" min="0" class="rate-input" onchange="validarYCalcular()">
+                  <input type="number" id="rate-musicos-a" value="0" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
                 </div>
               </div>
             </div>
-            <div class="room-specs">
-              Formato de ensamble fijo. Incluye ejecución de: <strong>Batería/Timbal</strong>, <strong>Congas</strong> y <strong>Bongó/Campana</strong>.
+            <div class="row-input">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" id="chk-musicos-b" onchange="validarYCalcular()">
+                  <label for="chk-musicos-b">Músicos de Sesión (Tarifa B)</label>
+                </div>
+              </div>
+              <div class="input-controls">
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Músicos</span>
+                  <input type="number" id="num-musicos-b" value="1" min="1" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+                <span class="mult">×</span>
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Tarifa COP</span>
+                  <input type="number" id="rate-musicos-b" value="0" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+            <div class="row-input">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" id="chk-ensamble-percusion" onchange="validarYCalcular()">
+                  <label for="chk-ensamble-percusion">Ensamble de Percusión (3 Músicos)</label>
+                </div>
+              </div>
+              <div class="input-controls">
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Tarifa COP</span>
+                  <input type="number" id="rate-ensamble-percusion" value="0" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TÉCNICOS DE SESIÓN — AUTOMÁTICO (v9.2). Solo lectura: se
+               calcula solo cuando hay proyecto vinculado, sumando horas
+               por técnico desde las sesiones de logistica.html (campo
+               tecnicosAsignados, v2.24). No es un checkbox manual como
+               el resto de este grupo porque no hay nada que marcar: si
+               no hay técnicos con horas, este bloque no se muestra. -->
+          <div class="row-input acc-blue" id="row-tecnicos-sesiones" style="display:none;flex-wrap:wrap;">
+            <div style="width:100%;">
+              <div class="input-main" style="margin-bottom:6px;">
+                <label class="sesion-auto-label"><span class="dot"></span>Técnicos de Sesión (automático, desde Logística)</label>
+              </div>
+              <div id="tecnicosSesionesLista"></div>
+            </div>
+          </div>
+
+          <!-- MÚSICOS DE SESIÓN — AUTOMÁTICO (v9.3). Mismo patrón que
+               Técnicos de arriba: solo lectura, se calcula solo cuando
+               hay proyecto vinculado, sumando tarifa×canales por cada
+               aparición del músico en las sesiones de logistica.html
+               (campo musicosAsignados, v2.32). -->
+          <div class="row-input acc-purple" id="row-musicos-sesiones" style="display:none;flex-wrap:wrap;">
+            <div style="width:100%;">
+              <div class="input-main" style="margin-bottom:6px;">
+                <label class="sesion-auto-label"><span class="dot"></span>Músicos de Sesión (automático, desde Logística)</label>
+              </div>
+              <div id="musicosSesionesLista"></div>
             </div>
           </div>
         </div>
@@ -1238,7 +1412,11 @@ async function cargarEstudiosDesdeFirestore(){
     // 'activo' aquí mismo en JS — mismo resultado, sin depender de crear
     // un índice en la consola de Firebase.
     const snap = await db.collection('estudios').orderBy('nombre').get();
-    const docsActivos = snap.docs.filter(d => d.data().activo !== false);
+    // v9.4: además de filtrar 'activo', se descartan documentos sin
+    // nombre (o solo espacios) — aparecían como una opción vacía en el
+    // selector "Entorno Operativo Principal". No se tocó el filtro de
+    // 'activo' existente ni el resto de la función.
+    const docsActivos = snap.docs.filter(d => d.data().activo !== false && (d.data().nombre || '').trim() !== '');
     if(docsActivos.length === 0){
       sel.innerHTML = '<option value="">Sin estudios registrados</option>';
       return;
@@ -1285,6 +1463,20 @@ function actualizarNombresSalas() {
   document.getElementById('label-sala-a').innerText = e.salaA?.nombre || 'Sala A';
   document.getElementById('label-sala-b').innerText = e.salaB?.nombre || 'Sala B';
   document.getElementById('label-sala-c').innerText = e.salaC?.nombre || 'Sala C';
+
+  // v9.6: se ocultan (y desmarcan, para no dejar una hora fantasma
+  // cobrándose por detrás) las salas que el estudio seleccionado no
+  // tiene configuradas (sin nombre asignado en Firestore) — antes se
+  // mostraban igual como "Sala B"/"Sala C" genéricas con tarifa $0.
+  const filaA = document.getElementById('row-sala-a');
+  const filaB = document.getElementById('row-sala-b');
+  const filaC = document.getElementById('row-sala-c');
+  const tieneSalaA = !!(e.salaA?.nombre || '').trim();
+  const tieneSalaB = !!(e.salaB?.nombre || '').trim();
+  const tieneSalaC = !!(e.salaC?.nombre || '').trim();
+  if (filaA) { filaA.style.display = tieneSalaA ? '' : 'none'; if (!tieneSalaA) document.getElementById('chk-sala-a').checked = false; }
+  if (filaB) { filaB.style.display = tieneSalaB ? '' : 'none'; if (!tieneSalaB) document.getElementById('chk-sala-b').checked = false; }
+  if (filaC) { filaC.style.display = tieneSalaC ? '' : 'none'; if (!tieneSalaC) document.getElementById('chk-sala-c').checked = false; }
 
   const specsA = document.getElementById('specs-sala-a');
   const specsB = document.getElementById('specs-sala-b');
@@ -1377,10 +1569,8 @@ function validarYCalcular() {
   if (document.getElementById('chk-sala-c').checked) {
     subtotalSalas += parseInt(document.getElementById('num-sala-c').value || 0) * parseFloat(document.getElementById('rate-sala-c').value || 0);
   }
-
-  if (document.getElementById('chk-ing').checked) {
-    subtotalEjecucion += parseInt(document.getElementById('num-ing').value || 0) * parseFloat(document.getElementById('rate-ing').value || 0);
-  }
+  // v9.7: salas automáticas desde sesiones (ver escucharTecnicosDesdeSesiones)
+  salasDesdeSesionesCache.forEach(s => { subtotalSalas += s.horas * s.tarifa; });
 
   document.querySelectorAll('.backline-row').forEach(row => {
     const chk = row.querySelector('.chk-backline');
@@ -1397,16 +1587,25 @@ function validarYCalcular() {
     subtotalEjecucion += ensayos * personas * parseFloat(document.getElementById('rate-ensamble').value || 0);
   }
 
-  if (document.getElementById('chk-musicos-1').checked) {
-    subtotalEjecucion += parseInt(document.getElementById('num-canales-1').value || 0) * parseFloat(document.getElementById('rate-musicos-1').value || 0);
+  // v9.12: Músicos de Sesión (Tarifa A/B) y Ensamble de Percusión
+  // reconstruidos — solo suman si el bloque está visible (cotización
+  // suelta); con proyecto vinculado el bloque se oculta y desmarca desde
+  // aplicarDatosProyectoVinculado(), así que estos checked ya vienen en
+  // false y no duplican lo que ya cobra musicosDesdeSesionesCache.
+  if (document.getElementById('chk-musicos-a').checked) {
+    subtotalEjecucion += parseInt(document.getElementById('num-musicos-a').value || 0) * parseFloat(document.getElementById('rate-musicos-a').value || 0);
   }
-  if (document.getElementById('chk-musicos-2').checked) {
-    subtotalEjecucion += parseInt(document.getElementById('num-canales-2').value || 0) * parseFloat(document.getElementById('rate-musicos-2').value || 0);
+  if (document.getElementById('chk-musicos-b').checked) {
+    subtotalEjecucion += parseInt(document.getElementById('num-musicos-b').value || 0) * parseFloat(document.getElementById('rate-musicos-b').value || 0);
+  }
+  if (document.getElementById('chk-ensamble-percusion').checked) {
+    subtotalEjecucion += 3 * parseFloat(document.getElementById('rate-ensamble-percusion').value || 0);
   }
 
-  if (document.getElementById('chk-ensamble-percu').checked) {
-    subtotalEjecucion += parseInt(document.getElementById('num-ensamble-percu').value || 0) * parseFloat(document.getElementById('rate-ensamble-percu').value || 0);
-  }
+  // v9.2: técnicos automáticos desde sesiones (ver escucharTecnicosDesdeSesiones)
+  tecnicosDesdeSesionesCache.forEach(t => { subtotalEjecucion += t.horas * t.tarifa; });
+  // v9.3: músicos automáticos desde sesiones (misma fuente, ver arriba)
+  musicosDesdeSesionesCache.forEach(m => { subtotalEjecucion += m.tarifa * m.canales; });
 
   if (document.getElementById('chk-maquetacion').checked) subtotalPost += parseFloat(document.getElementById('rate-maquetacion').value || 0) * cantTemas;
   if (document.getElementById('chk-dir-mus').checked) subtotalPost += parseFloat(document.getElementById('rate-dir-mus').value || 0) * cantTemas;
@@ -1540,6 +1739,10 @@ function exportarPDF() {
     const h = document.getElementById('num-sala-c').value; const r = document.getElementById('rate-sala-c').value;
     agregarFila(0, `Alquiler de Infraestructura - ${document.getElementById('label-sala-c').innerText}`, `${h} Hora(s)`, formatCOP(r), h*r);
   }
+  // v9.7: salas automáticas desde sesiones — una fila por sala
+  salasDesdeSesionesCache.forEach(s => {
+    agregarFila(0, `Alquiler de Infraestructura - ${s.salaNombre}`, `${s.horas.toFixed(1)} Hora(s)`, formatCOP(s.tarifa), s.horas*s.tarifa);
+  });
 
   document.querySelectorAll('.backline-row').forEach(row => {
     const chk = row.querySelector('.chk-backline');
@@ -1551,28 +1754,34 @@ function exportarPDF() {
     }
   });
 
-  if (document.getElementById('chk-ing').checked) {
-    const h = document.getElementById('num-ing').value; const r = document.getElementById('rate-ing').value;
-    const n = document.getElementById('name-ing').value.trim();
-    agregarFila(2, `Soporte Técnico - Ingeniería de Grabación ${n ? '['+n+']' : ''}`, `${h} Hora(s)`, formatCOP(r), h*r);
-  }
   if (document.getElementById('chk-ensamble').checked) {
     const ensayos = document.getElementById('num-ensayos').value; const personas = document.getElementById('num-personas-ensamble').value; const r = document.getElementById('rate-ensamble').value;
     agregarFila(2, "Preproducción Logística - Etapa de Ensamble", `${ensayos} Ens. × ${personas} Pers.`, `${formatCOP(r)}`, ensayos*personas*r);
   }
-  if (document.getElementById('chk-musicos-1').checked) {
-    const m = document.getElementById('num-canales-1').value; const r = document.getElementById('rate-musicos-1').value;
-    agregarFila(2, "Personal de Ejecución - Músicos de Sesión (Tarifa A)", `${m} Músico(s)`, formatCOP(r), m*r);
+
+  // v9.12: Músicos de Sesión (Tarifa A/B) y Ensamble de Percusión
+  // manuales — reconstruidos, solo aplican en cotizaciones sueltas.
+  if (document.getElementById('chk-musicos-a').checked) {
+    const n = document.getElementById('num-musicos-a').value; const r = document.getElementById('rate-musicos-a').value;
+    agregarFila(2, "Personal de Ejecución - Músicos de Sesión (Tarifa A)", `${n} Músico(s)`, formatCOP(r), n*r);
   }
-  if (document.getElementById('chk-musicos-2').checked) {
-    const m = document.getElementById('num-canales-2').value; const r = document.getElementById('rate-musicos-2').value;
-    agregarFila(2, "Personal de Ejecución - Músicos de Sesión (Tarifa B)", `${m} Músico(s)`, formatCOP(r), m*r);
+  if (document.getElementById('chk-musicos-b').checked) {
+    const n = document.getElementById('num-musicos-b').value; const r = document.getElementById('rate-musicos-b').value;
+    agregarFila(2, "Personal de Ejecución - Músicos de Sesión (Tarifa B)", `${n} Músico(s)`, formatCOP(r), n*r);
   }
-  
-  if (document.getElementById('chk-ensamble-percu').checked) {
-    const j = document.getElementById('num-ensamble-percu').value; const r = document.getElementById('rate-ensamble-percu').value;
-    agregarFila(2, "Personal de Ejecución - Ensamble de Percusión (3 Músicos)", `${j} Jornada(s)`, formatCOP(r), j*r);
+  if (document.getElementById('chk-ensamble-percusion').checked) {
+    const r = document.getElementById('rate-ensamble-percusion').value;
+    agregarFila(2, "Personal de Ejecución - Ensamble de Percusión", `3 Músico(s)`, formatCOP(r), 3*r);
   }
+
+  // v9.2: técnicos automáticos desde sesiones — una fila por técnico
+  tecnicosDesdeSesionesCache.forEach(t => {
+    agregarFila(2, `Personal Técnico de Sesión - ${t.nombre}`, `${t.horas.toFixed(1)} Hora(s)`, formatCOP(t.tarifa), t.horas*t.tarifa);
+  });
+  // v9.3: músicos automáticos desde sesiones — una fila por cada aparición
+  musicosDesdeSesionesCache.forEach(m => {
+    agregarFila(2, `Personal de Ejecución - Músico de Sesión - ${m.nombre}`, `${m.canales} Canal(es)`, formatCOP(m.tarifa), m.tarifa*m.canales);
+  });
 
   if (document.getElementById('chk-maquetacion').checked) {
     const n = document.getElementById('name-maquetacion').value.trim(); const r = document.getElementById('rate-maquetacion').value;
@@ -1688,6 +1897,28 @@ let proyectoVinculadoId = null;
 let proyectoVinculadoData = null;
 let proyectosDisponibles = [];
 
+// v9.2: técnicos calculados automáticamente desde las sesiones del
+// proyecto vinculado (logistica.html v2.24, campo tecnicosAsignados).
+// tecnicosDesdeSesionesCache: [{tecnicoId, nombre, horas, tarifa}]
+let tecnicosDesdeSesionesCache = [];
+let unsubscribeSesionesCotizador = null;
+
+// v9.3: mismo criterio que tecnicosDesdeSesionesCache, pero para músicos
+// (musicosAsignados de logistica.html v2.32, con canales). Se llena desde
+// la misma suscripción a proyectos/{id}/sesiones que ya usa
+// escucharTecnicosDesdeSesiones(), no se abre un segundo listener.
+// musicosDesdeSesionesCache: [{musicoId, nombre, tarifa, canales}]
+let musicosDesdeSesionesCache = [];
+
+// v9.7: mismo criterio que las dos anteriores, pero para salas (campo
+// 'sala' de logistica.html, texto plano con el nombre de la sala elegida
+// en esa sesión, más 'estudioId' para ubicar la tarifa vigente en
+// ESTUDIOS_DATA). Se agrupa por nombre de sala y se suman las horas —
+// la tarifa registrada es la del ESTUDIOS_DATA más reciente encontrado
+// para esa sala (no queda historizada por sesión, es la vigente hoy).
+// salasDesdeSesionesCache: [{salaNombre, horas, tarifa}]
+let salasDesdeSesionesCache = [];
+
 // ---------- GUARD DE SESIÓN (idéntico a proyecto.html) ----------
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
@@ -1750,12 +1981,56 @@ function cambiarProyectoVinculado() {
 
 function aplicarDatosProyectoVinculado() {
   proyectoVinculadoData = proyectosDisponibles.find(p => p.id === proyectoVinculadoId) || null;
+  const filaTema = document.getElementById('row-track-name');
+  const campoTema = document.getElementById('track-name');
+  // v9.9: mismo patrón que filaTema — con proyecto vinculado, el selector
+  // de estudio se oculta porque se hereda automáticamente del estudio más
+  // usado en las sesiones (ver escucharTecnicosDesdeSesiones()). Sin
+  // proyecto vinculado (cotización suelta) se muestra de nuevo, igual
+  // que antes, para poder elegirlo a mano.
+  const filaEntorno = document.getElementById('row-entorno');
+  // v9.11: mismo criterio que filaEntorno — con proyecto vinculado, las 3
+  // salas manuales (checkboxes Estudio A/B/C) se ocultan porque ya se
+  // cobran automáticamente vía salasDesdeSesionesCache. Se desmarcan al
+  // ocultarse para no dejar una sala fantasma sumando por detrás sin que
+  // se vea en pantalla (mismo motivo que el desmarcado de v9.6 cuando el
+  // estudio no tiene esa sala configurada).
+  const bloqueSalasManuales = document.getElementById('bloque-salas-manuales');
+  // v9.12: mismo criterio — los músicos manuales (Tarifa A/B + Ensamble de
+  // Percusión) se ocultan y desmarcan con proyecto vinculado, porque ahí
+  // ya se cobran automático vía musicosDesdeSesionesCache.
+  const bloqueMusicosManual = document.getElementById('bloque-musicos-manual');
   if (proyectoVinculadoData) {
     const campoCliente = document.getElementById('client-name');
-    const campoTema = document.getElementById('track-name');
+    const campoCantTemas = document.getElementById('track-qty');
     if (!campoCliente.value.trim()) campoCliente.value = proyectoVinculadoData.clienteArtista || '';
-    if (!campoTema.value.trim()) campoTema.value = proyectoVinculadoData.nombre || '';
+    // v9.6: con proyecto vinculado, el campo se oculta y se sincroniza
+    // siempre con el nombre del proyecto (ya no depende de si estaba
+    // vacío) — es la misma fuente que "Proyecto vinculado" arriba, no
+    // tiene sentido escribirlo dos veces ni que queden desincronizados.
+    campoTema.value = proyectoVinculadoData.nombre || '';
+    if (filaTema) filaTema.style.display = 'none';
+    if (filaEntorno) filaEntorno.style.display = 'none';
+    if (bloqueSalasManuales) {
+      bloqueSalasManuales.style.display = 'none';
+      ['a','b','c'].forEach(k => { const chk = document.getElementById('chk-sala-'+k); if (chk) chk.checked = false; });
+    }
+    if (bloqueMusicosManual) {
+      bloqueMusicosManual.style.display = 'none';
+      ['chk-musicos-a','chk-musicos-b','chk-ensamble-percusion'].forEach(id => { const chk = document.getElementById(id); if (chk) chk.checked = false; });
+    }
+    if ((campoCantTemas.value === '1' || !campoCantTemas.value) && proyectoVinculadoData.cantTemas) {
+      campoCantTemas.value = proyectoVinculadoData.cantTemas;
+    }
+  } else {
+    // Sin proyecto vinculado (cotización suelta): se muestra de nuevo
+    // para que se pueda escribir a mano, igual que antes de v9.6.
+    if (filaTema) filaTema.style.display = '';
+    if (filaEntorno) filaEntorno.style.display = '';
+    if (bloqueSalasManuales) bloqueSalasManuales.style.display = '';
+    if (bloqueMusicosManual) bloqueMusicosManual.style.display = '';
   }
+  escucharTecnicosDesdeSesiones();
   validarYCalcular();
   const btnPdf = document.getElementById('btn-pdf');
   const btnGuardar = document.getElementById('btn-guardar-proyecto');
@@ -1764,6 +2039,176 @@ function aplicarDatosProyectoVinculado() {
     btnGuardar.classList.toggle('necesita-atencion', !btnPdf.disabled && !proyectoVinculadoId);
     actualizarHintGuardar(btnPdf.disabled, proyectoVinculadoId);
   }
+}
+
+// v9.2: escucha proyectos/{id}/sesiones del proyecto vinculado y suma
+// horas por técnico (campo tecnicosAsignados de logistica.html v2.24).
+// Se guarda en tecnicosDesdeSesionesCache y se usa desde validarYCalcular(),
+// exportarPDF() y recolectarItemsPlanos() — no reemplaza ninguno de los
+// rubros manuales existentes, solo se suma como grupo adicional.
+function escucharTecnicosDesdeSesiones() {
+  if (unsubscribeSesionesCotizador) { unsubscribeSesionesCotizador(); unsubscribeSesionesCotizador = null; }
+  tecnicosDesdeSesionesCache = [];
+  musicosDesdeSesionesCache = [];
+  salasDesdeSesionesCache = [];
+  if (!proyectoVinculadoId) { renderTecnicosSesionesUI(); renderMusicosSesionesUI(); renderSalasSesionesUI(); return; }
+
+  unsubscribeSesionesCotizador = proyectosRef.doc(proyectoVinculadoId).collection('sesiones')
+    .onSnapshot(snap => {
+      const acumulado = {}; // tecnicoId -> {nombre, rol, horas, tarifa}
+      // v9.3: músicos NO se acumulan por id — cada aparición en una
+      // sesión es un cobro aparte (pedido explícito, no se deduplica),
+      // así que se arma directo como lista plana en vez de por objeto.
+      const musicosLista = [];
+      // v9.7: salas SÍ se acumulan por nombre (a diferencia de músicos),
+      // igual que los técnicos — una sala usada en 3 sesiones del mismo
+      // proyecto se cobra como 1 fila con la suma de horas, no 3 filas.
+      const salasAcumulado = {}; // salaNombre -> {horas, tarifa, estudioNombre}
+      // v9.9: conteo de apariciones por estudioId, para heredar el
+      // "Entorno Operativo Principal" del estudio más usado en las
+      // sesiones del proyecto vinculado (ver bloque después del forEach).
+      const conteoEstudios = {}; // estudioId -> cantidad de sesiones
+      snap.forEach(doc => {
+        const s = doc.data();
+        const horas = horasEntre(s.horaInicio, s.horaFin);
+        if (s.estudioId) conteoEstudios[s.estudioId] = (conteoEstudios[s.estudioId] || 0) + 1;
+        if (horas > 0 && s.sala) {
+          if (!salasAcumulado[s.sala]) {
+            // Tarifa vigente: se busca en ESTUDIOS_DATA (ya cargado por
+            // cargarEstudiosDesdeFirestore()) la sala del estudio de esta
+            // sesión cuyo nombre coincida. Si no se encuentra (estudio
+            // borrado, sala renombrada, etc.) queda en 0 — igual que
+            // técnicos/músicos sin tarifa registrada.
+            let tarifa = 0;
+            let estudioNombre = '';
+            let specs = '';
+            let specsVisibles = false;
+            const est = ESTUDIOS_DATA[s.estudioId];
+            if (est) {
+              estudioNombre = est.nombre || '';
+              specsVisibles = !!est.specsVisibles;
+              const salaData = ['salaA', 'salaB', 'salaC'].map(k => est[k]).find(sd => sd && sd.nombre === s.sala);
+              if (salaData) { tarifa = salaData.tarifa || 0; specs = salaData.specs || ''; }
+            }
+            salasAcumulado[s.sala] = { horas: 0, tarifa, estudioNombre, specs, specsVisibles };
+          }
+          salasAcumulado[s.sala].horas += horas;
+        }
+        if (horas > 0 && Array.isArray(s.tecnicosAsignados)) {
+          s.tecnicosAsignados.forEach(t => {
+            if (!t.tecnicoId) return;
+            if (!acumulado[t.tecnicoId]) acumulado[t.tecnicoId] = { nombre: t.nombre || '(sin nombre)', rol: t.rol || '', horas: 0, tarifa: t.tarifa || 0 };
+            acumulado[t.tecnicoId].horas += horas;
+            if (t.tarifa) acumulado[t.tecnicoId].tarifa = t.tarifa; // última tarifa registrada
+            if (t.rol) acumulado[t.tecnicoId].rol = t.rol; // v9.4: último rol registrado
+          });
+        }
+        if (Array.isArray(s.musicosAsignados)) {
+          s.musicosAsignados.forEach(m => {
+            if (!m.musicoId || !m.tarifa) return;
+            musicosLista.push({
+              musicoId: m.musicoId,
+              nombre: m.nombre || '(sin nombre)',
+              instrumento: m.instrumento || '', // v9.4
+              tarifa: m.tarifa,
+              canales: m.canales || 1
+            });
+          });
+        }
+      });
+      tecnicosDesdeSesionesCache = Object.entries(acumulado).map(([tecnicoId, v]) => ({ tecnicoId, ...v }));
+      musicosDesdeSesionesCache = musicosLista;
+      salasDesdeSesionesCache = Object.entries(salasAcumulado).map(([salaNombre, v]) => ({ salaNombre, ...v }));
+
+      // v9.9: heredar "Entorno Operativo Principal" del estudio más usado
+      // en las sesiones del proyecto (el selector queda oculto, ver
+      // aplicarDatosProyectoVinculado()). Solo se toca el selector si el
+      // estudio ganador cambió, para no resetear tarifas manuales editadas
+      // en cada actualización del snapshot de sesiones.
+      const estudioIdGanador = Object.keys(conteoEstudios).sort((a, b) => conteoEstudios[b] - conteoEstudios[a])[0];
+      const selEntorno = document.getElementById('selector-entorno');
+      if (estudioIdGanador && ESTUDIOS_DATA[estudioIdGanador] && selEntorno && selEntorno.value !== estudioIdGanador) {
+        selEntorno.value = estudioIdGanador;
+        cambiarEntorno();
+      }
+
+      renderTecnicosSesionesUI();
+      renderMusicosSesionesUI();
+      renderSalasSesionesUI();
+      validarYCalcular();
+    }, err => console.error('Error cargando sesiones para técnicos/músicos/salas del cotizador:', err));
+}
+
+// "HH:MM" a "HH:MM" -> horas (decimal). Devuelve 0 si falta algún dato o
+// el rango no es válido, para no ensuciar la suma.
+function horasEntre(horaInicio, horaFin) {
+  if (!horaInicio || !horaFin) return 0;
+  const [h1, m1] = horaInicio.split(':').map(Number);
+  const [h2, m2] = horaFin.split(':').map(Number);
+  if ([h1, m1, h2, m2].some(n => isNaN(n))) return 0;
+  const minutos = (h2 * 60 + m2) - (h1 * 60 + m1);
+  return minutos > 0 ? minutos / 60 : 0;
+}
+
+function renderTecnicosSesionesUI() {
+  const row = document.getElementById('row-tecnicos-sesiones');
+  const lista = document.getElementById('tecnicosSesionesLista');
+  if (!row || !lista) return;
+  if (!tecnicosDesdeSesionesCache.length) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  const totalTecnicos = tecnicosDesdeSesionesCache.reduce((acc, t) => acc + t.horas * t.tarifa, 0);
+  lista.innerHTML = '<div class="sesion-chip-list">' + tecnicosDesdeSesionesCache.map(t => `
+    <div class="sesion-chip">
+      <div class="chip-info">
+        <span class="chip-name">${t.nombre.replace(/</g,'&lt;')}</span>
+        <span class="chip-sub">${t.rol ? t.rol.replace(/</g,'&lt;') + ' — ' : ''}${t.horas.toFixed(1)}h × ${formatCOP(t.tarifa)}</span>
+      </div>
+      <span class="chip-total">${formatCOP(t.horas * t.tarifa)}</span>
+    </div>`).join('') + '</div>' +
+    `<div class="sesion-auto-total"><span>Total Técnicos</span><span>${formatCOP(totalTecnicos)}</span></div>`;
+}
+
+// v9.3: equivalente de renderTecnicosSesionesUI() para músicos.
+function renderMusicosSesionesUI() {
+  const row = document.getElementById('row-musicos-sesiones');
+  const lista = document.getElementById('musicosSesionesLista');
+  if (!row || !lista) return;
+  if (!musicosDesdeSesionesCache.length) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  const totalMusicos = musicosDesdeSesionesCache.reduce((acc, m) => acc + m.tarifa * m.canales, 0);
+  lista.innerHTML = '<div class="sesion-chip-list">' + musicosDesdeSesionesCache.map(m => `
+    <div class="sesion-chip">
+      <div class="chip-info">
+        <span class="chip-name">${m.nombre.replace(/</g,'&lt;')}</span>
+        <span class="chip-sub">${m.instrumento ? m.instrumento.replace(/</g,'&lt;') + ' — ' : ''}${formatCOP(m.tarifa)} × ${m.canales} canal(es)</span>
+      </div>
+      <span class="chip-total">${formatCOP(m.tarifa * m.canales)}</span>
+    </div>`).join('') + '</div>' +
+    `<div class="sesion-auto-total"><span>Total Músicos</span><span>${formatCOP(totalMusicos)}</span></div>`;
+}
+
+// v9.7: equivalente de renderTecnicosSesionesUI()/renderMusicosSesionesUI()
+// para salas. Este total ya viene incluido en "Subtotal Salas" (ver
+// validarYCalcular) — esta caja es solo el detalle de dónde sale.
+function renderSalasSesionesUI() {
+  const row = document.getElementById('row-salas-sesiones');
+  const lista = document.getElementById('salasSesionesLista');
+  if (!row || !lista) return;
+  if (!salasDesdeSesionesCache.length) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  const totalSalas = salasDesdeSesionesCache.reduce((acc, s) => acc + s.horas * s.tarifa, 0);
+  lista.innerHTML = '<div class="sesion-chip-list">' + salasDesdeSesionesCache.map(s => `
+    <div class="sesion-chip" style="flex-direction:column;align-items:stretch;gap:4px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div class="chip-info">
+          <span class="chip-name">${s.salaNombre.replace(/</g,'&lt;')}${s.estudioNombre ? ' <span style="color:var(--muted);font-weight:400;">— ' + s.estudioNombre.replace(/</g,'&lt;') + '</span>' : ''}</span>
+          <span class="chip-sub">${s.horas.toFixed(1)}h × ${formatCOP(s.tarifa)}</span>
+        </div>
+        <span class="chip-total">${formatCOP(s.horas * s.tarifa)}</span>
+      </div>
+      ${s.specsVisibles && s.specs ? `<div style="font-size:0.74rem;color:var(--muted);line-height:1.4;padding-left:2px;">${s.specs.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>` : ''}
+    </div>`).join('') + '</div>' +
+    `<div class="sesion-auto-total"><span>Total Salas (sesiones)</span><span>${formatCOP(totalSalas)}</span></div>`;
 }
 
 // Muestra por qué "Guardar Cotización en el Proyecto" está deshabilitado,
@@ -1808,6 +2253,10 @@ function recolectarItemsPlanos() {
     push(`Alquiler de Infraestructura - ${document.getElementById('label-sala-c').innerText}`,
       Number(document.getElementById('num-sala-c').value) || 0, Number(document.getElementById('rate-sala-c').value) || 0);
   }
+  // v9.7: salas automáticas desde sesiones — una línea por sala
+  salasDesdeSesionesCache.forEach(s => {
+    push(`Alquiler de Infraestructura - ${s.salaNombre}`, s.horas, s.tarifa);
+  });
 
   document.querySelectorAll('.backline-row').forEach(row => {
     const chk = row.querySelector('.chk-backline');
@@ -1819,28 +2268,33 @@ function recolectarItemsPlanos() {
     }
   });
 
-  if (document.getElementById('chk-ing').checked) {
-    const n = document.getElementById('name-ing').value.trim();
-    push(`Soporte Técnico - Ingeniería de Grabación ${n ? '['+n+']' : ''}`,
-      Number(document.getElementById('num-ing').value) || 0, Number(document.getElementById('rate-ing').value) || 0);
-  }
+  // v9.3 (fix): técnicos automáticos desde sesiones — faltaban acá desde
+  // v9.2 (sí se sumaban en pantalla y en el PDF, pero no quedaban
+  // guardados al usar "Guardar Cotización en el Proyecto"). Misma fuente
+  // que ya usan validarYCalcular() y exportarPDF().
+  tecnicosDesdeSesionesCache.forEach(t => {
+    push(`Personal Técnico de Sesión - ${t.nombre}`, t.horas, t.tarifa);
+  });
   if (document.getElementById('chk-ensamble').checked) {
     const ensayos = Number(document.getElementById('num-ensayos').value) || 0;
     const personas = Number(document.getElementById('num-personas-ensamble').value) || 0;
     push('Preproducción Logística - Etapa de Ensamble', ensayos * personas, Number(document.getElementById('rate-ensamble').value) || 0);
   }
-  if (document.getElementById('chk-musicos-1').checked) {
-    push('Personal de Ejecución - Músicos de Sesión (Tarifa A)',
-      Number(document.getElementById('num-canales-1').value) || 0, Number(document.getElementById('rate-musicos-1').value) || 0);
+  // v9.12: Músicos de Sesión (Tarifa A/B) y Ensamble de Percusión
+  // manuales — reconstruidos, solo aplican en cotizaciones sueltas.
+  if (document.getElementById('chk-musicos-a').checked) {
+    push('Personal de Ejecución - Músicos de Sesión (Tarifa A)', Number(document.getElementById('num-musicos-a').value) || 0, Number(document.getElementById('rate-musicos-a').value) || 0);
   }
-  if (document.getElementById('chk-musicos-2').checked) {
-    push('Personal de Ejecución - Músicos de Sesión (Tarifa B)',
-      Number(document.getElementById('num-canales-2').value) || 0, Number(document.getElementById('rate-musicos-2').value) || 0);
+  if (document.getElementById('chk-musicos-b').checked) {
+    push('Personal de Ejecución - Músicos de Sesión (Tarifa B)', Number(document.getElementById('num-musicos-b').value) || 0, Number(document.getElementById('rate-musicos-b').value) || 0);
   }
-  if (document.getElementById('chk-ensamble-percu').checked) {
-    push('Personal de Ejecución - Ensamble de Percusión (3 Músicos)',
-      Number(document.getElementById('num-ensamble-percu').value) || 0, Number(document.getElementById('rate-ensamble-percu').value) || 0);
+  if (document.getElementById('chk-ensamble-percusion').checked) {
+    push('Personal de Ejecución - Ensamble de Percusión', 3, Number(document.getElementById('rate-ensamble-percusion').value) || 0);
   }
+  // v9.3: músicos automáticos desde sesiones — una línea por cada aparición
+  musicosDesdeSesionesCache.forEach(m => {
+    push(`Personal de Ejecución - Músico de Sesión - ${m.nombre}`, m.canales, m.tarifa);
+  });
   if (document.getElementById('chk-maquetacion').checked) {
     const n = document.getElementById('name-maquetacion').value.trim();
     push(`Preproducción - Maquetación ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-maquetacion').value) || 0);
