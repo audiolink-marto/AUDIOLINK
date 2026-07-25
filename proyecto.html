@@ -4,7 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v4.16
+<!-- AUDIOLINK · proyecto.html · v4.20
+     v4.20: modo quirófano — se agrega app secundaria de Auth (appIng/
+     authIng, mismo patrón que authPortal de clientes.html) para que al
+     registrar un ingeniero NUEVO se le cree cuenta real de Firebase Auth
+     con contraseña temporal + correo automático de "crear tu
+     contraseña" (antes solo se creaba el doc en Firestore, sin forma
+     real de loguearse). Reasignar un ingeniero ya existente no toca su
+     cuenta Auth. Se agregan botones "Reenviar correo" y "🔗 Copiar link"
+     (login.html) en cada fila del modal de Ingenieros, junto a Vista
+     previa y Quitar — mismo patrón visual que clientes.html. No se tocó
+     Equipo Interno, Cotizador, Producción, ni el resto del archivo.
+
+     v4.19: modo quirófano — se agrega campo "Nombre completo" al modal
+     de Ingenieros, guardado como `nombre` en ingenieros/{correo}. Al
+     registrar por primera vez es obligatorio; en reasignaciones a un
+     ingeniero ya existente es opcional (si se deja vacío no se
+     sobreescribe el nombre ya guardado). La lista del modal ahora
+     muestra el nombre como texto principal y el correo como referencia
+     debajo. Pensado para que ingeniero.html v1.2 pueda mostrar "Panel de
+     [Nombre]" en vez de solo el correo. No se tocó nada más del modal,
+     de Equipo Interno, ni del resto del archivo.
+
+     v4.18: modo quirófano — se agrega botón "👁️" en cada fila del modal
+     de Ingenieros (junto al "✕ quitar"), que abre ingeniero.html?preview=
+     correo en pestaña nueva. Mismo patrón que _pcPreview de clientes.html
+     (portal.html ya sabe interpretar ?preview= validando contra
+     equipoInterno). Solo se tocó cargarListaIngenieros() para pintar el
+     botón nuevo y se agregó window._ingPreview — nada más del modal, de
+     Equipo Interno, ni del resto del archivo.
+
+     v4.17: tercera pieza del login del Inge (v2.10 reglas, bitacora.html
+     v2.11 guard, esto es el CRUD de asignación). Nuevo botón "🎧
+     Ingenieros" en la vista de detalle del proyecto (junto a Cotizador/
+     Producción — es project-scoped, a diferencia de Equipo Interno que
+     es global). Modal modalIngenierosBg: agrega/quita el correo de la
+     colección `ingenieros` (activo + proyectosAsignados[]). A propósito
+     DISTINTO del patrón de Equipo Interno: acá nunca se borra el doc
+     completo del ingeniero, solo se hace arrayUnion/arrayRemove de
+     proyectoActualId sobre proyectosAsignados — un mismo ingeniero puede
+     estar asignado a varios proyectos, y quitarlo de este no debe
+     afectar su acceso a otros. No se tocó el modal ni las funciones de
+     Equipo Interno, ni ninguna otra parte de la vista de detalle/
+     listado/PDF/cotizaciones.
+
+     AUDIOLINK · proyecto.html · v4.16
      V4.16: se agrega campo "Cant. Temas" (fCantTemas, numérico, default 1)
      a la ficha del proyecto, junto a Etapa actual/Entrega estimada. Se
      guarda como `cantTemas` en el documento del proyecto y se precarga al
@@ -862,6 +906,7 @@ window.NAV_CONFIG = {
       <button class="btn btn-ghost" onclick="verSesiones()">📅 Ver sesiones</button>
       <button class="btn btn-ghost" onclick="window.open('cotizacion-rapida.html?id=' + proyectoActualId, '_blank')">🧾 Cotizador</button>
       <button class="btn btn-ghost" onclick="window.open('produccion.html?id=' + proyectoActualId, '_blank')">🎵 Producción</button>
+      <button class="btn btn-ghost" onclick="abrirModalIngenieros()">🎧 Ingenieros</button>
     </div>
   </div>
 
@@ -991,6 +1036,33 @@ window.NAV_CONFIG = {
   </div>
 </div>
 
+<!-- MODAL INGENIEROS (v2.10) — rol acotado nuevo, distinto de Equipo
+     Interno: acá NO se crea/borra el correo de la colección `ingenieros`
+     (eso sería peligroso si el mismo correo tiene acceso a otro proyecto
+     y aquí se borra por error) — solo se hace arrayUnion/arrayRemove del
+     proyectoActualId dentro de su campo proyectosAsignados. Si el correo
+     no existe aún en `ingenieros`, se crea con activo:true y ese primer
+     proyecto. -->
+<div class="modal-bg" id="modalIngenierosBg">
+  <div class="modal">
+    <h2>🎧 Ingenieros con acceso a este proyecto</h2>
+    <div class="field" style="margin-bottom:10px;">
+      <input type="text" id="ingenieroNuevoNombre" placeholder="Nombre completo">
+    </div>
+    <div class="row2">
+      <div class="field" style="margin-bottom:0;">
+        <input type="email" id="ingenieroNuevoCorreo" placeholder="correo@ingeniero.com">
+      </div>
+      <button class="btn" style="height:fit-content;" onclick="agregarIngenieroAlProyecto()">+ Agregar</button>
+    </div>
+    <div id="ingenieroErr" style="color:var(--err);font-size:0.82rem;margin:10px 0;"></div>
+    <div id="ingenieroLista" style="display:flex;flex-direction:column;gap:8px;max-height:45vh;overflow-y:auto;margin-top:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModalIngenieros()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============ FIREBASE CONFIG ============
 // TU_CONFIG_AQUI — reemplaza con el config real de tu proyecto Firebase
@@ -1003,6 +1075,24 @@ const auth = firebase.auth();
 // const storage = firebase.storage(); // v4.0 — audio de Producción musical
 const proyectosRef = db.collection('proyectos');
 const clientesRef = db.collection('clientes');
+
+// ===== APP SECUNDARIA PARA INGENIEROS (v4.20) =====
+// Mismo patrón que authPortal en clientes.html: createUserWithEmailAndPassword
+// cierra/reemplaza la sesión activa en la instancia donde se llama, así que
+// usamos una segunda instancia de Firebase solo para crear la cuenta del
+// ingeniero, sin tocar tu sesión de staff en la app principal.
+const appIng = firebase.initializeApp(firebaseConfig, 'ing-activador');
+const authIng = appIng.auth();
+// Mismo motivo que portalActionCodeSettings de clientes.html: sin esto el
+// correo de "crear tu contraseña" deja al ingeniero en una página genérica
+// de Firebase en vez de traerlo de vuelta al login. A diferencia de
+// portal.html (que sí tiene login propio embebido), ingeniero.html NO
+// tiene pantalla de login — solo guard — así que apunta a login.html
+// directo, no a ingeniero.html (evita el rebote innecesario).
+const ingActionCodeSettings = {
+  url: 'https://audiolink-marto.github.io/AUDIOLINK/login.html',
+  handleCodeInApp: false
+};
 
 // ============ GUARD DE SESIÓN ============
 let sesionValidada = false;
@@ -1975,6 +2065,184 @@ window._eiQuitar = async function(correo){
   } catch(err){
     console.error(err);
     alert('No pudimos eliminar el correo.');
+  }
+};
+
+// ============ MODAL: INGENIEROS (v2.10) ============
+// Colección `ingenieros`, id de documento = correo, con campo
+// proyectosAsignados (array de proyectoId) + activo:true (mismo
+// requisito que equipoInterno para el guard de sesión, ver reglas
+// v2.10). A diferencia de Equipo Interno (global, borra el doc entero),
+// acá SOLO se agrega/quita proyectoActualId del array — un ingeniero
+// puede estar asignado a varios proyectos a la vez, así que "quitar" en
+// este modal nunca borra al ingeniero de otros proyectos.
+function abrirModalIngenieros(){
+  if(!proyectoActualId){
+    alert('Abre un proyecto primero.');
+    return;
+  }
+  document.getElementById('ingenieroErr').textContent = '';
+  document.getElementById('ingenieroNuevoCorreo').value = '';
+  document.getElementById('ingenieroNuevoNombre').value = '';
+  cargarListaIngenieros();
+  document.getElementById('modalIngenierosBg').classList.add('active');
+}
+
+function cerrarModalIngenieros(){
+  document.getElementById('modalIngenierosBg').classList.remove('active');
+}
+
+async function cargarListaIngenieros(){
+  const cont = document.getElementById('ingenieroLista');
+  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  try{
+    // No hay forma de "where array-contains" sin índice si combinamos con
+    // otros filtros, pero acá es el único filtro — where simple está bien.
+    const snap = await db.collection('ingenieros')
+      .where('proyectosAsignados', 'array-contains', proyectoActualId)
+      .get();
+    if(snap.empty){
+      cont.innerHTML = '<div class="empty" style="padding:16px;">Ningún ingeniero tiene acceso a este proyecto todavía.</div>';
+      return;
+    }
+    cont.innerHTML = snap.docs.map(d => `
+      <div style="border:1px solid var(--brd);border-radius:8px;padding:10px 14px;background:var(--surf-light);${d.data().activo === false ? 'opacity:0.5;' : ''}">
+        <div style="font-size:0.88rem;margin-bottom:8px;">
+          ${escapeHtml(d.data().nombre || d.id)}${d.data().activo === false ? ' <em style="font-size:0.75rem;">(inactivo)</em>' : ''}
+          ${d.data().nombre ? `<br><span style="color:var(--muted);font-size:0.76rem;">${escapeHtml(d.id)}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:0.78rem;">
+          <span style="cursor:pointer;color:var(--muted);" onclick="window._ingReenviar('${d.id}')">Reenviar correo</span>
+          <span style="cursor:pointer;color:var(--muted);" id="ingCopiar-${d.id.replace(/[^a-zA-Z0-9]/g,'')}" onclick="window._ingCopiarLink('${d.id.replace(/[^a-zA-Z0-9]/g,'')}')">🔗 Copiar link</span>
+          <span style="cursor:pointer;" onclick="window._ingPreview('${d.id}')" title="Vista previa: ver como este ingeniero">👁️ Vista previa</span>
+          <span style="color:var(--err);cursor:pointer;margin-left:auto;" onclick="window._ingQuitar('${d.id}')" title="Quitar acceso a este proyecto">✕ Quitar</span>
+        </div>
+      </div>`).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:16px;">No pudimos cargar la lista.</div>';
+  }
+}
+
+async function agregarIngenieroAlProyecto(){
+  const errEl = document.getElementById('ingenieroErr');
+  errEl.textContent = '';
+  const correo = document.getElementById('ingenieroNuevoCorreo').value.trim().toLowerCase();
+  const nombre = document.getElementById('ingenieroNuevoNombre').value.trim();
+  if(!correo || !correo.includes('@')){
+    errEl.textContent = 'Ingresa un correo válido.';
+    return;
+  }
+  try{
+    const ref = db.collection('ingenieros').doc(correo);
+    const doc = await ref.get();
+    if(doc.exists){
+      // Ya existe (puede estar asignado a otros proyectos) — solo se
+      // agrega este proyecto a su array, y se reactiva por si estaba
+      // desactivado. El nombre solo se actualiza si se escribió uno
+      // (no se borra un nombre ya guardado por dejar el campo vacío).
+      const datosActualizar = {
+        proyectosAsignados: firebase.firestore.FieldValue.arrayUnion(proyectoActualId),
+        activo: true
+      };
+      if(nombre) datosActualizar.nombre = nombre;
+      await ref.update(datosActualizar);
+    } else {
+      if(!nombre){
+        errEl.textContent = 'Ingresa el nombre del ingeniero (primera vez que se registra).';
+        return;
+      }
+      // v4.20: además del doc de Firestore, se crea la cuenta real de
+      // Firebase Auth con contraseña temporal + correo de "crear tu
+      // contraseña" — mismo patrón que _pcActivar de clientes.html.
+      // Sin esto el ingeniero nunca tenía forma real de loguearse.
+      try{
+        const passTemp = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        await authIng.createUserWithEmailAndPassword(correo, passTemp);
+        await authIng.sendPasswordResetEmail(correo, ingActionCodeSettings);
+        await authIng.signOut();
+      } catch(authErr){
+        console.error(authErr);
+        if(authErr.code === 'auth/email-already-in-use'){
+          // Ya tiene cuenta de Auth (ej. quedó a medias en un intento
+          // anterior) — no es un error real, seguimos y guardamos el doc.
+        } else {
+          errEl.textContent = 'No pudimos crear la cuenta de acceso. Intenta de nuevo.';
+          return;
+        }
+      }
+      await ref.set({
+        nombre,
+        activo: true,
+        proyectosAsignados: [proyectoActualId],
+        agregadoEn: new Date().toISOString()
+      });
+    }
+    document.getElementById('ingenieroNuevoCorreo').value = '';
+    document.getElementById('ingenieroNuevoNombre').value = '';
+    cargarListaIngenieros();
+  } catch(err){
+    console.error(err);
+    errEl.textContent = 'No pudimos agregar el correo. Intenta de nuevo.';
+  }
+}
+
+// Quita SOLO el acceso a este proyecto (arrayRemove) — nunca borra el
+// doc completo, porque el ingeniero puede tener otros proyectos
+// asignados. Si tras quitar este proyecto se queda sin ninguno, el doc
+// se conserva igual (activo:true pero proyectosAsignados vacío = sin
+// acceso real a nada, esIngenieroDe() ya lo bloquea solo).
+// v4.20 — mismo patrón que _pcReenviar de clientes.html: reenvía el
+// correo de "crear tu contraseña" por si el ingeniero lo perdió o
+// nunca le llegó.
+window._ingReenviar = async function(correo){
+  try{
+    await authIng.sendPasswordResetEmail(correo, ingActionCodeSettings);
+    alert(`Correo de acceso reenviado a ${correo}.`);
+  } catch(err){
+    console.error(err);
+    alert('No pudimos reenviar el correo.');
+  }
+};
+
+// v4.20 — link genérico de login del Inge (mismo login.html que usa el
+// staff, la propia colección `ingenieros` decide el rol al entrar).
+const LOGIN_ING_URL = 'https://audiolink-marto.github.io/AUDIOLINK/login.html';
+window._ingCopiarLink = function(btnId){
+  const btn = document.getElementById(`ingCopiar-${btnId}`);
+  const textoOriginal = btn ? btn.textContent : '';
+  const marcarCopiado = () => {
+    if(!btn) return;
+    btn.textContent = '✅ Copiado';
+    setTimeout(() => { btn.textContent = textoOriginal; }, 1500);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(LOGIN_ING_URL).then(marcarCopiado).catch(() => {
+      alert(`Copia manual: ${LOGIN_ING_URL}`);
+    });
+  } else {
+    alert(`Copia manual: ${LOGIN_ING_URL}`);
+  }
+};
+
+// v4.18 — mismo patrón que _pcPreview de clientes.html: abre el portal
+// del Inge en pestaña nueva con ?preview=correo. ingeniero.html valida
+// que quien abre el link tenga sesión de equipoInterno activa antes de
+// mostrar nada (no expone datos a cualquiera con el link).
+window._ingPreview = function(correo){
+  window.open(`ingeniero.html?preview=${encodeURIComponent(correo)}`, '_blank');
+};
+
+window._ingQuitar = async function(correo){
+  if(!confirm(`¿Quitar a ${correo} el acceso a este proyecto?`)) return;
+  try{
+    await db.collection('ingenieros').doc(correo).update({
+      proyectosAsignados: firebase.firestore.FieldValue.arrayRemove(proyectoActualId)
+    });
+    cargarListaIngenieros();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos quitar el acceso.');
   }
 };
 

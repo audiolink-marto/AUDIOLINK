@@ -4,41 +4,95 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Logística</title>
-<!-- AUDIOLINK · logistica.html · v2.36
-     v2.36: (1) la pestaña Bitácora del modal de Reportes ahora tiene un
-     listener en vivo (onSnapshot) sobre el documento de la sesión, así
-     que si el IGE guarda cambios desde bitacora.html mientras el modal
-     está abierto en logística, la lista se refresca sola (antes era una
-     foto fija tomada al abrir el modal); se cancela igual que
-     unsubTomasReporte al cerrar. No se tocó la agrupación/render ya
-     existente, solo se la vuelve a invocar con datos frescos. (2) el
-     input list de solo lectura (#inputListBox) del editor de sesión
-     ahora vive en su propio recuadro con título "Input list (canales)",
-     separado de los selectores de instrumentación. (3) se quitó el
-     campo manual "Equipo técnico" (rol/nombre libre, sección "Equipo e
-     instrumentación") del formulario, la tarjeta de sesión, el guardado
-     (`equipoTecnico`) y el PDF — quedó reemplazado en la práctica por
-     "Técnicos asignados" (v2.24, catálogo /equipoTecnico). No se borra
-     el campo `equipoTecnico` de sesiones viejas en Firestore, solo se
-     dejó de escribir/leer/mostrar. No se tocó instrumentación, inputList,
-     tomas, ni ninguna otra lógica de cálculo existente.
+<!-- AUDIOLINK · logistica.html · v2.39
+     v2.39: Fase 1 de la entidad `tema` — CRUD básico (subcolección
+     proyectos/{id}/temas: nombre/orden/activo/creadoEn) + selector en el
+     formulario de sesión con opción "+ Crear nuevo tema…" inline (no
+     interrumpe el flujo de crear/editar sesión). La sesión guarda
+     temaId + temaNombre (snapshot, mismo criterio que estudioId/
+     estudioNombre). Nuevo botón "🎼 Temas" junto a "+ Nueva sesión" abre
+     el modal de gestión (modalTemasBg): crear, renombrar, desactivar/
+     reactivar (soft-delete, no borra el doc ni afecta sesiones que ya
+     tengan ese tema asignado). Sesiones existentes quedan sin tema
+     (temaId vacío) hasta que se les asigne uno manualmente — decisión
+     explícita del usuario, no se migran. NO se tocó Edición/Mezcla/
+     Mastering (siguen a nivel de sesión, viven en bitacora.html — eso es
+     la Fase 2, pendiente), ni PDF, checklist de instrumentación,
+     Reportes de ingeniería, calcularInputListSesion(), ni Firestore
+     rules existentes.
+
+     AUDIOLINK · logistica.html · v2.38
+     v2.38: se saca por completo el modal "Reportes de ingeniería" (las 5
+     pestañas: Grabación/Bitácora/Edición/Mezcla/Mastering, ~625 líneas)
+     — decisión del usuario: como el Inge es siempre la misma persona y
+     ya usa bitacora.html para todo, prefiere una sola fuente de verdad
+     ahí en vez de duplicar el input list en 2 archivos. El botón
+     "📋 ING" de cada sesión ahora abre bitacora.html?p=...&s=... en
+     pestaña nueva (función abrirBitacoraReportes()) en vez de un modal
+     local. Se conservan en este archivo SOLO 3 piezas del bloque
+     anterior — PALETA_GRUPOS_LOG/colorParaGrupoLog()/hexToRgbaLog() —
+     porque renderInputListSesion() del editor de sesión (#inputListBox)
+     las sigue usando para pintar cada grupo de instrumento con el mismo
+     color que bitacora.html. Esto requirió ampliar las reglas de
+     Firestore de bitacora.html (ver comentario de reglas al final de ese
+     archivo) para permitir leer/borrar tomas y editar notas de Edición/
+     Mezcla/Mastering desde ese link sin login — riesgo aceptado
+     explícitamente por el usuario. No se tocó calcularInputListSesion(),
+     exportarPDF() (el PDF de logística, distinto de exportarPDFReporte
+     que se fue con el resto), ni ninguna otra lógica de cotización o
+     Firestore.
+
+     AUDIOLINK · logistica.html · v2.37
+     v2.37: extiende a la pestaña "🎛️ Bitácora" del modal de Reportes lo
+     mismo que v2.36 dejó en el editor de sesión: (1) el badge de cada
+     fila ya no muestra CH${it.canal} (Ch interno) sino la POSICIÓN según
+     el orden del Inge (1,2,3...) — el Ch interno sigue usándose sin
+     cambios para el matching de Preamp/Gain. (2) se agrega botón
+     "🔄 Actualizar" junto a "💾 Guardar bitácora": vuelve a leer el
+     inputList más reciente desde `sesiones` (ya en vivo por onSnapshot)
+     y rearma bitacoraEditLista — soluciona que el modal, una vez abierto,
+     quedaba con una foto fija y no reflejaba ediciones hechas desde
+     bitacora.html u otro dispositivo mientras seguía abierto (afectaba
+     dato, orden/agrupación y color de grupo por igual, misma causa).
+     Es manual a propósito: un auto-refresh en cada snapshot podría
+     borrar en pleno tecleo un Preamp/Gain sin guardar. No se tocó
+     Firestore, calcularInputListSesion(), ni guardarBitacoraReportes().
+
+     AUDIOLINK · logistica.html · v2.36
+     v2.36: fix + mejora sobre el input list de solo lectura del editor de
+     sesión (#inputListBox / renderInputListSesion()): (1) fix — el badge
+     de cada fila había vuelto a mostrar el Ch interno (CH1, CH2...); se
+     había dejado oculto a propósito en v2.35 porque lo que importa acá es
+     el ORDEN que asigna el Inge desde bitácora.html (como en el parcheo/
+     frente de una consola digital), no el Ch interno de matching. Ahora
+     el badge muestra la posición según ese orden (1, 2, 3...); el Ch
+     interno (it.canal) se sigue usando por dentro sin cambios para cruzar
+     Preamp/Gain vía instrSesionBitacoraInfo — no se tocó
+     calcularInputListSesion() ni ese mecanismo. (2) los encabezados de
+     grupo de instrumento en esta misma vista ahora heredan el color fijo
+     por nombre (PALETA_GRUPOS_LOG / colorParaGrupoLog / hexToRgbaLog, ya
+     usadas en la pestaña "🎛️ Bitácora" de Reportes) en vez del dorado
+     fijo — mismo instrumento, mismo color en bitacora.html, Reportes y
+     acá. No se tocó ningún cálculo de cotización, Firestore rules, ni
+     otra lógica existente.
 
      AUDIOLINK · logistica.html · v2.35
-     v2.35: se propaga el nuevo campo `nombreInterfaz` (ej: "Apollo Sala A",
-     agregado en bitacora.html v2.9 junto a `canalInterfaz`) por los mismos
-     puntos donde ya se preservaba `canalInterfaz` desde v2.33: (1)
-     instrSesionBitacoraInfo (cola por nombre de instrumento), (2)
-     calcularInputListSesion() (arma el renglón), (3)
-     calcularBitacoraHistorialParaGuardar() (historial que solo crece), (4)
-     renderInputListSesion() (tag de solo lectura, ahora antepone el
-     nombre de interfaz al "IN {canal}" si existe), (5) pestaña Bitácora
-     del modal de Reportes (renderBitacoraLista/guardarBitacoraReportes) —
-     nuevo campo editable "Nombre Interfaz" junto a "Canal Interfaz",
-     mismo .row3 ya existente (se acomoda solo, pasa a 2 filas de a 3 en
-     pantallas grandes, 1 columna en celular). No se tocó ningún cálculo,
-     Firestore, ni otra lógica existente.
-
-     AUDIOLINK · logistica.html · v2.34
+     v2.35: mismo sistema de reordenamiento y agrupación agregado en
+     bitacora.html v2.5, ahora coordinado en las 3 vistas del input list:
+     (1) nuevo campo `orden` (número) por renglón — se preserva vía el
+     mismo mecanismo de cola por nombre que ya cuidaba Preamp/Gain/Canal
+     Interfaz (instrSesionBitacoraInfo), con default = su Ch si nunca se
+     reordenó; calcularInputListSesion() ahora ORDENA la lista final por
+     `orden` antes de devolverla (el Ch interno, usado para el matching
+     por nombre, no se toca); (2) nuevo campo `instrumento` (texto libre)
+     — cuando dos renglones consecutivos ya ordenados comparten el mismo
+     texto, se agrupan visualmente bajo un encabezado dorado común, tanto
+     en la pestaña "🎛️ Bitácora" de Reportes (con botones ▲▼ para
+     reordenar, mismo patrón que bitacora.html) como en el input list de
+     solo lectura del editor de sesión (#inputListBox, sin botones, es
+     solo lectura). calcularBitacoraHistorialParaGuardar() también
+     preserva ambos campos nuevos. No se tocó ningún cálculo de
+     cotización, Firestore rules, ni otra lógica existente.
      v2.34: (1) fix — la pestaña "🎛️ Bitácora" del modal de Reportes
      (renderBitacoraLista/guardarBitacoraReportes) no incluía el campo
      "Canal Interfaz" agregado en bitacora.html v2.4/logistica.html v2.33
@@ -741,6 +795,11 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 }
 .badge.vis{background:rgba(76,175,125,0.15);color:var(--ok);}
 .badge.priv{background:rgba(212,87,74,0.15);color:var(--err);}
+.equipo-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.equipo-chip{
+  background:var(--gold-bg);border:1px solid var(--gold);border-radius:20px;
+  padding:3px 10px;font-size:0.72rem;color:var(--gold);
+}
 .empty{text-align:center;padding:60px 20px;color:var(--faint);}
 .btn-reportes{
   background:transparent;border:1px solid var(--brd);
@@ -883,6 +942,58 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .inputlist-row .tag-manual{font-size:0.68rem;opacity:0.85;margin-left:6px;color:var(--gold);}
 .inputlist-row .tag-bitacora{font-size:0.68rem;opacity:0.8;margin-left:8px;color:var(--muted);font-family:var(--M);white-space:nowrap;}
 .inputlist-empty{font-size:0.82rem;color:var(--muted);}
+.btn-mover-bitacora{
+  background:none;border:1px solid var(--brd);border-radius:6px;color:var(--muted);
+  font-size:0.72rem;padding:2px 7px;cursor:pointer;line-height:1.4;
+}
+.btn-mover-bitacora:active{opacity:0.7;background:var(--surf-light);}
+
+/* v2.36: mismo sistema tipo consola digital de bitacora.html v2.6 —
+   color por grupo, colapso, toolbar sticky con buscador+chips, y filas
+   compactas tipo channel strip. */
+.grupo-instrumento-log{
+  border:1px solid var(--gc,var(--gold));border-radius:12px;padding:8px 8px 2px;margin-bottom:12px;
+  background:var(--gc-bg,var(--gold-bg));scroll-margin-top:90px;
+}
+.grupo-header-log{
+  font-family:var(--T);color:var(--gc,var(--gold));font-size:0.88rem;font-weight:700;
+  margin-bottom:6px;padding:2px 4px;display:flex;align-items:center;justify-content:space-between;
+  gap:8px;cursor:pointer;user-select:none;
+}
+.grupo-header-log .colapsar-flecha-log{font-size:0.72rem;transition:transform 0.15s;flex-shrink:0;}
+.grupo-header-log.colapsado-log .colapsar-flecha-log{transform:rotate(-90deg);}
+.grupo-count-log{font-family:var(--M);font-size:0.66rem;color:var(--muted);font-weight:400;}
+.grupo-instrumento-log .toma-agrupada{margin-bottom:8px;border-left:3px solid var(--gc,var(--gold));}
+.grupo-instrumento-log .toma-agrupada:last-child{margin-bottom:0;}
+.grupo-instrumento-log.colapsado-log .toma-agrupada{display:none;}
+
+.strip-row-log{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:10px;
+  padding:8px 10px;margin-bottom:8px;scroll-margin-top:90px;
+}
+.strip-top-log{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.strip-nombre-log{font-size:0.87rem;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.strip-fields-log{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;}
+.strip-fields-log .field{margin-bottom:0;}
+.strip-fields-log .field label{font-size:0.62rem;margin-bottom:3px;}
+@media (max-width:480px){.strip-fields-log{grid-template-columns:1fr 1fr;}}
+
+#repBitacoraToolbar{
+  position:sticky;top:0;background:var(--bg);z-index:5;padding:10px 0 8px;
+  margin-bottom:6px;border-bottom:1px solid var(--brd);
+}
+.bitacora-buscador-log{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
+  padding:9px 12px;color:var(--txt);font-size:0.88rem;margin-bottom:8px;
+}
+.bitacora-buscador-log:focus{outline:none;border-color:var(--gold);}
+.chips-nav-log{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+.chip-nav-log{
+  flex-shrink:0;font-size:0.72rem;font-weight:600;padding:5px 11px;border-radius:20px;
+  border:1px solid var(--gc,var(--brd));color:var(--gc,var(--muted));background:var(--gc-bg,transparent);
+  cursor:pointer;white-space:nowrap;
+}
+.chip-nav-log.sin-grupo-log{border-color:var(--brd);color:var(--muted);background:transparent;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
 @media (max-width:640px){.row3{grid-template-columns:1fr;}}
@@ -934,6 +1045,7 @@ window.NAV_CONFIG = { activo: 'logistica' };
 
   <div class="top-actions">
     <h2>SESIONES</h2>
+    <button class="btn btn-ghost" onclick="abrirModalTemas()" id="btnTemas" style="display:none;">🎼 Temas</button>
     <button class="btn" onclick="abrirModalNuevo()" id="btnNueva" style="display:none;">+ Nueva sesión</button>
   </div>
 
@@ -991,6 +1103,17 @@ window.NAV_CONFIG = { activo: 'logistica' };
           <option value="">Selecciona un estudio primero…</option>
         </select>
       </div>
+      <div class="field">
+        <label>Tema</label>
+        <select id="fTema" onchange="onCambioTemaSesion()">
+          <option value="">Cargando temas…</option>
+        </select>
+        <div id="fTemaNuevoBox" style="display:none;margin-top:8px;gap:8px;">
+          <input type="text" id="fTemaNuevoNombre" placeholder="Nombre del nuevo tema">
+          <button type="button" class="btn btn-ghost" onclick="crearTemaInline()">Crear</button>
+          <button type="button" class="btn btn-ghost" onclick="cancelarTemaNuevoInline()">Cancelar</button>
+        </div>
+      </div>
       <div class="row2">
         <div class="field">
           <label>Hora inicio</label>
@@ -1008,13 +1131,15 @@ window.NAV_CONFIG = { activo: 'logistica' };
     </div>
 
     <div class="form-section">
-      <div class="form-section-head">🎚️ Instrumentación</div>
+      <div class="form-section-head">🎚️ Equipo e instrumentación</div>
+      <div class="field">
+        <label>Equipo técnico</label>
+        <div id="equipoContainer"></div>
+        <span class="link-add" onclick="agregarFilaEquipo()">+ agregar integrante</span>
+      </div>
       <div class="field">
         <label>Instrumentación de esta sesión</label>
         <div id="instrSesionContainer"></div>
-      </div>
-      <div class="field">
-        <label>Input list (canales)</label>
         <div class="inputlist-box" id="inputListBox"></div>
       </div>
     </div>
@@ -1130,67 +1255,23 @@ window.NAV_CONFIG = { activo: 'logistica' };
   </div>
 </div>
 
-<!-- MODAL REPORTES DE INGENIERÍA (v2.1) -->
-<div class="modal-bg" id="modalReportesBg">
-  <div class="modal">
-    <h2>Reportes de ingeniería</h2>
-    <div class="rep-tabs">
-      <button class="rep-tab" id="repTab_grabacion" onclick="cambiarTabReporte('grabacion')">🎙️ Grabación</button>
-      <button class="rep-tab" id="repTab_bitacora" onclick="cambiarTabReporte('bitacora')">🎛️ Bitácora</button>
-      <button class="rep-tab" id="repTab_edicion" onclick="cambiarTabReporte('edicion')">✂️ Edición</button>
-      <button class="rep-tab" id="repTab_mezcla" onclick="cambiarTabReporte('mezcla')">🎚️ Mezcla</button>
-      <button class="rep-tab" id="repTab_mastering" onclick="cambiarTabReporte('mastering')">🏁 Mastering</button>
-    </div>
-
-    <div class="rep-panel" id="repPanel_grabacion">
-      <div class="toma-form">
-        <select id="repTomaInstrumento"></select>
-        <input type="text" id="repTomaCodigoDaw" placeholder="Nombre/código en el DAW (opcional)">
-        <div class="toma-estrellas" id="repTomaEstrellas">
-          <span onclick="setRatingToma(1)">★</span><span onclick="setRatingToma(2)">★</span>
-          <span onclick="setRatingToma(3)">★</span><span onclick="setRatingToma(4)">★</span>
-          <span onclick="setRatingToma(5)">★</span>
-        </div>
-        <div class="toma-usar">
-          <button type="button" class="si" id="repTomaUsarSi" onclick="setUsarToma(true)">✓ Usar</button>
-          <button type="button" class="no" id="repTomaUsarNo" onclick="setUsarToma(false)">✕ Descartar</button>
-        </div>
-        <textarea id="repTomaNota" placeholder="Nota corta (opcional)..."></textarea>
-        <button class="btn" onclick="agregarToma()">+ Agregar toma</button>
-      </div>
-      <div id="repTomasLista"></div>
-      <div class="field" style="margin-top:14px;">
-        <label>Notas generales de grabación</label>
-        <textarea id="repNotasGrabacion" placeholder="Observaciones generales de la sesión..." onchange="guardarNotaEtapa('Grabacion', this.value)"></textarea>
+<!-- MODAL TEMAS (v2.39) — CRUD básico de la subcolección
+     proyectos/{id}/temas. Mismo patrón visual que modalConsentBg. Cada
+     tema: {nombre, orden, activo, creadoEn}. "Desactivar" es soft-delete
+     (activo:false, deja de listarse en el selector de sesión pero no se
+     borra el documento ni se tocan sesiones que ya lo tengan asignado). -->
+<div class="modal-bg" id="modalTemasBg">
+  <div class="modal" style="max-width:460px;">
+    <h2>Temas del proyecto</h2>
+    <div class="field">
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="fTemaGestNombre" placeholder="Nombre del tema (ej: Cali Pachanguero)">
+        <button type="button" class="btn btn-ghost" style="flex:0 0 auto;" onclick="crearTemaDesdeGestion()">+ Agregar</button>
       </div>
     </div>
-
-    <div class="rep-panel" id="repPanel_bitacora">
-      <div id="repBitacoraLista"></div>
-    </div>
-
-    <div class="rep-panel" id="repPanel_edicion">
-      <div class="field">
-        <label>Notas de edición</label>
-        <textarea id="repNotasEdicion" placeholder="Comping, ediciones, pendientes..." onchange="guardarNotaEtapa('Edicion', this.value)" style="min-height:140px;"></textarea>
-      </div>
-    </div>
-    <div class="rep-panel" id="repPanel_mezcla">
-      <div class="field">
-        <label>Notas de mezcla</label>
-        <textarea id="repNotasMezcla" placeholder="Decisiones de mezcla, referencias, pendientes..." onchange="guardarNotaEtapa('Mezcla', this.value)" style="min-height:140px;"></textarea>
-      </div>
-    </div>
-    <div class="rep-panel" id="repPanel_mastering">
-      <div class="field">
-        <label>Notas de mastering</label>
-        <textarea id="repNotasMastering" placeholder="Loudness objetivo, referencias, entregables..." onchange="guardarNotaEtapa('Mastering', this.value)" style="min-height:140px;"></textarea>
-      </div>
-    </div>
-
+    <div id="listaTemasGestion" style="margin-top:14px;display:flex;flex-direction:column;gap:8px;"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="cerrarModalReportes()">Cerrar</button>
-      <button class="btn" onclick="exportarPDFReporte()">📄 PDF Informe</button>
+      <button class="btn btn-ghost" onclick="cerrarModalTemas()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1347,6 +1428,7 @@ async function initLogistica(){
 
   document.getElementById('backLink').style.display = 'inline-block';
   document.getElementById('btnNueva').style.display = 'inline-block';
+  document.getElementById('btnTemas').style.display = 'inline-block';
   document.getElementById('pdfActionsTop').style.display = 'flex';
 
   try{
@@ -1389,12 +1471,16 @@ function renderSesiones(){
       <div class="card-top">
         <h3>${escapeHtml(s.actividad || 'Sesión')}</h3>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          <button class="btn-reportes" title="Reportes de ingeniería" onclick="event.stopPropagation(); abrirModalReportes('${s.id}')">📋 ING</button>
+          <button class="btn-reportes" title="Reportes de ingeniería (bitacora.html)" onclick="event.stopPropagation(); abrirBitacoraReportes('${s.id}')">📋 ING</button>
           <span class="badge ${s.visibleCliente ? 'vis' : 'priv'}">${s.visibleCliente ? 'Visible' : 'Privada'}</span>
         </div>
       </div>
       <div class="meta">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')}</div>
       <div class="meta">⏱️ ${escapeHtml(s.horaInicio || '--:--')} – ${escapeHtml(s.horaFin || '--:--')}</div>
+      ${s.equipoTecnico && s.equipoTecnico.length ? `
+        <div class="equipo-list">
+          ${s.equipoTecnico.map(e => `<span class="equipo-chip">${escapeHtml(e.rol)}: ${escapeHtml(e.nombre)}</span>`).join('')}
+        </div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1422,6 +1508,8 @@ function abrirModalNuevo(){
   renderTecnicosAsignados();
   cargarCatalogoTecnicosSesion();
   cargarCatalogoEstudiosSesion();
+  cargarCatalogoTemasSesion('');
+  document.getElementById('fTemaNuevoBox').style.display = 'none';
   mostrarPanelSesion();
 }
 
@@ -1438,11 +1526,19 @@ async function abrirModalEditar(id){
   await cargarCatalogoEstudiosSesion();
   document.getElementById('fEstudio').value = s.estudioId || '';
   poblarSalasSesion(s.estudioId || '', s.sala || '');
+  await cargarCatalogoTemasSesion(s.temaId || '');
+  document.getElementById('fTemaNuevoBox').style.display = 'none';
   document.getElementById('fHoraInicio').value = s.horaInicio || '';
   document.getElementById('fHoraFin').value = s.horaFin || '';
   document.getElementById('fActividad').value = s.actividad || '';
   document.getElementById('fNotasInternas').value = s.notasInternas || '';
   document.getElementById('fVisibleCliente').checked = s.visibleCliente !== false;
+  document.getElementById('equipoContainer').innerHTML = '';
+  if(s.equipoTecnico && s.equipoTecnico.length){
+    s.equipoTecnico.forEach(e => agregarFilaEquipo(e.rol, e.nombre));
+  } else {
+    agregarFilaEquipo();
+  }
   instrSesionKeys = Array.isArray(s.instrumentacionSesion) ? [...s.instrumentacionSesion] : [];
   instrSesionIndividual = (s.instrumentacionSesionIndividual && typeof s.instrumentacionSesionIndividual === 'object') ? {...s.instrumentacionSesionIndividual} : {};
   instrSesionPiezasSel = {};
@@ -1458,10 +1554,10 @@ async function abrirModalEditar(id){
     const actualPorNombre = {};
     if(Array.isArray(s.inputList)){
       s.inputList.forEach(it => {
-        if(it && !it.manual && (it.preamp || it.gain || it.canalInterfaz || it.nombreInterfaz)){
+        if(it && !it.manual && (it.preamp || it.gain || it.canalInterfaz || it.instrumento || it.orden !== undefined)){
           const nombre = it.nombre || '';
           if(!actualPorNombre[nombre]) actualPorNombre[nombre] = [];
-          actualPorNombre[nombre].push({ preamp: it.preamp || '', gain: it.gain || '', canalInterfaz: it.canalInterfaz || '', nombreInterfaz: it.nombreInterfaz || '' });
+          actualPorNombre[nombre].push({ preamp: it.preamp || '', gain: it.gain || '', canalInterfaz: it.canalInterfaz || '', instrumento: it.instrumento || '', orden: it.orden });
         }
       });
     }
@@ -1520,6 +1616,20 @@ function limpiarFormulario(){
   document.getElementById('fActividad').value = '';
   document.getElementById('fNotasInternas').value = '';
   document.getElementById('fVisibleCliente').checked = true;
+  document.getElementById('equipoContainer').innerHTML = '';
+  agregarFilaEquipo();
+}
+
+function agregarFilaEquipo(rol='', nombre=''){
+  const container = document.getElementById('equipoContainer');
+  const row = document.createElement('div');
+  row.className = 'equipo-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Rol (ej: Técnico)" class="equipo-rol" value="${escapeHtml(rol)}">
+    <input type="text" placeholder="Nombre" class="equipo-nombre" value="${escapeHtml(nombre)}">
+    <button onclick="this.parentElement.remove()">✕</button>
+  `;
+  container.appendChild(row);
 }
 
 // ============ PICKER DE HORA — ruedas (v2.18) ============
@@ -1724,6 +1834,73 @@ function onCambioEstudioSesion(){
   poblarSalasSesion(document.getElementById('fEstudio').value, '');
 }
 
+// v2.39: catálogo de temas — subcolección proyectos/{proyectoId}/temas,
+// mismo criterio que cargarCatalogoEstudiosSesion (filtra activo!==false,
+// orden por campo `orden` y luego nombre). temaSeleccionado: id a dejar
+// marcado (usado al editar una sesión existente).
+async function cargarCatalogoTemasSesion(temaSeleccionado){
+  const sel = document.getElementById('fTema');
+  sel.innerHTML = '<option value="">Cargando temas…</option>';
+  try{
+    const snap = await proyectosRef.doc(proyectoId).collection('temas').get();
+    temasCatalogoSesion = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(t => t.activo !== false)
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || (a.nombre || '').localeCompare(b.nombre || ''));
+    let html = '<option value="">Sin tema asignado</option>' +
+      temasCatalogoSesion.map(t =>
+        `<option value="${t.id}">${escapeHtml(t.nombre || '(sin nombre)')}</option>`
+      ).join('') +
+      '<option value="__nuevo__">+ Crear nuevo tema…</option>';
+    sel.innerHTML = html;
+    sel.value = temaSeleccionado || '';
+  } catch(err){
+    console.error(err);
+    sel.innerHTML = '<option value="">No se pudo cargar el catálogo de temas</option>';
+  }
+}
+
+// Si eligen "+ Crear nuevo tema…" en el selector, muestra el mini-form
+// inline en vez de dejar esa opción seleccionada de verdad.
+function onCambioTemaSesion(){
+  const sel = document.getElementById('fTema');
+  if(sel.value === '__nuevo__'){
+    document.getElementById('fTemaNuevoBox').style.display = 'flex';
+    document.getElementById('fTemaNuevoNombre').value = '';
+    document.getElementById('fTemaNuevoNombre').focus();
+  }
+}
+
+function cancelarTemaNuevoInline(){
+  document.getElementById('fTemaNuevoBox').style.display = 'none';
+  document.getElementById('fTema').value = '';
+}
+
+// Crea el tema en Firestore y lo deja seleccionado en el formulario de
+// sesión, sin cerrar ni interrumpir el flujo de creación/edición de la
+// sesión. `orden` = cantidad de temas activos actuales (se agrega al
+// final de la lista).
+async function crearTemaInline(){
+  const nombre = document.getElementById('fTemaNuevoNombre').value.trim();
+  if(!nombre){
+    alert('Escribe un nombre para el tema.');
+    return;
+  }
+  try{
+    const ref = await proyectosRef.doc(proyectoId).collection('temas').add({
+      nombre,
+      orden: temasCatalogoSesion.length,
+      activo: true,
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await cargarCatalogoTemasSesion(ref.id);
+    document.getElementById('fTemaNuevoBox').style.display = 'none';
+  } catch(err){
+    console.error(err);
+    alert('Error creando el tema. Revisa la consola.');
+  }
+}
+
 function agregarMusicoAsignado(){
   const sel = document.getElementById('fMusicoAgregar');
   const id = sel.value;
@@ -1879,6 +2056,11 @@ let musicosCatalogoSesion = [];
 let tecnicosAsignadosSesion = [];
 let tecnicosCatalogoSesion = [];
 let estudiosCatalogoSesion = [];
+// v2.39: catálogo de temas del proyecto actual (subcolección
+// proyectos/{proyectoId}/temas), mismo criterio de recarga que
+// estudiosCatalogoSesion — se refresca al abrir el modal de sesión y al
+// abrir/cerrar el modal de gestión de temas.
+let temasCatalogoSesion = [];
 
 let instrSesionKeys = [];
 // instrSesionIndividual: { [grupoKey]: true|false } — marca si ese grupo,
@@ -2016,15 +2198,21 @@ function calcularInputListSesion(){
       (pieza.unidades || [pieza.nombre]).forEach(unidad => {
         const cola = colas[unidad];
         const info = (cola && cola.length) ? cola.shift() : null;
-        lista.push({ canal, nombre: unidad, preamp: info ? info.preamp : '', gain: info ? info.gain : '', canalInterfaz: info ? info.canalInterfaz : '', nombreInterfaz: info ? info.nombreInterfaz : '' });
+        lista.push({ canal, nombre: unidad, preamp: info ? info.preamp : '', gain: info ? info.gain : '', canalInterfaz: info ? info.canalInterfaz : '', instrumento: info ? info.instrumento : '', orden: (info && info.orden !== undefined && info.orden !== null) ? info.orden : canal });
         canal++;
       });
     });
   });
   instrSesionCanalesManuales.forEach(it => {
-    lista.push({ ...it, canal });
+    lista.push({ ...it, canal, orden: (it.orden !== undefined && it.orden !== null) ? it.orden : canal });
     canal++;
   });
+  // v2.35: orden manual (▲▼ desde bitacora.html o la pestaña Bitácora de
+  // Reportes) — se respeta acá para que sobreviva a que alguien vuelva a
+  // guardar la sesión desde este formulario. El "canal" (Ch interno,
+  // usado para el matching de Preamp/Gain) no se toca, solo cambia el
+  // orden en que se listan/muestran.
+  lista.sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
   return lista;
 }
 
@@ -2038,9 +2226,9 @@ function calcularBitacoraHistorialParaGuardar(historialPrevio){
   const previo = (historialPrevio && typeof historialPrevio === 'object') ? historialPrevio : {};
   const actual = {};
   calcularInputListSesion().forEach(it => {
-    if(!it.nombre || (!it.preamp && !it.gain && !it.canalInterfaz && !it.nombreInterfaz)) return;
+    if(!it.nombre || (!it.preamp && !it.gain && !it.canalInterfaz && !it.instrumento)) return;
     if(!actual[it.nombre]) actual[it.nombre] = [];
-    actual[it.nombre].push({ preamp: it.preamp, gain: it.gain, canalInterfaz: it.canalInterfaz, nombreInterfaz: it.nombreInterfaz });
+    actual[it.nombre].push({ preamp: it.preamp, gain: it.gain, canalInterfaz: it.canalInterfaz, instrumento: it.instrumento, orden: it.orden });
   });
   const resultado = {};
   const nombres = new Set([...Object.keys(previo), ...Object.keys(actual)]);
@@ -2054,14 +2242,43 @@ function calcularBitacoraHistorialParaGuardar(historialPrevio){
 
 function renderInputListSesion(){
   const box = document.getElementById('inputListBox');
-  const lista = calcularInputListSesion();
-  box.innerHTML = lista.length
-    ? lista.map(it => {
-        const interfazTxt = [it.nombreInterfaz ? escapeHtml(it.nombreInterfaz) : '', it.canalInterfaz ? 'IN ' + escapeHtml(it.canalInterfaz) : ''].filter(Boolean).join(' ');
-        const infoHtml = (it.preamp || it.gain || it.canalInterfaz || it.nombreInterfaz) ? `<span class="tag-bitacora">🎚️ ${interfazTxt ? interfazTxt + ' · ' : ''}${it.preamp ? escapeHtml(it.preamp) : '—'} · ${it.gain ? escapeHtml(it.gain) : '—'}</span>` : '';
-        return `<div class="inputlist-row${it.manual ? ' manual' : ''}"><span class="ch-badge">CH${it.canal}</span><span class="il-nombre">${escapeHtml(it.nombre || '—')}${it.manual ? '<span class="tag-manual">(manual)</span>' : ''}</span>${infoHtml}</div>`;
-      }).join('')
-    : '<span class="inputlist-empty">Marca uno o más grupos para generar el input list.</span>';
+  const lista = calcularInputListSesion(); // ya viene ordenada por `orden`
+  if(!lista.length){
+    box.innerHTML = '<span class="inputlist-empty">Marca uno o más grupos para generar el input list.</span>';
+    return;
+  }
+  // v2.35: mismo agrupador visual que bitacora.html/Reportes — renglones
+  // consecutivos con el mismo `instrumento` se muestran bajo un
+  // encabezado común, sin botones acá (esta vista es de solo lectura).
+  const grupos = [];
+  lista.forEach(it => {
+    const etiqueta = (it.instrumento || '').trim();
+    const anterior = grupos[grupos.length - 1];
+    if(etiqueta && anterior && anterior.etiqueta === etiqueta){
+      anterior.items.push(it);
+    } else {
+      grupos.push({ etiqueta, items: [it] });
+    }
+  });
+  // v2.36: el badge de cada fila muestra la POSICIÓN según el orden que
+  // asigna el Inge (1, 2, 3...), no el Ch interno — ese Ch sigue existiendo
+  // por dentro (it.canal) solo para el matching de Preamp/Gain con
+  // instrSesionBitacoraInfo, pero acá queda oculto, igual que en el
+  // parcheo/frente de una consola digital.
+  let posicion = 0;
+  box.innerHTML = grupos.map(grupo => {
+    const filas = grupo.items.map(it => {
+      posicion++;
+      const infoHtml = (it.preamp || it.gain || it.canalInterfaz) ? `<span class="tag-bitacora">🎚️ ${it.canalInterfaz ? 'IN ' + escapeHtml(it.canalInterfaz) + ' · ' : ''}${it.preamp ? escapeHtml(it.preamp) : '—'} · ${it.gain ? escapeHtml(it.gain) : '—'}</span>` : '';
+      return `<div class="inputlist-row${it.manual ? ' manual' : ''}"><span class="ch-badge">${posicion}</span><span class="il-nombre">${escapeHtml(it.nombre || '—')}${it.manual ? '<span class="tag-manual">(manual)</span>' : ''}</span>${infoHtml}</div>`;
+    }).join('');
+    if(!grupo.etiqueta) return filas;
+    // v2.36: mismo color por grupo (hash de la etiqueta) que ya usan
+    // bitacora.html y la pestaña Bitácora de Reportes — heredado vía
+    // colorParaGrupoLog()/hexToRgbaLog(), mismas funciones de esa pestaña.
+    const c = colorParaGrupoLog(grupo.etiqueta);
+    return `<div class="grupo-instrumento-log" style="--gc:${c};--gc-bg:${hexToRgbaLog(c,0.05)};"><div class="grupo-header-log" style="font-size:0.78rem;">🎚️ ${escapeHtml(grupo.etiqueta)}</div>${filas}</div>`;
+  }).join('');
 }
 /* ============ FIN INSTRUMENTACIÓN POR SESIÓN ============ */
 
@@ -2073,10 +2290,21 @@ async function guardarSesion(){
     alert('Fecha y actividad son obligatorias.');
     return;
   }
+  const equipoTecnico = [];
+  document.querySelectorAll('#equipoContainer .equipo-row').forEach(row => {
+    const rol = row.querySelector('.equipo-rol').value.trim();
+    const nom = row.querySelector('.equipo-nombre').value.trim();
+    if(rol || nom) equipoTecnico.push({ rol, nombre: nom });
+  });
+
   const estudioSel = document.getElementById('fEstudio');
   const estudioId = estudioSel.value;
   const estudioNombre = estudioId ? estudioSel.options[estudioSel.selectedIndex].textContent : '';
   const sala = document.getElementById('fSala').value;
+
+  const temaSel = document.getElementById('fTema');
+  const temaId = (temaSel.value && temaSel.value !== '__nuevo__') ? temaSel.value : '';
+  const temaNombre = temaId ? temaSel.options[temaSel.selectedIndex].textContent : '';
 
   const sesionOriginal = (editando && sesionActualId) ? sesiones.find(x => x.id === sesionActualId) : null;
 
@@ -2085,9 +2313,12 @@ async function guardarSesion(){
     estudioId,
     estudioNombre,
     sala,
+    temaId,
+    temaNombre,
     horaInicio: document.getElementById('fHoraInicio').value,
     horaFin: document.getElementById('fHoraFin').value,
     actividad,
+    equipoTecnico,
     notasInternas: document.getElementById('fNotasInternas').value.trim(),
     visibleCliente: document.getElementById('fVisibleCliente').checked,
     instrumentacionSesion: instrSesionKeys,
@@ -2122,6 +2353,27 @@ function copiarLinkBitacora(){
   navigator.clipboard.writeText(link)
     .then(() => alert('Link de bitácora copiado:\n' + link))
     .catch(() => prompt('Copia el link manualmente:', link));
+}
+
+// v2.38: todo lo de Ingeniería (Bitácora + Grabación/Edición/Mezcla/
+// Mastering, antes en el modal "Reportes" de acá) vive ahora en
+// bitacora.html — acá solo se abre ese link en pestaña nueva.
+function abrirBitacoraReportes(sesionId){
+  if(!proyectoId || !sesionId) return;
+  const base = location.href.replace(/logistica\.html.*$/, '');
+  const link = `${base}bitacora.html?p=${proyectoId}&s=${sesionId}`;
+  window.open(link, '_blank');
+}
+
+// v2.38: el modal "Reportes de ingeniería" (Grabación/Bitácora/Edición/
+// Mezcla/Mastering) se movió completo a bitacora.html — acá solo abrimos
+// ese archivo en pestaña nueva con &tab=reportes, que hace que se abra
+// directo en ese modal en vez de la vista normal de input list.
+function abrirBitacoraReportes(sesionId){
+  if(!proyectoId || !sesionId) return;
+  const base = location.href.replace(/logistica\.html.*$/, '');
+  const link = `${base}bitacora.html?p=${proyectoId}&s=${sesionId}&tab=reportes`;
+  window.open(link, '_blank');
 }
 
 // v2.13: el selector del modal de consentimiento ahora se llena con los
@@ -2181,6 +2433,100 @@ function onCambioConsentMusico(){
 
 function cerrarModalConsent(){
   document.getElementById('modalConsentBg').classList.remove('active');
+}
+
+// ============ GESTIÓN DE TEMAS (v2.39) ============
+// CRUD básico de proyectos/{proyectoId}/temas, independiente del
+// selector de sesión (aunque comparten la misma subcolección). Al
+// cerrar este modal se recarga temasCatalogoSesion para que el
+// formulario de sesión, si está abierto detrás, no quede desactualizado.
+async function abrirModalTemas(){
+  document.getElementById('modalTemasBg').classList.add('active');
+  document.getElementById('fTemaGestNombre').value = '';
+  await renderListaTemasGestion();
+}
+
+function cerrarModalTemas(){
+  document.getElementById('modalTemasBg').classList.remove('active');
+  if(document.getElementById('fTema').value !== '__nuevo__'){
+    cargarCatalogoTemasSesion(document.getElementById('fTema').value);
+  }
+}
+
+async function renderListaTemasGestion(){
+  const cont = document.getElementById('listaTemasGestion');
+  cont.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Cargando…</div>';
+  try{
+    const snap = await proyectosRef.doc(proyectoId).collection('temas').get();
+    const temas = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || (a.nombre || '').localeCompare(b.nombre || ''));
+    if(!temas.length){
+      cont.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Aún no hay temas creados.</div>';
+      return;
+    }
+    cont.innerHTML = temas.map(t => `
+      <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;padding:8px 10px;border:1px solid var(--brd);border-radius:8px;${t.activo === false ? 'opacity:0.5;' : ''}">
+        <span>${escapeHtml(t.nombre || '(sin nombre)')}${t.activo === false ? ' <em style="font-size:0.75rem;">(inactivo)</em>' : ''}</span>
+        <span style="display:flex;gap:6px;">
+          <button type="button" class="btn btn-ghost" style="padding:4px 8px;font-size:0.78rem;" onclick="renombrarTema('${t.id}', '${escapeHtml(t.nombre || '').replace(/'/g, "\\'")}')">✏️</button>
+          <button type="button" class="btn btn-ghost" style="padding:4px 8px;font-size:0.78rem;" onclick="toggleActivoTema('${t.id}', ${t.activo === false})">${t.activo === false ? '↩️ Reactivar' : '🚫 Desactivar'}</button>
+        </span>
+      </div>
+    `).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Error cargando temas.</div>';
+  }
+}
+
+async function crearTemaDesdeGestion(){
+  const nombre = document.getElementById('fTemaGestNombre').value.trim();
+  if(!nombre){
+    alert('Escribe un nombre para el tema.');
+    return;
+  }
+  try{
+    const snap = await proyectosRef.doc(proyectoId).collection('temas').get();
+    await proyectosRef.doc(proyectoId).collection('temas').add({
+      nombre,
+      orden: snap.size,
+      activo: true,
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('fTemaGestNombre').value = '';
+    await renderListaTemasGestion();
+  } catch(err){
+    console.error(err);
+    alert('Error creando el tema. Revisa la consola.');
+  }
+}
+
+// Soft-delete/reactivar. No borra el documento ni toca sesiones que ya
+// tengan este temaId asignado (esas sesiones conservan temaNombre como
+// snapshot, así que su tarjeta/PDF no se rompe aunque el tema quede
+// inactivo).
+async function toggleActivoTema(temaId, reactivar){
+  try{
+    await proyectosRef.doc(proyectoId).collection('temas').doc(temaId).update({ activo: !!reactivar });
+    await renderListaTemasGestion();
+  } catch(err){
+    console.error(err);
+    alert('Error actualizando el tema. Revisa la consola.');
+  }
+}
+
+async function renombrarTema(temaId, nombreActual){
+  const nuevo = prompt('Nuevo nombre del tema:', nombreActual);
+  if(nuevo === null) return;
+  const nombre = nuevo.trim();
+  if(!nombre) return;
+  try{
+    await proyectosRef.doc(proyectoId).collection('temas').doc(temaId).update({ nombre });
+    await renderListaTemasGestion();
+  } catch(err){
+    console.error(err);
+    alert('Error renombrando el tema. Revisa la consola.');
+  }
 }
 
 // Devuelve {nombre, correo, telefono, tarifa, link} o null si falta algo
@@ -2283,460 +2629,26 @@ async function eliminarSesion(){
   }
 }
 
-/* ============ REPORTES DE INGENIERÍA (v2.1) ============
-   Colgado de cada sesión, pensado para llenarse desde el celular durante
-   la grabación. "Tomas" vive en la subcolección
-   sesiones/{id}/tomas (puede crecer bastante en una sesión larga, por eso
-   subcolección y no campo embebido). Las notas de Edición/Mezcla/Mastering
-   son solo texto libre y viven como campos directos en el documento de la
-   sesión (notasGrabacion/notasEdicion/notasMezcla/notasMastering) — no
-   necesitan subcolección porque son un único bloque de texto por etapa.
-   El selector de instrumento de "Grabación" se prellena con el inputList
-   ya calculado en esa sesión (v2.0) — no se escribe nada a mano. No se
-   tocó el modal de sesión existente ni ninguna otra lógica. */
-let reporteSesionId = null;
-let ratingTomaActual = 0;
-let usarTomaActual = null;
-let unsubTomasReporte = null;
-let unsubSesionReporte = null;
-let tomasReporte = [];
-
-function sesionDocRef(id){
-  return proyectosRef.doc(proyectoId).collection('sesiones').doc(id);
+/* ============ COLOR COMPARTIDO DE GRUPOS (v2.38) ============
+   Se conservan estas 3 piezas del antiguo bloque de Reportes de
+   ingeniería (movido íntegro a bitacora.html en v2.38) porque
+   renderInputListSesion() del editor de sesión (#inputListBox) las
+   sigue usando para pintar cada grupo de instrumento con el mismo
+   color que bitacora.html. Nada más de ese bloque se necesitaba acá. */
+// v2.36: mismo sistema de colores por grupo que bitacora.html v2.6 —
+// hash simple del texto de la etiqueta sobre la misma paleta de 8 tonos,
+// así un grupo se ve del mismo color acá y en el link externo.
+const PALETA_GRUPOS_LOG = ['#c9a24b','#5ba3d9','#7fc78f','#d97fae','#d9945b','#8f8fe0','#6ecac0','#d9605b'];
+function colorParaGrupoLog(etiqueta){
+  let hash = 0;
+  for(let i = 0; i < etiqueta.length; i++) hash = (hash * 31 + etiqueta.charCodeAt(i)) >>> 0;
+  return PALETA_GRUPOS_LOG[hash % PALETA_GRUPOS_LOG.length];
+}
+function hexToRgbaLog(hex, alpha){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
 }
 
-/* ============ SELECTOR DE INSTRUMENTO POR PIEZA (v2.6) ============
-   Si un grupo NO está marcado como "individual" en esta sesión, se ofrece
-   como una sola opción (ej. "Bronces"). Si SÍ está marcado, se expande
-   usando el snapshot instrumentacionSesionPiezas guardado en v2.5 (piezas
-   tal cual estaban al guardar la sesión) — ej. "Guitarra", "Bajo". Si una
-   sesión vieja (previa a v2.5) no tiene el snapshot, cae de vuelta a la
-   opción del grupo completo. No se toca instrumentacionSesion, inputList
-   ni ninguna otra lógica. */
-function construirOpcionesInstrumento(s){
-  const grupos = Array.isArray(s.instrumentacionSesion) ? s.instrumentacionSesion : [];
-  const individual = (s.instrumentacionSesionIndividual && typeof s.instrumentacionSesionIndividual === 'object') ? s.instrumentacionSesionIndividual : {};
-  const piezasSnapshot = (s.instrumentacionSesionPiezas && typeof s.instrumentacionSesionPiezas === 'object') ? s.instrumentacionSesionPiezas : {};
-  const opciones = [];
-  grupos.forEach(key => {
-    const label = GRUPOS_INSTRUMENTACION_LABELS[key] || key;
-    const piezas = Array.isArray(piezasSnapshot[key]) ? piezasSnapshot[key] : [];
-    if(individual[key] && piezas.length){
-      piezas.forEach(p => {
-        const nombrePieza = (p && p.nombre) ? p.nombre : label;
-        if(!opciones.includes(nombrePieza)) opciones.push(nombrePieza);
-      });
-    } else {
-      opciones.push(label);
-    }
-  });
-  return opciones;
-}
-/* ============ FIN SELECTOR DE INSTRUMENTO POR PIEZA ============ */
-
-function abrirModalReportes(sesionId){
-  const s = sesiones.find(x => x.id === sesionId);
-  if(!s) return;
-  reporteSesionId = sesionId;
-  renderBitacoraLista(s);
-
-  const select = document.getElementById('repTomaInstrumento');
-  const opcionesInstrumento = construirOpcionesInstrumento(s);
-  select.innerHTML = opcionesInstrumento.length
-    ? opcionesInstrumento.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')
-    : `<option value="">Sin instrumentación marcada en esta sesión</option>`;
-
-  document.getElementById('repNotasGrabacion').value = s.notasGrabacion || '';
-  document.getElementById('repNotasEdicion').value = s.notasEdicion || '';
-  document.getElementById('repNotasMezcla').value = s.notasMezcla || '';
-  document.getElementById('repNotasMastering').value = s.notasMastering || '';
-
-  resetFormToma();
-  cambiarTabReporte('grabacion');
-
-  if(unsubTomasReporte) unsubTomasReporte();
-  unsubTomasReporte = sesionDocRef(sesionId).collection('tomas')
-    .orderBy('creadoEn', 'asc')
-    .onSnapshot(snap => {
-      tomasReporte = [];
-      snap.forEach(d => tomasReporte.push({ id: d.id, ...d.data() }));
-      renderTomasLista();
-    }, err => console.error('Error cargando tomas:', err));
-
-  /* v2.36: listener en vivo sobre el documento de la sesión, solo para
-     mantener la pestaña Bitácora sincronizada con lo último que haya
-     guardado el IGE desde bitacora.html mientras el modal está abierto
-     (antes se veía una foto fija tomada al abrir). No reemplaza la
-     agrupación ya hecha en renderBitacoraLista, solo la vuelve a llamar
-     con el inputList fresco. */
-  if(unsubSesionReporte) unsubSesionReporte();
-  unsubSesionReporte = sesionDocRef(sesionId).onSnapshot(docSnap => {
-    if(!docSnap.exists) return;
-    renderBitacoraLista({ id: docSnap.id, ...docSnap.data() });
-  }, err => console.error('Error en listener de sesión (Reportes):', err));
-
-  document.getElementById('modalReportesBg').classList.add('active');
-}
-
-function cerrarModalReportes(){
-  document.getElementById('modalReportesBg').classList.remove('active');
-  if(unsubTomasReporte) { unsubTomasReporte(); unsubTomasReporte = null; }
-  if(unsubSesionReporte) { unsubSesionReporte(); unsubSesionReporte = null; }
-  reporteSesionId = null;
-  tomasReporte = [];
-}
-
-function cambiarTabReporte(etapa){
-  ['grabacion','bitacora','edicion','mezcla','mastering'].forEach(e => {
-    document.getElementById(`repTab_${e}`).classList.toggle('activa', e === etapa);
-    document.getElementById(`repPanel_${e}`).classList.toggle('activa', e === etapa);
-  });
-}
-
-async function guardarNotaEtapa(etapaCap, valor){
-  if(!reporteSesionId) return;
-  try{
-    await sesionDocRef(reporteSesionId).update({ [`notas${etapaCap}`]: valor.trim() });
-  } catch(err){
-    console.error('Error guardando nota de etapa:', err);
-  }
-}
-
-function resetFormToma(){
-  ratingTomaActual = 0;
-  usarTomaActual = null;
-  document.getElementById('repTomaNota').value = '';
-  document.getElementById('repTomaCodigoDaw').value = '';
-  document.querySelectorAll('#repTomaEstrellas span').forEach(s => s.classList.remove('activa'));
-  document.getElementById('repTomaUsarSi').classList.remove('activa');
-  document.getElementById('repTomaUsarNo').classList.remove('activa');
-}
-
-function setRatingToma(n){
-  ratingTomaActual = n;
-  document.querySelectorAll('#repTomaEstrellas span').forEach((s, i) => {
-    s.classList.toggle('activa', i < n);
-  });
-}
-
-function setUsarToma(valor){
-  usarTomaActual = valor;
-  document.getElementById('repTomaUsarSi').classList.toggle('activa', valor === true);
-  document.getElementById('repTomaUsarNo').classList.toggle('activa', valor === false);
-}
-
-async function agregarToma(){
-  if(!reporteSesionId) return;
-  const instrumento = document.getElementById('repTomaInstrumento').value;
-  if(!instrumento){
-    alert('Selecciona un instrumento (debe haber instrumentación marcada en esta sesión).');
-    return;
-  }
-  const numero = tomasReporte.filter(t => t.instrumento === instrumento).length + 1;
-  const abrev = instrumento.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  const codigo = `${abrev}_T${String(numero).padStart(2, '0')}`;
-  const hora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  const data = {
-    instrumento,
-    numero,
-    codigo,
-    codigoDaw: document.getElementById('repTomaCodigoDaw').value.trim(),
-    hora,
-    rating: ratingTomaActual,
-    usar: usarTomaActual === null ? null : usarTomaActual,
-    nota: document.getElementById('repTomaNota').value.trim(),
-    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
-  };
-  try{
-    await sesionDocRef(reporteSesionId).collection('tomas').add(data);
-    resetFormToma();
-  } catch(err){
-    console.error('Error agregando toma:', err);
-    alert('Error agregando la toma. Revisa la consola.');
-  }
-}
-
-async function eliminarToma(tomaId){
-  if(!reporteSesionId) return;
-  try{
-    await sesionDocRef(reporteSesionId).collection('tomas').doc(tomaId).delete();
-  } catch(err){
-    console.error('Error eliminando toma:', err);
-  }
-}
-
-/* ============ BITÁCORA EDITABLE DESDE LOGISTICA (v2.9) ============
-   bitacoraEditLista: copia local editable del inputList de la sesión
-   abierta en el modal de Reportes. Se llena al abrir la pestaña
-   Bitácora (renderBitacoraLista) y se guarda con guardarBitacoraReportes()
-   haciendo update({inputList: ...}) sobre el mismo documento de sesión —
-   mismo campo que ya usa bitacora.html, sin esquema nuevo. El link
-   externo sigue funcionando igual, independiente de esto. */
-let bitacoraEditLista = [];
-
-function renderBitacoraLista(s){
-  const cont = document.getElementById('repBitacoraLista');
-  const lista = Array.isArray(s.inputList) ? s.inputList : [];
-  bitacoraEditLista = lista.map(it => ({...it}));
-  if(!lista.length){
-    cont.innerHTML = '<span class="inputlist-empty">Esta sesión no tiene input list generado.</span>';
-    return;
-  }
-  cont.innerHTML = bitacoraEditLista.map((it, i) => `
-      <div class="toma-item" style="align-items:flex-start;">
-        <div class="info" style="width:100%;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
-            <strong>${escapeHtml(it.nombre || '—')}</strong>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--gold);background:var(--gold-bg,rgba(196,152,44,0.1));border:1px solid var(--brd);border-radius:6px;padding:2px 8px;flex-shrink:0;">CH${it.canal}</span>
-          </div>
-          <div class="row3">
-            <div class="field" style="margin-bottom:0;">
-              <label>Nombre Interfaz</label>
-              <input type="text" placeholder="Ej: Apollo Sala A" value="${escapeHtml(it.nombreInterfaz || '')}"
-                oninput="bitacoraEditLista[${i}].nombreInterfaz = this.value">
-            </div>
-            <div class="field" style="margin-bottom:0;">
-              <label>Canal Interfaz</label>
-              <input type="text" placeholder="Ej: 12" value="${escapeHtml(it.canalInterfaz || '')}"
-                oninput="bitacoraEditLista[${i}].canalInterfaz = this.value">
-            </div>
-            <div class="field" style="margin-bottom:0;">
-              <label>Preamp</label>
-              <input type="text" placeholder="Ej: Neve 1073" value="${escapeHtml(it.preamp || '')}"
-                oninput="bitacoraEditLista[${i}].preamp = this.value">
-            </div>
-            <div class="field" style="margin-bottom:0;">
-              <label>Gain</label>
-              <input type="text" placeholder="Ej: -6dB" value="${escapeHtml(it.gain || '')}"
-                oninput="bitacoraEditLista[${i}].gain = this.value">
-            </div>
-          </div>
-        </div>
-      </div>`).join('')
-    + `<button class="btn" style="width:100%;margin-top:6px;" onclick="guardarBitacoraReportes()">💾 Guardar bitácora</button>
-       <div class="inputlist-empty" id="bitacoraEstado" style="text-align:center;margin-top:6px;"></div>`;
-}
-
-async function guardarBitacoraReportes(){
-  if(!reporteSesionId) return;
-  const estado = document.getElementById('bitacoraEstado');
-  if(estado) estado.textContent = 'Guardando…';
-  try{
-    await sesionDocRef(reporteSesionId).update({ inputList: bitacoraEditLista });
-    if(estado) estado.textContent = '✓ Guardado';
-  } catch(err){
-    console.error('Error guardando bitácora desde Reportes:', err);
-    if(estado) estado.textContent = 'Error guardando. Intenta de nuevo.';
-  }
-}
-/* ============ FIN BITÁCORA EDITABLE DESDE LOGISTICA ============ */
-
-function renderTomasLista(){
-  const cont = document.getElementById('repTomasLista');
-  if(!tomasReporte.length){
-    cont.innerHTML = '<span class="inputlist-empty">Aún no hay tomas registradas.</span>';
-    return;
-  }
-  cont.innerHTML = tomasReporte.map(t => {
-    const estrellas = '★'.repeat(t.rating || 0) + '☆'.repeat(5 - (t.rating || 0));
-    const usarTag = t.usar === true ? '<span class="usar-tag si">Usar</span>' : t.usar === false ? '<span class="usar-tag no">Descartar</span>' : '';
-    return `
-      <div class="toma-item">
-        <div class="info">
-          <strong>${t.codigo ? escapeHtml(t.codigo) + ' — ' : ''}${escapeHtml(t.instrumento)}</strong> · ${t.hora || ''}
-          ${t.codigoDaw ? `<div style="color:var(--gold);margin-top:2px;">DAW: ${escapeHtml(t.codigoDaw)}</div>` : ''}
-          <div class="estrellas-mini">${estrellas}</div>
-          ${t.nota ? `<div style="color:var(--muted);margin-top:2px;">${escapeHtml(t.nota)}</div>` : ''}
-          ${usarTag}
-        </div>
-        <button onclick="eliminarToma('${t.id}')" title="Eliminar">✕</button>
-      </div>`;
-  }).join('');
-}
-/* ============ FIN REPORTES DE INGENIERÍA ============ */
-
-// ============ EXPORTAR PDF ============
-function exportarPDFReporte(){
-  if(!reporteSesionId || !proyectoData) return;
-  const s = sesiones.find(x => x.id === reporteSesionId);
-  if(!s) return;
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const goldRGB = [201, 162, 75];
-  const darkRGB = [11, 11, 13];
-  const mutedRGB = [154, 151, 143];
-  const pageW = 210;
-  const pageHFull = 297;
-  const marginX = 18;
-
-  function pintarHeader(){
-    doc.setFillColor(...darkRGB);
-    doc.rect(0, 0, pageW, 38, 'F');
-    doc.setDrawColor(...goldRGB);
-    doc.setLineWidth(0.6);
-    doc.line(0, 38, pageW, 38);
-    doc.setTextColor(...goldRGB);
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(20);
-    doc.text('AUDIOLINK', marginX, 20);
-    doc.setFontSize(8.5);
-    doc.setFont(undefined, 'normal');
-    doc.setTextColor(...mutedRGB);
-    doc.text('INFORME DE INGENIERÍA · ' + (s.actividad || 'Sesión').toUpperCase(), marginX, 28);
-    doc.setFontSize(8);
-    doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - marginX, 28, { align:'right' });
-  }
-
-  function pintarFooter(){
-    doc.setDrawColor(230, 230, 230);
-    doc.setLineWidth(0.2);
-    doc.line(marginX, pageHFull - 15, pageW - marginX, pageHFull - 15);
-    doc.setFontSize(7.5);
-    doc.setTextColor(...mutedRGB);
-    doc.setFont(undefined, 'normal');
-    doc.text('AUDIOLINK — Producción y Logística Musical', marginX, pageHFull - 10);
-    doc.text('Documento confidencial', pageW - marginX, pageHFull - 10, { align:'right' });
-  }
-
-  function saltoSiNecesita(alturaBloque){
-    if(y + alturaBloque > pageHFull - 22){
-      pintarFooter();
-      doc.addPage();
-      pintarHeader();
-      y = 52;
-    }
-  }
-
-  pintarHeader();
-  let y = 52;
-  const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
-
-  doc.setTextColor(20, 20, 20);
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(17);
-  doc.text(proyectoData.nombre || 'Sin nombre', marginX, y);
-  y += 7;
-  doc.setFontSize(8.5);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(...mutedRGB);
-  doc.text(`SESIÓN: ${(s.actividad || '—').toUpperCase()} · ${fechaLegible} · SALA: ${(s.sala || '—').toUpperCase()}`, marginX, y);
-  y += 10;
-  doc.setDrawColor(230, 230, 230);
-  doc.setLineWidth(0.3);
-  doc.line(marginX, y, pageW - marginX, y);
-  y += 10;
-
-  // Tabla de tomas
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...goldRGB);
-  doc.text('TOMAS DE GRABACIÓN', marginX, y);
-  y += 7;
-
-  if(!tomasReporte.length){
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...mutedRGB);
-    doc.text('No hay tomas registradas en esta sesión.', marginX, y);
-    y += 8;
-  } else {
-    tomasReporte.forEach(t => {
-      const estrellas = '★'.repeat(t.rating || 0) + '☆'.repeat(5 - (t.rating || 0));
-      const notaLines = t.nota ? doc.splitTextToSize(t.nota, pageW - marginX*2 - 4) : [];
-      const tieneDaw = !!t.codigoDaw;
-      const alturaBloque = 12 + (tieneDaw ? 4.5 : 0) + (notaLines.length * 4.5);
-      saltoSiNecesita(alturaBloque);
-
-      doc.setFont(undefined, 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(20, 20, 20);
-      doc.text(t.codigo || t.instrumento || '—', marginX, y);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(...mutedRGB);
-      doc.text(`${t.instrumento || ''} · ${t.hora || ''} · ${estrellas} · ${t.usar === true ? 'USAR' : t.usar === false ? 'DESCARTAR' : 'SIN DEFINIR'}`, marginX, y + 5);
-      let yy = y + 10;
-      if(tieneDaw){
-        doc.setFontSize(8.5);
-        doc.setTextColor(...goldRGB);
-        doc.text(`DAW: ${t.codigoDaw}`, marginX, yy);
-        doc.setTextColor(...mutedRGB);
-        yy += 4.5;
-      }
-      if(notaLines.length){
-        doc.setFontSize(8.5);
-        doc.text(notaLines, marginX, yy);
-      }
-      y += alturaBloque;
-    });
-    y += 4;
-
-    const totalTomas = tomasReporte.length;
-    const usarCount = tomasReporte.filter(t => t.usar === true).length;
-    const descartarCount = tomasReporte.filter(t => t.usar === false).length;
-    const sinDefinirCount = totalTomas - usarCount - descartarCount;
-    const ratingsValidos = tomasReporte.filter(t => t.rating > 0).map(t => t.rating);
-    const ratingProm = ratingsValidos.length
-      ? (ratingsValidos.reduce((a, b) => a + b, 0) / ratingsValidos.length).toFixed(1)
-      : '—';
-    const porInstrumento = {};
-    tomasReporte.forEach(t => {
-      const nombre = t.instrumento || '—';
-      porInstrumento[nombre] = (porInstrumento[nombre] || 0) + 1;
-    });
-    const lineasInstrumento = Object.keys(porInstrumento).sort()
-      .map(nombre => `${nombre}: ${porInstrumento[nombre]}`);
-
-    saltoSiNecesita(14 + (lineasInstrumento.length * 4.5));
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...goldRGB);
-    doc.text('RESUMEN DEL DÍA', marginX, y);
-    y += 6;
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...mutedRGB);
-    doc.text(`Total de tomas: ${totalTomas}  ·  Usar: ${usarCount}  ·  Descartar: ${descartarCount}  ·  Sin definir: ${sinDefinirCount}  ·  Rating promedio: ${ratingProm}`, marginX, y);
-    y += 6;
-    if(lineasInstrumento.length){
-      const textoInstrumento = 'Por instrumento: ' + lineasInstrumento.join('   ·   ');
-      const wrapLines = doc.splitTextToSize(textoInstrumento, pageW - marginX*2);
-      doc.text(wrapLines, marginX, y);
-      y += wrapLines.length * 4.5;
-    }
-    y += 6;
-  }
-
-  // Notas por etapa
-  const etapas = [
-    { titulo: 'NOTAS DE GRABACIÓN', texto: s.notasGrabacion },
-    { titulo: 'NOTAS DE EDICIÓN', texto: s.notasEdicion },
-    { titulo: 'NOTAS DE MEZCLA', texto: s.notasMezcla },
-    { titulo: 'NOTAS DE MASTERING', texto: s.notasMastering }
-  ];
-
-  etapas.forEach(etapa => {
-    if(!etapa.texto) return;
-    const lineas = doc.splitTextToSize(etapa.texto, pageW - marginX*2);
-    const alturaBloque = 10 + (lineas.length * 4.5);
-    saltoSiNecesita(alturaBloque);
-
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(10.5);
-    doc.setTextColor(...goldRGB);
-    doc.text(etapa.titulo, marginX, y);
-    y += 6;
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(40, 40, 40);
-    doc.text(lineas, marginX, y);
-    y += (lineas.length * 4.5) + 6;
-  });
-
-  pintarFooter();
-  const nombreArchivo = `Informe_Ingenieria_${(s.actividad || 'Sesion').replace(/[^a-zA-Z0-9]/g, '_')}_${s.fecha || ''}.pdf`;
-  doc.save(nombreArchivo);
-}
 
 function exportarPDF(modo){
   if(!proyectoId || !proyectoData) return;
@@ -2806,7 +2718,8 @@ function exportarPDF(modo){
 
   sesionesFiltradas.forEach(s => {
     const notasHeight = (modo === 'interno' && s.notasInternas) ? doc.splitTextToSize(s.notasInternas, pageW - marginX*2 - 4).length * 5 + 8 : 0;
-    const bloqueAltura = 30 + notasHeight;
+    const equipoHeight = (s.equipoTecnico && s.equipoTecnico.length) ? 6.5 : 0;
+    const bloqueAltura = 30 + equipoHeight + notasHeight;
 
     if(y + bloqueAltura > pageHFull - 22){
       pintarFooter();
@@ -2831,6 +2744,13 @@ function exportarPDF(modo){
     doc.text(`${fechaLegible}  ·  Sala: ${s.sala || '—'}  ·  ${s.horaInicio || '--:--'}–${s.horaFin || '--:--'}`, marginX + 6, y + 9);
 
     let yy = y + 16;
+    if(s.equipoTecnico && s.equipoTecnico.length){
+      doc.setFontSize(9);
+      doc.setTextColor(70, 70, 70);
+      const equipoStr = s.equipoTecnico.map(e => `${e.rol}: ${e.nombre}`).join('  ·  ');
+      doc.text(equipoStr, marginX + 6, yy);
+      yy += 7;
+    }
 
     if(modo === 'interno' && s.notasInternas){
       doc.setFontSize(8);

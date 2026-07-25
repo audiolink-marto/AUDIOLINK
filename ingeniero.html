@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Panel del Ingeniero</title>
+<!-- AUDIOLINK · ingeniero.html · v1.2
+     v1.2: (1) subtítulo "Panel de [Nombre]" junto al logo AUDIOLINK —
+     usa el campo `nombre` nuevo de ingenieros/{correo} (agregado en
+     proyecto.html v4.19), con fallback al correo si no lo tiene cargado
+     todavía; en modo staff normal (revisión, sin preview) dice "Modo
+     Staff · Revisión" en vez de un nombre. (2) el botón "Abrir bitácora
+     →" ahora manda &from=ingeniero en el link, para que bitacora.html
+     v2.11.2 pueda mostrar un "← Volver a mis proyectos" de regreso acá.
+     No se tocó el guard, el modo preview, ni el resto del listado/
+     detalle/sesiones.
+
+     v1.1: modo vista previa para staff — ?preview=correo. Mismo patrón
+     que portal.html: valida que haya sesión de equipoInterno activa,
+     carga proyectosAsignados del ingeniero en preview (no el listado
+     completo que ve el staff normalmente), muestra banner "👁️ Vista
+     previa" y oculta el botón de cerrar sesión. Se dispara desde el
+     botón 👁️ del modal de Ingenieros en proyecto.html v4.18. No se tocó
+     el guard normal de staff/ingeniero, ni el resto del listado/detalle/
+     sesiones agrupadas por tema.
+
+     v1.0: quinta pieza del login del Inge (v2.10 reglas, bitacora.html
+     v2.11.1 guard+retorno, proyecto.html v4.17 asignación, login.html
+     v1.8 reconoce ingenieros). Este es el "portal" del Inge — mismo
+     patrón visual/estructural que portal.html (header con VU meter,
+     listado de proyectos en grid, detalle con lista, mismas variables
+     --bg/--surf/--gold de Oro Profundo, mismo tema claro/oscuro con
+     localStorage), pero con diferencias a propósito:
+     (1) NO tiene login propio embebido — a diferencia de portal.html
+     (que usa una identidad de cliente separada), el Inge comparte el
+     mismo login.html/Auth que el staff. Este archivo solo trae el guard
+     de sesión (mismo patrón que logistica.html/proyecto.html), sin
+     pantalla de login ni fondo de neuronas — si no hay sesión válida,
+     redirige a login.html?next=ingeniero.html.
+     (2) Acepta equipoInterno (staff, para poder revisar/dar soporte) O
+     ingenieros (acotado por proyectosAsignados[]) — mismo doble criterio
+     que ya usa bitacora.html v2.11.
+     (3) Contenido técnico, no comercial: SIN cotización, SIN pagos, SIN
+     línea de tiempo de etapas (eso es contenido de cliente). En su lugar,
+     las sesiones se agrupan por TEMA (canción) — el modelo que se armó
+     en logistica.html v2.39/bitacora.html v2.9 — y cada sesión tiene un
+     botón directo "Abrir bitácora →" hacia bitacora.html?p=X&s=Y. Fechas/
+     horas/sala usan JetBrains Mono (--M) en vez de DM Sans, como toque
+     técnico sutil (lectura tipo timecode/rack), y las tarjetas de sesión
+     llevan un acento de borde izquierdo dorado (referencia visual a un
+     cable de patch) en vez del borde parejo de .sesion-card del portal
+     de cliente.
+     REQUIERE una regla de Firestore nueva: allow read en /proyectos/
+     {proyectoId} para esIngenieroDe(proyectoId) — hoy el rol ingeniero
+     solo puede leer sesiones/tomas/temas, no el doc del proyecto en sí
+     (necesario para mostrar el nombre del proyecto en el listado). Se
+     agrega en firestore_rules1.rules v2.11, comentada aparte para que
+     quede claro qué campos expone (nombre, cliente, narrativa — nunca
+     cotizaciones/pagos, que son subcolecciones con sus propias reglas
+     sin acceso de ingeniero). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+header{
+  padding:16px 20px;border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surf);flex-wrap:wrap;gap:12px;
+}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+.btn{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  transition:all 0.2s;font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+main{padding:28px;max-width:1000px;margin:0 auto;}
+.preview-banner{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:10px 16px;border-radius:8px;font-size:0.82rem;text-align:center;margin-bottom:20px;
+}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.card{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:20px;cursor:pointer;transition:all 0.2s;
+}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.card h3{font-size:1.05rem;font-weight:600;margin-bottom:8px;color:var(--gold);}
+.card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;font-family:var(--M);}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+.back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
+.back-link:hover{color:var(--gold);}
+.detalle-head{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:24px;margin-bottom:20px;}
+.detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
+.tema-grupo{margin-bottom:26px;}
+.tema-grupo-titulo{
+  font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);
+  margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--brd);
+}
+.sesion-card{
+  background:var(--surf);border:1px solid var(--brd);border-left:3px solid var(--gold);
+  border-radius:8px;padding:14px 18px;margin-bottom:10px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.sesion-card h4{font-size:0.92rem;color:var(--txt);font-weight:600;margin-bottom:4px;}
+.sesion-card .meta{font-size:0.78rem;color:var(--muted);font-family:var(--M);}
+.msg-panel{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:40px 24px;text-align:center;color:var(--muted);
+}
+@media (max-width:640px){
+  header{padding:14px 16px;}
+  .brand h1{font-size:1.05rem;}
+  .sesion-card{flex-direction:column;align-items:flex-start;}
+}
+.credit{text-align:center;padding:18px 20px 24px;font-size:0.68rem;color:var(--faint);letter-spacing:0.02em;}
+.rol-tag{font-size:0.72rem;color:var(--muted);letter-spacing:0.04em;margin-left:2px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+    <h1>AUDIOLINK</h1>
+    <span class="rol-tag" id="rolTag"></span>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
+    <button class="btn btn-ghost btn-icon" onclick="cerrarSesion()" title="Salir" id="btnSalirIng">⏻</button>
+  </div>
+</header>
+
+<main>
+  <div class="preview-banner" id="previewBanner" style="display:none;">
+    👁️ Estás viendo esto en modo vista previa (equipo interno) — así lo ve el ingeniero asignado.
+  </div>
+  <div id="vistaListado">
+    <div class="top-actions">
+      <h2>TUS PROYECTOS ASIGNADOS</h2>
+    </div>
+    <div class="grid" id="gridProyectos"></div>
+    <div class="empty" id="emptyState" style="display:none;">Aún no tienes proyectos asignados. Contacta a producción.</div>
+  </div>
+
+  <div id="vistaDetalle" style="display:none;">
+    <span class="back-link" onclick="volverListado()">← Volver a mis proyectos</span>
+    <div class="detalle-head" id="detalleContent"></div>
+    <div id="listaSesiones"></div>
+    <div class="empty" id="emptySesiones" style="display:none;">No hay sesiones registradas para este proyecto.</div>
+  </div>
+</main>
+<div class="credit">Marto 🧠 · martowave@gmail.com</div>
+
+<script>
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const proyectosRef = db.collection('proyectos');
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function toggleTema(){
+  const actual = document.documentElement.getAttribute('data-tema') || 'dark';
+  const nuevo = actual === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  localStorage.setItem('audiolink_tema', nuevo);
+  document.getElementById('btnTema').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+}
+(function(){
+  const t = localStorage.getItem('audiolink_tema') || 'dark';
+  document.getElementById('btnTema').textContent = t === 'dark' ? '🌙' : '☀️';
+})();
+
+function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  auth.signOut().then(() => window.location.href = 'login.html');
+}
+
+// ============ GUARD DE SESIÓN ============
+// Mismo patrón que logistica.html/proyecto.html/bitacora.html: staff
+// (equipoInterno) o ingeniero (proyectosAsignados[]). Sin sesión válida,
+// redirige a login.html con ?next= para volver acá tras loguearse.
+//
+// v1.1 — MODO VISTA PREVIA (?preview=correo): mismo patrón que
+// portal.html. Solo staff con equipoInterno activo puede usarlo; en vez
+// del listado completo que ve el staff normalmente, carga
+// proyectosAsignados del ingeniero en preview, para ver exactamente lo
+// que él vería.
+const urlParams = new URLSearchParams(window.location.search);
+const previewEmail = urlParams.get('preview');
+let modoPreview = false;
+let proyectosAsignados = [];
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    if(previewEmail){
+      document.getElementById('vistaListado').innerHTML =
+        '<div class="msg-panel">Esta es una vista previa de staff. Inicia sesión como equipo interno en otra pestaña primero.</div>';
+      return;
+    }
+    location.href = 'login.html?next=' + encodeURIComponent(location.href);
+    return;
+  }
+  try{
+    const staffDoc = await db.collection('equipoInterno').doc(user.email).get();
+    if(staffDoc.exists && staffDoc.data().activo === true){
+      if(previewEmail){
+        const ingDoc = await db.collection('ingenieros').doc(previewEmail.toLowerCase()).get();
+        const ing = ingDoc.exists ? ingDoc.data() : null;
+        if(!ing || !Array.isArray(ing.proyectosAsignados) || ing.proyectosAsignados.length === 0){
+          document.getElementById('vistaListado').innerHTML =
+            '<div class="msg-panel">Ese ingeniero no tiene proyectos asignados todavía.</div>';
+          return;
+        }
+        modoPreview = true;
+        proyectosAsignados = ing.proyectosAsignados;
+        document.getElementById('previewBanner').style.display = 'block';
+        document.getElementById('btnSalirIng').style.display = 'none';
+        document.getElementById('rolTag').textContent = 'Panel de ' + (ing.nombre || previewEmail);
+        iniciarListado();
+        return;
+      }
+      // Staff en modo revisión: no filtra por proyectosAsignados, ve
+      // todos los proyectos (mismo criterio que el resto del ecosistema).
+      const snap = await proyectosRef.get();
+      proyectosAsignados = snap.docs.map(d => d.id);
+      document.getElementById('rolTag').textContent = 'Modo Staff · Revisión';
+      iniciarListado();
+      return;
+    }
+    const ingDoc = await db.collection('ingenieros').doc(user.email).get();
+    const ing = ingDoc.exists ? ingDoc.data() : null;
+    if(!ing || ing.activo !== true || !Array.isArray(ing.proyectosAsignados) || ing.proyectosAsignados.length === 0){
+      document.getElementById('vistaListado').innerHTML =
+        '<div class="msg-panel">Tu cuenta no tiene proyectos asignados todavía. Contacta a producción.</div>';
+      return;
+    }
+    proyectosAsignados = ing.proyectosAsignados;
+    document.getElementById('rolTag').textContent = 'Panel de ' + (ing.nombre || user.email);
+    iniciarListado();
+  } catch(e){
+    console.error('Error validando acceso:', e);
+    document.getElementById('vistaListado').innerHTML =
+      '<div class="msg-panel">Error validando tu acceso. Intenta de nuevo.</div>';
+  }
+});
+
+// ============ LISTADO DE PROYECTOS ============
+let proyectosCache = [];
+let proyectoActualId = null;
+
+async function iniciarListado(){
+  const grid = document.getElementById('gridProyectos');
+  const empty = document.getElementById('emptyState');
+  grid.innerHTML = '<div class="empty">Cargando...</div>';
+  try{
+    proyectosCache = [];
+    for(const id of proyectosAsignados){
+      const doc = await proyectosRef.doc(id).get();
+      if(doc.exists) proyectosCache.push({ id: doc.id, ...doc.data() });
+    }
+    renderListadoProyectos();
+  } catch(e){
+    console.error('Error cargando proyectos:', e);
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'No pudimos cargar tus proyectos. Intenta de nuevo.';
+  }
+}
+
+async function renderListadoProyectos(){
+  const grid = document.getElementById('gridProyectos');
+  const empty = document.getElementById('emptyState');
+  if(proyectosCache.length === 0){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const tarjetas = await Promise.all(proyectosCache.map(async p => {
+    const [temasSnap, sesionesSnap] = await Promise.all([
+      proyectosRef.doc(p.id).collection('temas').get().catch(() => ({docs:[]})),
+      proyectosRef.doc(p.id).collection('sesiones').get().catch(() => ({size:0}))
+    ]);
+    const temasActivos = temasSnap.docs ? temasSnap.docs.filter(d => d.data().activo !== false).length : 0;
+    return `
+      <div class="card" onclick="verDetalleProyecto('${p.id}')">
+        <h3>${escapeHtml(p.nombre || 'Sin nombre')}</h3>
+        <div class="meta">${temasActivos} tema${temasActivos === 1 ? '' : 's'}</div>
+        <div class="meta">${sesionesSnap.size} sesión${sesionesSnap.size === 1 ? '' : 'es'}</div>
+      </div>`;
+  }));
+  grid.innerHTML = tarjetas.join('');
+}
+
+function volverListado(){
+  document.getElementById('vistaDetalle').style.display = 'none';
+  document.getElementById('vistaListado').style.display = 'block';
+  proyectoActualId = null;
+}
+
+async function verDetalleProyecto(id){
+  proyectoActualId = id;
+  const p = proyectosCache.find(x => x.id === id);
+  if(!p) return;
+
+  document.getElementById('vistaListado').style.display = 'none';
+  document.getElementById('vistaDetalle').style.display = 'block';
+  document.getElementById('detalleContent').innerHTML = `<h2>${escapeHtml(p.nombre || 'Sin nombre')}</h2>`;
+
+  await cargarSesionesAgrupadasPorTema(id);
+}
+
+// ============ SESIONES AGRUPADAS POR TEMA ============
+// A diferencia de portal.html (sesiones en lista plana), acá se agrupan
+// por temaNombre — refleja el modelo real: Edición/Mezcla/Mastering
+// viven en el tema, así que agrupar ayuda al Inge a ver de un vistazo
+// cuántas sesiones de grabación tiene cada canción antes de entrar a
+// cualquiera de ellas.
+async function cargarSesionesAgrupadasPorTema(proyectoId){
+  const cont = document.getElementById('listaSesiones');
+  const empty = document.getElementById('emptySesiones');
+  cont.innerHTML = '<div class="empty">Cargando...</div>';
+  try{
+    const snap = await proyectosRef.doc(proyectoId).collection('sesiones').orderBy('fecha', 'asc').get();
+    if(snap.empty){
+      cont.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    const grupos = {};
+    const orden = [];
+    snap.forEach(d => {
+      const s = { id: d.id, ...d.data() };
+      const clave = s.temaId || '__sin_tema__';
+      if(!grupos[clave]){ grupos[clave] = { nombre: s.temaNombre || 'Sin tema', items: [] }; orden.push(clave); }
+      grupos[clave].items.push(s);
+    });
+
+    cont.innerHTML = orden.map(clave => {
+      const g = grupos[clave];
+      return `
+        <div class="tema-grupo">
+          <div class="tema-grupo-titulo">🎼 ${escapeHtml(g.nombre)}</div>
+          ${g.items.map(s => {
+            const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+            return `
+            <div class="sesion-card">
+              <div>
+                <h4>${escapeHtml(s.actividad || 'Sesión')}</h4>
+                <div class="meta">${fechaLegible} · ${escapeHtml(s.sala || '—')} · ${escapeHtml(s.horaInicio || '--:--')}–${escapeHtml(s.horaFin || '--:--')}</div>
+              </div>
+              <button class="btn" onclick="location.href='bitacora.html?p=${proyectoId}&s=${s.id}&from=ingeniero'">Abrir bitácora →</button>
+            </div>`;
+          }).join('')}
+        </div>`;
+    }).join('');
+  } catch(e){
+    console.error('Error cargando sesiones:', e);
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'No pudimos cargar las sesiones. Intenta de nuevo.';
+  }
+}
+</script>
+
+</body>
+</html>

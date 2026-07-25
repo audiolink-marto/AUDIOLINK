@@ -4,7 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Acceso</title>
-<!-- AUDIOLINK · login.html · v1.7
+<!-- AUDIOLINK · login.html · v1.9
+     v1.9: destinoPostLogin() ya no deja al ingeniero con un mensaje
+     estático cuando no hay ?next= — ahora cae en ingeniero.html (su
+     portal propio, v1.0), mismo criterio que proyecto.html para staff.
+     Requiere la regla nueva de lectura de /proyectos para
+     esIngenieroDe() (ver firestore.rules v2.11) — sin ella,
+     ingeniero.html no podría mostrar los nombres de los proyectos
+     asignados. Sin más cambios de lógica.
+
+     AUDIOLINK · login.html · v1.8
+     v1.8: cuarta y última pieza del login del Inge (v2.10 reglas,
+     bitacora.html v2.11 guard, proyecto.html v4.17 asignación). Dos
+     cambios: (1) verificarEquipoInterno() se reemplaza por
+     verificarAcceso(), que prueba equipoInterno (staff) y si no,
+     ingenieros (rol acotado) — antes un ingeniero autorizado en
+     `ingenieros` era rechazado con "correo no autorizado" porque nunca
+     se consultaba esa colección. (2) soporte de retorno post-login:
+     destinoPostLogin() lee ?next= (o el respaldo en sessionStorage que
+     ya dejaba bitacora.html v2.11) y redirige ahí en vez de siempre a
+     proyecto.html. Si no hay next Y el usuario es ingeniero (no staff),
+     NO se redirige a proyecto.html —esa colección no es legible por
+     esIngenieroDe() según las reglas—, se queda con un mensaje pidiendo
+     abrir el link de su sesión. Mismo comportamiento aplica tanto al
+     login manual como al auto-redirect de onAuthStateChanged. No se
+     tocó signInWithEmailAndPassword, el fondo animado de neuronas, ni
+     ningún estilo.
+
+     AUDIOLINK · login.html · v1.7
      V1.7: firebaseConfig deja de estar copiado en este archivo; ahora se
      carga desde firebase-config.js (compartido por todo el ecosistema,
      mismos valores exactos). Se agrega <script src="firebase-config.js">
@@ -240,23 +267,57 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// v1.8: soporte de retorno post-login (?next=), y el rol nuevo
+// `ingenieros` (acotado, ver firestore.rules v2.10 / bitacora.html
+// v2.11 / proyecto.html v4.17). verificarAcceso() reemplaza a
+// verificarEquipoInterno(): ahora prueba equipoInterno primero (staff,
+// acceso total) y si no, ingenieros (acotado). No se tocó la lógica de
+// autenticación en sí (signInWithEmailAndPassword sigue igual).
+async function verificarAcceso(email){
+  try{
+    const staffDoc = await db.collection('equipoInterno').doc(email).get();
+    if(staffDoc.exists && staffDoc.data().activo === true){
+      return { autorizado: true, esStaff: true };
+    }
+    const ingDoc = await db.collection('ingenieros').doc(email).get();
+    if(ingDoc.exists && ingDoc.data().activo === true){
+      return { autorizado: true, esStaff: false };
+    }
+    return { autorizado: false, esStaff: false };
+  } catch(e){
+    console.error('Error verificando acceso:', e);
+    return { autorizado: false, esStaff: false };
+  }
+}
+
+// Destino tras un login exitoso (o si ya había sesión activa). Prioridad:
+// 1) ?next= en la URL de login.html (ej. login.html?next=bitacora.html%3Fp%3DX%26s%3DY)
+// 2) sessionStorage 'audiolink_redirect_after_login' (respaldo que dejan
+//    logistica.html/bitacora.html antes de mandar aquí sin next)
+// 3) proyecto.html si es staff, ingeniero.html si es ingeniero — v1.9:
+//    antes el ingeniero sin next se quedaba con un mensaje estático; ahora
+//    cae en su portal propio (ingeniero.html v1.0), que sí puede leer
+//    (requiere la regla nueva de lectura de /proyectos para
+//    esIngenieroDe(), ver firestore.rules v2.11).
+function destinoPostLogin(esStaff){
+  const params = new URLSearchParams(location.search);
+  const next = params.get('next') || sessionStorage.getItem('audiolink_redirect_after_login');
+  sessionStorage.removeItem('audiolink_redirect_after_login');
+  if(next) return next;
+  return esStaff ? 'proyecto.html' : 'ingeniero.html';
+}
+
 // Si ya hay sesión activa Y autorizada, saltar directo
 auth.onAuthStateChanged(async (user) => {
   if(user){
-    const autorizado = await verificarEquipoInterno(user.email);
-    if(autorizado) window.location.href = 'proyecto.html';
+    const acceso = await verificarAcceso(user.email);
+    if(acceso.autorizado){
+      const destino = destinoPostLogin(acceso.esStaff);
+      if(destino) window.location.href = destino;
+      else mostrarMsg('Ya iniciaste sesión. Abre el link de tu sesión para continuar.', 'info');
+    }
   }
 });
-
-async function verificarEquipoInterno(email){
-  try{
-    const doc = await db.collection('equipoInterno').doc(email).get();
-    return doc.exists && doc.data().activo === true;
-  } catch(e){
-    console.error('Error verificando equipoInterno:', e);
-    return false;
-  }
-}
 
 function mostrarMsg(texto, tipo){
   const msg = document.getElementById('msg');
@@ -279,17 +340,23 @@ async function login(){
 
   try{
     const cred = await auth.signInWithEmailAndPassword(email, pass);
-    const autorizado = await verificarEquipoInterno(cred.user.email);
+    const acceso = await verificarAcceso(cred.user.email);
 
-    if(!autorizado){
+    if(!acceso.autorizado){
       await auth.signOut();
-      mostrarMsg('Este correo no tiene acceso autorizado al equipo interno.', 'error');
+      mostrarMsg('Este correo no tiene acceso autorizado.', 'error');
       btn.disabled = false;
       return;
     }
 
-    mostrarMsg('Acceso concedido, redirigiendo...', 'info');
-    window.location.href = 'proyecto.html';
+    const destino = destinoPostLogin(acceso.esStaff);
+    if(destino){
+      mostrarMsg('Acceso concedido, redirigiendo...', 'info');
+      window.location.href = destino;
+    } else {
+      mostrarMsg('Acceso concedido. Abre el link de tu sesión para continuar.', 'info');
+      btn.disabled = false;
+    }
 
   } catch(err){
     let texto = 'Error al iniciar sesión.';
