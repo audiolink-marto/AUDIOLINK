@@ -4,7 +4,58 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.11
+<!-- AUDIOLINK · proyecto.html · v5.13
+     v5.13 (a pedido de AUDIOLINK — "el conteo de temas debería excluir
+     inactivos"): en renderDashTemas(), `cantReal` (usado en el aviso de
+     descuadre contra cantTemas) ahora filtra activo!==false. Antes un
+     tema desactivado seguía contando como "creado de verdad", pudiendo
+     mostrar "planeaste 4, hay 4" con uno de esos 4 en realidad inactivo.
+     Cambio de una línea, no toca el resto de renderDashTemas ni ninguna
+     otra sección.
+
+     v5.12 (a pedido de AUDIOLINK — "unificar borrado de tema con
+     logistica.html"): el hard-delete único de eliminarTema() se separa
+     en dos acciones, mismo campo `activo` que ya usa logistica.html
+     (toggleActivoTema), para que ambos archivos entiendan igual qué es
+     un tema "apagado":
+     (1) toggleActivoTema(temaId, activarAhora) — soft-delete/reactivar
+         vía update({activo}), sin fricción, acción por defecto en el
+         modal de gestión.
+     (2) eliminarTemaDefinitivo(temaId, nSesiones) — hard delete real
+         (doc().delete()), SOLO permitido si nSesiones===0; si tiene
+         sesiones vinculadas, se bloquea con alert() y se pide
+         desactivar primero (para no perder trazabilidad de sesiones ya
+         grabadas con ese temaId).
+     (3) agregarTema() ahora escribe activo:true al crear (antes no
+         incluía ese campo — quedaba undefined, tratado como activo por
+         !==false en logistica.html, así que no rompe nada retroactivo,
+         solo lo deja explícito).
+     (4) Distinción visual de temas inactivos (activo:false): opacidad
+         reducida + badge "Inactivo", tanto en las tarjetas del
+         dashboard (renderDashTemas) como en las filas del modal
+         (renderListaTemasModal). Antes de este cambio, un tema
+         desactivado en logística no se distinguía en absoluto en
+         proyecto.html.
+     No se tocó: logistica.html, bitacora.html (ninguno de los dos
+     necesitaba cambios — ambos ya leían/escribían `activo` de forma
+     consistente entre sí, solo proyecto.html estaba desalineado),
+     estados Edición/Mezcla/Mastering, ni el cálculo de Grabación.
+
+     v5.11b (a pedido de AUDIOLINK — "gestionar equipo desde el dash"):
+     se agrega renderDashEquipo(p), sección colapsable (plegada por
+     defecto, mismo patrón que Alertas) en el dashboard de detalle del
+     proyecto, para agregar/quitar técnicos del catálogo /equipoTecnico
+     SIN abrir el modal grande de edición. Escribe directo con
+     proyectosRef.doc(id).update({equipo:[...]}) — no pasa por
+     guardarProyecto() para no arrastrar el resto de campos del
+     formulario grande. agregarEquipoDash()/quitarEquipoDash() operan
+     sobre el array `equipo` completo (push/splice + update). El select
+     se repuebla con poblarSelectTecnico() (ya agregado en v5.11) tanto
+     al insertar el dashboard como cuando cambia el catálogo en vivo.
+     No se tocó: cambiarEtapaDashboard, el modal de Ingenieros (ya
+     estaba accesible como botón directo, no en el modal grande), ni la
+     barra financiera de solo lectura.
+
      v5.11 (a pedido de AUDIOLINK — "unificar equipo asignado contra
      equipoTecnico"): el campo "Equipo asignado" del proyecto deja de ser
      texto libre de nombre y pasa a un selector contra la colección
@@ -797,13 +848,35 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .tema-modal-row .estados-row select{background:var(--surf,transparent);border:1px solid var(--brd);border-radius:5px;padding:3px 6px;color:inherit;font-size:0.78rem;}
 .tema-modal-row .meta-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:0.74rem;color:var(--muted);}
 .tema-modal-row .btn-eliminar-tema{color:var(--err);cursor:pointer;}
+/* v5.12: distinción visual de tema desactivado (activo:false, mismo
+   campo que usa logistica.html) + acciones separadas (desactivar vs
+   eliminar definitivo) en el modal de gestión. */
+.tema-badge-inactivo{
+  font-size:0.65rem;color:var(--muted);border:1px solid var(--brd);
+  border-radius:999px;padding:1px 7px;font-weight:400;letter-spacing:0.02em;
+}
+.dash-tema-card.tema-inactivo,.tema-modal-row.tema-inactivo{opacity:0.55;}
+.tema-modal-acciones{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:0.76rem;}
 .dash-alertas{display:flex;flex-direction:column;gap:6px;}
 .dash-alerta{
   display:flex;align-items:center;gap:8px;font-size:0.85rem;
   color:var(--warn);background:rgba(217,164,65,0.08);
   border:1px solid rgba(217,164,65,0.25);border-radius:6px;padding:8px 12px;
+  text-decoration:none;cursor:pointer;transition:border-color 0.15s;
 }
+.dash-alerta:hover{border-color:var(--warn);}
 .dash-sin-alertas{font-size:0.85rem;color:var(--muted);}
+/* v5.11: mini-gestión de Equipo asignado en el dashboard */
+.dash-equipo-lista{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.dash-equipo-fila{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:0.85rem;background:var(--surf-light);border:1px solid var(--brd);
+  border-radius:6px;padding:6px 10px;
+}
+.dash-equipo-agregar{display:flex;gap:8px;flex-wrap:wrap;}
+.dash-equipo-agregar select,.dash-equipo-agregar input{flex:1;min-width:120px;}
+.dash-pago-rapido{display:flex;gap:8px;flex-wrap:wrap;}
+.dash-pago-rapido input,.dash-pago-rapido select{flex:1;min-width:110px;}
 .dash-seccion-titulo-click{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
 .dash-seccion-caret{font-size:0.7rem;transition:transform 0.15s;color:var(--faint);}
 .dash-seccion-colapsable.colapsada .dash-seccion-caret{transform:rotate(-90deg);}
@@ -1252,6 +1325,7 @@ db.collection('equipoTecnico').orderBy('nombre').onSnapshot(snap => {
     const sel = row.querySelector('.equipo-tecnico-select');
     if(sel) poblarSelectTecnico(sel, sel.dataset.tecnicoId || '');
   });
+  pintarSelectEquipoDash();
 }, err => console.error('Error escuchando equipoTecnico:', err));
 
 function poblarSelectTecnico(sel, tecnicoIdActual){
@@ -1693,6 +1767,7 @@ function renderDashboardProyecto(p){
     ${renderMiniCalendario(p)}
     <div class="dash-proxima-sesion">${proximaSesion ? `Próxima sesión: ${new Date(proximaSesion.fecha + 'T00:00:00').toLocaleDateString('es-CO')} · ${escapeHtml(proximaSesion.actividad || '')}` : 'No hay sesiones próximas.'}</div>
     ${renderDashTemas(p)}
+    ${renderDashEquipo(p)}
     ${renderDashInstrumentacion(p.instrumentacion, p.instrumentacionGrupos, p.etapaActual)}
     ${renderDashProduccionSesiones(p.etapaActual)}
     ${renderDashAlertas()}
@@ -1755,6 +1830,72 @@ function calcularEstadoGrabacionTema(sesionesDelTema){
   return { estado, texto: partes.join(' · ') };
 }
 
+// v5.11: mini-gestión de "Equipo asignado" directo desde el dashboard,
+// sin abrir el modal grande de edición. Reutiliza equipoTecnicoCache
+// (mismo listener de /equipoTecnico agregado arriba) y escribe
+// directamente sobre p.equipo con updateDoc — no pasa por guardarProyecto()
+// para no arrastrar el resto de campos del formulario grande.
+function renderDashEquipo(p){
+  const equipo = p.equipo || [];
+  const filas = equipo.map((e, i) => `
+    <div class="dash-equipo-fila">
+      <span>${e.rol ? escapeHtml(e.rol) + ': ' : ''}${escapeHtml(e.nombre || '(sin nombre)')}</span>
+      <button class="link-add" onclick="quitarEquipoDash(${i})">✕ Quitar</button>
+    </div>
+  `).join('') || '<div style="color:var(--muted);font-size:0.85rem;">Sin equipo asignado aún.</div>';
+
+  return envolverSeccionColapsable('equipo', '👥 Equipo asignado', `
+    <div class="dash-equipo-lista">${filas}</div>
+    <div class="dash-equipo-agregar">
+      <select id="dashEquipoSelectTecnico"></select>
+      <input type="text" id="dashEquipoRol" placeholder="Rol (ej: Mezcla)">
+      <button class="btn btn-ghost" onclick="agregarEquipoDash()">+ Agregar</button>
+    </div>
+  `, true);
+}
+
+function pintarSelectEquipoDash(){
+  const sel = document.getElementById('dashEquipoSelectTecnico');
+  if(!sel) return;
+  poblarSelectTecnico(sel, '');
+}
+
+async function agregarEquipoDash(){
+  if(!proyectoActualId) return;
+  const sel = document.getElementById('dashEquipoSelectTecnico');
+  const rolInput = document.getElementById('dashEquipoRol');
+  const tecnicoId = sel.value;
+  const rol = rolInput.value.trim();
+  if(!tecnicoId){ alert('Selecciona un técnico del catálogo.'); return; }
+  const t = equipoTecnicoCache.find(x => x.id === tecnicoId);
+  const p = proyectos.find(x => x.id === proyectoActualId);
+  const equipoActual = (p && p.equipo) ? [...p.equipo] : [];
+  equipoActual.push({ rol, nombre: t ? (t.nombre || '') : '', tecnicoId });
+  try{
+    await proyectosRef.doc(proyectoActualId).update({ equipo: equipoActual });
+    sel.value = '';
+    rolInput.value = '';
+  } catch(err){
+    console.error('Error agregando técnico al equipo:', err);
+    alert('No se pudo agregar al equipo. Revisa la consola.');
+  }
+}
+
+async function quitarEquipoDash(index){
+  if(!proyectoActualId) return;
+  const p = proyectos.find(x => x.id === proyectoActualId);
+  if(!p || !p.equipo) return;
+  const equipoActual = [...p.equipo];
+  equipoActual.splice(index, 1);
+  try{
+    await proyectosRef.doc(proyectoActualId).update({ equipo: equipoActual });
+  } catch(err){
+    console.error('Error quitando técnico del equipo:', err);
+    alert('No se pudo quitar del equipo. Revisa la consola.');
+  }
+}
+
+
 function renderDashTemas(p){
   if(!temasDash.length && (p?.cantTemas || 0) <= 0) return '';
   const etapas = [
@@ -1764,7 +1905,10 @@ function renderDashTemas(p){
   ];
   const ordenados = [...temasDash].sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity) || (a.nombre || '').localeCompare(b.nombre || ''));
   const cantManual = p?.cantTemas || 0;
-  const cantReal = temasDash.length;
+  // v5.13: cantReal excluye temas inactivos (activo:false) — antes un
+  // tema desactivado seguía contando como "creado de verdad" en el
+  // mismatch contra cantTemas, pudiendo ocultar un descuadre real.
+  const cantReal = temasDash.filter(t => t.activo !== false).length;
   const mismatch = cantManual > 0 && cantManual !== cantReal
     ? `<div class="dash-temas-mismatch">⚠️ El proyecto dice ${cantManual} tema(s) planeado(s), pero hay ${cantReal} tema(s) creado(s) de verdad. Ajusta el número en "Editar proyecto" o crea/borra temas para que coincidan.</div>`
     : '';
@@ -1773,9 +1917,10 @@ function renderDashTemas(p){
         ${ordenados.map(t => {
           const sesionesDelTema = sesionesDash.filter(s => s.temaId === t.id);
           const grab = calcularEstadoGrabacionTema(sesionesDelTema);
+          const inactivo = t.activo === false;
           return `
-          <div class="dash-tema-card">
-            <div class="nombre">${escapeHtml(t.nombre || 'Sin nombre')}</div>
+          <div class="dash-tema-card ${inactivo ? 'tema-inactivo' : ''}">
+            <div class="nombre">${escapeHtml(t.nombre || 'Sin nombre')}${inactivo ? ' <span class="tema-badge-inactivo">Inactivo</span>' : ''}</div>
             <div class="dash-tema-chips">
               <span class="chip-mini estado-${grab.estado}" title="Grabación: ${grab.texto}">Grabación · ${grab.texto}</span>
               ${etapas.map(e => {
@@ -1939,8 +2084,14 @@ function toggleDashConsentDetalle(){
 
 // v4.24: alertas derivadas de sesionesDash (ya existente) — no requiere
 // listener nuevo.
+// v5.11c (a pedido de AUDIOLINK — "alertas accionables"): cada alerta
+// pasa de texto plano a link directo a logistica.html del proyecto,
+// mismo patrón que "Ver en logística →" del tooltip del mini-calendario
+// (mostrarTooltipDia). No hay deep-link a una sesión puntual porque
+// sinSala/sinTema son conteos agregados, no una sesión específica —
+// logistica.html es donde se resuelven ambos casos.
 function renderDashAlertas(){
-  if(!sesionesDash.length) return '';
+  if(!sesionesDash.length || !proyectoActualId) return '';
   const sinSala = sesionesDash.filter(s => !s.sala || !s.sala.trim()).length;
   const sinTema = sesionesDash.filter(s => !s.temaId).length;
 
@@ -1952,10 +2103,70 @@ function renderDashAlertas(){
 
   return envolverSeccionColapsable('alertas', 'Alertas operativas', `
       <div class="dash-alertas">
-        ${items.map(txt => `<div class="dash-alerta">${txt}</div>`).join('')}
+        ${items.map(txt => `<a class="dash-alerta" href="logistica.html?id=${proyectoActualId}">${txt} — resolver en logística →</a>`).join('')}
       </div>
   `, false);
 }
+
+// v5.11d (a pedido de AUDIOLINK — "pago rápido desde el dash"): mini-form
+// de registro de abono directo en el dashboard, SIN pasar por pagos.html.
+// Escribe en la MISMA ruta y con el MISMO esquema de campos que
+// registrarAbono() en pagos.html (proyectosRef.doc(id).collection('pagos')
+// .add({cotizacionId, monto, fecha, metodo, nota, creadoEn})), para que
+// el listener escucharPagosResumen() ya existente lo detecte solo — no
+// se duplica lógica de cálculo de cobrado/saldo.
+// A propósito NO incluye subida de comprobante (Cloudinary) — ese campo
+// es opcional en el esquema y la subida completa se queda exclusiva de
+// pagos.html, para no duplicar esa pieza pesada en dos archivos.
+function renderPagoRapido(){
+  return envolverSeccionColapsable('pago-rapido', '💰 Registrar pago rápido', `
+    <div class="dash-pago-rapido">
+      <input type="number" id="dashPagoMonto" placeholder="Monto" min="0" step="1000">
+      <input type="date" id="dashPagoFecha">
+      <select id="dashPagoMetodo">
+        <option value="transferencia">Transferencia</option>
+        <option value="efectivo">Efectivo</option>
+        <option value="tarjeta">Tarjeta</option>
+        <option value="otro">Otro</option>
+      </select>
+      <input type="text" id="dashPagoNota" placeholder="Nota (opcional)">
+      <button class="btn btn-ghost" onclick="registrarPagoRapidoDash()">+ Registrar</button>
+    </div>
+    <div style="font-size:0.72rem;color:var(--faint);margin-top:6px;">
+      Para adjuntar comprobante, usa el registro completo en Pagos.
+    </div>
+  `, true);
+}
+
+async function registrarPagoRapidoDash(){
+  if(!proyectoActualId) return;
+  const r = resumenPagos[proyectoActualId];
+  if(!r){ alert('Este proyecto no tiene una cotización aceptada.'); return; }
+  const monto = Number(document.getElementById('dashPagoMonto').value);
+  if(!monto || monto <= 0){ alert('Ingresa un monto válido.'); return; }
+  const fecha = document.getElementById('dashPagoFecha').value || null;
+  const metodo = document.getElementById('dashPagoMetodo').value;
+  const nota = document.getElementById('dashPagoNota').value.trim();
+
+  const data = {
+    cotizacionId: r.cotizacionId,
+    monto,
+    fecha,
+    metodo,
+    nota,
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try{
+    await proyectosRef.doc(proyectoActualId).collection('pagos').add(data);
+    document.getElementById('dashPagoMonto').value = '';
+    document.getElementById('dashPagoNota').value = '';
+  } catch(err){
+    console.error('Error registrando pago rápido:', err);
+    alert('No se pudo registrar el pago. Revisa la consola.');
+  }
+}
+
 
 function escucharPagosResumen(proyectoId, cotizId){
   proyectosRef.doc(proyectoId).collection('pagos')
@@ -2233,6 +2444,7 @@ function renderDetalleContent(){
       <div class="monto-item"><span class="lbl">Cobrado</span><span class="val">${formatCOP(r.cobrado)}</span></div>
       <div class="monto-item saldo ${pagado ? 'pagado' : ''}"><span class="lbl">Saldo</span><span class="val">${formatCOP(r.saldo)}</span></div>
     </div>` : '';
+  const pagoRapidoHtml = r ? renderPagoRapido() : '';
 
   document.getElementById('detalleContent').innerHTML = `
     <span class="tipo-tag">${p.tipo === 'propio' ? 'Proyecto propio' : escapeHtml(p.clienteArtista || 'Cliente')}</span>
@@ -2240,6 +2452,7 @@ function renderDetalleContent(){
     <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
     ${renderDashboardProyecto(p)}
     ${resumenHtml}
+    ${pagoRapidoHtml}
     <div class="detalle-meta">
       <span class="chip">Cliente/Artista: ${escapeHtml(p.clienteArtista || '—')}</span>
       <span class="chip">Prod. Ejecutivo: ${escapeHtml(p.productorEjecutivo || '—')}</span>
@@ -2253,6 +2466,9 @@ function renderDetalleContent(){
         ${p.equipo.map(e => `<span class="equipo-chip">${escapeHtml(e.rol)}: ${escapeHtml(e.nombre)}</span>`).join('')}
       </div>` : ''}
   `;
+  pintarSelectEquipoDash();
+  const fPago = document.getElementById('dashPagoFecha');
+  if(fPago) fPago.value = new Date().toISOString().split('T')[0];
 }
 
 function verSesiones(){
@@ -2761,15 +2977,16 @@ function renderListaTemasModal(){
   cont.innerHTML = ordenados.map((t, i) => {
     const sesionesDelTema = sesionesDash.filter(s => s.temaId === t.id);
     const grab = calcularEstadoGrabacionTema(sesionesDelTema);
+    const inactivo = t.activo === false;
     return `
-    <div class="tema-modal-row">
+    <div class="tema-modal-row ${inactivo ? 'tema-inactivo' : ''}">
       <div class="fila-top">
         <div class="orden-btns">
           <button type="button" title="Subir" ${i === 0 ? 'disabled style="opacity:0.25;"' : ''} onclick="moverTema('${t.id}', -1)">▲</button>
           <button type="button" title="Bajar" ${i === ordenados.length - 1 ? 'disabled style="opacity:0.25;"' : ''} onclick="moverTema('${t.id}', 1)">▼</button>
         </div>
         <input type="text" value="${escapeHtml(t.nombre || '')}" onblur="renombrarTema('${t.id}', this.value)">
-        <span class="btn-eliminar-tema" title="Eliminar tema" onclick="eliminarTema('${t.id}', ${sesionesDelTema.length})">🗑️</span>
+        ${inactivo ? '<span class="tema-badge-inactivo" title="Desactivado en logística — no aparece para sesiones nuevas">Inactivo</span>' : ''}
       </div>
       <div class="estados-row">
         ${etapas.map(e => `
@@ -2782,6 +2999,12 @@ function renderListaTemasModal(){
       </div>
       <div class="meta-row">
         <span>🎙️ Grabación: ${grab.texto}</span>
+      </div>
+      <div class="tema-modal-acciones">
+        ${inactivo
+          ? `<span class="link-add" onclick="toggleActivoTema('${t.id}', true)">↺ Reactivar</span>`
+          : `<span class="link-add" onclick="toggleActivoTema('${t.id}', false)">⏸ Desactivar</span>`}
+        <span class="btn-eliminar-tema" title="${sesionesDelTema.length > 0 ? 'No se puede eliminar: tiene sesiones asociadas' : 'Eliminar definitivamente'}" onclick="eliminarTemaDefinitivo('${t.id}', ${sesionesDelTema.length})">🗑️ Eliminar definitivo</span>
       </div>
     </div>`;
   }).join('');
@@ -2801,6 +3024,7 @@ async function agregarTema(){
     await proyectosRef.doc(proyectoActualId).collection('temas').add({
       nombre,
       orden: ordenMax + 1,
+      activo: true,
       estadoEdicion: 'pendiente',
       estadoMezcla: 'pendiente',
       estadoMastering: 'pendiente'
@@ -2861,13 +3085,38 @@ async function moverTema(temaId, direccion){
   }
 }
 
-async function eliminarTema(temaId, nSesiones){
+// v5.12 (a pedido de AUDIOLINK — "unificar borrado de tema con
+// logistica.html"): reemplaza el hard-delete único por dos acciones
+// separadas, mismo criterio que logistica.html (toggleActivoTema, campo
+// `activo`), para que ambos archivos entiendan igual qué es un "tema
+// apagado":
+//  - toggleActivoTema(): soft-delete/reactivar, sin fricción, siempre
+//    disponible. Es la acción por defecto.
+//  - eliminarTemaDefinitivo(): hard delete real, SOLO ofrecido si el
+//    tema no tiene sesiones vinculadas (nSesiones === 0) — si las
+//    tiene, se fuerza a desactivar primero para no perder trazabilidad
+//    de sesiones ya grabadas con ese temaId.
+async function toggleActivoTema(temaId, activarAhora){
   const tema = temasDash.find(t => t.id === temaId);
   const nombre = tema ? tema.nombre : 'este tema';
-  const aviso = nSesiones > 0
-    ? `"${nombre}" tiene ${nSesiones} sesión(es) asociada(s). Si lo eliminas, esas sesiones quedan con un temaId huérfano (no se borran ni se editan solas — habría que reasignarlas manualmente desde logistica.html). ¿Eliminar de todas formas?`
-    : `¿Eliminar el tema "${nombre}"? Esta acción no se puede deshacer.`;
-  if(!confirm(aviso)) return;
+  const accion = activarAhora ? 'reactivar' : 'desactivar';
+  if(!confirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} el tema "${nombre}"?`)) return;
+  try{
+    await proyectosRef.doc(proyectoActualId).collection('temas').doc(temaId).update({ activo: activarAhora });
+  } catch(err){
+    console.error(err);
+    alert(`No pudimos ${accion} el tema.`);
+  }
+}
+
+async function eliminarTemaDefinitivo(temaId, nSesiones){
+  const tema = temasDash.find(t => t.id === temaId);
+  const nombre = tema ? tema.nombre : 'este tema';
+  if(nSesiones > 0){
+    alert(`"${nombre}" tiene ${nSesiones} sesión(es) asociada(s) — no se puede eliminar definitivamente sin perder esa trazabilidad. Desactívalo en su lugar.`);
+    return;
+  }
+  if(!confirm(`¿Eliminar definitivamente el tema "${nombre}"? Esta acción no se puede deshacer.`)) return;
   try{
     await proyectosRef.doc(proyectoActualId).collection('temas').doc(temaId).delete();
   } catch(err){
