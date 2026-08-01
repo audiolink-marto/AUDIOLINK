@@ -4,66 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Ingeniero</title>
-<!-- AUDIOLINK · ingeniero.html · v1.2
-     v1.2: (1) subtítulo "Panel de [Nombre]" junto al logo AUDIOLINK —
-     usa el campo `nombre` nuevo de ingenieros/{correo} (agregado en
-     proyecto.html v4.19), con fallback al correo si no lo tiene cargado
-     todavía; en modo staff normal (revisión, sin preview) dice "Modo
-     Staff · Revisión" en vez de un nombre. (2) el botón "Abrir bitácora
-     →" ahora manda &from=ingeniero en el link, para que bitacora.html
-     v2.11.2 pueda mostrar un "← Volver a mis proyectos" de regreso acá.
-     No se tocó el guard, el modo preview, ni el resto del listado/
-     detalle/sesiones.
-
-     v1.1: modo vista previa para staff — ?preview=correo. Mismo patrón
-     que portal.html: valida que haya sesión de equipoInterno activa,
-     carga proyectosAsignados del ingeniero en preview (no el listado
-     completo que ve el staff normalmente), muestra banner "👁️ Vista
-     previa" y oculta el botón de cerrar sesión. Se dispara desde el
-     botón 👁️ del modal de Ingenieros en proyecto.html v4.18. No se tocó
-     el guard normal de staff/ingeniero, ni el resto del listado/detalle/
-     sesiones agrupadas por tema.
-
-     v1.0: quinta pieza del login del Inge (v2.10 reglas, bitacora.html
-     v2.11.1 guard+retorno, proyecto.html v4.17 asignación, login.html
-     v1.8 reconoce ingenieros). Este es el "portal" del Inge — mismo
-     patrón visual/estructural que portal.html (header con VU meter,
-     listado de proyectos en grid, detalle con lista, mismas variables
-     --bg/--surf/--gold de Oro Profundo, mismo tema claro/oscuro con
-     localStorage), pero con diferencias a propósito:
-     (1) NO tiene login propio embebido — a diferencia de portal.html
-     (que usa una identidad de cliente separada), el Inge comparte el
-     mismo login.html/Auth que el staff. Este archivo solo trae el guard
-     de sesión (mismo patrón que logistica.html/proyecto.html), sin
-     pantalla de login ni fondo de neuronas — si no hay sesión válida,
-     redirige a login.html?next=ingeniero.html.
-     (2) Acepta equipoInterno (staff, para poder revisar/dar soporte) O
-     ingenieros (acotado por proyectosAsignados[]) — mismo doble criterio
-     que ya usa bitacora.html v2.11.
-     (3) Contenido técnico, no comercial: SIN cotización, SIN pagos, SIN
-     línea de tiempo de etapas (eso es contenido de cliente). En su lugar,
-     las sesiones se agrupan por TEMA (canción) — el modelo que se armó
-     en logistica.html v2.39/bitacora.html v2.9 — y cada sesión tiene un
-     botón directo "Abrir bitácora →" hacia bitacora.html?p=X&s=Y. Fechas/
-     horas/sala usan JetBrains Mono (--M) en vez de DM Sans, como toque
-     técnico sutil (lectura tipo timecode/rack), y las tarjetas de sesión
-     llevan un acento de borde izquierdo dorado (referencia visual a un
-     cable de patch) en vez del borde parejo de .sesion-card del portal
-     de cliente.
-     REQUIERE una regla de Firestore nueva: allow read en /proyectos/
-     {proyectoId} para esIngenieroDe(proyectoId) — hoy el rol ingeniero
-     solo puede leer sesiones/tomas/temas, no el doc del proyecto en sí
-     (necesario para mostrar el nombre del proyecto en el listado). Se
-     agrega en firestore_rules1.rules v2.11, comentada aparte para que
-     quede claro qué campos expone (nombre, cliente, narrativa — nunca
-     cotizaciones/pagos, que son subcolecciones con sus propias reglas
-     sin acceso de ingeniero). -->
+<!-- AUDIOLINK · ingeniero.html · v1.4
+     v1.4: la tarjeta de cada sesión ahora muestra también la hora real
+     de llegada (horaInicio − tiempoSetupMin) y la duración total
+     (horaFin − horaInicio + tiempoSetupMin), usando horaAMinutos()/
+     minutosATexto() de utils.js — mismo campo tiempoSetupMin que ya
+     existe en logistica.html/bitacora.html. Si la sesión no tiene
+     tiempoSetupMin (o es 0) no se muestra la línea de llegada, solo la
+     duración total normal. No se tocó ninguna otra lógica del panel.
+     Panel del ingeniero: staff (equipoInterno) o ingeniero
+     (proyectosAsignados[]) ven sus proyectos agrupados por tema, con
+     acceso directo a bitacora.html por sesión. Incluye modo vista
+     previa (?preview=correo) para staff.
+     Historial completo de versiones: ver CHANGELOG.md -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="utils.js"></script>
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -215,11 +175,8 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const proyectosRef = db.collection('proyectos');
 
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
-}
+// v1.3: escapeHtml() ahora vive en utils.js (compartida con proyecto.html
+// y bitacora.html) — se quitó la copia local, mismo comportamiento.
 
 function toggleTema(){
   const actual = document.documentElement.getAttribute('data-tema') || 'dark';
@@ -407,11 +364,32 @@ async function cargarSesionesAgrupadasPorTema(proyectoId){
           <div class="tema-grupo-titulo">🎼 ${escapeHtml(g.nombre)}</div>
           ${g.items.map(s => {
             const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+            // v1.4: hora real de llegada (inicio - setup) y duración total
+            // (fin - inicio + setup), a partir de tiempoSetupMin. Si no
+            // hay horaInicio/horaFin válidas, se muestra el rango tal
+            // cual (mismo comportamiento de antes de v1.4).
+            const setupMin = Number(s.tiempoSetupMin) || 0;
+            const iniMin = horaAMinutos(s.horaInicio);
+            const finMin = horaAMinutos(s.horaFin);
+            let lineaLlegada = '';
+            let lineaTotal = '';
+            if(iniMin !== null && finMin !== null){
+              if(setupMin > 0){
+                const llegadaMin = ((iniMin - setupMin) % 1440 + 1440) % 1440;
+                const hh = String(Math.floor(llegadaMin / 60)).padStart(2, '0');
+                const mm = String(llegadaMin % 60).padStart(2, '0');
+                lineaLlegada = `<div class="meta">🚗 Llegada: ${hh}:${mm}</div>`;
+              }
+              const totalMin = (finMin - iniMin + 1440) % 1440 + setupMin;
+              lineaTotal = `<div class="meta">⏱️ Total: ${minutosATexto(totalMin)}</div>`;
+            }
             return `
             <div class="sesion-card">
               <div>
                 <h4>${escapeHtml(s.actividad || 'Sesión')}</h4>
                 <div class="meta">${fechaLegible} · ${escapeHtml(s.sala || '—')} · ${escapeHtml(s.horaInicio || '--:--')}–${escapeHtml(s.horaFin || '--:--')}</div>
+                ${lineaLlegada}
+                ${lineaTotal}
               </div>
               <button class="btn" onclick="location.href='bitacora.html?p=${proyectoId}&s=${s.id}&from=ingeniero'">Abrir bitácora →</button>
             </div>`;

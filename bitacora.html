@@ -3,237 +3,319 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación</title>
-<!-- AUDIOLINK · bitacora.html · v2.11.2
-     v2.11.2: modo quirófano — si la URL trae &from=ingeniero (lo manda
-     ingeniero.html v1.2 en su botón "Abrir bitácora →"), se muestra un
-     link "← Volver a mis proyectos" arriba de todo, que regresa a
-     ingeniero.html. Si no viene ese parámetro (logistica.html, QR de
-     sala, pestaña de Reportes, etc. no lo mandan) no se muestra nada —
-     se preserva el comportamiento actual para esos otros flujos. No se
-     tocó el guard, las tabs, ni ninguna otra función existente.
-
-     AUDIOLINK · bitacora.html · v2.11.1
-     v2.11.1: login.html v1.8 ya soporta ?next= — se actualiza el
-     redirect del guard para mandarlo directo (antes solo dejaba el
-     respaldo en sessionStorage, comentado como pendiente en v2.11). El
-     respaldo se conserva por si algún flujo futuro pierde el parámetro.
-     Sin más cambios de lógica.
-
-     AUDIOLINK · bitacora.html · v2.11
-     v2.11: segunda pieza del login del Inge (v2.10 fue las reglas). Se
-     agrega firebase-auth-compat.js y el GUARD DE SESIÓN: bitacora.html
-     deja de ser standalone/sin login. Acepta equipoInterno (staff,
-     acceso total, para que Marto pueda revisar/soportar cualquier
-     sesión) o ingenieros (rol acotado — solo si el proyectoId de la URL
-     está en su proyectosAsignados[], ver reglas v2.10). El link ?p=&s=
-     se conserva tal cual como atajo directo a una sesión puntual, solo
-     que ahora pasa primero por el guard. Pendiente, cuando se toque
-     login.html: soporte de retorno post-login (?next=) — por ahora se
-     guarda el link original en sessionStorage
-     ('audiolink_redirect_after_login') por si login.html llega a
-     usarlo, pero no rompe nada si no lo hace. No se tocó cargar(),
-     cargarNotasTema, guardarNotaEtapa ni ninguna otra lógica — el guard
-     es una capa nueva encima, cargar() se sigue llamando exactamente
-     igual que antes, solo que ahora después de validar acceso.
-
-     AUDIOLINK · bitacora.html · v2.10
-     v2.10: ajuste de fluidez visual a pedido del usuario, sobre lo que
-     quedó en v2.9/v2.9.1. Dos cambios, solo HTML/CSS + las líneas de
-     texto que ya existían (no toca cargarNotasTema, guardarNotaEtapa,
-     inputList ni ninguna otra lógica): (1) la ACTIVIDAD pasa a ser el
-     título visual principal de la página (`.actividad-titulo`, grande,
-     dorado) — el antiguo h1 "Bitácora de Grabación" baja a un eyebrow
-     chico arriba; fecha/sala quedan en el subtítulo aparte. (2) las 5
-     tabs se agrupan visualmente en 2 bloques con separador y etiqueta:
-     "Esta sesión" (🎛️ Bitácora, 🎙️ Grabación) vs "🎼 {nombre del tema}"
-     (✂️ Edición, 🎚️ Mezcla, 🏁 Mastering) — o "🎼 Sin tema" si la sesión
-     no tiene tema asignado. La idea es que sea obvio de un vistazo qué
-     pestañas afectan la sesión puntual y cuáles afectan la canción
-     completa. No se tocó ningún cálculo, guardado en Firestore, ni las
-     reglas.
-
-     AUDIOLINK · bitacora.html · v2.9.1
-     v2.9.1: fix — v2.9 movió Edición/Mezcla/Mastering al tema pero nunca
-     mostraba en pantalla A CUÁL tema pertenecía la sesión (usa
-     temaNombre, ya guardado como snapshot en el doc de sesión desde
-     logistica.html v2.39 — no requiere leer el tema aparte). Se agrega
-     línea "🎼 Tema: {nombre}" bajo el subtítulo, visible solo si la
-     sesión tiene tema asignado. No se tocó cargarNotasTema, guardarNotaEtapa
-     ni ninguna otra lógica de v2.9.
-
-     AUDIOLINK · bitacora.html · v2.9
-     v2.9: Fase 2 del sistema de temas — Edición/Mezcla/Mastering dejan de
-     vivir en la sesión y pasan al TEMA (proyectos/{p}/temas/{temaId}),
-     porque un tema (canción) suele tener varias sesiones de grabación
-     pero una sola edición/mezcla/mastering. Al cargar, si la sesión tiene
-     temaId (asignado desde logistica.html v2.39), se trae el doc del
-     tema y esas 3 pestañas leen/escriben ahí (guardarNotaEtapa separa el
-     caso 'Grabacion', que sigue intacto en la sesión, de los otros 3).
-     Si la sesión NO tiene tema asignado, las 3 pestañas se deshabilitan
-     con un aviso ("Asígnale un tema desde Logística") — decisión
-     explícita del usuario, sin fallback ni auto-creación de tema desde
-     acá. No había notas previas que migrar (confirmado con el usuario).
-     REQUIERE AJUSTAR LAS REGLAS DE FIRESTORE: se angosta la excepción
-     sin login de sesiones (ya no toca notasEdicion/Mezcla/Mastering, solo
-     inputList/notasGrabacion) y se agrega una excepción nueva, mismo
-     patrón, sobre /temas/{temaId} (get sin login + update angosto a esos
-     3 campos). Ver bloque de reglas actualizado al final de este
-     archivo. No se tocó Bitácora (Preamp/Gain), inputList, la sección de
-     Añadir/Borrar canal, ni la pestaña Grabación/tomas.
-
-     AUDIOLINK · bitacora.html · v2.8
-     v2.8: se traen a este archivo las pestañas ✂️ Edición, 🎚️ Mezcla y
-     🏁 Mastering (antes vivían en el modal de Reportes de logistica.html)
-     — decisión consciente del usuario: como el Inge es siempre la misma
-     persona y ya usa este link para todo, prefiere tenerlo junto acá en
-     vez de repetir el input list en 2 archivos. Además, la pestaña
-     🎙️ Grabación (antes "Tomas") ahora SÍ puede leer y borrar tomas ya
-     registradas (antes era create-only) — se reemplazó la lista local
-     `tomasLocalSesion` (solo mostraba lo agregado en la carga de página
-     actual) por una lista en vivo vía onSnapshot, con botón 🗑️ y
-     generación real de numero/código (ej. BATERIA_T01), ya que ahora sí
-     se puede leer el histórico sin duplicar. ESTO REQUIERE AMPLIAR LAS
-     REGLAS DE FIRESTORE de este link sin login (antes solo permitía
-     update() de `inputList`): ahora también necesita permitir update()
-     de notasEdicion/notasMezcla/notasMastering, y read+delete en
-     sesiones/{id}/tomas. Ver el bloque de reglas actualizado al final de
-     este archivo — cópialo tal cual a Firebase Console → Firestore →
-     Rules. RIESGO ACEPTADO explícitamente por el usuario: al ser un link
-     sin contraseña, cualquiera que lo obtenga podría ahora también leer/
-     borrar tomas y editar notas de mezcla/mastering de esa sesión (antes
-     solo podía tocar el input list). No se tocó Bitácora (Preamp/Gain),
-     inputList, ni la sección de Añadir/Borrar canal.
-
-     AUDIOLINK · bitacora.html · v2.7
-     v2.7: el badge de cada fila ya no muestra CH${it.canal} (Ch interno)
-     sino la POSICIÓN según el orden (1,2,3...), igual que en
-     logistica.html (editor de sesión y Reportes > Bitácora). El Ch
-     interno (it.canal) se sigue guardando y usando tal cual para el
-     matching de Preamp/Gain en logistica.html — acá solo cambió lo que
-     se muestra en pantalla, ningún cálculo ni el guardado en Firestore.
-
-     AUDIOLINK · bitacora.html · v2.6
-     V2.6: sistema tipo consola digital para sesiones con muchos canales
-     (grabaciones en bloque, ej. percusión con ~20 canales): (1) color fijo
-     por grupo de "Instrumento" (paleta de 8 tonos, se elige por hash del
-     texto — el mismo nombre siempre sale del mismo color), aplicado al
-     borde del grupo y sus chips; (2) grupos colapsables (clic en el
-     encabezado), estado solo local de la pantalla, no se guarda; (3)
-     toolbar sticky arriba con buscador en vivo (nombre/Ch/Canal Interfaz)
-     y chips de navegación rápida por grupo (clic = scroll directo); (4)
-     cada canal pasa de tarjeta apilada a fila compacta tipo "channel
-     strip" (CH · Instrumento · Interfaz · Preamp · Gain en una sola
-     fila de 4 columnas, 2 en pantallas angostas). No cambia ningún dato
-     ni el guardado — mismo `inputListActual`/`orden`/`instrumento` de
-     v2.5, solo cómo se organiza y se ve.
-     V2.5: (1) nuevo campo "Instrumento (agrupar)" por canal — texto
-     libre, cuando dos o más renglones consecutivos (ya ordenados) tienen
-     el mismo texto ahí, se agrupan visualmente bajo un encabezado común
-     con borde dorado (mic+DI del mismo instrumento, aunque vengan de
-     piezas distintas del catálogo — no depende de ninguna estructura
-     fija); (2) botones ▲▼ por canal para reordenar la lista a mano —
-     mueven el renglón intercambiando su nuevo campo `orden` con el
-     vecino inmediato en el orden visual actual, el "Ch" interno (usado
-     para el matching de Preamp/Gain por nombre) nunca se toca. Ambos
-     campos (`orden`, `instrumento`) viajan en el mismo update() de
-     guardar() sobre `inputList`, sin cambiar las reglas de Firestore.
-     Sesiones viejas sin `orden` lo reciben por defecto = su Ch al cargar.
-     V2.4: se agrega campo "Canal Interfaz" a cada tarjeta (input físico
-     real en la interfaz de audio, distinto del Ch consecutivo que ya
-     traía cada renglón) — mismo patrón que Preamp/Gain: se guarda como
-     `canalInterfaz` dentro de cada ítem de `inputList`, viaja en el mismo
-     update() de guardar(), y también se incluye por defecto (vacío) en
-     los canales manuales añadidos con "➕ Añadir canal". No se tocó
-     ninguna otra lógica ni las reglas de Firestore (siguen permitiendo
-     solo tocar el campo `inputList`, este cambio va dentro de ese mismo
-     campo).
-     V2.3: en la sección Bitácora, botón "➕ Añadir canal" al final de la
-     lista — pensado para cuando el ING necesita un canal extra en plena
-     grabación que no estaba en la instrumentación original (ej. Caja
-     directa + mic). El canal nuevo entra con número consecutivo al
-     último del inputList, nombre en texto libre (placeholder "Ej: Caja
-     Directa") y Preamp/Gain vacíos igual que los demás. Solo los canales
-     agregados así llevan botón "🗑️" para borrarlos — los que ya traía
-     el inputList generado por logistica.html no se pueden borrar desde
-     acá. Se guarda con el mismo botón "Guardar bitácora" y el mismo
-     `sesionRef.update({inputList: inputListActual})' de siempre — no se
-     tocó `guardar()`, la sección Tomas, ni ninguna otra lógica. La regla
-     de Firestore sugerida ya solo permite tocar el campo `inputList` sin
-     login, así que no hace falta cambiarla.
-
-     AUDIOLINK · bitacora.html · v2.2
-     V2.2: nuevo campo de texto libre "Nombre/código en el DAW" (opcional)
-     en el formulario de Tomas. Se guarda como `codigoDaw` junto a los
-     demás campos de la toma — coexiste con (no reemplaza) el sistema de
-     numero/codigo automático de logistica.html (que esta página nunca
-     generó, ver v2.1). Se muestra en el resumen de confirmación y en la
-     lista local de tomas registradas en esta sesión de trabajo. Se
-     actualizó también la regla de Firestore sugerida al final del
-     archivo (esquema de create en /tomas) para incluir el campo nuevo —
-     hay que volver a pegarla en Firebase Console si ya habías copiado la
-     versión anterior. Mismo campo agregado en logistica.html v2.7. No se
-     tocó ninguna otra lógica.
-     V2.1: se construye la sección "Tomas" (el shell ya existía desde
-     v2.0, pero sin formulario). Selector de instrumento vía
-     construirOpcionesInstrumento() — mismo criterio que logistica.html
-     v2.6: si el grupo NO está marcado "individual" da la opción del
-     grupo completo (ej. "Bronces"); si SÍ está marcado, expande usando
-     el snapshot `instrumentacionSesionPiezas` guardado por logistica.html
-     v2.5 (ej. "Guitarra", "Bajo"). Luego estrellas + Usar/Descartar +
-     nota, y antes de guardar se muestra el resumen de confirmación
-     ("Vas a registrar: ...") con Confirmar/Revisar. Al confirmar, se
-     hace add() a sesiones/{id}/tomas (create-only, no se puede leer,
-     editar ni borrar desde este link). Esta sección NO genera
-     numero/codigo (ej. BATERIA_T01) porque, al no poder leer el
-     histórico de tomas por la regla de Firestore, cualquier conteo
-     local sería incorrecto o duplicado entre distintas cargas de
-     página — se deja sin código y logistica.html lo muestra igual,
-     usando el nombre del instrumento como fallback (ya lo hacía). No
-     se tocó la sección Bitácora (Preamp/Gain), inputList, ni ninguna
-     otra lógica existente.
-     V2.0: Página standalone, SIN el sistema logueado de logistica.html (sin
-     firebase-auth, sin listado de proyectos). Se abre con
-     ?p={proyectoId}&s={sesionId} — usa el ID de sesión que ya genera
-     Firestore como "secreto" (imposible de adivinar por fuerza bruta),
-     en vez de armar un sistema de tokens o colecciones nuevas.
-
-     DOS SECCIONES:
-     1. Bitácora — lee el inputList de esa sesión puntual, permite llenar
-        Preamp + Gain por canal. Guarda con update() sobre el documento
-        de la sesión, permitido solo si el ÚNICO campo modificado es
-        `inputList` (regla de Firestore).
-     2. Tomas (v2.0) — mismo formulario que logistica.html (instrumento,
-        rating, usar/descartar, nota). El selector de instrumento usa
-        `instrumentacionSesion` + `instrumentacionSesionIndividual` +
-        `instrumentacionSesionPiezas` (snapshot que logistica.html v2.5
-        guarda en la sesión) para expandir por pieza los grupos marcados
-        individual, igual que hace logistica.html. Antes de guardar, se
-        muestra un resumen de confirmación ("Vas a registrar: ...") con
-        botones Confirmar/Revisar — es el único punto de reversa que
-        tiene el ingeniero, porque una vez confirmado, la toma se crea
-        con `add()` (create-only) y no se puede editar ni borrar desde
-        este link (solo desde logistica.html, con login).
-
-     Ninguna de las dos secciones puede ver ni tocar ninguna OTRA sesión,
-     proyecto, nota, cliente ni dato del sistema. Requiere 2 reglas de
-     Firestore sin auth (ver comentario al final): (a) get + update
-     angosto en sesiones/{id} (igual que v1.0), (b) create-only, con
-     validación de esquema, en sesiones/{id}/tomas — sin read, sin
-     update, sin delete sin login. No se tocó proyecto.html, Cloudinary
-     ni Storage. -->
+<title>Audiolink — Bitácora de Grabación (v2.68)</title>
+<!-- AUDIOLINK · bitacora.html · v2.67
+     v2.67: Vista Consola — la tarjeta de cada canal (.consola-strip) no
+     mostraba el color de su subgrupo: las reglas .consola-strip.manual/
+     .checklist fijaban border-color/background a --gold/--ok siempre,
+     tapando la variable --sgc que ya llegaba heredada desde el wrapper
+     .consola-subgrupo-col. Ahora usan var(--sgc,var(--gold)) y
+     var(--sgc-bg,var(--gold-bg)) (mismo patrón para checklist con --ok),
+     así que un canal CON subgrupo tiñe borde+fondo con el color de ese
+     subgrupo, y uno SIN subgrupo se ve idéntico a antes (fallback a
+     gold/ok). No se tocó Vista Editar ni ningún otro color.
+     v2.66: los subgrupos (ej. "Bombo" dentro de "Batería") ahora tienen
+     su PROPIO color (colorParaSubgrupo, paleta PALETA_SUBGRUPOS —
+     tonos neón/fríos, a propósito distintos de PALETA_GRUPOS) en vez de
+     heredar el color del grupo padre. Se aplica en Vista consola
+     (.consola-subgrupo-col/-titulo) y Vista editar (.subgrupo-header-edit)
+     vía la nueva variable CSS --sgc, con fallback a --gc (grupo) y luego
+     a --muted si no hay subgrupo — así un canal sin subgrupo se ve
+     idéntico a como se veía antes. No se tocó armarSubgruposVisuales(),
+     armarGruposVisuales(), ni el guardado/estructura de datos.
+     v2.65: fix — los subgrupos (.consola-subgrupo-col/-titulo en Vista
+     Consola, .subgrupo-header-edit en Vista Editar) no heredaban el
+     color del grupo padre (--gc), quedaban con borde/texto gris fijo.
+     Ahora referencian var(--gc,...) igual que el resto de elementos de
+     grupo — hereda automático por CSS, no se tocó JS.
+     v2.64: fix mobile — en la tira de canal de Vista Editar (.strip-top),
+     el input de nombre no tenía min-width:0, así que su ancho mínimo
+     intrínseco empujaba fuera de la fila a los botones ▲▼ de reordenar
+     (y 🗑️ en canales manuales) en pantallas angostas. Ahora el input se
+     achica y esos botones quedan con flex-shrink:0 (siempre visibles).
+     Solo CSS — no toca moverCanal(), renderInputList() ni el modelo de
+     datos.
+     v2.37
+     v2.37: ahora también se puede asignar/editar subgrupo en canales
+     que vienen del checklist (no solo manuales) — nuevo bloque
+     `.strip-vinculo-check` (verde, como el tag "CHECK LIST") con un
+     input de subgrupo suelto, sin el selector "Vincular a grupo" que
+     solo aplica a canales manuales. Escribe en el mismo
+     inputListActual[i].subgrupoCatalogo de siempre, así que consola,
+     Editar y logistica.html lo reflejan sin tocar nada más. Útil para
+     casos puntuales sin tener que ir al catálogo en proyecto.html. No
+     toca orden, cálculo ni Firestore.
+     v2.36: el Inge ahora puede asignar subgrupo también a sus canales
+     manuales — nuevo input de texto libre "Subgrupo (ej: Bombo)" dentro
+     de .strip-vinculo (solo visible para it.manual, junto al selector
+     "Vincular a grupo" que ya existía). Escribe directo en
+     inputListActual[i].subgrupoCatalogo — mismo campo que ya usa
+     armarSubgruposVisuales(), así que no hizo falta tocar esa función:
+     los subgrupos manuales se ven agrupados en consola y en Editar
+     exactamente igual que los que vienen del catálogo. Usa onblur (no
+     oninput) para no perder el foco del campo en cada tecla. No toca
+     orden, cálculo ni el resto de strip-vinculo.
+     v2.35: vista Editar — mismo subgrupoCatalogo ya usado en consola
+     (v2.34), pero acá como lista vertical: se inserta un mini-
+     encabezado de texto ("— Bombo —", .subgrupo-header-edit) antes de
+     la primera tarjeta de cada tramo con el mismo subgrupo, dentro del
+     grupo. Sin subgrupos asignados, no aparece nada nuevo (idéntico a
+     antes). No toca orden, cálculo ni Firestore.
+     v2.34: vista consola — dentro de cada grupo, las tiras ahora se
+     sub-agrupan por `subgrupoCatalogo` (nuevo campo que viaja desde
+     instrumentacion.js v1.4 → logistica.html v2.62) en mini-columnas
+     separadas horizontalmente (borde punteado + mini-título), mismo
+     patrón visual que ya existía para los grupos principales. Se agrega
+     armarSubgruposVisuales() (mismo criterio que armarGruposVisuales:
+     consecutivos con igual etiqueta se juntan). Canales sin subgrupo
+     salen exactamente igual que antes (sin wrapper extra). Vista Editar
+     no se tocó en este cambio. No toca orden, cálculo ni Firestore.
+     v2.33: en vista Edición (modoVista==='editar'), los canales manuales
+     (it.manual===true) ahora muestran una etiqueta breve "✋ Canal
+     generado por ING" debajo del nombre — antes solo se distinguían en
+     modo consola (tag-manual/tag-checklist). Pensado para móvil: texto
+     corto, en su propia línea, no afecta el layout de strip-top. No
+     toca lógica de orden, cálculo ni Firestore. No tocó lo demás.
+     v2.32: (1) cronoGuardar() de la sesión de Grabación ahora también
+     guarda `ingenieroAutor` (mismo patrón que `autor` en Edición/Mezcla/
+     Mastering desde v2.30) — antes solo se guardaba duracionRealMin, el
+     ingeniero que grabó no quedaba registrado. (2) Nuevo listado dentro
+     del dashboard resumen: "Sesiones de Grabación del tema" — consulta
+     proyectos/{p}/sesiones filtrando por temaId (query nueva, no existía
+     antes) y muestra fecha, sala, duración real e ingeniero de cada
+     sesión de grabación del tema, con link para abrir cada una. Requiere
+     ajuste de reglas de Firestore (allow list) — ver nota al final del
+     archivo. No se tocó ninguna otra lógica de cálculo/guardado.
+     v2.31: dos ajustes de UI, sin tocar lógica de cálculo/guardado.
+     (1) El cronómetro de la pestaña Grabación (#cronoBox) ahora lleva
+     un label chico arriba ("⏱️ Duración total de la sesión (no por
+     toma)") para que no se confunda con el tiempo de una toma
+     individual — mismo cronoGuardar()/duracionRealMin de siempre, solo
+     se agregó el texto. (2) Se agrega un dashboard resumen colapsable
+     (#dashBox, arriba de las pestañas, empieza abierto) con 4 tarjetas:
+     duración planeada vs real, tomas registradas (total + con rating
+     puesto), progreso del tema en Post-producción (conteo de sesiones
+     Edición/Mezcla/Mastering, o aviso "Sin tema asignado" si aplica) y
+     estado de las notas de grabación (Pendientes/Registradas). Es 100%
+     de lectura: renderDashboard() solo lee sesionData/temaData/
+     tomasReporte que ya se cargan por las funciones existentes (cargar,
+     suscribirTomas, cargarNotasTema) — no agrega ninguna lectura ni
+     escritura nueva a Firestore, ni toca reglas de seguridad.
+     v2.30: cuatro ajustes de UI, sin tocar lógica de cálculo/guardado
+     salvo lo indicado. (1) El cronómetro general (#cronoBox), antes
+     flotante arriba de TODAS las pestañas, ahora vive SOLO dentro de la
+     pestaña Grabación (deja de tener sentido en Bitácora/Edición/Mezcla/
+     Mastering, que ya tienen su propio cronómetro por etapa desde v2.29)
+     — mismo cronoGuardar()/duracionRealMin de siempre, solo cambia dónde
+     vive en el HTML/CSS (deja de ser position:fixed). (2) "Vista consola"
+     pasa a ser el modo por defecto de la pestaña Bitácora (antes "Editar";
+     modoVista='consola' en vez de 'editar' — el usuario sigue pudiendo
+     tocar el botón para volver a Editar). (3) Cada entrada del historial
+     de sesiones de trabajo (Edición/Mezcla/Mastering, v2.29) ahora guarda
+     también `autor` (displayName si existe, si no el email de
+     auth.currentUser), mostrado debajo de la fecha — entradas viejas sin
+     `autor` simplemente no lo muestran, no requiere cambio de reglas de
+     Firestore (el campo ya viaja dentro del objeto de `sesiones${Etapa}`,
+     que las reglas no inspeccionan por dentro). (4) Distinción visual
+     entre etapas de Grabación (Bitácora+Grabación) y Post-producción
+     (Edición/Mezcla/Mastering): etiqueta de sección arriba de cada grupo
+     de pestañas + acento de color propio (dorado para Grabación, azul
+     nuevo --accent2 para Post-producción) en pestaña activa, botón "+
+     Nueva sesión" y fecha del historial — todo CSS, no toca ningún dato.
+     v2.29: se agrega, dentro de cada pestaña de etapa (Edición/Mezcla/
+     Mastering), un historial de "sesiones de trabajo" cronometradas —
+     antes solo existía UN cronómetro (#cronoBox, arriba) para la sesión
+     de grabación completa. Ahora cada etapa tiene su propio botón
+     "+ Nueva sesión" -> mini-cronómetro (Iniciar/Pausar/Reiniciar) con
+     una nota opcional -> "Finalizar y guardar" agrega una entrada
+     {fecha, minutos, nota} al array `sesiones${Etapa}` del documento del
+     TEMA (arrayUnion, no reemplaza el array completo -> no choca si dos
+     pestañas escriben a la vez), mismo patrón/documento que ya usan
+     `notasEdicion/Mezcla/Mastering` (no se tocan, siguen siendo la nota
+     general de estado de la etapa, aparte del historial nuevo). Solo se
+     permite una sesión abierta a la vez POR ETAPA: el botón "+ Nueva
+     sesión" de esa etapa se deshabilita mientras el cronómetro esté
+     abierto sin guardar/cancelar (Edición y Mezcla sí pueden tener cada
+     una su propio cronómetro corriendo en simultáneo, son etapas
+     independientes). No se tocó el cronómetro de arriba (#cronoBox /
+     duracionRealMin) ni tomas/canales ni ninguna otra lógica. Requiere
+     ampliar la regla de Firestore del match de /temas/{temaId} para
+     incluir los 3 campos nuevos — ver bloque de reglas sugeridas al
+     final del archivo.
+     v2.28: ajuste sobre v2.27 — la etiqueta "Interfaz" no pasa a decir
+     "Entrada" sino "Interfaz IN" (se mantiene la palabra "Interfaz",
+     más corto que "Entrada de Interfaz"). Campo interno `canalInterfaz`
+     sin cambios. No se tocó nada más.
+     v2.27: tres ajustes de UI en la tarjeta de canal y uno nuevo de
+     sesión, sin tocar nada más. (1) El campo "Gain" ahora muestra un
+     sufijo fijo "dB" al lado del input (placeholder pasa de "-6dB" a
+     "-6"); el dato sigue siendo texto libre en `gain`, así que canales
+     ya guardados con "-6dB" de versiones viejas se siguen viendo bien
+     (solo queda el "dB" repetido visualmente, no rompe nada). (2) La
+     etiqueta visible del campo "Interfaz" pasa a decir "Entrada" — el
+     campo interno sigue siendo `canalInterfaz`, mismo dato, mismo
+     guardado, no afecta sesiones viejas. (3) Se agrega un cronómetro de
+     sesión flotante (#cronoBox, esquina superior derecha, se apila
+     arriba del contenido en mobile): Iniciar/Pausar/Reiniciar corren
+     100% en memoria del navegador, sin ninguna escritura a Firestore.
+     Un botón aparte "Finalizar y guardar" escribe una sola vez el total
+     en minutos como `duracionRealMin` en el documento de la sesión
+     (mismo patrón que `tiempoSetupMin` de v2.22/onCambioSetup) — nada
+     se guarda automáticamente con Pausar ni Reiniciar. No se tocó
+     ninguna otra lógica de la bitácora.
+     v2.26: el campo "Preamp" de cada canal deja de ser texto libre —
+     ahora es un selector con el catálogo de preamps de la sala de esta
+     sesión (estudios.html v1.6: salaA/B/C.preamps), + número de canal
+     físico, + opción "+ Personalizado" para anotar uno que no esté en
+     el catálogo (queda solo en esta sesión, no se guarda de vuelta al
+     catálogo del estudio). Se agrega verificarConflictoPreamp(): aviso
+     NO bloqueante (nunca impide guardar) si el mismo preamp+canal ya
+     está usado por otra sesión del mismo estudio+sala+fecha (cualquier
+     proyecto), vía collectionGroup('sesiones'). ⚠️ Esto requiere que las
+     reglas de Firestore permitan esa lectura entre proyectos; si no,
+     falla en silencio (try/catch) y simplemente no aparece la
+     advertencia — no rompe nada más de la bitácora.
+     v2.25: se quita el campo "Instrumento" (texto libre) de la tarjeta
+     de canal — era redundante con "Vincular a grupo", que ya identifica
+     el canal contra el catálogo real del proyecto. Los campos restantes
+     quedan en el orden Mic → Preamp → Gain → Interfaz (antes Interfaz →
+     Mic → Preamp → Gain). No se borra el dato viejo `instrumento` de
+     Firestore (sigue funcionando como respaldo de agrupación por color
+     en etiquetaGrupoDe() y en el buscador, para canales ya guardados
+     antes de este cambio) — simplemente ya no se muestra ni se edita
+     desde acá. Un canal manual nuevo sin "Vincular a grupo" queda sin
+     grupo de color hasta que se vincule (antes podía agruparse por el
+     texto de instrumento).
+     v2.24: los nombres de grupo de instrumentación ahora se resuelven con
+     labelGrupo(), que primero mira instrumentacionGrupos del proyecto
+     (lo editado en proyecto.html v5.0 — agregar/renombrar/eliminar
+     grupos) y si no encuentra ahí, cae al diccionario fijo
+     GRUPOS_INSTRUMENTACION_LABELS de siempre. De paso, el selector de
+     grupo en el formulario de toma ya no se limita a las 7 claves fijas:
+     ahora lista cualquier clave real que tenga piezas en el proyecto
+     (incluye grupos personalizados). No se tocó la lógica de tomas.
+     v2.23: horaAMinutos() y minutosATexto() se movieron a utils.js
+     (compartidas ahora con ingeniero.html y logistica.html) — se quitó
+     la copia local de acá, mismo comportamiento, nada más cambió.
+     v2.22: se agrega un bloque grande arriba de la bitácora (#horaSetupBox,
+     antes de las pestañas) con: (1) la hora de la sesión en grande
+     ("14:00 – 18:00"), (2) un selector "Set-up necesario" (0/15/30/45/60
+     min, mismo campo `tiempoSetupMin` que ahora también vive en
+     logistica.html v2.52 — el ingeniero puede ajustarlo acá si la
+     realidad difiere de lo planeado, se guarda directo con
+     sesionRef.update()), y (3) el total calculado (duración de la sesión
+     + set-up). Si la sesión no tiene horaInicio/horaFin, el bloque no se
+     muestra. No se tocó ninguna otra lógica de la bitácora.
+     v2.21: el campo "Instrumento" (texto libre) ya no se muestra en
+     canales automáticos vacíos — casi nunca se usaba ahí porque el
+     nombre del canal (ej. "Bajo", "Kick") ya viene de la pieza del
+     catálogo. Sigue igual (editable) en canales manuales, que es donde
+     de verdad aporta detalle (ej. "Caja Directa"). Si un canal
+     automático YA tenía texto guardado de antes (dato viejo), se sigue
+     mostrando pero de solo lectura (.valor-fijo), para no ocultar ni
+     perder información existente — solo deja de ser editable ahí. No se
+     tocó el guardado ni ningún otro campo.
+     v2.20: el selector "Vincular a grupo" (v2.18) se saca de
+     `.strip-fields` y pasa a una fila propia `.strip-vinculo` debajo de
+     `.strip-top` — antes ocupaba un 6º campo dentro de la grilla de 5
+     columnas (Instrumento/Interfaz/Mic/Preamp/Gain), haciendo que las
+     filas manuales saltaran a una segunda línea mientras las automáticas
+     quedaban en una sola, viéndose visualmente distintas. Ahora
+     `.strip-fields` es idéntico en ambos tipos de fila; el selector
+     queda en su propia línea compacta con acento dorado (mismo color
+     que ya usa el tag "(ING)"). No se tocó el campo "Instrumento" de
+     texto libre ni ninguna otra lógica.
+     v2.19: fix urgente de v2.18 — se había agregado una segunda
+     declaración `const GRUPOS_INSTRUMENTACION_LABELS` (este archivo ya
+     tenía una, usada por la pestaña Reportes), lo que rompía el
+     <script> completo con SyntaxError y dejaba la página pegada en
+     "Cargando...". Se quita la duplicada; el resto del código reusa la
+     que ya existía (mismo diccionario, mismos valores). Sin este fix,
+     v2.18 no cargaba en absoluto.
+     v2.18: los canales manuales (agregados con "+ canal", `manual:true`)
+     ahora pueden vincularse opcionalmente a un grupo del catálogo de
+     instrumentación del proyecto (selector "Vincular a grupo", junto al
+     campo "Instrumento" que ya existía y sigue funcionando igual). Se
+     agrega `instrumentacionProyecto` (fetch nuevo del documento del
+     proyecto en cargar()) para poblar ese selector, y `grupoCatalogo`
+     como campo nuevo en cada canal. armarGruposVisuales() ahora agrupa
+     por `grupoCatalogo` cuando existe (mostrando la etiqueta oficial del
+     catálogo vía GRUPOS_INSTRUMENTACION_LABELS, mismo diccionario que
+     logistica.html) — los canales automáticos siempre lo traen desde
+     logistica.html v2.49; si no existe (canales manuales sin vincular o
+     sesiones guardadas antes de este cambio), sigue agrupando por texto
+     libre `instrumento` exactamente como antes. Con esto, si luego se
+     reasigna una pieza a otro grupo en Proyectos → Instrumentación, los
+     canales vinculados (automáticos y manuales que eligieron grupo) se
+     reagrupan solos, sin tocar nada más.
+     v2.17: el buscador del input list ahora también busca por Mic,
+     Preamp y Gain (antes solo nombre/instrumento/Ch/Interfaz) — así
+     "SM57" o "1073" encuentran el canal aunque no coincida con el
+     nombre. Se actualiza el placeholder para reflejarlo. No se tocó
+     el fix de foco de v2.14 ni ninguna otra lógica.
+     v2.16: en escritorio (desde 820px de ancho) el contenedor .wrap
+     pasa de 640px fijo a 1100px, mismo criterio que el editor de
+     sesión de logistica.html (aprovechar el ancho en vez de quedar
+     angosto centrado). En ese mismo breakpoint, .strip-fields (modo
+     Editar) pasa de 3 a 5 columnas para que Instrumento/Interfaz/
+     Mic/Preamp/Gain entren en una sola fila en vez de inputs
+     gigantes estirados. Todo esto vive dentro de @media(min-width:
+     820px), así que la vista mobile (.wrap:640px, strip-fields en
+     2 columnas bajo 480px) queda exactamente igual que antes.
+     v2.15: las columnas de grupo del modo "Vista consola" ahora tienen
+     el mismo look de tarjeta que logistica.html (.grupo-instrumento-log):
+     borde y fondo tintado del color del grupo, en vez de solo un
+     título de texto plano sobre fondo transparente. Se agrega
+     --gc-bg (mismo hexToRgba(c,0.05) que ya usan los chips) al
+     estilo inline de cada columna. El grupo "sin agrupar" (sin
+     etiqueta) se queda sin tarjeta, igual que en logistica.html.
+     v2.14: fix — el buscador del input list (.bitacora-buscador) se
+     "trababa" al escribir: cada tecla dispara renderInputList() ->
+     renderToolbar(), que reconstruye el toolbar completo (box.innerHTML)
+     y con él el propio <input>, así que el navegador perdía el foco y
+     la posición del cursor en cada letra. Ahora renderInputList()
+     guarda si el foco estaba en el buscador (y en qué posición) antes
+     de reconstruir, y se lo devuelve al input nuevo apenas se pinta.
+     No se tocó la lógica de filtrado ni la estructura del toolbar.
+     v2.13: en modo "Vista consola", los grupos (Batería, Voz, etc.)
+     ahora se muestran en columnas lado a lado con scroll horizontal
+     entre sí, en vez de apilados uno debajo del otro; las tiras
+     adentro de cada grupo envuelven (flex-wrap) en vez de tener su
+     propio scroll, para no anidar dos scrolls en la misma dirección.
+     Además cada tira ahora indica su origen: "(ING)" si el canal se
+     tipeó a mano acá, "(CHECK LIST)" si viene de la instrumentación
+     marcada — antes no decía nada para estos últimos y decía
+     "(manual)" (poco claro) para los otros, y ni siquiera se mostraba
+     en modo consola. No se tocó el modo Editar, guardar(), ni el
+     modelo de datos.
+     v2.12: se agrega el campo "Mic" (micrófono) a cada canal del input
+     list, entre Interfaz y Preamp. Se agrega también un modo "Vista
+     consola" (toggle junto al buscador) — tiras angostas de solo
+     lectura con scroll horizontal por grupo, mismos datos que el modo
+     Editar (la grilla ancha de siempre, que sigue siendo la forma de
+     tipear). Clic en cualquier tira de consola vuelve a modo Editar.
+     No se tocó guardar(), moverCanal(), borrarCanal() ni ninguna otra
+     lógica.
+     Bitácora de grabación por sesión (?p=proyectoId&s=sesionId),
+     standalone con guard de sesión (staff o ingeniero asignado).
+     Historial completo de versiones: ver CHANGELOG.md -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="utils.js"></script>
 <style>
 :root{
   --bg:#0b0b0d; --surf:#16161a; --surf2:#1d1d22; --brd:#2a2a30;
   --txt:#f2f0eb; --muted:#9a978f; --faint:#65625c;
   --gold:#c9a24b; --gold-bg:rgba(201,162,75,0.12);
-  --ok:#4caf7d; --err:#d4574a;
+  --ok:#4caf7d; --ok-bg:rgba(76,175,125,0.12); --err:#d4574a;
+  /* v2.30: acento propio para las etapas de Post-producción (Edición/
+     Mezcla/Mastering), para distinguirlas de Grabación (que sigue con
+     --gold) sin tocar la paleta general. */
+  --accent2:#6f9fbf; --accent2-bg:rgba(111,159,191,0.12);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
@@ -242,6 +324,15 @@ body{
   min-height:100vh; padding:20px 14px 60px;
 }
 .wrap{max-width:640px;margin:0 auto;}
+/* v2.16: aprovecha el ancho en escritorio, mismo criterio que el
+   editor de sesión de logistica.html (main max-width:1200px, panel
+   sin ancho fijo angosto). Solo entra desde 820px hacia arriba, así
+   que la vista mobile (.wrap:640px, strip-fields 2 columnas <480px)
+   queda intacta. */
+@media (min-width:820px){
+  .wrap{max-width:1100px;}
+  .strip-fields{grid-template-columns:repeat(5,1fr);}
+}
 h1{
   font-family:'DM Sans', sans-serif; font-size:0.72rem; color:var(--muted);
   text-transform:uppercase; letter-spacing:0.08em; font-weight:600;
@@ -276,12 +367,23 @@ h1{
   font-size:0.9rem; padding:7px 10px; cursor:pointer; line-height:1;
 }
 .btn-borrar-canal:active{opacity:0.7;}
-.mover-btns{display:flex;gap:4px;}
+.mover-btns{display:flex;gap:4px;flex-shrink:0;}
 .btn-mover{
   background:none;border:1px solid var(--brd);border-radius:6px;color:var(--muted);
   font-size:0.75rem;padding:3px 8px;cursor:pointer;line-height:1;
 }
 .btn-mover:active{opacity:0.7;background:var(--surf2);}
+/* v2.64: fix mobile — .nombre-input dentro de .strip-top (flex) no
+   tenía min-width:0, así que su ancho mínimo intrínseco empujaba a
+   .mover-btns/.btn-borrar-canal fuera del contenedor visible en
+   pantallas angostas (rompía los botones ▲▼ de reordenar canal en
+   Editar). Con min-width:0 el input sí se achica y el texto largo se
+   recorta; .mover-btns y .btn-borrar-canal ahora no se comprimen
+   (flex-shrink:0) así que ▲▼/🗑️ siempre quedan visibles y tocables.
+   No se tocó moverCanal(), renderInputList() ni el modelo de datos. */
+.strip-top .nombre-input{min-width:0;}
+.strip-top .btn-borrar-canal{flex-shrink:0;}
+@media (max-width:480px){.btn-mover{padding:5px 9px;}}
 
 /* v2.6: sistema tipo consola digital — color fijo por grupo (calculado
    por texto, se repite si hay más de 8 grupos), grupos colapsables,
@@ -299,9 +401,10 @@ h1{
 .grupo-header .colapsar-flecha{font-size:0.75rem;transition:transform 0.15s;flex-shrink:0;}
 .grupo-header.colapsado .colapsar-flecha{transform:rotate(-90deg);}
 .grupo-count{font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--muted);font-weight:400;}
-.grupo-instrumento .card-agrupada{margin-bottom:8px;border-left:3px solid var(--gc,var(--gold));}
+.grupo-instrumento .card-agrupada{margin-bottom:8px;border-left:3px solid var(--sgc,var(--gc,var(--gold)));}
 .grupo-instrumento .card-agrupada:last-child{margin-bottom:0;}
 .grupo-instrumento.colapsado .card-agrupada{display:none;}
+.subgrupo-bloque-edit{display:contents;}
 
 .strip-row{
   background:var(--surf); border:1px solid var(--brd); border-radius:10px;
@@ -309,16 +412,85 @@ h1{
 }
 .strip-row.card-agrupada{background:var(--surf2);}
 .strip-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.strip-vinculo{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.72rem;color:var(--gold);}
+.strip-vinculo label{white-space:nowrap;}
+.strip-vinculo select{
+  font-size:0.78rem;padding:4px 6px;background:var(--gold-bg);border:1px solid var(--gold);
+  border-radius:5px;color:var(--txt);flex:1;max-width:220px;
+}
+.strip-vinculo .strip-subgrupo-input{
+  font-size:0.78rem;padding:4px 6px;background:var(--gold-bg);border:1px solid var(--gold);
+  border-radius:5px;color:var(--txt);flex:1;max-width:160px;
+}
+.strip-vinculo-check{color:var(--ok);}
+.strip-vinculo-check .strip-subgrupo-input{background:var(--ok-bg);border-color:var(--ok);max-width:200px;}
 .strip-ch{
   font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--gold);
   background:var(--gold-bg);border-radius:5px;padding:2px 6px;flex-shrink:0;
 }
 .strip-nombre{font-size:0.9rem;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.strip-fields{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;}
+.strip-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
 .strip-fields .field{margin-bottom:0;}
 .strip-fields .field label{font-size:0.62rem;margin-bottom:3px;}
 .strip-fields .field input{padding:6px 8px;font-size:0.82rem;}
+.strip-fields .field .valor-fijo{
+  padding:6px 8px;font-size:0.82rem;color:var(--muted);
+  border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 @media (max-width:480px){.strip-fields{grid-template-columns:1fr 1fr;}}
+
+/* v2.8: modo consola — tiras angostas con scroll horizontal, agrupadas
+   igual que .grupo-instrumento pero en fila. Solo lectura: clic en
+   cualquier tira vuelve a modo editar. */
+.consola-grupo-fila{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;}
+/* v2.13: los grupos ahora van en fila horizontal entre sí (columnas
+   lado a lado con scroll), y las tiras adentro de cada uno envuelven
+   (flex-wrap) en vez de tener su propio scroll horizontal, para no
+   anidar dos scrolls en la misma dirección. */
+.consola-grupos-fila{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;align-items:flex-start;}
+.consola-grupo-col{
+  flex-shrink:0;width:auto;max-width:none;border:1px solid var(--gc,var(--gold));border-radius:12px;
+  padding:8px 8px 2px;background:var(--gc-bg,var(--gold-bg));
+}
+.consola-grupo-col.sin-grupo{border:none;background:none;padding:0;}
+.consola-grupo-titulo{
+  font-family:var(--T);color:var(--gc,var(--gold));font-size:0.88rem;font-weight:700;
+  margin-bottom:6px;padding:2px 4px;white-space:nowrap;
+}
+/* v2.63: los subgrupos (y las tiras sueltas sin subgrupo) ahora quedan en
+   fila horizontal uno al lado del otro (nowrap) en vez de envolver hacia
+   abajo — antes .consola-grupo-col tenía ancho fijo (230px) y forzaba a
+   cada subgrupo a caer en su propia línea. Ahora el grupo crece según su
+   contenido y el scroll horizontal ya existente de .consola-grupos-fila
+   se encarga de que todo quepa en pantalla. */
+.consola-grupo-col .consola-grupo-fila{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:visible;margin-bottom:0;align-items:flex-start;}
+.consola-strip{
+  flex-shrink:0;width:104px;background:var(--surf);border:1px solid var(--sgc,var(--gc,var(--brd)));
+  border-radius:10px;padding:8px;cursor:pointer;
+}
+.consola-strip.manual{border-color:var(--sgc,var(--gold));background:var(--sgc-bg,var(--gold-bg));}
+.consola-strip.checklist{border-color:var(--sgc,var(--ok));background:var(--sgc-bg,var(--ok-bg));}
+.consola-strip .tag-manual{font-size:0.62rem;opacity:0.9;color:var(--gold);font-weight:600;display:block;margin-bottom:4px;}
+.consola-strip .tag-checklist{font-size:0.62rem;opacity:0.9;color:var(--ok);font-weight:600;display:block;margin-bottom:4px;}
+/* v2.65: los subgrupos (ej. "Bombo" dentro de "Batería") no heredaban
+   el color del grupo padre (--gc) — quedaban con borde/texto gris fijo
+   aunque el grupo sí tuviera color. --gc ya viene seteado como variable
+   CSS en el contenedor padre (.grupo-instrumento / .consola-grupo-col)
+   y hereda por el DOM, así que solo hacía falta referenciarla acá. No
+   se tocó armarSubgruposVisuales() ni ningún render. */
+.consola-subgrupo-col{display:flex;flex-direction:column;gap:6px;padding:2px 10px;border-left:2px dashed var(--sgc,var(--gc,var(--brd)));}
+.consola-subgrupo-titulo{font-size:0.6rem;opacity:0.85;font-weight:600;white-space:nowrap;letter-spacing:0.02em;text-transform:uppercase;color:var(--sgc,var(--gc,var(--muted)));}
+.consola-subgrupo-strips{display:flex;flex-wrap:wrap;gap:8px;}
+.tag-manual-edit{font-size:0.62rem;opacity:0.9;color:var(--gold);font-weight:600;display:block;margin:-2px 0 6px 2px;white-space:nowrap;}
+.subgrupo-header-edit{font-size:0.68rem;opacity:0.85;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;margin:10px 0 6px 2px;color:var(--sgc,var(--gc,var(--muted)));}
+.subgrupo-header-edit:first-child{margin-top:0;}
+.consola-strip .ch{
+  font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--sgc,var(--gc,var(--gold)));
+  background:var(--sgc-bg,var(--gc-bg,var(--gold-bg)));border-radius:5px;padding:2px 6px;display:inline-block;margin-bottom:6px;
+}
+.consola-strip .nombre{font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;}
+.consola-strip .datos{font-size:0.68rem;color:var(--muted);line-height:1.6;}
+.consola-strip .datos div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 #bitacoraToolbar{
   position:sticky;top:0;background:var(--bg);z-index:5;padding:10px 0 8px;
@@ -392,6 +564,19 @@ h1{
 }
 .tabs-grupo-btns{display:flex; gap:6px;}
 .tabs-sep{width:1px; background:var(--brd); margin:18px 0 2px;}
+/* v2.30: etiqueta de sección + acento de color por grupo, para que
+   Grabación y Post-producción se distingan de un vistazo. No reemplaza
+   tabs-grupo-label (que en el 2do grupo muestra el nombre del tema
+   dinámicamente) — se agrega arriba de esa etiqueta. */
+.tabs-grupo-tag{
+  font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em;
+  font-weight:700; text-align:center;
+}
+.tabs-grupo-tag-grabacion{color:var(--gold);}
+.tabs-grupo-tag-post{color:var(--accent2);}
+.tabs-grupo-post .tab-btn.activa{
+  border-color:var(--accent2); color:var(--accent2); background:var(--accent2-bg);
+}
 
 .field select{
   width:100%; background:var(--surf2); border:1px solid var(--brd); border-radius:8px;
@@ -430,6 +615,113 @@ h1{
 .toma-card strong{color:var(--gold);}
 .volver-link{color:var(--muted);font-size:0.85rem;cursor:pointer;display:inline-block;margin-bottom:10px;}
 .volver-link:hover{color:var(--gold);}
+/* v2.22: bloque grande de Hora de sesión + Set-up + total calculado —
+   antes no había forma de ver esto sin ir a logistica.html; ahora es lo
+   primero y más visible que ve el ingeniero al abrir la bitácora. */
+.hora-setup-box{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:14px 16px;margin:10px 0 14px;
+}
+.hora-setup-hora{
+  font-family:'JetBrains Mono',monospace;font-size:1.6rem;font-weight:700;
+  color:var(--gold);margin-bottom:10px;
+}
+.hora-setup-fila{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.hora-setup-fila label{font-size:0.82rem;color:var(--muted);}
+.hora-setup-fila select{font-size:0.85rem;padding:6px 10px;}
+.hora-setup-total{font-size:0.85rem;color:var(--txt);}
+.hora-setup-total strong{color:var(--gold);}
+/* v2.27: cronómetro de sesión — solo en memoria del navegador, no toca
+   Firestore salvo cuando el usuario presiona "Finalizar y guardar" (ver
+   cronoGuardar()). v2.30: deja de ser flotante (era position:fixed
+   arriba de TODAS las pestañas) — ahora vive embebido dentro del panel
+   de la pestaña Grabación únicamente, mismo cronoGuardar()/
+   duracionRealMin de siempre. */
+.crono-box{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:12px;margin-bottom:16px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.crono-tiempo{
+  font-family:'JetBrains Mono',monospace;font-size:1.15rem;font-weight:700;
+  color:var(--gold);letter-spacing:0.03em;
+}
+.crono-btns{display:flex;gap:6px;}
+.crono-btns button{
+  font-size:0.72rem;padding:5px 8px;border-radius:6px;border:1px solid var(--brd);
+  background:var(--surf2);color:var(--txt);cursor:pointer;
+}
+.crono-btns button.crono-guardar{background:var(--gold);color:#151109;font-weight:700;border:none;}
+.crono-guardado-msg{font-size:0.68rem;color:var(--ok);min-height:1em;}
+.crono-label{font-size:0.7rem;color:var(--muted);text-align:center;}
+/* v2.31: dashboard resumen — bloque colapsable arriba de las pestañas
+   que reúne, de un vistazo, datos que ya existen dispersos en la página
+   (duración planeada/real, tomas registradas, progreso del tema en
+   Post-producción, notas de grabación). No agrega ningún campo ni
+   escritura nueva a Firestore, solo lee sesionData/temaData/tomasReporte
+   que ya se cargan por las funciones existentes. */
+.dash-box{background:var(--surf);border:1px solid var(--brd);border-radius:10px;margin-bottom:14px;overflow:hidden;}
+.dash-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;}
+.dash-header-titulo{font-size:0.82rem;font-weight:700;color:var(--gold);letter-spacing:0.02em;}
+.dash-header-toggle{font-size:0.75rem;color:var(--muted);transition:transform 0.15s;}
+.dash-box.cerrado .dash-header-toggle{transform:rotate(-90deg);}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:0 14px 14px;}
+.dash-box.cerrado .dash-grid{display:none;}
+.dash-card{background:var(--surf2);border:1px solid var(--brd);border-radius:8px;padding:10px 12px;}
+.dash-card-label{font-size:0.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;}
+.dash-card-valor{font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:var(--txt);}
+.dash-card-valor.gold{color:var(--gold);}
+.dash-card-valor.accent2{color:var(--accent2);}
+.dash-card-valor.err{color:var(--err);font-size:0.95rem;font-weight:600;}
+.dash-card-sub{font-size:0.68rem;color:var(--faint);margin-top:2px;}
+/* v2.29: historial de sesiones de trabajo por etapa (Edición/Mezcla/
+   Mastering) — vive dentro de cada panel de etapa, no en #cronoBox. */
+.etapa-sesiones-box{margin-top:18px;border-top:1px solid var(--brd);padding-top:14px;}
+.etapa-sesiones-header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.etapa-sesiones-titulo{font-size:0.85rem;color:var(--muted);}
+.btn-nueva-sesion{
+  font-size:0.78rem;padding:6px 12px;border-radius:6px;border:1px solid var(--accent2);
+  background:var(--accent2-bg);color:var(--accent2);cursor:pointer;font-weight:600;
+}
+.btn-nueva-sesion:disabled{opacity:0.45;cursor:not-allowed;}
+.etapa-crono-box{
+  display:flex;flex-direction:column;align-items:stretch;gap:8px;
+  background:var(--surf2);border:1px solid var(--brd);border-radius:10px;
+  padding:12px;margin-bottom:12px;
+}
+.etapa-crono-box .crono-tiempo{align-self:center;}
+.etapa-crono-box .crono-btns{align-self:center;}
+.etapa-crono-box textarea{min-height:60px;}
+.etapa-crono-acciones{display:flex;gap:6px;}
+.etapa-crono-acciones .crono-guardar{flex:1;}
+/* v2.30: acento propio de Post-producción, pisa el .crono-guardar
+   dorado general solo dentro de .etapa-crono-box. */
+.etapa-crono-box .crono-guardar{background:var(--accent2);color:#0d1b24;}
+.etapa-sesion-item{
+  border:1px solid var(--brd);border-radius:8px;padding:8px 10px;
+  margin-bottom:8px;font-size:0.85rem;line-height:1.4;
+}
+.etapa-sesion-item .fecha{color:var(--accent2);font-weight:600;}
+.etapa-sesion-item .autor{color:var(--muted);font-size:0.78rem;}
+/* v2.32: listado de sesiones de Grabación del tema, dentro del dashboard.
+   Mismo estilo visual que .etapa-sesion-item pero con acento dorado
+   (Grabación), no accent2 (Post-producción), para mantener la misma
+   distinción de color que ya usan las pestañas desde v2.30. */
+.dash-grabaciones-box{padding:0 14px 14px;border-top:1px solid var(--brd);margin-top:2px;}
+.dash-box.cerrado .dash-grabaciones-box{display:none;}
+.dash-grabaciones-titulo{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin:12px 0 8px;}
+.dash-grabacion-item{
+  border:1px solid var(--brd);border-radius:8px;padding:8px 10px;
+  margin-bottom:8px;font-size:0.85rem;line-height:1.4;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.dash-grabacion-item.actual{border-color:var(--gold);}
+.dash-grabacion-item .fecha{color:var(--gold);font-weight:600;}
+.dash-grabacion-item .autor{color:var(--muted);font-size:0.78rem;display:block;}
+.dash-grabacion-item .abrir{
+  font-size:0.75rem;color:var(--gold);text-decoration:none;font-weight:600;
+  border:1px solid var(--gold);border-radius:6px;padding:3px 8px;white-space:nowrap;
+}
 </style>
 </head>
 <body>
@@ -438,9 +730,36 @@ h1{
   <h1>Bitácora de Grabación</h1>
   <div class="actividad-titulo" id="actividadTitulo">Cargando…</div>
   <div class="subt" id="subtitulo"></div>
+  <div class="hora-setup-box" id="horaSetupBox" style="display:none;">
+    <div class="hora-setup-hora" id="horaSetupHora">--:-- – --:--</div>
+    <div class="hora-setup-fila">
+      <label for="fSetup">Set-up necesario</label>
+      <select id="fSetup" onchange="onCambioSetup()">
+        <option value="0">Sin set-up (0 min)</option>
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="45">45 min</option>
+        <option value="60">60 min</option>
+      </select>
+    </div>
+    <div class="hora-setup-total" id="horaSetupTotal"></div>
+    <div class="hora-setup-total" id="horaSetupReal" style="display:none;"></div>
+  </div>
   <div class="subt" id="avisoTemaActual" style="display:none;color:var(--gold);"></div>
+  <div class="dash-box" id="dashBox" style="display:none;">
+    <div class="dash-header" onclick="dashToggle()">
+      <span class="dash-header-titulo">📊 Resumen de la sesión</span>
+      <span class="dash-header-toggle" id="dashToggleIcon">▾</span>
+    </div>
+    <div class="dash-grid" id="dashGrid"></div>
+    <div class="dash-grabaciones-box" id="dashGrabacionesBox" style="display:none;">
+      <div class="dash-grabaciones-titulo">🎙️ Sesiones de Grabación del tema</div>
+      <div id="dashGrabacionesLista"></div>
+    </div>
+  </div>
   <div id="tabsBox" class="tabs-groups" style="display:none;">
     <div class="tabs-grupo">
+      <div class="tabs-grupo-tag tabs-grupo-tag-grabacion">Grabación</div>
       <div class="tabs-grupo-label">Esta sesión</div>
       <div class="tabs-grupo-btns">
         <button class="tab-btn activa" id="tabBtn_bitacora" onclick="cambiarTab('bitacora')">🎛️ Bitácora</button>
@@ -448,7 +767,8 @@ h1{
       </div>
     </div>
     <div class="tabs-sep"></div>
-    <div class="tabs-grupo">
+    <div class="tabs-grupo tabs-grupo-post">
+      <div class="tabs-grupo-tag tabs-grupo-tag-post">Post-producción</div>
       <div class="tabs-grupo-label" id="tabsGrupoTemaLabel">🎼 Tema</div>
       <div class="tabs-grupo-btns">
         <button class="tab-btn" id="tabBtn_edicion" onclick="cambiarTab('edicion')">✂️ Edición</button>
@@ -462,6 +782,18 @@ h1{
     <div id="contenido"></div>
   </div>
   <div class="panel" id="panel_tomas">
+    <div class="crono-box" id="cronoBox">
+      <div class="crono-label">⏱️ Duración total de la sesión (no por toma)</div>
+      <div class="crono-tiempo" id="cronoTiempo">00:00:00</div>
+      <div class="crono-btns">
+        <button id="cronoBtnIniciar" onclick="cronoIniciar()">▶ Iniciar</button>
+        <button id="cronoBtnPausar" onclick="cronoPausar()" style="display:none;">⏸ Pausar</button>
+        <button id="cronoBtnReanudar" onclick="cronoIniciar()" style="display:none;">▶ Reanudar</button>
+        <button onclick="cronoReiniciar()">↺</button>
+      </div>
+      <button class="crono-guardar" onclick="cronoGuardar()">Finalizar y guardar</button>
+      <div class="crono-guardado-msg" id="cronoGuardadoMsg"></div>
+    </div>
     <div id="tomasFormBox"></div>
     <div class="field" style="margin-top:14px;">
       <label>Notas generales de grabación</label>
@@ -474,6 +806,28 @@ h1{
       <label>Notas de edición</label>
       <textarea id="notasEdicion" placeholder="Comping, ediciones, pendientes..." style="min-height:160px;" onchange="guardarNotaEtapa('Edicion', this.value)" disabled></textarea>
     </div>
+    <div class="etapa-sesiones-box">
+      <div class="etapa-sesiones-header">
+        <div class="etapa-sesiones-titulo">Sesiones de trabajo</div>
+        <button class="btn-nueva-sesion" id="btnNuevaSesionEdicion" onclick="etapaCronoAbrir('Edicion')" disabled>+ Nueva sesión</button>
+      </div>
+      <div class="etapa-crono-box" id="etapaCronoBoxEdicion" style="display:none;">
+        <div class="crono-tiempo" id="etapaCronoTiempoEdicion">00:00:00</div>
+        <div class="crono-btns">
+          <button id="etapaCronoBtnIniciarEdicion" onclick="etapaCronoIniciar('Edicion')">▶ Iniciar</button>
+          <button id="etapaCronoBtnPausarEdicion" onclick="etapaCronoPausar('Edicion')" style="display:none;">⏸ Pausar</button>
+          <button id="etapaCronoBtnReanudarEdicion" onclick="etapaCronoIniciar('Edicion')" style="display:none;">▶ Reanudar</button>
+          <button onclick="etapaCronoReiniciar('Edicion')">↺</button>
+        </div>
+        <textarea id="etapaCronoNotaEdicion" placeholder="Nota de esta sesión (opcional)..."></textarea>
+        <div class="etapa-crono-acciones">
+          <button class="crono-guardar" onclick="etapaCronoGuardar('Edicion')">Finalizar y guardar</button>
+          <button onclick="etapaCronoCancelar('Edicion')">Cancelar</button>
+        </div>
+        <div class="crono-guardado-msg" id="etapaCronoMsgEdicion"></div>
+      </div>
+      <div id="etapaSesionesListaEdicion"></div>
+    </div>
   </div>
   <div class="panel" id="panel_mezcla">
     <div class="error-box" id="avisoSinTemaMezcla" style="display:none;">Esta sesión no tiene un tema asignado. Asígnale un tema desde Logística para poder guardar notas de mezcla.</div>
@@ -481,12 +835,56 @@ h1{
       <label>Notas de mezcla</label>
       <textarea id="notasMezcla" placeholder="Decisiones de mezcla, referencias, pendientes..." style="min-height:160px;" onchange="guardarNotaEtapa('Mezcla', this.value)" disabled></textarea>
     </div>
+    <div class="etapa-sesiones-box">
+      <div class="etapa-sesiones-header">
+        <div class="etapa-sesiones-titulo">Sesiones de trabajo</div>
+        <button class="btn-nueva-sesion" id="btnNuevaSesionMezcla" onclick="etapaCronoAbrir('Mezcla')" disabled>+ Nueva sesión</button>
+      </div>
+      <div class="etapa-crono-box" id="etapaCronoBoxMezcla" style="display:none;">
+        <div class="crono-tiempo" id="etapaCronoTiempoMezcla">00:00:00</div>
+        <div class="crono-btns">
+          <button id="etapaCronoBtnIniciarMezcla" onclick="etapaCronoIniciar('Mezcla')">▶ Iniciar</button>
+          <button id="etapaCronoBtnPausarMezcla" onclick="etapaCronoPausar('Mezcla')" style="display:none;">⏸ Pausar</button>
+          <button id="etapaCronoBtnReanudarMezcla" onclick="etapaCronoIniciar('Mezcla')" style="display:none;">▶ Reanudar</button>
+          <button onclick="etapaCronoReiniciar('Mezcla')">↺</button>
+        </div>
+        <textarea id="etapaCronoNotaMezcla" placeholder="Nota de esta sesión (opcional)..."></textarea>
+        <div class="etapa-crono-acciones">
+          <button class="crono-guardar" onclick="etapaCronoGuardar('Mezcla')">Finalizar y guardar</button>
+          <button onclick="etapaCronoCancelar('Mezcla')">Cancelar</button>
+        </div>
+        <div class="crono-guardado-msg" id="etapaCronoMsgMezcla"></div>
+      </div>
+      <div id="etapaSesionesListaMezcla"></div>
+    </div>
   </div>
   <div class="panel" id="panel_mastering">
     <div class="error-box" id="avisoSinTemaMastering" style="display:none;">Esta sesión no tiene un tema asignado. Asígnale un tema desde Logística para poder guardar notas de mastering.</div>
     <div class="field">
       <label>Notas de mastering</label>
       <textarea id="notasMastering" placeholder="Loudness objetivo, referencias, entregables..." style="min-height:160px;" onchange="guardarNotaEtapa('Mastering', this.value)" disabled></textarea>
+    </div>
+    <div class="etapa-sesiones-box">
+      <div class="etapa-sesiones-header">
+        <div class="etapa-sesiones-titulo">Sesiones de trabajo</div>
+        <button class="btn-nueva-sesion" id="btnNuevaSesionMastering" onclick="etapaCronoAbrir('Mastering')" disabled>+ Nueva sesión</button>
+      </div>
+      <div class="etapa-crono-box" id="etapaCronoBoxMastering" style="display:none;">
+        <div class="crono-tiempo" id="etapaCronoTiempoMastering">00:00:00</div>
+        <div class="crono-btns">
+          <button id="etapaCronoBtnIniciarMastering" onclick="etapaCronoIniciar('Mastering')">▶ Iniciar</button>
+          <button id="etapaCronoBtnPausarMastering" onclick="etapaCronoPausar('Mastering')" style="display:none;">⏸ Pausar</button>
+          <button id="etapaCronoBtnReanudarMastering" onclick="etapaCronoIniciar('Mastering')" style="display:none;">▶ Reanudar</button>
+          <button onclick="etapaCronoReiniciar('Mastering')">↺</button>
+        </div>
+        <textarea id="etapaCronoNotaMastering" placeholder="Nota de esta sesión (opcional)..."></textarea>
+        <div class="etapa-crono-acciones">
+          <button class="crono-guardar" onclick="etapaCronoGuardar('Mastering')">Finalizar y guardar</button>
+          <button onclick="etapaCronoCancelar('Mastering')">Cancelar</button>
+        </div>
+        <div class="crono-guardado-msg" id="etapaCronoMsgMastering"></div>
+      </div>
+      <div id="etapaSesionesListaMastering"></div>
     </div>
   </div>
 
@@ -505,6 +903,84 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
+// v2.18: reusa el GRUPOS_INSTRUMENTACION_LABELS que ya existía en este
+// mismo archivo (pestaña Reportes, más abajo) — mismo diccionario,
+// declarado una sola vez para no romper el script. instrumentacionProyecto:
+// instrumentación completa del proyecto (proyectoData.instrumentacion),
+// cargada en cargar() — solo para poblar el selector de grupo de canales
+// manuales.
+let instrumentacionProyecto = {};
+// v2.24: catálogo de grupos propio del proyecto (instrumentacionGrupos),
+// para que un grupo renombrado/agregado en proyecto.html también se vea
+// bien acá. Si el proyecto no lo tiene (viejos), queda {} y se usa el
+// fallback fijo GRUPOS_INSTRUMENTACION_LABELS (ver labelGrupo()).
+let instrumentacionGruposProyecto = {};
+
+// v2.26: catálogo de preamps de la sala de esta sesión (viene de
+// estudios.html v1.6, salaA/B/C.preamps). preampsCatalogoSesion queda
+// [] si el estudio/sala no tiene preamps registrados o si algo falla —
+// en ese caso el selector cae en modo "solo personalizado" (texto
+// libre), sin romper nada.
+let preampsCatalogoSesion = [];
+// conflictosPreamp: {[índice del canal]: texto de advertencia}. Se llena
+// con verificarConflictoPreamp() — es informativo, nunca bloquea guardar.
+let conflictosPreamp = {};
+
+async function cargarCatalogoPreampsSesion(s){
+  preampsCatalogoSesion = [];
+  if(!s.estudioId || !s.sala) return;
+  try{
+    const doc = await db.collection('estudios').doc(s.estudioId).get();
+    if(!doc.exists) return;
+    const e = doc.data();
+    const sala = ['salaA','salaB','salaC'].map(k => e[k]).find(sa => sa && sa.nombre === s.sala);
+    preampsCatalogoSesion = (sala && Array.isArray(sala.preamps)) ? sala.preamps : [];
+  } catch(err){
+    console.error('Error cargando catálogo de preamps:', err);
+    preampsCatalogoSesion = [];
+  }
+}
+
+// v2.26: chequeo NO bloqueante — busca si el mismo preamp+canal ya está
+// usado por otra sesión del mismo estudio+sala+fecha (cualquier
+// proyecto). Requiere que las reglas de Firestore permitan lectura vía
+// collectionGroup('sesiones') con esos filtros; si las reglas actuales
+// no lo permiten, esto falla silenciosamente (try/catch) y simplemente
+// no se muestra advertencia — no rompe el guardado ni el resto de la
+// bitácora.
+async function verificarConflictoPreamp(i){
+  const it = inputListActual[i];
+  conflictosPreamp[i] = '';
+  if(!it.preamp || !it.preampCanal || !sesionData || !sesionData.estudioId || !sesionData.sala || !sesionData.fecha){
+    renderInputList();
+    return;
+  }
+  try{
+    const snap = await db.collectionGroup('sesiones')
+      .where('estudioId', '==', sesionData.estudioId)
+      .where('sala', '==', sesionData.sala)
+      .where('fecha', '==', sesionData.fecha)
+      .get();
+    let conflicto = '';
+    snap.forEach(doc => {
+      const data = doc.data();
+      (Array.isArray(data.inputList) ? data.inputList : []).forEach((otro, idxOtro) => {
+        if(doc.id === sesionId && idxOtro === i) return;
+        if(otro.preamp === it.preamp && Number(otro.preampCanal) === Number(it.preampCanal)){
+          conflicto = doc.id === sesionId
+            ? `también usado en "${otro.nombre || 'otro canal'}" de esta misma sesión`
+            : `también usado en "${data.actividad || 'otra sesión'}" (${data.fecha || ''})`;
+        }
+      });
+    });
+    conflictosPreamp[i] = conflicto ? `⚠️ ${conflicto}` : '';
+  } catch(err){
+    console.error('Error verificando conflicto de preamp (puede ser por reglas de Firestore):', err);
+    conflictosPreamp[i] = '';
+  }
+  renderInputList();
+}
+
 let inputListActual = [];
 let sesionRef = null;
 let sesionData = null;
@@ -514,6 +990,357 @@ let sesionData = null;
 // si la sesión no tiene temaId asignado (ver deshabilitarTabsTema()).
 let temaRef = null;
 let temaData = null;
+
+// v2.22: hora de sesión + set-up + total calculado, grande y visible
+// arriba de la bitácora. tiempoSetupMin es el mismo campo que ahora
+// también vive en logistica.html (v2.52) — el ingeniero puede ajustarlo
+// acá si la realidad difiere de lo planeado; el último que lo edite
+// prevalece (mismo criterio que la instrumentación). horaAMinutos/
+// minutosAHora son helpers de conversión simples, sin dependencias.
+// horaAMinutos() y minutosATexto() ahora viven en utils.js (compartidas
+// con ingeniero.html y logistica.html) — se quitó la copia local, mismo
+// comportamiento.
+//
+// v2.68: REGLA DEFINIDA — el set-up va DENTRO del rango horaInicio–
+// horaFin seleccionado en los pickers, no se suma aparte. Ej: rango
+// 8:00–10:00 con set-up de 60min = Setup 8:00–9:00 + Grabación 9:00–
+// 10:00. El total de horas de sala sigue siendo la duración del rango
+// tal cual (antes se sumaba el setup por fuera, inflando el total).
+// Se agrega minutosAHoraTexto(), helper local (solo de esta pantalla,
+// no se tocó utils.js) para pintar el split Setup/Grabación en
+// pantalla. Si el setup es mayor o igual a la duración del rango, se
+// muestra una advertencia en vez de un horario de grabación inválido.
+function minutosAHoraTexto(min){
+  const h = Math.floor(min / 60) % 24;
+  const m = Math.round(min % 60);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function actualizarHoraSetup(horaInicio, horaFin){
+  document.getElementById('horaSetupHora').textContent = `${horaInicio || '--:--'} – ${horaFin || '--:--'}`;
+  const setupMin = Number(document.getElementById('fSetup').value) || 0;
+  const ini = horaAMinutos(horaInicio);
+  const fin = horaAMinutos(horaFin);
+  const totalEl = document.getElementById('horaSetupTotal');
+  if(ini === null || fin === null || fin <= ini){
+    totalEl.textContent = setupMin > 0 ? `Set-up de ${minutosATexto(setupMin)} (falta definir hora de sesión)` : '';
+    return;
+  }
+  const duracion = fin - ini;
+  if(setupMin >= duracion){
+    totalEl.innerHTML = `<strong style="color:#e05555;">Set-up (${minutosATexto(setupMin)}) es mayor o igual al rango total (${minutosATexto(duracion)}) — no queda tiempo de grabación.</strong>`;
+    return;
+  }
+  if(setupMin > 0){
+    const finSetup = ini + setupMin;
+    totalEl.innerHTML = `<strong>${minutosATexto(duracion)} totales</strong> — Setup ${minutosAHoraTexto(ini)}–${minutosAHoraTexto(finSetup)} · Grabación ${minutosAHoraTexto(finSetup)}–${minutosAHoraTexto(fin)}`;
+  } else {
+    totalEl.innerHTML = `<strong>${minutosATexto(duracion)} totales</strong> — Grabación ${minutosAHoraTexto(ini)}–${minutosAHoraTexto(fin)}`;
+  }
+}
+// v2.29: muestra la duración real guardada por el cronómetro (v2.27,
+// campo `duracionRealMin`) junto al total planeado, para comparar de
+// un vistazo. Función separada de actualizarHoraSetup() a propósito —
+// no se toca esa lógica ya probada, esto solo lee un campo más y
+// pinta un div aparte que empieza oculto si no hay dato.
+function actualizarHoraReal(duracionRealMin){
+  const el = document.getElementById('horaSetupReal');
+  if(!duracionRealMin){
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+  el.innerHTML = `Duración real (cronómetro): <strong>${minutosATexto(duracionRealMin)}</strong>`;
+}
+// v2.31: dashboard resumen. Solo lee datos que ya están en memoria
+// (sesionData, temaData, tomasReporte) — no agrega ninguna lectura ni
+// escritura nueva a Firestore. Se llama desde cargar() (datos de
+// sesión/tema) y desde suscribirTomas()/cargarNotasTema() cada vez que
+// esos datos cambian, para que el resumen quede siempre actualizado.
+let dashCerrado = false;
+function dashToggle(){
+  dashCerrado = !dashCerrado;
+  document.getElementById('dashBox').classList.toggle('cerrado', dashCerrado);
+  document.getElementById('dashToggleIcon').textContent = dashCerrado ? '▸' : '▾';
+}
+function renderDashboard(){
+  const box = document.getElementById('dashBox');
+  if(!sesionData){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+
+  // duración planeada (mismo cálculo que actualizarHoraSetup) vs real.
+  // v2.68: ya NO se suma setupMin — el setup va dentro del rango
+  // horaInicio–horaFin (ver nota v2.68 en actualizarHoraSetup).
+  const ini = horaAMinutos(sesionData.horaInicio || '');
+  const fin = horaAMinutos(sesionData.horaFin || '');
+  let cardDuracion;
+  if(ini !== null && fin !== null && fin > ini){
+    const planeada = fin - ini;
+    const real = sesionData.duracionRealMin || null;
+    cardDuracion = `
+      <div class="dash-card">
+        <div class="dash-card-label">Duración</div>
+        <div class="dash-card-valor gold">${minutosATexto(planeada)}</div>
+        <div class="dash-card-sub">${real ? `Real: ${minutosATexto(real)}` : 'Aún sin cronómetro guardado'}</div>
+      </div>`;
+  } else {
+    cardDuracion = `
+      <div class="dash-card">
+        <div class="dash-card-label">Duración</div>
+        <div class="dash-card-valor gold">${sesionData.duracionRealMin ? minutosATexto(sesionData.duracionRealMin) : '—'}</div>
+        <div class="dash-card-sub">Sin hora planeada registrada</div>
+      </div>`;
+  }
+
+  // tomas
+  const totalTomas = tomasReporte.length;
+  const conRating = tomasReporte.filter(t => (t.rating || 0) > 0).length;
+  const cardTomas = `
+    <div class="dash-card">
+      <div class="dash-card-label">Tomas</div>
+      <div class="dash-card-valor">${totalTomas}</div>
+      <div class="dash-card-sub">${totalTomas ? `${conRating} con rating puesto` : 'Sin tomas registradas aún'}</div>
+    </div>`;
+
+  // progreso del tema en post-producción
+  let cardTema;
+  if(temaRef && temaData){
+    const nEdicion = (temaData.sesionesEdicion || []).length;
+    const nMezcla = (temaData.sesionesMezcla || []).length;
+    const nMastering = (temaData.sesionesMastering || []).length;
+    cardTema = `
+      <div class="dash-card">
+        <div class="dash-card-label">Post-producción · ${escapeHtml(sesionData.temaNombre || 'Tema')}</div>
+        <div class="dash-card-valor accent2">${nEdicion}/${nMezcla}/${nMastering}</div>
+        <div class="dash-card-sub">Sesiones de Edición/Mezcla/Mastering</div>
+      </div>`;
+  } else {
+    cardTema = `
+      <div class="dash-card">
+        <div class="dash-card-label">Post-producción</div>
+        <div class="dash-card-valor err">Sin tema asignado</div>
+        <div class="dash-card-sub">Asígnalo desde Logística</div>
+      </div>`;
+  }
+
+  // notas de grabación
+  const notasVacias = !(sesionData.notasGrabacion || '').trim();
+  const cardNotas = `
+    <div class="dash-card">
+      <div class="dash-card-label">Notas de grabación</div>
+      <div class="dash-card-valor ${notasVacias ? 'err' : ''}">${notasVacias ? 'Pendientes' : 'Registradas'}</div>
+    </div>`;
+
+  document.getElementById('dashGrid').innerHTML = cardDuracion + cardTomas + cardTema + cardNotas;
+}
+function onCambioSetup(){
+  if(!sesionData) return;
+  actualizarHoraSetup(sesionData.horaInicio || '', sesionData.horaFin || '');
+  const nuevoSetup = Number(document.getElementById('fSetup').value) || 0;
+  if(sesionRef){
+    sesionRef.update({ tiempoSetupMin: nuevoSetup }).catch(err => console.error('Error guardando set-up:', err));
+  }
+  renderDashboard();
+}
+
+// v2.27: cronómetro de sesión. Corre 100% en memoria del navegador
+// (no escribe en Firestore) mientras el ingeniero lo usa como
+// referencia de tiempo transcurrido. Solo al presionar "Finalizar y
+// guardar" se escribe una vez el total en minutos como `duracionRealMin`
+// del documento de la sesión (mismo patrón que tiempoSetupMin en
+// onCambioSetup()). No se guarda nada automáticamente con Pausar ni
+// Reiniciar, para no generar escrituras de más.
+let cronoSegundos = 0;
+let cronoInterval = null;
+function cronoFormato(seg){
+  const h = String(Math.floor(seg / 3600)).padStart(2, '0');
+  const m = String(Math.floor((seg % 3600) / 60)).padStart(2, '0');
+  const s = String(seg % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+function cronoRender(){
+  document.getElementById('cronoTiempo').textContent = cronoFormato(cronoSegundos);
+}
+function cronoIniciar(){
+  if(cronoInterval) return;
+  cronoInterval = setInterval(() => { cronoSegundos++; cronoRender(); }, 1000);
+  document.getElementById('cronoBtnIniciar').style.display = 'none';
+  document.getElementById('cronoBtnReanudar').style.display = 'none';
+  document.getElementById('cronoBtnPausar').style.display = '';
+  document.getElementById('cronoGuardadoMsg').textContent = '';
+}
+function cronoPausar(){
+  clearInterval(cronoInterval);
+  cronoInterval = null;
+  document.getElementById('cronoBtnPausar').style.display = 'none';
+  document.getElementById('cronoBtnReanudar').style.display = '';
+}
+function cronoReiniciar(){
+  clearInterval(cronoInterval);
+  cronoInterval = null;
+  cronoSegundos = 0;
+  cronoRender();
+  document.getElementById('cronoBtnPausar').style.display = 'none';
+  document.getElementById('cronoBtnReanudar').style.display = 'none';
+  document.getElementById('cronoBtnIniciar').style.display = '';
+  document.getElementById('cronoGuardadoMsg').textContent = '';
+}
+/* ============ SESIONES POR ETAPA (v2.29) ============
+   Cada etapa (Edición/Mezcla/Mastering) tiene su propio historial de
+   sesiones de trabajo cronometradas, guardado como array en el
+   documento del TEMA (mismo patrón que notasEdicion/Mezcla/Mastering,
+   ver guardarNotaEtapa) — campo nuevo por etapa: `sesiones${Etapa}`,
+   cada entrada = {fecha, minutos, nota}. Se agrega con arrayUnion (una
+   sola escritura, no reemplaza el array completo -> no choca si dos
+   pestañas escriben a la vez). Reusa cronoFormato() de más arriba. Solo
+   una sesión abierta a la vez POR ETAPA: el botón "+ Nueva sesión" de
+   esa etapa se oculta mientras el cronómetro esté abierto sin
+   guardar/cancelar; Edición y Mezcla sí pueden correr cada una el suyo
+   en simultáneo, son etapas independientes. No toca #cronoBox ni
+   duracionRealMin. */
+const etapaCronoState = {
+  Edicion:{segundos:0, interval:null},
+  Mezcla:{segundos:0, interval:null},
+  Mastering:{segundos:0, interval:null}
+};
+
+function etapaCronoAbrir(etapa){
+  document.getElementById(`btnNuevaSesion${etapa}`).style.display = 'none';
+  document.getElementById(`etapaCronoBox${etapa}`).style.display = 'flex';
+}
+
+function etapaCronoRender(etapa){
+  document.getElementById(`etapaCronoTiempo${etapa}`).textContent = cronoFormato(etapaCronoState[etapa].segundos);
+}
+
+function etapaCronoIniciar(etapa){
+  const st = etapaCronoState[etapa];
+  if(st.interval) return;
+  st.interval = setInterval(() => { st.segundos++; etapaCronoRender(etapa); }, 1000);
+  document.getElementById(`etapaCronoBtnIniciar${etapa}`).style.display = 'none';
+  document.getElementById(`etapaCronoBtnReanudar${etapa}`).style.display = 'none';
+  document.getElementById(`etapaCronoBtnPausar${etapa}`).style.display = '';
+  document.getElementById(`etapaCronoMsg${etapa}`).textContent = '';
+}
+
+function etapaCronoPausar(etapa){
+  const st = etapaCronoState[etapa];
+  clearInterval(st.interval);
+  st.interval = null;
+  document.getElementById(`etapaCronoBtnPausar${etapa}`).style.display = 'none';
+  document.getElementById(`etapaCronoBtnReanudar${etapa}`).style.display = '';
+}
+
+function etapaCronoReiniciar(etapa){
+  const st = etapaCronoState[etapa];
+  clearInterval(st.interval);
+  st.interval = null;
+  st.segundos = 0;
+  etapaCronoRender(etapa);
+  document.getElementById(`etapaCronoBtnPausar${etapa}`).style.display = 'none';
+  document.getElementById(`etapaCronoBtnReanudar${etapa}`).style.display = 'none';
+  document.getElementById(`etapaCronoBtnIniciar${etapa}`).style.display = '';
+  document.getElementById(`etapaCronoMsg${etapa}`).textContent = '';
+}
+
+function etapaCronoCerrarBox(etapa){
+  document.getElementById(`etapaCronoBox${etapa}`).style.display = 'none';
+  document.getElementById(`btnNuevaSesion${etapa}`).style.display = '';
+  document.getElementById(`etapaCronoNota${etapa}`).value = '';
+}
+
+function etapaCronoCancelar(etapa){
+  etapaCronoReiniciar(etapa);
+  etapaCronoCerrarBox(etapa);
+}
+
+async function etapaCronoGuardar(etapa){
+  const st = etapaCronoState[etapa];
+  const msg = document.getElementById(`etapaCronoMsg${etapa}`);
+  msg.style.color = 'var(--err)';
+  if(st.segundos === 0){
+    msg.textContent = 'Aún no ha corrido tiempo en este cronómetro.';
+    return;
+  }
+  if(!temaRef){
+    msg.textContent = 'Esta sesión no tiene tema asignado.';
+    return;
+  }
+  clearInterval(st.interval);
+  st.interval = null;
+  const minutos = Math.round(st.segundos / 60);
+  const nota = document.getElementById(`etapaCronoNota${etapa}`).value.trim();
+  // v2.30: se guarda quién registró la sesión (displayName si existe,
+  // si no el email); entradas viejas sin autor simplemente no lo muestran.
+  const autor = (auth.currentUser && (auth.currentUser.displayName || auth.currentUser.email)) || '';
+  const entrada = { fecha: new Date().toISOString().slice(0,10), minutos, nota, autor };
+  try{
+    await temaRef.update({
+      [`sesiones${etapa}`]: firebase.firestore.FieldValue.arrayUnion(entrada)
+    });
+    if(!temaData[`sesiones${etapa}`]) temaData[`sesiones${etapa}`] = [];
+    temaData[`sesiones${etapa}`].push(entrada);
+    renderSesionesEtapa(etapa);
+    st.segundos = 0;
+    etapaCronoRender(etapa);
+    etapaCronoCerrarBox(etapa);
+  } catch(err){
+    console.error('Error guardando sesión de etapa:', err);
+    msg.textContent = 'Error guardando. Intenta de nuevo.';
+  }
+}
+
+function renderSesionesEtapa(etapa){
+  const cont = document.getElementById(`etapaSesionesLista${etapa}`);
+  if(!cont) return;
+  const lista = (temaData && temaData[`sesiones${etapa}`]) || [];
+  if(!lista.length){ cont.innerHTML = ''; return; }
+  const ordenada = [...lista].reverse(); // más reciente primero
+  cont.innerHTML = ordenada.map(s => `
+    <div class="etapa-sesion-item">
+      <span class="fecha">${escapeHtml(s.fecha || '')}</span> · ${minutosATexto(s.minutos || 0)}
+      ${s.autor ? `<br><span class="autor">${escapeHtml(s.autor)}</span>` : ''}
+      ${s.nota ? `<br>${escapeHtml(s.nota)}` : ''}
+    </div>
+  `).join('');
+}
+/* ============ FIN SESIONES POR ETAPA ============ */
+
+function cronoGuardar(){
+  const msg = document.getElementById('cronoGuardadoMsg');
+  if(cronoSegundos === 0){
+    msg.style.color = 'var(--err)';
+    msg.textContent = 'El cronómetro está en 0, nada que guardar.';
+    return;
+  }
+  if(!sesionRef){
+    msg.style.color = 'var(--err)';
+    msg.textContent = 'No se pudo guardar (sesión no cargada).';
+    return;
+  }
+  const minutos = Math.round(cronoSegundos / 60);
+  // v2.32: se agrega ingenieroAutor, mismo patrón que autor en las
+  // sesiones de Edición/Mezcla/Mastering (v2.30) — displayName si existe,
+  // si no el email. Entradas viejas sin este campo simplemente no lo
+  // muestran. Va en el mismo update() que duracionRealMin, no es una
+  // escritura nueva.
+  const ingenieroAutor = (auth.currentUser && (auth.currentUser.displayName || auth.currentUser.email)) || '';
+  sesionRef.update({ duracionRealMin: minutos, ingenieroAutor })
+    .then(() => {
+      msg.style.color = 'var(--ok)';
+      msg.textContent = `Guardado: ${minutos} min.`;
+      if(sesionData){
+        sesionData.duracionRealMin = minutos;
+        sesionData.ingenieroAutor = ingenieroAutor;
+      }
+      actualizarHoraReal(minutos);
+      renderDashboard();
+    })
+    .catch(err => {
+      console.error('Error guardando duración real:', err);
+      msg.style.color = 'var(--err)';
+      msg.textContent = 'Error al guardar, intentá de nuevo.';
+    });
+}
 
 async function cargar(){
   const cont = document.getElementById('contenido');
@@ -536,20 +1363,39 @@ async function cargar(){
       cont.innerHTML = '<div class="error-box">Esta sesión no existe o el link ya no es válido.</div>';
       return;
     }
+    try{
+      const proySnap = await db.collection('proyectos').doc(proyectoId).get();
+      instrumentacionProyecto = (proySnap.exists && proySnap.data().instrumentacion) || {};
+      instrumentacionGruposProyecto = (proySnap.exists && proySnap.data().instrumentacionGrupos) || {};
+    }catch(errProy){
+      console.error('Error cargando instrumentación del proyecto:', errProy);
+      instrumentacionProyecto = {};
+      instrumentacionGruposProyecto = {};
+    }
     const s = snap.data();
     sesionData = s;
     document.getElementById('actividadTitulo').textContent = s.actividad || 'Sesión';
     subt.textContent = `${s.fecha || ''} · ${s.sala || ''}`;
+    actualizarHoraReal(s.duracionRealMin || null);
+    if(s.horaInicio || s.horaFin){
+      document.getElementById('horaSetupBox').style.display = 'block';
+      document.getElementById('fSetup').value = (s.tiempoSetupMin !== undefined && s.tiempoSetupMin !== null) ? String(s.tiempoSetupMin) : '0';
+      actualizarHoraSetup(s.horaInicio || '', s.horaFin || '');
+    } else {
+      document.getElementById('horaSetupBox').style.display = 'none';
+    }
     document.getElementById('avisoTemaActual').textContent = s.temaNombre ? `🎼 Tema: ${s.temaNombre}` : '';
     document.getElementById('avisoTemaActual').style.display = s.temaNombre ? 'block' : 'none';
     document.getElementById('tabsGrupoTemaLabel').textContent = s.temaNombre ? `🎼 ${s.temaNombre}` : '🎼 Sin tema';
     inputListActual = Array.isArray(s.inputList) ? s.inputList.map((it, i) => ({ orden: (it.orden !== undefined && it.orden !== null) ? it.orden : (it.canal || i + 1), ...it })) : [];
+    await cargarCatalogoPreampsSesion(s);
 
     document.getElementById('tabsBox').style.display = 'flex';
     renderFormTomas(s);
     document.getElementById('notasGrabacion').value = s.notasGrabacion || '';
     await cargarNotasTema(s.temaId || '');
     suscribirTomas();
+    renderDashboard();
 
     if(!inputListActual.length){
       cont.innerHTML = '<div class="empty">Esta sesión aún no tiene input list generado. Pide que lo generen desde Logística → Instrumentación de la sesión.</div>';
@@ -574,7 +1420,7 @@ async function cargar(){
 function anadirCanal(){
   const ultimoCanal = inputListActual.reduce((max, it) => Math.max(max, Number(it.canal) || 0), 0);
   const ultimoOrden = inputListActual.reduce((max, it) => Math.max(max, Number(it.orden) || 0), 0);
-  inputListActual.push({ canal: ultimoCanal + 1, orden: ultimoOrden + 1, nombre: '', preamp: '', gain: '', canalInterfaz: '', instrumento: '', manual: true });
+  inputListActual.push({ canal: ultimoCanal + 1, orden: ultimoOrden + 1, nombre: '', preamp: '', gain: '', canalInterfaz: '', mic: '', instrumento: '', grupoCatalogo: '', manual: true });
   renderInputList();
 }
 
@@ -583,6 +1429,16 @@ function anadirCanal(){
 // de `orden` con el vecino inmediato en ese orden visual, no con el canal
 // interno (que nunca se toca). i = índice dentro del arreglo YA ordenado
 // que se le pasa a render, así que se resuelve buscando por referencia.
+// v2.63: antes esta función intercambiaba directamente el VALOR numérico
+// de `orden` entre el canal y su vecino. Si dos canales quedaban con el
+// mismo número de orden (empate — puede pasar cuando el input list se
+// recalcula desde logistica.html), intercambiar dos números iguales no
+// cambiaba nada visualmente: la flecha "no hacía nada" en ese sentido,
+// aunque sí funcionaba para el otro lado (porque ahí el vecino tenía un
+// número distinto). Ahora, después de mover, se renumera TODO el input
+// list en 1,2,3... según la posición visual resultante, así los empates
+// (los que ya existían y los que se puedan volver a formar) no vuelven a
+// bloquear las flechas.
 function moverCanal(it, direccion){
   const ordenados = [...inputListActual].sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
   const pos = ordenados.indexOf(it);
@@ -591,6 +1447,8 @@ function moverCanal(it, direccion){
   const tmp = it.orden;
   it.orden = vecino.orden;
   vecino.orden = tmp;
+  ordenados.sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
+  ordenados.forEach((canalItem, idx) => { canalItem.orden = idx + 1; });
   renderInputList();
 }
 
@@ -609,6 +1467,17 @@ function colorParaGrupo(etiqueta){
   for(let i = 0; i < etiqueta.length; i++) hash = (hash * 31 + etiqueta.charCodeAt(i)) >>> 0;
   return PALETA_GRUPOS[hash % PALETA_GRUPOS.length];
 }
+// v2.66: paleta separada para subgrupos (ej. "Bombo" dentro de
+// "Batería") — a propósito con tonos neón/fríos, bien distintos de
+// PALETA_GRUPOS (cálida), para que de un vistazo se note "esto es
+// subgrupo, no grupo". Mismo mecanismo de hash, mismo criterio de
+// consistencia (mismo texto = siempre mismo color).
+const PALETA_SUBGRUPOS = ['#39e6c4','#ff6ec7','#c6f24a','#4ad9ff','#ff9d3a','#b673ff'];
+function colorParaSubgrupo(etiqueta){
+  let hash = 0;
+  for(let i = 0; i < etiqueta.length; i++) hash = (hash * 17 + etiqueta.charCodeAt(i)) >>> 0;
+  return PALETA_SUBGRUPOS[hash % PALETA_SUBGRUPOS.length];
+}
 function hexToRgba(hex, alpha){
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
@@ -618,19 +1487,33 @@ function hexToRgba(hex, alpha){
 // colapsados en esta pantalla. filtroTexto: buscador en vivo.
 let gruposColapsados = {};
 let filtroTexto = '';
+// v2.8: modoVista alterna entre 'editar' (grilla ancha con inputs, la de
+// siempre) y 'consola' (tiras angostas de solo lectura, tipo channel
+// strip de consola digital, con scroll horizontal por grupo — para
+// repasar de un vistazo el input list ya cargado). Mismos datos
+// (inputListActual) en ambos modos, esto solo cambia cómo se pintan.
+let modoVista = 'consola'; // v2.30: antes 'editar'
 
 function slugEtiqueta(etiqueta){
   return 'grupo-' + etiqueta.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 // v2.5: agrupa visualmente renglones consecutivos (ya ordenados por
-// `orden`) que comparten el mismo texto en `instrumento` — así el ING
-// puede juntar mic+DI del mismo instrumento aunque vengan de piezas
-// distintas del catálogo, sin depender de ninguna estructura fija.
+// `orden`) que comparten el mismo grupo — usa `grupoCatalogo` si el canal
+// lo trae (v2.18: canales automáticos siempre lo traen desde v2.49 de
+// logistica.html; canales manuales solo si el ING lo vinculó desde el
+// selector), mostrando la etiqueta oficial del catálogo. Si no hay
+// grupoCatalogo (canales manuales sin vincular, o canales viejos
+// guardados antes de este cambio), cae al texto libre `instrumento`
+// como ya funcionaba.
+function etiquetaGrupoDe(it){
+  if(it.grupoCatalogo) return labelGrupo(it.grupoCatalogo);
+  return (it.instrumento || '').trim();
+}
 function armarGruposVisuales(lista){
   const grupos = [];
   lista.forEach(it => {
-    const etiqueta = (it.instrumento || '').trim();
+    const etiqueta = etiquetaGrupoDe(it);
     const anterior = grupos[grupos.length - 1];
     if(etiqueta && anterior && anterior.etiqueta === etiqueta){
       anterior.items.push(it);
@@ -639,6 +1522,27 @@ function armarGruposVisuales(lista){
     }
   });
   return grupos;
+}
+
+// v2.34: sub-agrupación dentro de un grupo (ej. "Bombo" dentro de
+// "Batería"), usando subgrupoCatalogo (viene de logistica.html v2.62,
+// que a su vez lo trae de instrumentacion.js v1.4). Mismo criterio que
+// armarGruposVisuales: consecutivos con la misma etiqueta se juntan.
+// Canales sin subgrupo (la mayoría, hoy) quedan como su propia
+// "columna" de 1 solo canal, sin mini-título — no cambia nada visual
+// para quien no use subgrupos.
+function armarSubgruposVisuales(items){
+  const subs = [];
+  items.forEach(it => {
+    const etiqueta = (it.subgrupoCatalogo || '').trim();
+    const anterior = subs[subs.length - 1];
+    if(etiqueta && anterior && anterior.etiqueta === etiqueta){
+      anterior.items.push(it);
+    } else {
+      subs.push({ etiqueta, items: [it] });
+    }
+  });
+  return subs;
 }
 
 function toggleGrupo(etiqueta){
@@ -659,7 +1563,10 @@ function renderToolbar(gruposUnicos, hayNoAgrupados){
     return `<button type="button" class="chip-nav" style="--gc:${c};--gc-bg:${hexToRgba(c,0.12)};" onclick="scrollAGrupo('${etq.replace(/'/g,"\\'")}')">${escapeHtml(etq)}</button>`;
   }).join('') + (hayNoAgrupados ? `<button type="button" class="chip-nav sin-grupo" onclick="scrollAGrupo('')">Sin agrupar</button>` : '');
   box.innerHTML = `
-    <input type="text" class="bitacora-buscador" placeholder="🔍 Buscar por nombre, Ch o canal de interfaz…" value="${escapeHtml(filtroTexto)}" oninput="filtroTexto = this.value; renderInputList();">
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="text" class="bitacora-buscador" style="flex:1;margin-bottom:0;" placeholder="🔍 Buscar por nombre, Ch, interfaz, mic, preamp o gain…" value="${escapeHtml(filtroTexto)}" oninput="filtroTexto = this.value; renderInputList();">
+      <button type="button" class="btn-mover" style="flex-shrink:0;padding:0 12px;" onclick="modoVista = (modoVista === 'editar' ? 'consola' : 'editar'); renderInputList();">${modoVista === 'editar' ? '🎚️ Vista consola' : '✏️ Editar'}</button>
+    </div>
     ${chips ? `<div class="chips-nav">${chips}</div>` : ''}
   `;
 }
@@ -668,6 +1575,15 @@ function renderInputList(){
   const cont = document.getElementById('contenido');
   const ordenados = [...inputListActual].sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
 
+  // v2.14: fix — el buscador vive DENTRO del toolbar que se reconstruye
+  // (box.innerHTML) en cada tecla, así que el <input> se destruye y se
+  // vuelve a crear en cada keystroke, perdiendo foco y cursor (se sentía
+  // "trabado" al escribir). Acá se guarda si el foco estaba en el
+  // buscador (y en qué posición) ANTES de reconstruir, para devolvérselo
+  // al input nuevo apenas se pinta. No cambia la lógica de filtrado.
+  const buscadorActivo = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('bitacora-buscador');
+  const cursorPos = buscadorActivo ? document.activeElement.selectionStart : null;
+
   // Toolbar se arma con TODOS los grupos (sin filtrar), para que los
   // chips de navegación no desaparezcan mientras se busca.
   const todosGrupos = armarGruposVisuales(ordenados);
@@ -675,12 +1591,23 @@ function renderInputList(){
   const hayNoAgrupados = todosGrupos.some(g => !g.etiqueta);
   renderToolbar(gruposUnicos, hayNoAgrupados);
 
+  if(buscadorActivo){
+    const nuevoInput = document.querySelector('.bitacora-buscador');
+    if(nuevoInput){
+      nuevoInput.focus();
+      if(cursorPos !== null) nuevoInput.setSelectionRange(cursorPos, cursorPos);
+    }
+  }
+
   const filtro = filtroTexto.trim().toLowerCase();
   const filtrados = filtro ? ordenados.filter(it =>
     (it.nombre || '').toLowerCase().includes(filtro) ||
     (it.instrumento || '').toLowerCase().includes(filtro) ||
     String(it.canal || '').includes(filtro) ||
-    (it.canalInterfaz || '').toLowerCase().includes(filtro)
+    (it.canalInterfaz || '').toLowerCase().includes(filtro) ||
+    (it.mic || '').toLowerCase().includes(filtro) ||
+    (it.preamp || '').toLowerCase().includes(filtro) ||
+    (it.gain || '').toLowerCase().includes(filtro)
   ) : ordenados;
 
   if(filtro && !filtrados.length){
@@ -697,41 +1624,153 @@ function renderInputList(){
   // y usando sin cambios para el matching de Preamp/Gain en el otro
   // archivo; acá solo cambia lo que se muestra en pantalla.
   let posicionBitacora = 0;
-  cont.innerHTML = grupos.map(grupo => {
-    const filas = grupo.items.map(it => {
-      const i = inputListActual.indexOf(it);
-      posicionBitacora++;
+
+  if(modoVista === 'consola'){
+    // v2.8: modo consola — mismos datos, tiras angostas de solo lectura.
+    // v2.13: los grupos ahora van en columnas lado a lado con scroll
+    // horizontal (antes se apilaban), y cada tira indica su origen:
+    // (ING) = canal tipeado a mano por el Inge, (CHECK LIST) = viene
+    // de la instrumentación marcada. Clic en cualquier tira vuelve a
+    // modo editar (no pierde nada, es el mismo inputListActual).
+    const columnas = grupos.map(grupo => {
+      // v2.34: dentro de cada grupo, las tiras se sub-agrupan por
+      // subgrupoCatalogo (ej. "Bombo" dentro de "Batería") en mini-
+      // columnas separadas horizontalmente con su propio mini-título.
+      // Canales sin subgrupo se renderizan igual que siempre (sin
+      // wrapper), así que si el proyecto no usa subgrupos el resultado
+      // es idéntico al de antes.
+      const tiras = armarSubgruposVisuales(grupo.items).map(sub => {
+        const tirasSub = sub.items.map(it => {
+          posicionBitacora++;
+          const datos = [
+            it.canalInterfaz ? `IN ${escapeHtml(it.canalInterfaz)}` : null,
+            it.mic || null,
+            it.preamp || null,
+            it.gain || null
+          ].filter(Boolean).map(d => `<div>${escapeHtml(d)}</div>`).join('');
+          const origen = it.manual
+            ? '<span class="tag-manual">✋ (ING)</span>'
+            : '<span class="tag-checklist">🎚️ (CHECK LIST)</span>';
+          return `
+          <div class="consola-strip${it.manual ? ' manual' : ' checklist'}" onclick="modoVista='editar';renderInputList();">
+            <span class="ch">${posicionBitacora}</span>
+            <div class="nombre">${escapeHtml(it.nombre || '—')}</div>
+            ${origen}
+            <div class="datos">${datos || '<div>—</div>'}</div>
+          </div>`;
+        }).join('');
+        if(!sub.etiqueta) return tirasSub;
+        const sc = colorParaSubgrupo(sub.etiqueta);
+        return `
+          <div class="consola-subgrupo-col" style="--sgc:${sc};--sgc-bg:${hexToRgba(sc,0.12)};">
+            <div class="consola-subgrupo-titulo">${escapeHtml(sub.etiqueta)}</div>
+            <div class="consola-subgrupo-strips">${tirasSub}</div>
+          </div>`;
+      }).join('');
+      if(!grupo.etiqueta) return `<div class="consola-grupo-col sin-grupo"><div class="consola-grupo-fila">${tiras}</div></div>`;
+      const c = colorParaGrupo(grupo.etiqueta);
       return `
-      <div class="strip-row${grupo.etiqueta ? ' card-agrupada' : ''}" id="${!grupo.etiqueta ? 'sin-grupo-bitacora' : ''}">
-        <div class="strip-top">
-          <span class="strip-ch">${posicionBitacora}</span>
-          ${it.manual ? `
-            <input type="text" class="nombre-input" style="font-size:0.85rem;padding:6px 8px;" placeholder="Ej: Caja Directa" value="${escapeHtml(it.nombre || '')}" oninput="inputListActual[${i}].nombre = this.value">
-            <button type="button" class="btn-borrar-canal" onclick="borrarCanal(${i})">🗑️</button>
-          ` : `<span class="strip-nombre">${escapeHtml(it.nombre || '—')}</span>`}
-          <div class="mover-btns">
-            <button type="button" class="btn-mover" onclick='moverCanal(inputListActual[${i}], -1)'>▲</button>
+        <div class="consola-grupo-col" style="--gc:${c};--gc-bg:${hexToRgba(c,0.05)};">
+          <div class="consola-grupo-titulo">🎚️ ${escapeHtml(grupo.etiqueta)}</div>
+          <div class="consola-grupo-fila">${tiras}</div>
+        </div>`;
+    }).join('');
+    cont.innerHTML = `<div class="consola-grupos-fila">${columnas}</div>` +
+      `<button type="button" class="btn-guardar" onclick="guardar()">Guardar bitácora</button><div class="estado" id="estado"></div>`;
+    return;
+  }
+
+  cont.innerHTML = grupos.map(grupo => {
+    // v2.35: mismo criterio de sub-agrupación que en consola, pero acá la
+    // lista es vertical (tarjetas apiladas) — no tiene sentido separar en
+    // columnas horizontales, así que se inserta un mini-encabezado de
+    // texto ("— Bombo —") antes de la primera tarjeta de cada tramo con
+    // el mismo subgrupoCatalogo. Sin subgrupos, no cambia nada.
+    const filas = armarSubgruposVisuales(grupo.items).map(sub => {
+      const tarjetas = sub.items.map(it => {
+        const i = inputListActual.indexOf(it);
+        posicionBitacora++;
+        return `
+        <div class="strip-row${grupo.etiqueta ? ' card-agrupada' : ''}" id="${!grupo.etiqueta ? 'sin-grupo-bitacora' : ''}">
+          <div class="strip-top">
+            <span class="strip-ch">${posicionBitacora}</span>
+            ${it.manual ? `
+              <input type="text" class="nombre-input" style="font-size:0.85rem;padding:6px 8px;" placeholder="Ej: Caja Directa" value="${escapeHtml(it.nombre || '')}" oninput="inputListActual[${i}].nombre = this.value">
+              <button type="button" class="btn-borrar-canal" onclick="borrarCanal(${i})">🗑️</button>
+            ` : `<span class="strip-nombre">${escapeHtml(it.nombre || '—')}</span>`}
+            <div class="mover-btns">
+              <button type="button" class="btn-mover" onclick='moverCanal(inputListActual[${i}], -1)'>▲</button>
             <button type="button" class="btn-mover" onclick='moverCanal(inputListActual[${i}], 1)'>▼</button>
           </div>
         </div>
+        ${it.manual ? `<span class="tag-manual-edit">✋ Canal generado por ING</span>` : ''}
+        ${it.manual ? `
+        <div class="strip-vinculo">
+          <label>Vincular a grupo</label>
+          <select onchange="inputListActual[${i}].grupoCatalogo = this.value; renderInputList();">
+            <option value="">— Sin vincular (texto libre) —</option>
+            ${Object.keys(instrumentacionProyecto).filter(k => Array.isArray(instrumentacionProyecto[k]) && instrumentacionProyecto[k].length).map(k =>
+              `<option value="${k}" ${it.grupoCatalogo === k ? 'selected' : ''}>${labelGrupo(k)}</option>`
+            ).join('')}
+          </select>
+          <input type="text" class="strip-subgrupo-input" placeholder="Subgrupo (ej: Bombo)" value="${escapeHtml(it.subgrupoCatalogo || '')}" oninput="inputListActual[${i}].subgrupoCatalogo = this.value" onblur="renderInputList()">
+        </div>
+        ` : `
+        <div class="strip-vinculo strip-vinculo-check">
+          <label>Subgrupo</label>
+          <input type="text" class="strip-subgrupo-input" placeholder="Ej: Bombo" value="${escapeHtml(it.subgrupoCatalogo || '')}" oninput="inputListActual[${i}].subgrupoCatalogo = this.value" onblur="renderInputList()">
+        </div>
+        `}
         <div class="strip-fields">
           <div class="field">
-            <label>Instrumento</label>
-            <input type="text" placeholder="Ej: Baby Bass" value="${escapeHtml(it.instrumento || '')}" oninput="inputListActual[${i}].instrumento = this.value">
-          </div>
-          <div class="field">
-            <label>Interfaz</label>
-            <input type="text" placeholder="Ej: 12" value="${escapeHtml(it.canalInterfaz || '')}" oninput="inputListActual[${i}].canalInterfaz = this.value">
+            <label>Mic</label>
+            <input type="text" placeholder="Ej: SM57" value="${escapeHtml(it.mic || '')}" oninput="inputListActual[${i}].mic = this.value">
           </div>
           <div class="field">
             <label>Preamp</label>
-            <input type="text" placeholder="Ej: Neve 1073" value="${escapeHtml(it.preamp || '')}" oninput="inputListActual[${i}].preamp = this.value">
+            ${(() => {
+              const nombres = preampsCatalogoSesion.map(p => p.nombre);
+              const esCatalogo = it.preamp && nombres.includes(it.preamp);
+              const esCustom = it.preamp && !esCatalogo;
+              const unidad = preampsCatalogoSesion.find(p => p.nombre === it.preamp);
+              const canalesUnidad = unidad ? (unidad.canales || 1) : 1;
+              return `
+              <select onchange="if(this.value==='__custom__'){ inputListActual[${i}].preamp=''; inputListActual[${i}]._preampCustom=true; } else { inputListActual[${i}].preamp=this.value; inputListActual[${i}]._preampCustom=false; inputListActual[${i}].preampCanal=1; } renderInputList(); verificarConflictoPreamp(${i});">
+                <option value="">— Sin preamp —</option>
+                ${preampsCatalogoSesion.map(p => `<option value="${escapeHtml(p.nombre)}" ${it.preamp === p.nombre ? 'selected' : ''}>${escapeHtml(p.nombre)} (${p.canales || 1} ch)</option>`).join('')}
+                <option value="__custom__" ${(esCustom || it._preampCustom) ? 'selected' : ''}>+ Personalizado (no está en catálogo)</option>
+              </select>
+              ${(esCustom || it._preampCustom) ? `
+              <input type="text" placeholder="Nombre del preamp usado" value="${escapeHtml(it.preamp || '')}" style="margin-top:4px;"
+                oninput="inputListActual[${i}].preamp = this.value" onchange="verificarConflictoPreamp(${i})">
+              ` : ''}
+              ${it.preamp ? `
+              <input type="number" min="1" max="${canalesUnidad}" placeholder="Canal" value="${it.preampCanal || 1}" style="margin-top:4px;width:90px;"
+                oninput="inputListActual[${i}].preampCanal = this.value" onchange="verificarConflictoPreamp(${i})">
+              ` : ''}
+              ${conflictosPreamp[i] ? `<div style="color:var(--err);font-size:0.75rem;margin-top:3px;">${escapeHtml(conflictosPreamp[i])}</div>` : ''}
+              `;
+            })()}
           </div>
           <div class="field">
             <label>Gain</label>
-            <input type="text" placeholder="Ej: -6dB" value="${escapeHtml(it.gain || '')}" oninput="inputListActual[${i}].gain = this.value">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <input type="text" placeholder="Ej: -6" style="flex:1;" value="${escapeHtml(it.gain || '')}" oninput="inputListActual[${i}].gain = this.value">
+              <span style="font-size:0.8rem;color:var(--muted);">dB</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Interfaz IN</label>
+            <input type="text" placeholder="Ej: 12" value="${escapeHtml(it.canalInterfaz || '')}" oninput="inputListActual[${i}].canalInterfaz = this.value">
           </div>
         </div>
+      </div>`;
+      }).join('');
+      if(!sub.etiqueta) return tarjetas;
+      const sc = colorParaSubgrupo(sub.etiqueta);
+      return `<div class="subgrupo-bloque-edit" style="--sgc:${sc};">
+        <div class="subgrupo-header-edit">— ${escapeHtml(sub.etiqueta)} —</div>
+        ${tarjetas}
       </div>`;
     }).join('');
     if(!grupo.etiqueta) return filas;
@@ -766,11 +1805,9 @@ async function guardar(){
   }
 }
 
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str == null ? '' : String(str);
-  return d.innerHTML;
-}
+// v2.11.3: escapeHtml() ahora vive en utils.js (compartida con
+// proyecto.html e ingeniero.html) — se quitó la copia local, mismo
+// comportamiento (incluye el manejo de str==null que ya tenía acá).
 
 /* ============ TABS (v2.1) ============ */
 function cambiarTab(tab){
@@ -795,6 +1832,8 @@ async function cargarNotasTema(temaId){
     temaRef = null;
     temaData = null;
     deshabilitarTabsTema(true);
+    renderDashboard();
+    cargarSesionesGrabacionTema(''); // v2.32: oculta el listado si no hay tema
     return;
   }
   temaRef = db.collection('proyectos').doc(proyectoId).collection('temas').doc(temaId);
@@ -806,18 +1845,75 @@ async function cargarNotasTema(temaId){
       temaRef = null;
       temaData = null;
       deshabilitarTabsTema(true);
+      cargarSesionesGrabacionTema(''); // v2.32
       return;
     }
     temaData = snap.data();
     document.getElementById('notasEdicion').value = temaData.notasEdicion || '';
     document.getElementById('notasMezcla').value = temaData.notasMezcla || '';
     document.getElementById('notasMastering').value = temaData.notasMastering || '';
+    // v2.29: pintar el historial de sesiones de trabajo de cada etapa
+    ['Edicion','Mezcla','Mastering'].forEach(etapa => renderSesionesEtapa(etapa));
     deshabilitarTabsTema(false);
+    renderDashboard();
+    cargarSesionesGrabacionTema(temaId); // v2.32: listado de sesiones de Grabación del tema
   } catch(err){
     console.error('Error cargando el tema:', err);
     temaRef = null;
     temaData = null;
     deshabilitarTabsTema(true);
+    renderDashboard();
+    cargarSesionesGrabacionTema(''); // v2.32
+  }
+}
+
+// v2.32: lista, dentro del dashboard, todas las sesiones de Grabación
+// del tema actual (fecha, sala, duración real, ingeniero, link para
+// abrir). A diferencia de las sesiones de Edición/Mezcla/Mastering (que
+// viven como array dentro del doc del tema), las sesiones de Grabación
+// son documentos propios en proyectos/{p}/sesiones — por eso acá SÍ hace
+// falta una consulta nueva (where temaId == …), no solo leer datos que
+// ya estaban en memoria. Se llama desde cargarNotasTema(), una sola vez
+// por carga de tema. IMPORTANTE: este query necesita que tus reglas de
+// Firestore permitan "list" sobre esa subcolección para usuarios
+// autenticados (staff/ingeniero) — revisar en Firebase Console si no
+// carga (ver nota al final del archivo).
+async function cargarSesionesGrabacionTema(temaId){
+  const box = document.getElementById('dashGrabacionesBox');
+  const cont = document.getElementById('dashGrabacionesLista');
+  if(!temaId){
+    box.style.display = 'none';
+    cont.innerHTML = '';
+    return;
+  }
+  try{
+    const snap = await db.collection('proyectos').doc(proyectoId).collection('sesiones')
+      .where('temaId', '==', temaId).get();
+    if(snap.empty){
+      box.style.display = 'none';
+      cont.innerHTML = '';
+      return;
+    }
+    const lista = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    lista.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')); // más reciente primero
+    box.style.display = 'block';
+    cont.innerHTML = lista.map(sx => {
+      const esActual = sx.id === sesionId;
+      const dur = sx.duracionRealMin ? minutosATexto(sx.duracionRealMin) : 'Sin cronómetro guardado';
+      const link = `bitacora.html?p=${encodeURIComponent(proyectoId)}&s=${encodeURIComponent(sx.id)}`;
+      return `
+        <div class="dash-grabacion-item ${esActual ? 'actual' : ''}">
+          <div>
+            <span class="fecha">${escapeHtml(sx.fecha || '')}</span>
+            · ${escapeHtml(sx.sala || sx.estudioNombre || 'Sin sala')} · ${dur}
+            ${sx.ingenieroAutor ? `<span class="autor">${escapeHtml(sx.ingenieroAutor)}</span>` : ''}
+          </div>
+          ${esActual ? '<span class="autor">Esta sesión</span>' : `<a class="abrir" href="${link}">Abrir →</a>`}
+        </div>`;
+    }).join('');
+  } catch(err){
+    console.error('Error cargando sesiones de grabación del tema:', err);
+    box.style.display = 'none';
   }
 }
 
@@ -826,6 +1922,12 @@ function deshabilitarTabsTema(sinTema){
     document.getElementById(`notas${etapa}`).disabled = sinTema;
     document.getElementById(`avisoSinTema${etapa}`).style.display = sinTema ? 'block' : 'none';
     if(sinTema) document.getElementById(`notas${etapa}`).value = '';
+    // v2.29: sin tema tampoco se puede abrir una sesión de trabajo nueva
+    document.getElementById(`btnNuevaSesion${etapa}`).disabled = sinTema;
+    if(sinTema){
+      etapaCronoCancelar(etapa);
+      document.getElementById(`etapaSesionesLista${etapa}`).innerHTML = '';
+    }
   });
 }
 
@@ -833,6 +1935,8 @@ async function guardarNotaEtapa(etapaCap, valor){
   try{
     if(etapaCap === 'Grabacion'){
       await sesionRef.update({ notasGrabacion: valor.trim() });
+      if(sesionData) sesionData.notasGrabacion = valor.trim();
+      renderDashboard();
       return;
     }
     if(!temaRef){
@@ -861,6 +1965,15 @@ const GRUPOS_INSTRUMENTACION_LABELS = {
   bronces: 'Bronces', voces: 'Voces', teclas: 'Teclas', otros: 'Otros'
 };
 
+// v2.24: etiqueta de un grupo — primero busca en instrumentacionGruposProyecto
+// (lo que haya editado el usuario en proyecto.html), si no existe cae al
+// diccionario fijo de arriba, y si tampoco está ahí (grupo custom nuevo
+// en un proyecto que no se alcanzó a cargar bien) muestra la clave cruda.
+function labelGrupo(key){
+  if(instrumentacionGruposProyecto[key] && instrumentacionGruposProyecto[key].label) return instrumentacionGruposProyecto[key].label;
+  return GRUPOS_INSTRUMENTACION_LABELS[key] || key;
+}
+
 let ratingTomaActual = 0;
 let usarTomaActual = null;
 let tomasReporte = [];
@@ -880,6 +1993,7 @@ function suscribirTomas(){
       tomasReporte = [];
       snap.forEach(d => tomasReporte.push({ id: d.id, ...d.data() }));
       renderListaTomasLocal();
+      renderDashboard();
     }, err => console.error('Error cargando tomas:', err));
 }
 
@@ -898,7 +2012,7 @@ function construirOpcionesInstrumento(s){
   const piezasSnapshot = (s.instrumentacionSesionPiezas && typeof s.instrumentacionSesionPiezas === 'object') ? s.instrumentacionSesionPiezas : {};
   const opciones = [];
   grupos.forEach(key => {
-    const label = GRUPOS_INSTRUMENTACION_LABELS[key] || key;
+    const label = labelGrupo(key);
     const piezas = Array.isArray(piezasSnapshot[key]) ? piezasSnapshot[key] : [];
     if(individual[key] && piezas.length){
       piezas.forEach(p => {
@@ -1132,6 +2246,19 @@ match /proyectos/{proyectoId}/sesiones/{sesionId} {
     // v2.9: se quitan notasEdicion/notasMezcla/notasMastering de esta lista
     // (ya no se escriben en la sesión) — sin login, SOLO puede modificar
     // inputList y notasGrabacion, nada más.
+    // NOTA v2.32: duracionRealMin e ingenieroAutor (guardados por
+    // cronoGuardar) YA NO entran acá porque cronoGuardar solo corre con
+    // el guard de sesión activo (usuario logueado) — deben permitirse en
+    // tus reglas normales de auth (staff/ingeniero), no en esta excepción
+    // sin login. Revisa que esas reglas ya cubran ambos campos.
+    //
+    // NOTA v2.32 (2): el nuevo query de cargarSesionesGrabacionTema()
+    // (where temaId == …) es un "list" sobre esta subcolección, y esta
+    // sección lo tiene en `allow list: if false;` de forma incondicional
+    // — hace falta agregar una excepción de list para usuarios
+    // autenticados con acceso al proyecto (staff o ingeniero asignado),
+    // o el listado del dashboard va a fallar silenciosamente (queda
+    // oculto, no rompe el resto de la página, pero no se ve nada).
 
   match /tomas/{tomaId} {
     allow read: if true;   // se puede leer, para listar tomas ya registradas
@@ -1155,9 +2282,12 @@ match /proyectos/{proyectoId}/temas/{temaId} {
 
   allow update: if
     request.resource.data.diff(resource.data).affectedKeys()
-      .hasOnly(['notasEdicion', 'notasMezcla', 'notasMastering']);
-    // sin login, SOLO puede modificar estos 3 campos — nunca nombre,
-    // orden ni activo (eso solo lo toca el CRUD de logistica.html con login)
+      .hasOnly(['notasEdicion', 'notasMezcla', 'notasMastering',
+                 'sesionesEdicion', 'sesionesMezcla', 'sesionesMastering']);
+    // v2.29: se agregan los 3 campos de historial de sesiones de trabajo
+    // (arrayUnion desde etapaCronoGuardar) a la misma excepción — sin
+    // login, SOLO puede modificar estos 6 campos — nunca nombre, orden
+    // ni activo (eso solo lo toca el CRUD de logistica.html con login)
 }
 
 Esto no reemplaza tus reglas de auth normal para el resto del sistema,

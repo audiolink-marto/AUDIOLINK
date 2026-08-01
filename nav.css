@@ -1,0 +1,102 @@
+/* AUDIOLINK · nav.css · v1.1
+   v1.1: se aumenta un poco el tamaño en mobile del texto del
+   .mobile-bottomnav (0.64rem→0.7rem, ícono 1.15rem→1.2rem) y del panel
+   "···" .mas-mobile-item (0.82rem→0.88rem), para mejorar legibilidad y
+   área táctil. El botón .btn-icon ("⋮") NO se toca acá — vive como
+   regla propia en cada página (nav.css no la define), así que su ajuste
+   se hizo directamente en cada archivo.
+   Estilos de la navegación compartida (sidebar desktop + mobile topbar +
+   panel "···" + bottomnav), inyectada en HTML por nav.js. Antes este
+   bloque de CSS estaba copiado y pegado en cada página — con el tiempo
+   se desincronizó: algunos archivos se quedaron sin `header{display:none;}`
+   en el breakpoint mobile (el header de escritorio no se ocultaba,
+   quedando duplicado con la topbar/bottomnav mobile encima), y
+   cotizador.html además tenía tipografía distinta en el sidebar. Ahora
+   vive en un solo lugar: se corrige una vez y aplica a todo el
+   ecosistema por igual.
+
+   USO: <link rel="stylesheet" href="nav.css"> en el <head>, junto a
+   <script src="nav.js"></script>. Requiere que la página ya defina las
+   variables de tema (--bg, --surf, --brd, --gold, --gold-bg, --muted,
+   --faint, --txt, --T, --S) en su propio :root, como ya hace cada
+   archivo del ecosistema. */
+
+:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
+  background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;z-index:90;overflow:hidden;
+  transition:width 0.18s ease;
+}
+.sidebar.collapsed{width:var(--sb-c);}
+.sb-brand{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
+}
+.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
+.sidebar.collapsed .sb-brand h1{opacity:0;}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-item{
+  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
+  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
+  transition:background 0.15s,color 0.15s;
+}
+.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
+.sb-item:hover{background:var(--surf-light);color:var(--txt);}
+.sb-item.active{background:var(--gold-bg);color:var(--gold);}
+.sidebar.collapsed .sb-item span{display:none;}
+.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.sb-toggle{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
+  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
+}
+.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
+.sb-toggle i{transition:transform 0.2s;display:inline-block;}
+.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
+.sidebar.collapsed .sb-toggle span{display:none;}
+.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
+.sidebar.collapsed .sb-credit{opacity:0;}
+.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
+.main-wrap.expanded{margin-left:var(--sb-c);}
+
+.mobile-topbar{display:none;}
+.mobile-bottomnav{display:none;}
+.mas-mobile-panel{display:none;}
+
+@media (max-width:768px){
+  .sidebar{display:none;}
+  .main-wrap{margin-left:0;}
+  header{display:none;}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
+    position:relative;z-index:1;
+  }
+  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
+  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  main{padding-bottom:78px !important;}
+  .mobile-bottomnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
+    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
+  }
+  .mobile-bottomnav a{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--muted);text-decoration:none;font-size:0.7rem;letter-spacing:0.02em;
+  }
+  .mobile-bottomnav a i{font-style:normal;font-size:1.2rem;}
+  .mobile-bottomnav a.active{color:var(--gold);}
+  .mas-mobile-panel{
+    display:none;position:fixed;top:60px;right:14px;z-index:81;
+    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
+  }
+  .mas-mobile-panel.show{display:block;}
+  .mas-mobile-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
+    color:var(--txt);font-size:0.88rem;cursor:pointer;white-space:nowrap;
+  }
+  .mas-mobile-item:hover{background:var(--surf-light);}
+  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
+}

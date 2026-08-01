@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Consentimiento de Sesión</title>
-<!-- AUDIOLINK · consentimiento.html · v1.0
+<!-- AUDIOLINK · consentimiento.html · v1.1
+     v1.1: se quita la copia local de escapeHtml() — ya se cargaba
+     utils.js desde v1.0 solo para formatCOP(), ahora también provee
+     escapeHtml() (misma función, mismo resultado). No se tocó nada más.
+     v1.0
      Página standalone, SIN el sistema logueado (mismo criterio que
      bitacora.html v2.0): sin firebase-auth, sin listado de proyectos.
      Se abre con ?p={proyectoId}&s={sesionId}&nombre=&correo=&tarifa=
@@ -246,12 +250,6 @@ async function confirmar(){
     estado.className = 'estado err';
     btn.disabled = false;
   }
-}
-
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str == null ? '' : String(str);
-  return d.innerHTML;
 }
 
 cargar();

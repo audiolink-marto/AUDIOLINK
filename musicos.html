@@ -4,7 +4,38 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Músicos</title>
-<!-- AUDIOLINK · musicos.html · v1.1
+<!-- AUDIOLINK · musicos.html · v1.5
+     v1.5: se aumenta un poco el tamaño en mobile de botones/campos de
+     formulario (.btn/.btn-ghost, .field input/select/textarea, .field
+     label) para mejorar legibilidad y área táctil — no toca botones
+     chicos de utilidad. .btn-icon ("⋮") sube de 38px a 42px. Mismo
+     ajuste aplicado en paralelo a los otros 10 archivos del ecosistema
+     y a nav.css v1.1.
+     v1.4: el formulario de alta/edición deja de estar siempre visible
+     arriba de la lista (leftover de la migración modal→página de v1.0)
+     y pasa a ser un panel oculto por defecto que reemplaza a la lista
+     mientras se edita — mismo patrón que el editor de sesión de
+     logistica.html v2.16 (clase .item-panel, botón "← Volver a la
+     lista", sin overlay ni position:fixed). Se agrega el botón
+     "+ Nuevo músico" y las funciones abrirPanelMusicoNuevo()/
+     mostrarPanelMusico()/cerrarPanelMusico(). Se retira el botón suelto
+     "Cancelar edición" (queda cubierto por "← Volver a la lista"). Al
+     guardar exitosamente ahora se cierra el panel y vuelve a la lista
+     (antes el formulario seguía visible). De paso se corrige un bug
+     real: _musEditar() llamaba document.getElementById('modalMusicosBg')
+     — un elemento que ya no existía desde v1.0 — lo que rompía
+     silenciosamente el scroll al editar. No se tocó
+     subirArchivoCloudinary(), _musSubirDocumento(), slugMusico(), el
+     lightbox de documentos ni ninguna otra lógica de Firestore.
+     v1.3: se quita el bloque de CSS de navegación (sidebar/topbar/
+     bottomnav) que vivía copiado en el <style> — ahora vive en nav.css
+     (compartido, junto con nav.js). Se agrega <link rel="stylesheet"
+     href="nav.css"> en el head. No se tocó ningún otro estilo.
+     v1.2
+     v1.2: se quita la copia local de escapeHtml() — ya se cargaba
+     utils.js, que ahora también provee escapeHtml() (misma función,
+     mismo resultado). No se tocó nada más.
+     v1.1
      V1.1: fix de arranque — mismo bug que estudios.html v1.1:
      escapeHtml()/escJsHtml() habían quedado como texto suelto (sin
      <script>) por un error de ensamblado, y de paso slugMusico() se
@@ -39,6 +70,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
 <script>
 // Anti-flash: aplica tema guardado ANTES de pintar el body
 (function(){
@@ -141,7 +173,7 @@ header{
 }
 .header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
-.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+.btn-icon{min-width:42px;min-height:42px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
 .brand{display:flex;align-items:center;gap:14px;}
 nav.links{display:flex;gap:8px;margin-left:20px;}
 nav.links a{
@@ -172,86 +204,6 @@ nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg
 .btn:hover{background:var(--gold);color:var(--bg);}
 .btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
 .btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
-/* ===== NAV V2.7: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
-:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
-.sidebar{
-  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
-  background:var(--surf);border-right:1px solid var(--brd);
-  display:flex;flex-direction:column;z-index:90;overflow:hidden;
-  transition:width 0.18s ease;
-}
-.sidebar.collapsed{width:var(--sb-c);}
-.sb-brand{
-  display:flex;align-items:center;gap:10px;padding:18px 16px;
-  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
-}
-.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
-.sidebar.collapsed .sb-brand h1{opacity:0;}
-.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
-.sb-item{
-  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
-  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
-  transition:background 0.15s,color 0.15s;
-}
-.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
-.sb-item:hover{background:var(--surf-light);color:var(--txt);}
-.sb-item.active{background:var(--gold-bg);color:var(--gold);}
-.sidebar.collapsed .sb-item span{display:none;}
-.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.sb-toggle{
-  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
-  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
-}
-.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
-.sb-toggle i{transition:transform 0.2s;display:inline-block;}
-.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
-.sidebar.collapsed .sb-toggle span{display:none;}
-.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
-.sidebar.collapsed .sb-credit{opacity:0;}
-.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
-.main-wrap.expanded{margin-left:var(--sb-c);}
-
-.mobile-topbar{display:none;}
-.mobile-bottomnav{display:none;}
-.mas-mobile-panel{display:none;}
-
-@media (max-width:768px){
-  .sidebar{display:none;}
-  .main-wrap{margin-left:0;}
-  header{display:none;}
-  .mobile-topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
-    position:relative;z-index:1;
-  }
-  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
-  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
-  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
-  main{padding-bottom:78px !important;}
-  .mobile-bottomnav{
-    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
-    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
-  }
-  .mobile-bottomnav a{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
-  }
-  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
-  .mobile-bottomnav a.active{color:var(--gold);}
-  .mas-mobile-panel{
-    display:none;position:fixed;top:60px;right:14px;z-index:81;
-    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
-    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
-  }
-  .mas-mobile-panel.show{display:block;}
-  .mas-mobile-item{
-    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
-    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
-  }
-  .mas-mobile-item:hover{background:var(--surf-light);}
-  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
-  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
-}
 
 main{padding:28px;max-width:1200px;margin:0 auto;}
 .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
@@ -324,6 +276,14 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   padding:28px;
 }
 .modal h2{color:var(--gold);font-size:1.1rem;margin-bottom:20px;}
+/* v1.4: el formulario deja de estar siempre visible arriba de la lista
+   (leftover de la migración modal→página) y pasa a ser un panel oculto
+   por defecto, que reemplaza a la lista mientras se edita — mismo
+   patrón que .sesion-panel de logistica.html v2.16. Se combina con
+   .modal (que ya define el look del cuadro) solo para controlar
+   visibilidad. */
+.item-panel{display:none;}
+.item-panel.active{display:block;margin-top:4px;}
 .field{margin-bottom:16px;}
 .field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
 .field input,.field select,.field textarea{
@@ -520,6 +480,11 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .pdf-actions .btn{width:100%;}
   .modal{padding:20px;}
+  /* v1.5: se aumenta un poco tipografía/área táctil de botones y campos
+     de formulario en mobile — no toca botones chicos de utilidad. */
+  .btn,.btn-ghost{min-height:44px;font-size:0.95rem;}
+  .field input,.field select,.field textarea{min-height:44px;font-size:1rem;}
+  .field label{font-size:0.82rem;}
 }
 .back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
 .back-link:hover{color:var(--gold);}
@@ -552,11 +517,22 @@ window.NAV_CONFIG = {
     <h2 style="font-family:var(--T);font-size:1.4rem;">🎻 Músicos</h2>
   </div>
   <div style="padding:20px 24px 60px;">
-<div class="modal" style="max-width:560px;margin:0 auto;">
-    <h2>🎻 Músicos</h2>
-    <p style="font-size:0.82rem;color:var(--muted);margin:-8px 0 16px;">
-      Catálogo reutilizable de músicos/sesionistas. Sirve para precargar sus datos en contratos de sesión y en producción musical.
+<div class="top-actions" id="musicosTopActions">
+  <div>
+    <h2 style="font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;">Catálogo de músicos</h2>
+    <p style="font-size:0.82rem;color:var(--muted);margin:4px 0 0;">
+      Sirve para precargar sus datos en contratos de sesión y en producción musical.
     </p>
+  </div>
+  <button class="btn" onclick="abrirPanelMusicoNuevo()">+ Nuevo músico</button>
+</div>
+<div id="musicosLista" style="display:flex;flex-direction:column;gap:8px;max-width:560px;margin:16px auto 0;"></div>
+
+<div class="item-panel modal" id="musicoPanel" style="max-width:560px;margin:16px auto 0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="musicoPanelTitulo" style="margin-bottom:0;">Nuevo músico</h2>
+      <button type="button" class="btn btn-ghost" onclick="cerrarPanelMusico()">← Volver a la lista</button>
+    </div>
     <input type="hidden" id="musicoEditId">
     <div class="field">
       <label>Nombre completo</label>
@@ -584,10 +560,8 @@ window.NAV_CONFIG = {
     </div>
     <div id="musicoErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
     <div class="row2" style="margin-top:6px;">
-      <button class="btn btn-ghost" id="btnMusicoCancelar" style="display:none;" onclick="cancelarEdicionMusico()">Cancelar edición</button>
       <button class="btn" onclick="guardarMusico()">💾 Guardar músico</button>
     </div>
-    <div id="musicosLista" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;"></div>
   </div>
 
   </div>
@@ -603,12 +577,6 @@ window.NAV_CONFIG = {
 
 
 <script>
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
-}
-
 // v4.9: escapa un string para insertarlo de forma segura dentro de un
 // string de JS (comillas simples) que a su vez vive dentro de un atributo
 // HTML (comillas dobles). Sin esto, un texto con " rompe el atributo.
@@ -670,6 +638,8 @@ function iniciarMusicos(){
   cargarListaMusicos();
 }
 
+// v1.4: limpia los campos del formulario (se usa al abrir "Nuevo músico"
+// y al cerrar el panel), separado de mostrar/ocultar el panel en sí.
 function cancelarEdicionMusico(){
   document.getElementById('musicoEditId').value = '';
   document.getElementById('musicoNombre').value = '';
@@ -677,8 +647,33 @@ function cancelarEdicionMusico(){
   document.getElementById('musicoInstrumento').value = '';
   document.getElementById('musicoCorreo').value = '';
   document.getElementById('musicoTelefono').value = '';
-  document.getElementById('btnMusicoCancelar').style.display = 'none';
   document.getElementById('musicoErr').textContent = '';
+}
+
+// v1.4: abre el panel en modo "nuevo" — mismo patrón que abrirModalNuevo()
+// de logistica.html.
+function abrirPanelMusicoNuevo(){
+  cancelarEdicionMusico();
+  document.getElementById('musicoPanelTitulo').textContent = 'Nuevo músico';
+  mostrarPanelMusico();
+}
+
+// v1.4: muestra el panel de músico y oculta la lista/barra superior —
+// mismo patrón que mostrarPanelSesion() de logistica.html.
+function mostrarPanelMusico(){
+  document.getElementById('musicoPanel').classList.add('active');
+  document.getElementById('musicosLista').style.display = 'none';
+  document.getElementById('musicosTopActions').style.display = 'none';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// v1.4: cierra el panel, limpia el formulario y vuelve a mostrar la
+// lista — mismo patrón que cerrarModal() de logistica.html.
+function cerrarPanelMusico(){
+  document.getElementById('musicoPanel').classList.remove('active');
+  document.getElementById('musicosLista').style.display = '';
+  document.getElementById('musicosTopActions').style.display = '';
+  cancelarEdicionMusico();
 }
 
 async function cargarListaMusicos(){
@@ -762,7 +757,7 @@ async function guardarMusico(){
       data.creadoEn = new Date().toISOString();
       await db.collection('musicos').add(data);
     }
-    cancelarEdicionMusico();
+    cerrarPanelMusico();
     cargarListaMusicos();
   } catch(err){
     console.error(err);
@@ -781,8 +776,8 @@ window._musEditar = async function(id){
     document.getElementById('musicoInstrumento').value = m.instrumento || '';
     document.getElementById('musicoCorreo').value = m.correo || '';
     document.getElementById('musicoTelefono').value = m.telefono || '';
-    document.getElementById('btnMusicoCancelar').style.display = 'inline-block';
-    document.getElementById('modalMusicosBg').querySelector('.modal').scrollTop = 0;
+    document.getElementById('musicoPanelTitulo').textContent = 'Editar músico';
+    mostrarPanelMusico();
   } catch(err){
     console.error(err);
   }

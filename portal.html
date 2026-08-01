@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Portal de Clientes</title>
-<!-- AUDIOLINK · portal.html · v2.4
+<!-- AUDIOLINK · portal.html · v2.5
+     v2.5: se quita la copia local de escapeHtml() — ya se cargaba
+     utils.js (desde v2.4, para formatCOP), que ahora también provee
+     escapeHtml() (misma función, mismo resultado). No se tocó nada más.
+     v2.4
      V2.4: la ruta de etapas pasa a ser responsive — vertical (como
      hasta v2.3) en pantallas angostas (<640px, el caso típico de un
      cliente en el celular), y horizontal en pantallas ≥640px (desktop),
@@ -431,12 +435,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnTema = document.getElementById('btnTema');
   if(btnTema) btnTema.textContent = t === 'dark' ? '🌙' : '☀️';
 });
-
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
-}
 
 // ============ ENTRADA: LOGIN NORMAL O VISTA PREVIA ============
 (async function init(){

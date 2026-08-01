@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Producción musical</title>
-<!-- AUDIOLINK · produccion.html · v1.0
+<!-- AUDIOLINK · produccion.html · v1.2
+     v1.2: la tarjeta de ítem en cargarListaProduccion() ahora muestra
+     explícitamente "👁️ Visible al cliente" / "🔒 Privado" (antes solo
+     se distinguía por el color del badge, sin texto) y la nota
+     (`notas`, existía en el formulario pero no se veía en la lista).
+     No se tocó el resto del layout ni ninguna lógica de guardado.
+     v1.1: se quita el bloque de CSS de navegación (sidebar/topbar/
+     bottomnav) que vivía copiado en el <style> — ahora vive en nav.css
+     (compartido, junto con nav.js). Se agrega <link rel="stylesheet"
+     href="nav.css"> en el head. No se tocó ningún otro estilo.
+     v1.0
      V1.0: primera versión. Módulo "Producción musical" migrado desde
      proyecto.html v4.13 (mismo patrón de migración ya usado con
      clientes.html/estudios.html/musicos.html): antes vivía como modal
@@ -28,6 +38,7 @@
 <script src="utils.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -160,86 +171,6 @@ nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg
 .btn:hover{background:var(--gold);color:var(--bg);}
 .btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
 .btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
-/* ===== NAV V2.7: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
-:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
-.sidebar{
-  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
-  background:var(--surf);border-right:1px solid var(--brd);
-  display:flex;flex-direction:column;z-index:90;overflow:hidden;
-  transition:width 0.18s ease;
-}
-.sidebar.collapsed{width:var(--sb-c);}
-.sb-brand{
-  display:flex;align-items:center;gap:10px;padding:18px 16px;
-  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
-}
-.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
-.sidebar.collapsed .sb-brand h1{opacity:0;}
-.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
-.sb-item{
-  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
-  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
-  transition:background 0.15s,color 0.15s;
-}
-.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
-.sb-item:hover{background:var(--surf-light);color:var(--txt);}
-.sb-item.active{background:var(--gold-bg);color:var(--gold);}
-.sidebar.collapsed .sb-item span{display:none;}
-.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.sb-toggle{
-  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
-  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
-}
-.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
-.sb-toggle i{transition:transform 0.2s;display:inline-block;}
-.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
-.sidebar.collapsed .sb-toggle span{display:none;}
-.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
-.sidebar.collapsed .sb-credit{opacity:0;}
-.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
-.main-wrap.expanded{margin-left:var(--sb-c);}
-
-.mobile-topbar{display:none;}
-.mobile-bottomnav{display:none;}
-.mas-mobile-panel{display:none;}
-
-@media (max-width:768px){
-  .sidebar{display:none;}
-  .main-wrap{margin-left:0;}
-  header{display:none;}
-  .mobile-topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
-    position:relative;z-index:1;
-  }
-  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
-  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
-  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
-  main{padding-bottom:78px !important;}
-  .mobile-bottomnav{
-    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
-    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
-  }
-  .mobile-bottomnav a{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
-  }
-  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
-  .mobile-bottomnav a.active{color:var(--gold);}
-  .mas-mobile-panel{
-    display:none;position:fixed;top:60px;right:14px;z-index:81;
-    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
-    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
-  }
-  .mas-mobile-panel.show{display:block;}
-  .mas-mobile-item{
-    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
-    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
-  }
-  .mas-mobile-item:hover{background:var(--surf-light);}
-  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
-  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
-}
 
 main{padding:28px;max-width:1200px;margin:0 auto;}
 .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
@@ -704,7 +635,10 @@ async function cargarListaProduccion(){
               <span class="badge ${it.visibleCliente ? 'ok' : 'warn'}">${PRODUCCION_TIPO_LABEL[it.tipo] || 'Otro'}</span>
             </div>
           </div>
-          <div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">${detalles}</div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">
+            ${detalles}${detalles ? ' · ' : ''}${it.visibleCliente ? '👁️ Visible al cliente' : '🔒 Privado'}
+          </div>
+          ${it.notas ? `<div style="font-size:0.76rem;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📝 ${it.notas}</div>` : ''}
         </div>`;
     }).join('');
   } catch(err){

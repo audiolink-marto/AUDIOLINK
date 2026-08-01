@@ -4,7 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v1.9
+<!-- AUDIOLINK · index.html · v2.3
+     V2.3: el detalle del día (mostrarDia) ahora muestra la palabra de
+     estado de la entrega (Al día/Por confirmar/Vencido) junto a "entrega
+     estimada", usando el mismo diccionario ESTADO_CAL_LABEL que alimenta
+     la leyenda del calendario (.cal-legend, v2.2), para que ambos textos
+     no se desincronicen. No se tocó renderCalendario() ni eventosPorFecha().
+     V2.2: se agrega una leyenda estática debajo de la grilla del
+     calendario, explicando el color de cada punto (ok/warn/err/sesion).
+     Solo CSS nuevo (.cal-legend) + una línea de HTML fija; no se tocó
+     renderCalendario() ni la lógica de eventos/dots.
+     V2.1: .btn-icon ("⋮") sube de 38px a 42px, mismo ajuste que el resto
+     del ecosistema. Este archivo no tiene botones/campos de formulario
+     propios (dashboard de solo lectura), así que no aplica el resto del
+     ajuste de botones/inputs en mobile hecho en paralelo a los otros 10
+     archivos y a nav.css v1.1.
+     V2.0: se completa la migración de V1.8 — se retira el CSS local que
+     quedó huérfano (header/.header-actions/.btn/.btn-ghost/.brand/.vu/
+     nav.links/sidebar/mobile-topbar/bottomnav), ya sin uso real desde que
+     el <header> quedó vacío y oculto y el nav real lo inyecta nav.js.
+     Ahora ese CSS vive centralizado en nav.css (<link> agregado en el
+     <head>), igual que el resto del ecosistema. Se conserva .btn-icon
+     (estiliza el botón "⋮" de la topbar mobile) como regla propia de la
+     página, ya que no vive en nav.css. No se tocó ninguna otra lógica ni
+     estilo del dashboard.
      V1.9: el calendario ahora también pinta las sesiones de logística de
      todos los proyectos (antes solo mostraba fechaEntregaEstimada). Nuevo
      listener db.collectionGroup('sesiones') (mismo patrón que el resumen
@@ -45,6 +68,7 @@
      aún no tienen portal activado (cruce contra clientesAcceso). Cada tarjeta
      enlaza a proyecto.html. Solo lectura, no gestiona nada aquí. No se tocó
      ninguna otra función ni estilo existente. -->
+<link rel="stylesheet" href="nav.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -107,126 +131,7 @@ body::after{
 .waveform-bg path.w3{opacity:0.06;}
 @keyframes wave-drift{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 header, main{position:relative;z-index:1;}
-
-header{
-  padding:16px 20px;
-  border-bottom:1px solid var(--brd);
-  display:flex;align-items:center;justify-content:space-between;
-  background:var(--surf);
-  flex-wrap:wrap;
-  gap:12px;
-}
-.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-.header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
-.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
-@media (max-width:640px){
-  header{display:none;}
-}
-/* ===== NAV V1.5: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
-:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
-.sidebar{
-  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
-  background:var(--surf);border-right:1px solid var(--brd);
-  display:flex;flex-direction:column;z-index:90;overflow:hidden;
-  transition:width 0.18s ease;
-}
-.sidebar.collapsed{width:var(--sb-c);}
-.sb-brand{
-  display:flex;align-items:center;gap:10px;padding:18px 16px;
-  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
-}
-.sb-brand h1{font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
-.sidebar.collapsed .sb-brand h1{opacity:0;}
-.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
-.sb-item{
-  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
-  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
-  transition:background 0.15s,color 0.15s;
-}
-.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
-.sb-item:hover{background:var(--surf-light);color:var(--txt);}
-.sb-item.active{background:var(--gold-bg);color:var(--gold);}
-.sidebar.collapsed .sb-item span{display:none;}
-.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.sb-toggle{
-  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
-  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
-}
-.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
-.sb-toggle i{transition:transform 0.2s;display:inline-block;}
-.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
-.sidebar.collapsed .sb-toggle span{display:none;}
-.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
-.sidebar.collapsed .sb-credit{opacity:0;}
-.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
-.main-wrap.expanded{margin-left:var(--sb-c);}
-
-.mobile-topbar{display:none;}
-.mobile-bottomnav{display:none;}
-.mas-mobile-panel{display:none;}
-
-@media (max-width:768px){
-  .sidebar{display:none;}
-  .main-wrap{margin-left:0;}
-  header{display:none;}
-  .mobile-topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
-    position:relative;z-index:1;
-  }
-  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
-  .mobile-topbar h1{font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
-  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
-  main{padding-bottom:78px !important;}
-  .mobile-bottomnav{
-    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
-    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
-  }
-  .mobile-bottomnav a{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
-  }
-  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
-  .mobile-bottomnav a.active{color:var(--gold);}
-  .mas-mobile-panel{
-    display:none;position:fixed;top:60px;right:14px;z-index:81;
-    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
-    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
-  }
-  .mas-mobile-panel.show{display:block;}
-  .mas-mobile-item{
-    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
-    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
-  }
-  .mas-mobile-item:hover{background:var(--surf-light);}
-  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
-  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
-}
-
-.brand{display:flex;align-items:center;gap:14px;}
-.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
-.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
-.vu span:nth-child(1){height:40%;animation-delay:0s;}
-.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
-.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
-.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
-.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
-@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
-h1{font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
-nav.links{display:flex;gap:8px;margin-left:20px;}
-nav.links a{
-  color:var(--muted);font-size:0.82rem;text-decoration:none;
-  padding:6px 12px;border-radius:6px;transition:all 0.2s;
-}
-nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg);}
-.btn{
-  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
-  padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
-  transition:all 0.2s;font-weight:500;
-}
-.btn:hover{background:var(--gold);color:var(--bg);}
-.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
-.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+.btn-icon{min-width:42px;min-height:42px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
 
 main{padding:28px;max-width:1200px;margin:0 auto;}
 .layout{display:grid;grid-template-columns:1.3fr 1fr;gap:24px;}
@@ -261,6 +166,13 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .dot.warn{background:var(--warn);}
 .dot.err{background:var(--err);}
 .dot.sesion{background:var(--gold);}
+.cal-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.7rem;color:var(--muted);}
+.cal-legend span{display:inline-flex;align-items:center;gap:4px;}
+.cal-legend i{width:6px;height:6px;border-radius:50%;display:inline-block;}
+.cal-legend i.ok{background:var(--ok);}
+.cal-legend i.warn{background:var(--warn);}
+.cal-legend i.err{background:var(--err);}
+.cal-legend i.sesion{background:var(--gold);}
 
 /* Detalle día */
 .dia-detalle{margin-top:16px;padding:14px;background:var(--surf-light);border-radius:8px;border-left:2px solid var(--gold);display:none;}
@@ -336,6 +248,12 @@ window.NAV_CONFIG = { activo: 'dashboard' };
       </div>
       <div class="cal-grid" id="calDow"></div>
       <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+      <div class="cal-legend">
+        <span><i class="ok"></i>Al día</span>
+        <span><i class="warn"></i>Por confirmar</span>
+        <span><i class="err"></i>Vencido</span>
+        <span><i class="sesion"></i>Sesión</span>
+      </div>
       <div class="dia-detalle" id="diaDetalle"></div>
     </div>
 
@@ -532,6 +450,11 @@ function renderCalendario(){
   }).join('');
 }
 
+// ESTADO_CAL_LABEL: mismas palabras que .cal-legend (v2.2), reutilizadas
+// aquí para que el detalle del día no se desincronice del texto de la
+// leyenda si algún día se cambia una palabra.
+const ESTADO_CAL_LABEL = { ok: 'Al día', warn: 'Por confirmar', err: 'Vencido' };
+
 function mostrarDia(fechaStr){
   const eventos = eventosPorFecha()[fechaStr] || [];
   const det = document.getElementById('diaDetalle');
@@ -541,7 +464,7 @@ function mostrarDia(fechaStr){
     <div class="fecha-titulo">${fechaLegible}</div>
     ${eventos.map(e => e.tipo === 'sesion'
       ? `<div class="item" onclick="irASesion('${e.id}')">🎚️ ${escapeHtml(e.nombre)} — ${escapeHtml(e.actividad)}${e.sala ? ' · ' + escapeHtml(e.sala) : ''}</div>`
-      : `<div class="item" onclick="irAProyecto('${e.id}')">📁 ${escapeHtml(e.nombre)} — entrega estimada</div>`
+      : `<div class="item" onclick="irAProyecto('${e.id}')">📁 ${escapeHtml(e.nombre)} — entrega estimada · ${ESTADO_CAL_LABEL[e.estado] || e.estado}</div>`
     ).join('')}
   `;
   det.classList.add('active');

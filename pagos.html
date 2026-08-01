@@ -4,7 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Pagos</title>
-<!-- AUDIOLINK · pagos.html · v2.0
+<!-- AUDIOLINK · pagos.html · v2.3
+     v2.3: la tarjeta de cotización en renderListaCotizaciones() ahora
+     muestra también cuántos abonos tiene registrados y la fecha del
+     último — datos que ya vivían en memoria (c.pagos, calculados por
+     escucharPagosDe) pero no se veían en la lista, solo entrando al
+     detalle. No se tocó el resto del layout ni ninguna lógica de
+     cálculo de saldo/abonos.
+     v2.2: se quita el bloque de CSS de navegación (sidebar/topbar/
+     bottomnav) que vivía copiado en el <style> — ahora vive en nav.css
+     (compartido, junto con nav.js). Se agrega <link rel="stylesheet"
+     href="nav.css"> en el head. No se tocó ningún otro estilo.
+     v2.1
+     v2.1: se quita la copia local de escapeHtml() — ya se cargaba
+     utils.js (fmt() ya delegaba en formatCOP() desde antes), ahora
+     también provee escapeHtml() (misma función, mismo resultado). No
+     se tocó nada más.
+     v2.0
      V2.0: el ícono 📁 "Ver proyecto" ya no abre en pestaña nueva (dejaba
      al usuario con dos pestañas y sin forma de volver). Ahora navega en
      la misma pestaña, agregando &from=pagos a la URL; proyecto.html v3.6
@@ -66,6 +82,7 @@
 <script src="utils.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -136,86 +153,6 @@ header{
 .btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
 @media (max-width:640px){
   header{display:none;}
-}
-/* ===== NAV V1.2: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
-:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
-.sidebar{
-  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
-  background:var(--surf);border-right:1px solid var(--brd);
-  display:flex;flex-direction:column;z-index:90;overflow:hidden;
-  transition:width 0.18s ease;
-}
-.sidebar.collapsed{width:var(--sb-c);}
-.sb-brand{
-  display:flex;align-items:center;gap:10px;padding:18px 16px;
-  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
-}
-.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
-.sidebar.collapsed .sb-brand h1{opacity:0;}
-.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
-.sb-item{
-  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
-  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
-  transition:background 0.15s,color 0.15s;
-}
-.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
-.sb-item:hover{background:var(--surf-light);color:var(--txt);}
-.sb-item.active{background:var(--gold-bg);color:var(--gold);}
-.sidebar.collapsed .sb-item span{display:none;}
-.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.sb-toggle{
-  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
-  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
-}
-.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
-.sb-toggle i{transition:transform 0.2s;display:inline-block;}
-.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
-.sidebar.collapsed .sb-toggle span{display:none;}
-.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
-.sidebar.collapsed .sb-credit{opacity:0;}
-.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
-.main-wrap.expanded{margin-left:var(--sb-c);}
-
-.mobile-topbar{display:none;}
-.mobile-bottomnav{display:none;}
-.mas-mobile-panel{display:none;}
-
-@media (max-width:768px){
-  .sidebar{display:none;}
-  .main-wrap{margin-left:0;}
-  header{display:none;}
-  .mobile-topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
-    position:relative;z-index:1;
-  }
-  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
-  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
-  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
-  main{padding-bottom:78px !important;}
-  .mobile-bottomnav{
-    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
-    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
-  }
-  .mobile-bottomnav a{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
-  }
-  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
-  .mobile-bottomnav a.active{color:var(--gold);}
-  .mas-mobile-panel{
-    display:none;position:fixed;top:60px;right:14px;z-index:81;
-    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
-    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
-  }
-  .mas-mobile-panel.show{display:block;}
-  .mas-mobile-item{
-    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
-    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
-  }
-  .mas-mobile-item:hover{background:var(--surf-light);}
-  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
-  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
 }
 
 .brand{display:flex;align-items:center;gap:14px;}
@@ -495,11 +432,6 @@ auth.onAuthStateChanged(async (user) => {
 // cerrarSesion(), toggleTema(), toggleMasMobile() y el colapsar del sidebar
 // ahora viven en nav.js (compartido por todo el ecosistema).
 
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
-}
 function fmt(n){ return formatCOP(n || 0); } // delega en formatCOP() de utils.js (mismo resultado visual, código único)
 
 // ============ ESTADO ============
@@ -572,6 +504,13 @@ function renderListaCotizaciones(){
   cont.innerHTML = cotizacionesAceptadas.map(c => {
     const saldo = c.total - c.sumaPagos;
     const pagado = saldo <= 0;
+    const numAbonos = (c.pagos || []).length;
+    const ultimoAbono = numAbonos
+      ? [...c.pagos].sort((a,b) => (a.fecha||'').localeCompare(b.fecha||'')).slice(-1)[0]
+      : null;
+    const abonosHtml = numAbonos
+      ? `${numAbonos} abono${numAbonos === 1 ? '' : 's'}${ultimoAbono?.fecha ? ' · último: ' + new Date(ultimoAbono.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : ''}`
+      : 'sin abonos aún';
     return `
       <div class="cotiz-card" onclick="abrirModal('${c.proyectoId}', '${c.id}')">
         <div class="top">
@@ -590,6 +529,7 @@ function renderListaCotizaciones(){
           <div class="monto-item"><span class="lbl">Cobrado</span><span class="val">${fmt(c.sumaPagos)}</span></div>
           <div class="monto-item saldo ${pagado ? 'pagado' : ''}"><span class="lbl">Saldo</span><span class="val">${fmt(saldo)}</span></div>
         </div>
+        <div style="font-size:0.76rem;color:var(--muted);margin-top:8px;">💳 ${abonosHtml}</div>
       </div>`;
   }).join('');
 

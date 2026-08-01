@@ -4,7 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Equipo Técnico</title>
-<!-- AUDIOLINK · equipo-tecnico.html · v1
+<!-- AUDIOLINK · equipo-tecnico.html · v1.2
+     v1.2: se aumenta un poco el tamaño en mobile de botones/campos de
+     formulario (.btn/.btn-ghost, .field input/select/textarea, .field
+     label) para mejorar legibilidad y área táctil — no toca botones
+     chicos de utilidad. .btn-icon ("⋮") sube de 38px a 42px. Mismo
+     ajuste aplicado en paralelo a los otros 10 archivos del ecosistema
+     y a nav.css v1.1.
+     v1.1: se retira el bloque de CSS de navegación (sidebar/mobile-topbar/
+     bottomnav/panel "···") que estaba copiado y pegado en este archivo —
+     ahora vive centralizado en nav.css (<link> agregado en el <head>).
+     Se conservan intactas las reglas propias de la página dentro del
+     mismo @media (768px): .top-actions, .modal-actions, #btnEliminar,
+     .row2. Se agrega también la regla .btn-icon (faltaba por completo),
+     que estiliza el botón "⋮" que nav.js inyecta en la topbar mobile —
+     antes se veía sin tamaño ni centrado. No se tocó ninguna otra
+     lógica ni estilo de la página.
      v1: primera versión. Catálogo de equipo técnico (Ingeniero de
      Grabación, Asistente, etc.) — colección Firestore NUEVA y separada
      'equipoTecnico' (NO es equipoInterno, que es solo el guard de login
@@ -24,6 +39,7 @@
      muestra el formulario en su lugar, con "← Volver a la lista". -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -90,91 +106,20 @@ body::after{
 .waveform-bg path.w3{opacity:0.06;}
 @keyframes wave-drift{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 header, main{position:relative;z-index:1;}
-
-/* ===== NAV V1.4: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
-:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
-.sidebar{
-  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
-  background:var(--surf);border-right:1px solid var(--brd);
-  display:flex;flex-direction:column;z-index:90;overflow:hidden;
-  transition:width 0.18s ease;
-}
-.sidebar.collapsed{width:var(--sb-c);}
-.sb-brand{
-  display:flex;align-items:center;gap:10px;padding:18px 16px;
-  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
-}
-.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
-.sidebar.collapsed .sb-brand h1{opacity:0;}
-.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
-.sb-item{
-  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
-  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
-  transition:background 0.15s,color 0.15s;
-}
-.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
-.sb-item:hover{background:var(--surf-light);color:var(--txt);}
-.sb-item.active{background:var(--gold-bg);color:var(--gold);}
-.sidebar.collapsed .sb-item span{display:none;}
-.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.sb-toggle{
-  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
-  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
-}
-.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
-.sb-toggle i{transition:transform 0.2s;display:inline-block;}
-.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
-.sidebar.collapsed .sb-toggle span{display:none;}
-.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
-.sidebar.collapsed .sb-credit{opacity:0;}
-.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
-.main-wrap.expanded{margin-left:var(--sb-c);}
-
-.mobile-topbar{display:none;}
-.mobile-bottomnav{display:none;}
-.mas-mobile-panel{display:none;}
+.btn-icon{min-width:42px;min-height:42px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
 
 @media (max-width:768px){
-  .sidebar{display:none;}
-  .main-wrap{margin-left:0;}
-  .mobile-topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
-    position:relative;z-index:1;
-  }
-  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
-  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
-  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
-  main{padding-bottom:78px !important;}
-  .mobile-bottomnav{
-    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
-    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
-  }
-  .mobile-bottomnav a{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
-  }
-  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
-  .mobile-bottomnav a.active{color:var(--gold);}
-  .mas-mobile-panel{
-    display:none;position:fixed;top:60px;right:14px;z-index:81;
-    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
-    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
-  }
-  .mas-mobile-panel.show{display:block;}
-  .mas-mobile-item{
-    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
-    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
-  }
-  .mas-mobile-item:hover{background:var(--surf-light);}
-  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
-  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
   .top-actions{flex-wrap:wrap;gap:10px;}
   .top-actions .btn{flex:1 1 100%;}
   .modal-actions{flex-wrap:wrap;}
   .modal-actions button{flex:1 1 auto;}
   #btnEliminar{flex:1 1 100%;order:3;}
   .row2{grid-template-columns:1fr;}
+  /* v1.2: se aumenta un poco tipografía/área táctil de botones y campos
+     de formulario en mobile — no toca botones chicos de utilidad. */
+  .btn,.btn-ghost{min-height:44px;font-size:0.95rem;}
+  .field input,.field select,.field textarea{min-height:44px;font-size:1rem;}
+  .field label{font-size:0.82rem;}
 }
 
 .btn{

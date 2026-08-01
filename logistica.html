@@ -3,8 +3,277 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística</title>
-<!-- AUDIOLINK · logistica.html · v2.39
+<title>Audiolink — Logística (v2.70)</title>
+<!-- AUDIOLINK · logistica.html · v2.70
+     v2.70 (a pedido de AUDIOLINK, enganche con proyecto.html v5.8): se
+     agrega soporte para un parámetro de URL opcional `fecha`
+     (?id=...&fecha=AAAA-MM-DD). Si viene presente Y no viene `sesion`
+     (que ya tiene su propio comportamiento de v2.43, sin cambios), se
+     abre automáticamente el modal "Nueva Sesión" con el campo Fecha
+     (#fFecha) precargado con ese valor — el resto del formulario queda
+     igual que abrirModalNuevo() siempre lo dejó (vacío). Pensado para
+     el clic en un día vacío del mini calendario del Dashboard de
+     proyecto.html, que antes solo abría logística sin fecha. No cambia
+     nada del comportamiento existente si el parámetro no viene, ni
+     toca abrirModalNuevo(), limpiarFormulario() ni guardarSesion().
+     v2.69: fix — logística no recibía bien los grupos/subgrupos que el
+     Inge reasigna manualmente en bitacora.html (select de grupoCatalogo,
+     input de subgrupoCatalogo) sobre canales AUTOMÁTICOS (no manuales).
+     Causa: (1) la condición que decide si se rescata un canal del
+     inputList guardado no miraba grupoCatalogo/subgrupoCatalogo, así que
+     si el Inge SOLO tocaba el grupo (sin tocar preamp/gain/etc) el canal
+     ni siquiera se rescataba; (2) calcularInputListSesion() siempre
+     recalculaba grupoCatalogo=key y subgrupoCatalogo=pieza.subgrupo
+     desde el catálogo del proyecto, pisando lo que el Inge hubiera
+     asignado. Ahora se rescatan ambos campos y se usan como override
+     (con fallback al catálogo si nunca hubo edición manual). No afecta
+     canales 100% manuales (ya se preservaban completos), ni el
+     historial de bitácora (bitacoraHistorial, uso distinto).
+     v2.68: .inputlist-box (preview del input list en el formulario de
+     sesión) — cada grupo (.grupo-instrumento-log) tenía width:230px fijo
+     y los grupos iban en fila con scroll horizontal, angostos aunque
+     sobrara espacio. Ahora los grupos van apilados en columna, cada uno
+     al 100% del ancho disponible ("de lado a lado"); si hay varios
+     grupos, se apilan uno debajo del otro en vez de lado a lado. El
+     scroll horizontal de las tiras de canal dentro de cada grupo se
+     conserva igual. Decisión tomada por el usuario tras comparar mobile.
+     v2.67: los subgrupos dentro de #inputListBox (usado tanto en la
+     pestaña Reportes como en el modal de edición de sesión) se veían en
+     columna/apilados en vez de en fila horizontal como en bitacora.html,
+     por la regla .inputlist-box .consola-grupo-fila{flex-wrap:wrap}.
+     Se cambió a flex-wrap:nowrap + overflow-x:auto (scroll horizontal),
+     mismo patrón que .consola-grupo-col .consola-grupo-fila de
+     bitacora.html. Afecta ambos contextos (Reportes y modal) a
+     propósito, confirmado con el usuario. No se tocó nada más.
+     v2.66: Vista Consola (pestaña Reportes) — la tarjeta de cada canal
+     (.consola-strip) no mostraba el color de su subgrupo: las reglas
+     .consola-strip.manual/.checklist fijaban border-color/background a
+     --gold/--ok siempre, tapando --sgc. Ahora usan var(--sgc,var(--gold))
+     y var(--sgc-bg,var(--gold-bg)) (igual para checklist con --ok). Se
+     agregó también --sgc-bg (faltaba, solo estaba --sgc) al wrapper
+     .consola-subgrupo-col para que el fondo tenga de dónde tomar el
+     color. Canal sin subgrupo queda idéntico a antes. Mismo fix que
+     bitacora.html v2.67. No se tocó Vista Editar ni datos.
+     v2.65: los subgrupos (ej. "Bombo" dentro de "Batería") ahora tienen
+     su PROPIO color (colorParaSubgrupoLog, paleta PALETA_SUBGRUPOS_LOG —
+     tonos neón/fríos, distintos de PALETA_GRUPOS_LOG) en vez de heredar
+     el color del grupo padre, vía la nueva variable CSS --sgc con
+     fallback a --gc y luego --muted. Mismo cambio que bitacora.html
+     v2.66. Solo visual, no se tocó la sub-agrupación ni los datos.
+     v2.64: fix — .consola-subgrupo-col/-titulo no heredaban el color
+     del grupo padre (--gc), quedaban en gris fijo. Ahora referencian
+     var(--gc,...) igual que el resto de elementos de grupo (mismo fix
+     que bitacora.html v2.65). No se tocó JS.
+     v2.63
+     v2.63: la vista previa de consola (pestaña Reportes, solo lectura)
+     ahora sub-agrupa por subgrupoCatalogo dentro de cada grupo, mismo
+     patrón visual que bitacora.html v2.34 (mini-columna con borde
+     punteado + mini-título). Cubre tanto subgrupos del catálogo como
+     los que el Inge asigna a mano a sus canales manuales (bitacora.html
+     v2.36). No se tocó el orden, el cálculo, ni calcularInputListSesion
+     — ese ya propagaba subgrupoCatalogo desde v2.62; esto es solo la
+     vista previa.
+-->
+<!-- AUDIOLINK · logistica.html · v2.62
+     v2.62: calcularInputListSesion() ahora también propaga
+     `subgrupoCatalogo: pieza.subgrupo || ''` a cada canal automático
+     (mismo patrón que grupoCatalogo). Viene del campo nuevo `subgrupo`
+     de instrumentacion.js v1.4/proyecto.html v5.3 — piezas sin subgrupo
+     asignado quedan con '' como siempre. No se tocó el resto de la
+     función, el orden, ni el matching de Preamp/Gain. Consumido por
+     bitacora.html para sub-agrupar dentro de cada grupo.
+-->
+<!-- AUDIOLINK · logistica.html · v2.61
+     v2.61: fix real encontrado tras v2.60 — calcularInputListSesion()
+     usaba (pieza.unidades || [pieza.nombre]) para nombrar cada canal.
+     `unidades` es el campo del sistema viejo de cantidad (eliminado en
+     instrumentacion.js v1.2+), pero seguía presente con nombres viejos
+     en documentos ya guardados en Firestore, así que el `||` nunca
+     llegaba a usar pieza.nombre mientras existiera ese campo obsoleto.
+     Resultado: el input list mostraba nombres viejos aunque el checklist
+     y proyecto.html ya mostraban los nombres actualizados. Ahora se usa
+     pieza.nombre directo, sin iterar unidades — cada pieza ya viene
+     individualizada desde el editor. No se tocó el resto de
+     calcularInputListSesion (colas de Preamp/Gain por nombre, canales
+     manuales, orden) ni renderInputListSesion.
+-->
+<!-- AUDIOLINK · logistica.html · v2.60
+     v2.60: gruposConPiezas() ahora ordena los grupos del checklist según
+     proyectoData.instrumentacionGrupos (el catálogo maestro, reordenable
+     con ↑↓ desde proyecto.html v5.2+) en vez de Object.keys(instr) —
+     Firestore no garantiza preservar el orden de campos de un mapa entre
+     guardado y lectura, así que confiar en eso era frágil. El orden de
+     piezas DENTRO de cada grupo no cambió: ya se preservaba bien porque
+     ahí se usa un array (instr[key]), y los arrays sí mantienen orden en
+     Firestore. Nada más se tocó — labelGrupo(), renderChecklistInstrumentacion(),
+     inputList, Firestore, todo igual.
+-->
+<!-- AUDIOLINK · logistica.html · v2.59
+     v2.59: en el checklist de "Instrumentación de la sesión" se agrega un
+     enlace "✏️ Editar instrumentación del proyecto" que lleva a
+     proyecto.html?id={proyectoId} (nueva función irAEditarInstrumentacion()).
+     No se agregó ningún CRUD ni escritura a Firestore nueva en
+     logistica.html — el catálogo (proyectoData.instrumentacion) sigue
+     editándose únicamente desde proyecto.html, que es su único dueño.
+     No se tocó labelGrupo(), gruposConPiezas(), renderChecklistInstrumentacion()
+     ni ninguna otra lógica de checklist/inputList/reportes.
+-->
+<!-- AUDIOLINK · logistica.html · v2.58
+     v2.58: la vista de solo lectura de Bitácora (consola-strip, la que
+     muestra IN/Mic/Preamp/Gain de cada canal) ahora agrega "dB" al lado
+     del valor de Gain, para que coincida con bitacora.html v2.27 (que
+     ya no pide escribir "dB" en el campo, solo el número). El dato en
+     Firestore no cambia, solo cómo se muestra acá. Ojo: canales viejos
+     que ya tenían guardado texto con "dB" incluido (de antes de
+     bitacora.html v2.27) van a mostrarse como "-6dB dB" — duplicado
+     visual sin importancia, no se tocó el dato para no arriesgar nada.
+     No se tocó ninguna otra lógica.
+-->
+<!-- AUDIOLINK · logistica.html · v2.57
+     v2.57: corrige v2.56 — abrir/cerrar el modal de sesión ya no copia
+     location.href para editar la URL (eso arrastraba un `origen=agenda`
+     viejo aunque ya no correspondiera, haciendo que "Volver al proyecto"
+     mandara a la agenda global en vez de a proyecto.html). Ahora
+     actualizarUrlSesion() reconstruye la URL desde cero con los datos
+     reales (proyectoId, origenAgenda, sesion).
+     v2.56: al abrir el modal de "Editar sesión" (clic en una tarjeta
+     dentro del proyecto), la URL ahora refleja `&sesion=ID` (sin
+     recargar, vía history.replaceState) — antes solo pasaba esto al
+     entrar desde la agenda global. Así, si recargas la página con el
+     modal abierto, vuelve a abrirse en la misma sesión en vez de
+     devolver a la vista normal del proyecto. Al cerrar el modal se
+     quita ese parámetro de la URL.
+     v2.55: renderInputListSesion() ahora agrupa/colorea las tarjetas del
+     input list por grupoCatalogo (resuelto con labelGrupo()), igual que
+     etiquetaGrupoDe() en bitacora.html — antes agrupaba por el campo
+     viejo `instrumento` (texto libre, ya no editable desde bitacora.html
+     v2.25), lo que dejaba sueltos/sin color a los canales automáticos
+     del checklist (que siempre traen grupoCatalogo pero nunca
+     instrumento), mientras canales manuales con un `instrumento` viejo
+     guardado sí se agrupaban. Ahora ambos casos se resuelven igual.
+     v2.54: los nombres de grupo de instrumentación ahora se resuelven con
+     labelGrupo(), que primero mira proyectoData.instrumentacionGrupos
+     (lo editado en proyecto.html v5.0 — agregar/renombrar/eliminar
+     grupos) y si no encuentra ahí, cae al diccionario fijo
+     GRUPOS_INSTRUMENTACION_LABELS de siempre. gruposConPiezas() ya no
+     se limita a las 7 claves fijas: ahora toma cualquier clave real
+     con piezas en proyectoData.instrumentacion (incluye grupos
+     personalizados). No se tocó inputList ni el resto de logística.
+     v2.53: la tarjeta de "Lista sesiones" (agenda global) ahora muestra
+     hora de llegada (horaInicio − tiempoSetupMin) en vez de horaInicio
+     tal cual, usando horaAMinutos()/minutosATexto() de utils.js (mismo
+     campo tiempoSetupMin ya existente). Si tiempoSetupMin es 0 o no
+     existe, se ve igual que antes. Solo se tocó esa tarjeta, nada más
+     del módulo de logística.
+     v2.52: se agrega el campo "Set-up necesario" al formulario de sesión
+     (selector 0/15/30/45/60 min, junto a Hora inicio/fin) — se guarda
+     como `tiempoSetupMin` en el documento de la sesión. Se reinicia en
+     limpiarFormulario() y se precarga en abrirModalEditar(). Pensado
+     para poder editarse también desde bitacora.html (v2.22) donde el
+     ingeniero puede ajustarlo si la realidad difiere de lo planeado —
+     mismo campo compartido, el último que lo edite prevalece, igual
+     criterio que ya se usa con la instrumentación. No se tocó ningún
+     otro campo del formulario.
+     v2.51: se agrega un subtítulo con la Actividad de la sesión (ej.
+     "Grabación de voces"), justo debajo del título "Nueva/Editar Sesión"
+     del panel de edición — antes había que buscarla al final de la
+     sección "Datos generales" para saber en qué sesión se estaba
+     parado. Se actualiza en vivo mientras se escribe (oninput de
+     #fActividad) y al abrir/editar (actualizarSubtituloModal()). No se
+     tocó la posición ni el comportamiento del campo "Actividad" dentro
+     del formulario, solo se agregó este reflejo visual.
+     v2.50: re-entrega de v2.49 con número de versión distinto para evitar
+     ambigüedad — la primera entrega de "v2.49" no traía todavía
+     limpiarUndefinedProfundo() (se agregó después, mismo número por
+     error), lo que causó que se siguiera probando el archivo viejo sin
+     el fix. El contenido es el mismo que la segunda entrega de v2.49:
+     grupoCatalogo en el inputList automático + limpiarUndefinedProfundo()
+     como red de seguridad en guardarSesion(). Ver detalle abajo (v2.49).
+     v2.49: calcularInputListSesion() ahora guarda `grupoCatalogo` (la
+     clave del grupo, ej. 'bateria') en cada canal automático del
+     inputList — antes solo se calculaba `key` al vuelo y se descartaba,
+     el inputList guardado no sabía a qué grupo del catálogo pertenecía
+     cada canal. Esto permite que bitacora.html (v2.18) reagrupe canales
+     automáticamente si luego se reasigna una pieza a otro grupo en
+     Proyectos → Instrumentación, y que los canales manuales del
+     ingeniero puedan vincularse opcionalmente al mismo grupo. No se
+     tocó ningún otro campo, ni la instrumentación, ni el guardado de
+     canales manuales (instrSesionCanalesManuales sigue igual).
+     Además, se agrega limpiarUndefinedProfundo() como red de seguridad
+     en guardarSesion(): Firestore rechazaba el guardado completo si
+     algún campo (dentro de inputList u otro) quedaba en `undefined` al
+     reconstruirse desde una sesión vieja — ahora se reemplaza por
+     `null` antes de escribir, sin cambiar ningún otro valor.
+     v2.48: el editor de sesión pasa las 5 secciones (.form-section) de
+     <div> a <details>/<summary> nativos — acordeón sin JS extra. Cada
+     título suma un subtítulo de una línea explicando qué guarda esa
+     sección (visible también en mobile). "Datos generales" y "Equipo
+     e instrumentación" arrancan abiertas; "Músicos asignados",
+     "Técnicos asignados" y "Notas y visibilidad" arrancan cerradas,
+     para acortar el scroll inicial sobre todo en mobile — se abren
+     con un toque en el título, nada de contenido se pierde ni se
+     saca del DOM. No hay números de paso: las secciones no son
+     secuenciales, se pueden llenar en cualquier orden. No se tocó
+     mostrarPanelSesion()/cerrarModal() ni ningún campo del formulario.
+     v2.47: dos ajustes sobre la tira del input list (#inputListBox):
+     (1) los grupos (Batería, Voz, etc.) ahora se muestran en fila con
+     scroll horizontal en vez de apilados verticalmente — cada grupo es
+     una columna angosta de 230px donde las tiras envuelven (flex-wrap)
+     en vez de tener su propio scroll horizontal, para no anidar dos
+     scrolls en la misma dirección; (2) la etiqueta de cada tira ya no
+     dice "(manual)" — ahora dice "(ING)" para los canales que el Inge
+     tipeó a mano en bitácora, y "(CHECK LIST)" para los que vienen del
+     checklist de instrumentación marcada. No se tocó guardarSesion()
+     ni la lógica de cálculo del input list.
+     v2.46: renderInputListSesion() (#inputListBox) pasa de filas
+     apiladas a tiras angostas en fila con scroll horizontal, mismo
+     look del modo consola de bitacora.html v2.12 — canal → nombre →
+     IN → Mic → Pre → Gain, agrupadas por color de instrumento igual
+     que antes. Además se agrega el campo `mic` a todo el pipeline de
+     esta vista (abrirModalEditar()/instrSesionBitacoraInfo,
+     calcularInputListSesion(), calcularBitacoraHistorialParaGuardar())
+     para que viaje junto con Preamp/Gain/IN. No se tocó guardarSesion()
+     (ya guarda el array completo) ni la lógica de reordenar/agrupar.
+     v2.45: se corrige el mismo bug de navegación de index.html v2.2,
+     pero en la agenda global de esta misma página (renderAgendaGlobal(),
+     cuando se entra sin ?id= previo) — la tarjeta de sesión solo
+     enlazaba a logistica.html?id=<proyecto>&origen=agenda, sin el id
+     de la sesión, así que el clic dejaba a la persona en la lista de
+     sesiones del proyecto en vez de abrir directo la sesión. Ahora
+     agrega &sesion=<id>, que ya sabe leer initLogistica() desde v2.43.
+     v2.44: la tarjeta de sesión en renderSesiones() ahora muestra
+     también estudio/tema vinculado, cuántos músicos y técnicos del
+     catálogo están asignados, y si tiene notas internas — datos que ya
+     se guardaban desde hace varias versiones pero no se veían en la
+     lista, solo entrando a editar cada sesión. No se tocó el layout
+     general de la tarjeta (.card/.card-top/.meta/.equipo-list) ni
+     ninguna lógica de guardado.
+     v2.43: se agrega el parámetro ?sesion=<id> a la URL — si viene un
+     link directo desde el calendario de index.html, se abre
+     automáticamente el panel de esa sesión al cargar (una sola vez,
+     sin interferir con el onSnapshot en tiempo real). Antes ese link
+     solo pasaba ?id=<proyecto>, así que el clic en una sesión desde el
+     calendario general dejaba a la persona en la lista de sesiones del
+     proyecto en vez de abrir directo la sesión. No se tocó ninguna
+     otra lógica.
+     v2.42: se aumenta un poco el tamaño en mobile de botones/campos de
+     formulario (.btn/.btn-ghost, .field input/select/textarea, .field
+     label) para mejorar legibilidad y área táctil — no toca botones
+     chicos de utilidad (item-row, btn-mover-bitacora, etc.) ni el
+     .field dentro de .strip-fields-log (mixer/channel-strip), que se
+     revierte explícitamente al tamaño compacto original para no romper
+     esa vista. .btn-icon ("⋮") sube de 38px a 42px. Mismo ajuste
+     aplicado en paralelo a los otros 10 archivos del ecosistema y a
+     nav.css v1.1.
+     v2.41: se quita el bloque de CSS de navegación (sidebar/topbar/
+     bottomnav) que vivía copiado en el <style> — ahora vive en nav.css
+     (compartido, junto con nav.js). Se agrega <link rel="stylesheet"
+     href="nav.css"> en el head. No se tocó ningún otro estilo.
+     v2.40
+     v2.40: se quita la copia local de escapeHtml() — ya se cargaba
+     utils.js, que ahora también provee escapeHtml() (misma función,
+     mismo resultado). No se tocó nada más.
+     v2.39
      v2.39: Fase 1 de la entidad `tema` — CRUD básico (subcolección
      proyectos/{id}/temas: nombre/orden/activo/creadoEn) + selector en el
      formulario de sesión con opción "+ Crear nuevo tema…" inline (no
@@ -563,6 +832,7 @@
      No se tocó ninguna otra función ni estilo existente. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -587,6 +857,7 @@
   --muted:#9a978f;
   --faint:#5c5a55;
   --ok:#4caf7d;
+  --ok-bg:rgba(76,175,125,0.12);
   --warn:#d9a441;
   --err:#d4574a;
   --T:"Playfair Display",Georgia,serif;
@@ -604,6 +875,7 @@
   --muted:#7a756a;
   --faint:#a39d8f;
   --ok:#3a8f63;
+  --ok-bg:rgba(58,143,99,0.10);
   --warn:#b8842f;
   --err:#b8453a;
 }
@@ -640,7 +912,7 @@ header{
 }
 .header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
-.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+.btn-icon{min-width:42px;min-height:42px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
 @media (max-width:640px){
   header{display:none;}
   .row2{grid-template-columns:1fr;}
@@ -649,89 +921,19 @@ header{
   .modal{padding:20px;}
   .top-actions{flex-wrap:wrap;gap:10px;}
   .top-actions .btn{flex:1 1 100%;}
-  .modal-actions{flex-wrap:wrap;}
-  .modal-actions button{flex:1 1 auto;}
+  .modal-actions-top{flex-wrap:wrap;}
+  .modal-actions-top button{flex:1 1 auto;}
   #btnEliminar{flex:1 1 100%;order:3;}
-}
-/* ===== NAV V1.4: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
-:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
-.sidebar{
-  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
-  background:var(--surf);border-right:1px solid var(--brd);
-  display:flex;flex-direction:column;z-index:90;overflow:hidden;
-  transition:width 0.18s ease;
-}
-.sidebar.collapsed{width:var(--sb-c);}
-.sb-brand{
-  display:flex;align-items:center;gap:10px;padding:18px 16px;
-  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
-}
-.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
-.sidebar.collapsed .sb-brand h1{opacity:0;}
-.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
-.sb-item{
-  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
-  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
-  transition:background 0.15s,color 0.15s;
-}
-.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
-.sb-item:hover{background:var(--surf-light);color:var(--txt);}
-.sb-item.active{background:var(--gold-bg);color:var(--gold);}
-.sidebar.collapsed .sb-item span{display:none;}
-.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.sb-toggle{
-  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
-  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
-}
-.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
-.sb-toggle i{transition:transform 0.2s;display:inline-block;}
-.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
-.sidebar.collapsed .sb-toggle span{display:none;}
-.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
-.sidebar.collapsed .sb-credit{opacity:0;}
-.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
-.main-wrap.expanded{margin-left:var(--sb-c);}
-
-.mobile-topbar{display:none;}
-.mobile-bottomnav{display:none;}
-.mas-mobile-panel{display:none;}
-
-@media (max-width:768px){
-  .sidebar{display:none;}
-  .main-wrap{margin-left:0;}
-  header{display:none;}
-  .mobile-topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
-    position:relative;z-index:1;
-  }
-  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
-  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
-  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
-  main{padding-bottom:78px !important;}
-  .mobile-bottomnav{
-    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
-    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
-  }
-  .mobile-bottomnav a{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
-  }
-  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
-  .mobile-bottomnav a.active{color:var(--gold);}
-  .mas-mobile-panel{
-    display:none;position:fixed;top:60px;right:14px;z-index:81;
-    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
-    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
-  }
-  .mas-mobile-panel.show{display:block;}
-  .mas-mobile-item{
-    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
-    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
-  }
-  .mas-mobile-item:hover{background:var(--surf-light);}
-  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
-  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
+  .modal-actions.float-chip button{flex:0 0 auto;}
+  /* v2.37: se aumenta un poco tipografía/área táctil de botones y
+     campos de formulario en mobile — no toca botones chicos de utilidad
+     (item-row, btn-mover-bitacora, etc.) ni el .field dentro de
+     .strip-fields-log (mixer/channel-strip), que sigue compacto a
+     propósito. */
+  .btn,.btn-ghost{min-height:44px;font-size:0.95rem;}
+  .field input,.field select,.field textarea{min-height:44px;font-size:1rem;}
+  .field label{font-size:0.82rem;}
+  .strip-fields-log .field input,.strip-fields-log .field select,.strip-fields-log .field textarea{min-height:0;font-size:0.9rem;}
 }
 
 .brand{display:flex;align-items:center;gap:14px;}
@@ -776,6 +978,15 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
 .back-link:hover{color:var(--gold);}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+/* v2.51: dash de resumen arriba del listado de sesiones — 3 tarjetas
+   puramente informativas (sesiones hechas/total, técnicos distintos,
+   próxima sesión), mismo lenguaje visual de .card. No es clickeable
+   ni filtra la lista a propósito (decisión del usuario). */
+.sesiones-dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;}
+.sesiones-dash .dash-card{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:14px 16px;}
+.sesiones-dash .dash-label{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;}
+.sesiones-dash .dash-value{font-size:1.3rem;font-weight:600;color:var(--gold);font-family:var(--M);}
+.sesiones-dash .dash-sub{font-size:0.78rem;color:var(--faint);margin-top:2px;}
 .card{
   background:var(--surf);
   border:1px solid var(--brd);
@@ -861,15 +1072,36 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
    overlay: display:none/block. */
 .sesion-panel{display:none;}
 .sesion-panel.active{display:block;margin-top:4px;}
+/* v2.51: subtítulo del modal de sesión (fuera de "Datos generales") que
+   muestra la Actividad en vivo, para no tener que buscarla dentro del
+   formulario para saber en qué sesión se está — ver modalSubtitulo. */
+.modal-subtitulo{font-size:0.95rem;color:var(--gold);margin:-8px 0 12px;font-weight:600;}
 .form-section{
   border:1px solid var(--brd);border-radius:10px;padding:16px;margin-bottom:16px;
   background:rgba(255,255,255,0.015);
 }
+/* v2.17: form-section-head pasa a ser <summary> de un <details> nativo
+   (acordeón sin JS extra) — se le suma un subtítulo de una línea para
+   entender de un vistazo qué guarda cada sección. Datos generales y
+   Equipo/instrumentación arrancan abiertas (atributo `open` en el
+   HTML); Músicos, Técnicos y Notas arrancan cerradas para acortar el
+   scroll, sobre todo en mobile. No son pasos secuenciales (por eso no
+   hay números): se puede llenar cualquier sección en cualquier orden. */
 .form-section-head{
-  display:flex;align-items:center;gap:8px;margin-bottom:14px;
-  font-size:0.8rem;color:var(--gold);text-transform:uppercase;letter-spacing:0.04em;
-  font-weight:600;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;
+  cursor:pointer;user-select:none;list-style:none;
 }
+.form-section-head::-webkit-details-marker{display:none;}
+.form-section-head .fs-textos{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.form-section-head .fs-titulo{
+  font-size:0.8rem;color:var(--gold);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.form-section-head .fs-subtitulo{font-size:0.76rem;color:var(--muted);font-weight:400;}
+.form-section-head .fs-flecha{font-size:0.75rem;color:var(--muted);transition:transform 0.15s;flex-shrink:0;}
+.form-section[open] .fs-flecha{transform:rotate(180deg);}
+.form-section:not([open]){margin-bottom:10px;}
+.form-section:not([open]) .form-section-head{margin-bottom:0;}
 .form-section .field:last-child{margin-bottom:0;}
 @media(max-width:640px){
   .form-section{padding:12px;}
@@ -924,10 +1156,17 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .instr-pieza-row{display:flex;align-items:center;gap:6px;}
 .instr-pieza-row input{width:auto;}
 .instr-pieza-row label{margin:0;font-size:0.74rem;color:var(--txt);}
+/* v2.47: los grupos (Batería, Voz, etc.) ahora van en fila con scroll
+   horizontal en vez de apilados, cada uno como columna angosta; las
+   tiras adentro pasan a envolver (flex-wrap) en vez de tener su propio
+   scroll horizontal, para no anidar dos scrolls en la misma dirección. */
 .inputlist-box{
   background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
-  padding:10px 12px;margin-top:8px;max-height:220px;overflow-y:auto;
+  padding:10px 12px;margin-top:8px;max-height:280px;
+  display:flex;flex-direction:column;gap:14px;overflow-x:hidden;overflow-y:auto;align-items:stretch;
 }
+.inputlist-box .grupo-instrumento-log{width:100%;flex-shrink:0;margin-bottom:0;}
+.inputlist-box .consola-grupo-fila{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;margin-bottom:0;align-items:flex-start;}
 .inputlist-row{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:8px 10px;margin-bottom:6px;background:var(--surf-light);
@@ -967,6 +1206,33 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .grupo-instrumento-log .toma-agrupada:last-child{margin-bottom:0;}
 .grupo-instrumento-log.colapsado-log .toma-agrupada{display:none;}
 
+/* v2.46: tiras horizontales de solo lectura para el input list del
+   editor de sesión — mismo look del modo consola de bitacora.html
+   v2.8/v2.12, adaptado a las variables --gc/--gc-bg del grupo. */
+.consola-grupo-fila{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:4px;}
+.consola-strip{
+  flex-shrink:0;width:104px;background:var(--surf-light);border:1px solid var(--gc,var(--brd));
+  border-radius:10px;padding:8px;
+}
+.consola-strip.manual{border-color:var(--sgc,var(--gold));background:var(--sgc-bg,var(--gold-bg));}
+.consola-strip.checklist{border-color:var(--sgc,var(--ok));background:var(--sgc-bg,var(--ok-bg));}
+.consola-strip .ch{
+  font-family:var(--M);font-size:0.68rem;color:var(--gc,var(--gold));
+  background:var(--gc-bg,var(--gold-bg));border-radius:5px;padding:2px 6px;display:inline-block;margin-bottom:6px;
+}
+.consola-strip .nombre{font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;}
+.consola-strip .datos{font-size:0.68rem;color:var(--muted);line-height:1.6;}
+.consola-strip .datos div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.consola-strip .tag-manual{font-size:0.62rem;opacity:0.9;color:var(--gold);font-weight:600;}
+.consola-strip .tag-checklist{font-size:0.62rem;opacity:0.9;color:var(--ok);font-weight:600;}
+/* v2.64: mismo fix que bitacora.html v2.65 — los subgrupos no
+   heredaban el color del grupo padre (--gc), quedaban con borde/texto
+   gris fijo. --gc ya viene seteado en .grupo-instrumento-log (padre) y
+   hereda por el DOM, solo hacía falta referenciarla acá. No se tocó JS. */
+.consola-subgrupo-col{display:flex;flex-direction:column;gap:6px;padding:2px 10px;border-left:2px dashed var(--sgc,var(--gc,var(--brd)));}
+.consola-subgrupo-titulo{font-size:0.6rem;opacity:0.85;font-weight:600;white-space:nowrap;letter-spacing:0.02em;text-transform:uppercase;color:var(--sgc,var(--gc,var(--muted)));}
+.consola-subgrupo-strips{display:flex;flex-wrap:wrap;gap:8px;}
+
 .strip-row-log{
   background:var(--surf-light);border:1px solid var(--brd);border-radius:10px;
   padding:8px 10px;margin-bottom:8px;scroll-margin-top:90px;
@@ -1003,7 +1269,39 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   background:transparent;border:1px solid var(--brd);color:var(--err);
   border-radius:6px;padding:0 12px;cursor:pointer;
 }
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.modal-actions-top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.modal-actions{
+  display:flex;gap:10px;justify-content:flex-end;margin-top:24px;
+}
+/* v2.54: Cancelar/Guardar pasan de barra sticky sólida (v2.52/v2.53) a
+   chip flotante translúcido — a pedido del usuario, para no comerse
+   espacio fijo en mobile. position:fixed (no sticky: necesita quedar
+   igual sin importar dónde esté el scroll, y ocultarse/mostrarse con
+   JS según dirección del scroll, ver toggleModalActionsFloat() en el
+   script). Traslúcido con backdrop-filter; blur real solo si el
+   navegador lo soporta (fallback: fondo algo más opaco vía @supports
+   not, para que siga siendo legible). Se sigue anclando arriba del
+   .mobile-bottomnav en mobile (var(--bn-h)) igual que v2.53. */
+.modal-actions.float-chip{
+  position:fixed;left:50%;bottom:24px;margin-top:0;
+  transform:translate(-50%,0);
+  background:color-mix(in srgb, var(--surf) 78%, transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--brd);border-radius:999px;
+  padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,0.28);
+  z-index:70;justify-content:center;
+  transition:transform 0.25s ease,opacity 0.25s ease;
+}
+@supports not (backdrop-filter: blur(1px)){
+  .modal-actions.float-chip{background:var(--surf);}
+}
+.modal-actions.float-chip button{border-radius:999px;}
+.modal-actions.float-chip.oculto{
+  transform:translate(-50%,140%);opacity:0;pointer-events:none;
+}
+@media (max-width:768px){
+  .modal-actions.float-chip{bottom:calc(var(--bn-h, 58px) + 14px);}
+}
 .link-add{color:var(--gold);font-size:0.8rem;cursor:pointer;display:inline-block;margin-top:4px;}
 .pdf-actions{display:flex;gap:10px;margin-top:20px;}
 </style>
@@ -1054,6 +1352,8 @@ window.NAV_CONFIG = { activo: 'logistica' };
     <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
   </div>
 
+  <div class="sesiones-dash" id="sesionesDash" style="display:none;"></div>
+
   <div class="grid" id="gridSesiones"></div>
   <div class="empty" id="emptyState" style="display:none;">No hay sesiones registradas aún.</div>
   <div id="sinProyecto" style="display:none;">
@@ -1079,12 +1379,31 @@ window.NAV_CONFIG = { activo: 'logistica' };
        lista de sesiones (ver abrirModalNuevo/Editar/cerrarModal) en vez
        de superponerse encima con fondo oscuro. -->
   <div class="sesion-panel" id="modalBg">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
       <h2 id="modalTitulo" style="margin-bottom:0;">Nueva Sesión</h2>
       <button type="button" onclick="cerrarModal()" class="btn btn-ghost">← Volver a la lista</button>
     </div>
-    <div class="form-section">
-      <div class="form-section-head">📅 Datos generales</div>
+    <div class="modal-subtitulo" id="modalSubtitulo" style="display:none;"></div>
+    <!-- v2.54: acciones secundarias (menos frecuentes) fijas arriba junto
+         al título, en vez de vivir en la barra de abajo — esa barra ahora
+         solo tiene Cancelar/Guardar, flotando como chips (ver
+         .modal-actions-float más abajo). No se movió el orden de
+         visibilidad (mismo show/hide en abrirModalNuevo/Editar). -->
+    <div class="modal-actions-top" id="modalActionsTop">
+      <button class="btn btn-ghost" style="display:none;" id="btnAbrirBitacora" onclick="abrirBitacoraReportes(sesionActualId)">📋 Ir a bitácora</button>
+      <button class="btn btn-ghost" style="display:none;" id="btnLinkBitacora" onclick="copiarLinkBitacora()">🔗 Copiar link bitácora</button>
+      <button class="btn btn-ghost" style="display:none;" id="btnLinkConsentimiento" onclick="abrirPromptConsentimiento()">📝 Generar link de consentimiento</button>
+      <button class="btn btn-ghost" style="color:var(--err);border-color:var(--err);display:none;" id="btnEliminar" onclick="eliminarSesion()">Eliminar</button>
+    </div>
+    <div style="margin-bottom:8px;"></div>
+    <details class="form-section" open>
+      <summary class="form-section-head">
+        <div class="fs-textos">
+          <div class="fs-titulo">📅 Datos generales</div>
+          <div class="fs-subtitulo">Fecha, estudio, sala y horario de la sesión</div>
+        </div>
+        <span class="fs-flecha">▾</span>
+      </summary>
       <div class="row2">
         <div class="field">
           <label>Fecha</label>
@@ -1125,27 +1444,47 @@ window.NAV_CONFIG = { activo: 'logistica' };
         </div>
       </div>
       <div class="field">
-        <label>Actividad</label>
-        <input type="text" id="fActividad" placeholder="Ej: Grabación de voces">
+        <label>Set-up necesario</label>
+        <select id="fTiempoSetup">
+          <option value="0">Sin set-up (0 min)</option>
+          <option value="15">15 min</option>
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">60 min</option>
+        </select>
       </div>
-    </div>
-
-    <div class="form-section">
-      <div class="form-section-head">🎚️ Equipo e instrumentación</div>
       <div class="field">
-        <label>Equipo técnico</label>
-        <div id="equipoContainer"></div>
-        <span class="link-add" onclick="agregarFilaEquipo()">+ agregar integrante</span>
+        <label>Actividad</label>
+        <input type="text" id="fActividad" placeholder="Ej: Grabación de voces" oninput="actualizarSubtituloModal()">
       </div>
+    </details>
+
+    <details class="form-section" open>
+      <summary class="form-section-head">
+        <div class="fs-textos">
+          <div class="fs-titulo">🎚️ Instrumentación de la sesión</div>
+          <div class="fs-subtitulo">Qué se toca en esta sesión</div>
+        </div>
+        <span class="fs-flecha">▾</span>
+      </summary>
       <div class="field">
         <label>Instrumentación de esta sesión</label>
+        <div style="margin-bottom:8px;">
+          <a href="#" onclick="irAEditarInstrumentacion(); return false;" style="color:var(--gold);font-size:0.8rem;">✏️ Editar instrumentación del proyecto</a>
+        </div>
         <div id="instrSesionContainer"></div>
         <div class="inputlist-box" id="inputListBox"></div>
       </div>
-    </div>
+    </details>
 
-    <div class="form-section">
-      <div class="form-section-head">🎻 Músicos asignados</div>
+    <details class="form-section">
+      <summary class="form-section-head">
+        <div class="fs-textos">
+          <div class="fs-titulo">🎻 Músicos asignados</div>
+          <div class="fs-subtitulo">Quién toca en esta sesión y su tarifa</div>
+        </div>
+        <span class="fs-flecha">▾</span>
+      </summary>
       <div class="field">
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <select id="fMusicoAgregar" style="flex:2;">
@@ -1157,7 +1496,7 @@ window.NAV_CONFIG = { activo: 'logistica' };
         </div>
         <div id="musicosAsignadosContainer"></div>
       </div>
-    </div>
+    </details>
 
     <!-- TÉCNICOS ASIGNADOS (v2.24) — mismo patrón que "Músicos asignados"
          de arriba (v2.12): catálogo activo de /equipoTecnico + tarifa
@@ -1165,8 +1504,14 @@ window.NAV_CONFIG = { activo: 'logistica' };
          `tecnicosAsignados` del documento de la sesión. No se tocó
          musicosAsignados, equipoTecnico (campo rol/nombre libre) ni
          ningún otro campo existente. -->
-    <div class="form-section">
-      <div class="form-section-head">🔧 Técnicos asignados</div>
+    <details class="form-section">
+      <summary class="form-section-head">
+        <div class="fs-textos">
+          <div class="fs-titulo">🔧 Técnicos asignados</div>
+          <div class="fs-subtitulo">Quién opera la sesión y su tarifa</div>
+        </div>
+        <span class="fs-flecha">▾</span>
+      </summary>
       <div class="field">
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <select id="fTecnicoAgregar" style="flex:2;" onchange="onCambioTecnicoAgregar()">
@@ -1177,10 +1522,16 @@ window.NAV_CONFIG = { activo: 'logistica' };
         </div>
         <div id="tecnicosAsignadosContainer"></div>
       </div>
-    </div>
+    </details>
 
-    <div class="form-section">
-      <div class="form-section-head">📝 Notas y visibilidad</div>
+    <details class="form-section">
+      <summary class="form-section-head">
+        <div class="fs-textos">
+          <div class="fs-titulo">📝 Notas y visibilidad</div>
+          <div class="fs-subtitulo">Notas internas y si el cliente ve esta sesión</div>
+        </div>
+        <span class="fs-flecha">▾</span>
+      </summary>
       <div class="field">
         <label>Notas internas (confidencial)</label>
         <textarea id="fNotasInternas" placeholder="No visible para el cliente..."></textarea>
@@ -1189,14 +1540,11 @@ window.NAV_CONFIG = { activo: 'logistica' };
         <input type="checkbox" id="fVisibleCliente" checked>
         <label for="fVisibleCliente">Visible para el cliente</label>
       </div>
-    </div>
+    </details>
 
-    <div class="modal-actions">
+    <div class="modal-actions float-chip" id="modalActionsFloat">
       <button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>
       <button class="btn" onclick="guardarSesion()">Guardar</button>
-      <button class="btn btn-ghost" style="display:none;" id="btnLinkBitacora" onclick="copiarLinkBitacora()">🔗 Copiar link bitácora</button>
-      <button class="btn btn-ghost" style="display:none;" id="btnLinkConsentimiento" onclick="abrirPromptConsentimiento()">📝 Generar link de consentimiento</button>
-      <button class="btn btn-ghost" style="color:var(--err);border-color:var(--err);display:none;" id="btnEliminar" onclick="eliminarSesion()">Eliminar</button>
     </div>
   </div>
 
@@ -1325,16 +1673,35 @@ let agendaGlobal = [];
 let proyectosCache = {};
 let unsubscribeAgendaGlobal = null;
 
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
+// v2.57: reconstruye la URL de logistica.html desde los datos reales
+// (proyectoId, origenAgenda, y opcionalmente el id de sesión) en vez de
+// copiar/editar location.href — así nunca queda un parámetro viejo
+// (como origen=agenda) pegado de una navegación anterior que ya no
+// corresponde al contexto actual.
+function actualizarUrlSesion(sesionIdParaUrl){
+  const params = new URLSearchParams();
+  if(proyectoId) params.set('id', proyectoId);
+  if(origenAgenda) params.set('origen', 'agenda');
+  if(sesionIdParaUrl) params.set('sesion', sesionIdParaUrl);
+  history.replaceState(null, '', `logistica.html?${params.toString()}`);
 }
 
 function volverAProyecto(){
   if(origenAgenda){
     window.location.href = 'logistica.html';
   } else if(proyectoId){
+    window.location.href = `proyecto.html?id=${proyectoId}`;
+  } else {
+    window.location.href = 'proyecto.html';
+  }
+}
+
+// v2.58: el catálogo de instrumentación (proyectoData.instrumentacion) es
+// del proyecto, no de la sesión — se edita únicamente en proyecto.html
+// (ahí vive el CRUD contra Firestore). Este enlace solo navega ahí, no
+// agrega escritura nueva en logistica.html.
+function irAEditarInstrumentacion(){
+  if(proyectoId){
     window.location.href = `proyecto.html?id=${proyectoId}`;
   } else {
     window.location.href = 'proyecto.html';
@@ -1388,6 +1755,22 @@ function iniciarAgendaGlobal(){
     }, err => console.error('Error cargando agenda global de sesiones (revisa el índice de collectionGroup si falla):', err));
 }
 
+// v2.53: horario de sesión mostrado en tarjetas, con hora de llegada
+// (inicio - tiempoSetupMin) en vez de horaInicio tal cual. Si no hay
+// horaInicio/horaFin válidas o no hay setup, se ve igual que antes.
+function textoHorarioConLlegada(s){
+  const setupMin = Number(s.tiempoSetupMin) || 0;
+  const iniMin = horaAMinutos(s.horaInicio);
+  const finMin = horaAMinutos(s.horaFin);
+  if(iniMin === null || finMin === null || setupMin <= 0){
+    return `${escapeHtml(s.horaInicio || '--:--')} – ${escapeHtml(s.horaFin || '--:--')}`;
+  }
+  const llegadaMin = ((iniMin - setupMin) % 1440 + 1440) % 1440;
+  const hh = String(Math.floor(llegadaMin / 60)).padStart(2, '0');
+  const mm = String(llegadaMin % 60).padStart(2, '0');
+  return `${hh}:${mm} – ${escapeHtml(s.horaFin || '--:--')}`;
+}
+
 function renderAgendaGlobal(){
   const grid = document.getElementById('gridAgendaGlobal');
   const empty = document.getElementById('emptyAgendaGlobal');
@@ -1402,14 +1785,14 @@ function renderAgendaGlobal(){
     const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
     const proy = proyectosCache[s.proyectoId];
     return `
-    <div class="card" onclick="window.location.href='logistica.html?id=${s.proyectoId}&origen=agenda'">
+    <div class="card" onclick="window.location.href='logistica.html?id=${s.proyectoId}&origen=agenda&sesion=${s.id}'">
       <div class="card-top">
         <h3>${escapeHtml(s.actividad || 'Sesión')}</h3>
         <span class="badge ${s.visibleCliente ? 'vis' : 'priv'}">${s.visibleCliente ? 'Visible' : 'Privada'}</span>
       </div>
       <div class="meta">📁 ${escapeHtml(proy ? proy.nombre : 'Proyecto')}</div>
       <div class="meta">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')}</div>
-      <div class="meta">⏱️ ${escapeHtml(s.horaInicio || '--:--')} – ${escapeHtml(s.horaFin || '--:--')}</div>
+      <div class="meta">⏱️ ${textoHorarioConLlegada(s)}</div>
     </div>`;
   }).join('');
 }
@@ -1418,6 +1801,9 @@ async function initLogistica(){
   const urlParams = new URLSearchParams(window.location.search);
   proyectoId = urlParams.get('id');
   origenAgenda = urlParams.get('origen') === 'agenda';
+  const sesionQueryId = urlParams.get('sesion');
+  const fechaQuery = urlParams.get('fecha');
+  let sesionQueryAbierta = false;
 
   if(!proyectoId){
     document.getElementById('sinProyecto').style.display = 'block';
@@ -1446,18 +1832,76 @@ async function initLogistica(){
     console.error('Error cargando proyecto:', e);
   }
 
+  // v2.70: ?fecha=AAAA-MM-DD sin ?sesion → abre "Nueva Sesión" ya con
+  // esa fecha puesta. No depende del onSnapshot de abajo (es una sesión
+  // nueva, no una existente), así que se dispara una sola vez, acá.
+  if(fechaQuery && !sesionQueryId){
+    abrirModalNuevo();
+    document.getElementById('fFecha').value = fechaQuery;
+  }
+
   unsubscribeSesiones = proyectosRef.doc(proyectoId).collection('sesiones')
     .orderBy('fecha', 'asc')
     .onSnapshot(snap => {
       sesiones = [];
       snap.forEach(d => sesiones.push({ id: d.id, ...d.data() }));
       renderSesiones();
+      // v2.43: si venimos de un link directo a una sesión (?sesion=<id>,
+      // ej. desde el calendario de index.html), la abrimos automáticamente
+      // una sola vez, sin interferir con las actualizaciones en tiempo real
+      // del onSnapshot.
+      if(sesionQueryId && !sesionQueryAbierta && sesiones.some(s => s.id === sesionQueryId)){
+        sesionQueryAbierta = true;
+        abrirModalEditar(sesionQueryId);
+      }
     }, err => console.error('Error cargando sesiones:', err));
+}
+
+// v2.51: dash de resumen — 3 métricas puramente informativas, no
+// interactivas (a propósito, ver conversación con el usuario):
+// sesiones hechas/total (hecha = fecha ya pasada, no hay campo de
+// estado en el modelo), técnicos distintos asignados en el proyecto
+// (de tecnicosAsignados de cada sesión) y próxima sesión (primera
+// con fecha >= hoy; sesiones ya viene ordenado asc por fecha desde
+// el onSnapshot). Se llama desde renderSesiones(), mismo dato ya
+// cargado en memoria, sin lecturas extra a Firestore.
+function renderSesionesDash(){
+  const dash = document.getElementById('sesionesDash');
+  if(sesiones.length === 0){
+    dash.style.display = 'none';
+    return;
+  }
+  const hoy = new Date().toISOString().slice(0, 10);
+  const hechas = sesiones.filter(s => s.fecha && s.fecha < hoy).length;
+  const tecnicosSet = new Set();
+  sesiones.forEach(s => (s.tecnicosAsignados || []).forEach(t => { if(t.nombre) tecnicosSet.add(t.nombre); }));
+  const proxima = sesiones.find(s => s.fecha && s.fecha >= hoy);
+  const proximaTxt = proxima
+    ? new Date(proxima.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'})
+    : '—';
+  dash.style.display = 'grid';
+  dash.innerHTML = `
+    <div class="dash-card">
+      <div class="dash-label">Sesiones</div>
+      <div class="dash-value">${hechas} / ${sesiones.length}</div>
+      <div class="dash-sub">hechas</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-label">Técnicos</div>
+      <div class="dash-value">${tecnicosSet.size}</div>
+      <div class="dash-sub">asignados en el proyecto</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-label">Próxima sesión</div>
+      <div class="dash-value">${proximaTxt}</div>
+      ${proxima ? `<div class="dash-sub">${escapeHtml(proxima.actividad || 'Sesión')}</div>` : ''}
+    </div>`;
 }
 
 function renderSesiones(){
   const grid = document.getElementById('gridSesiones');
   const empty = document.getElementById('emptyState');
+  renderSesionesDash();
   if(sesiones.length === 0){
     grid.innerHTML = '';
     empty.style.display = 'block';
@@ -1476,22 +1920,50 @@ function renderSesiones(){
         </div>
       </div>
       <div class="meta">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')}</div>
-      <div class="meta">⏱️ ${escapeHtml(s.horaInicio || '--:--')} – ${escapeHtml(s.horaFin || '--:--')}</div>
-      ${s.equipoTecnico && s.equipoTecnico.length ? `
+      <div class="meta">⏱️ ${textoHorarioConLlegada(s)}</div>
+      ${(s.estudioNombre || s.temaNombre) ? `
+        <div class="meta">${s.estudioNombre ? '🏢 ' + escapeHtml(s.estudioNombre) : ''}${s.estudioNombre && s.temaNombre ? ' · ' : ''}${s.temaNombre ? '🎵 ' + escapeHtml(s.temaNombre) : ''}</div>` : ''}
+      ${(s.musicosAsignados?.length || s.tecnicosAsignados?.length || s.notasInternas) ? `
+        <div class="meta">
+          ${s.musicosAsignados?.length ? `🎻 ${s.musicosAsignados.length} músico${s.musicosAsignados.length===1?'':'s'}` : ''}
+          ${s.musicosAsignados?.length && s.tecnicosAsignados?.length ? ' · ' : ''}
+          ${s.tecnicosAsignados?.length ? `🔧 ${s.tecnicosAsignados.length} técnico${s.tecnicosAsignados.length===1?'':'s'}` : ''}
+          ${(s.musicosAsignados?.length || s.tecnicosAsignados?.length) && s.notasInternas ? ' · ' : ''}
+          ${s.notasInternas ? '📝 con notas internas' : ''}
+        </div>` : ''}
+      ${s.tecnicosAsignados && s.tecnicosAsignados.length ? `
         <div class="equipo-list">
-          ${s.equipoTecnico.map(e => `<span class="equipo-chip">${escapeHtml(e.rol)}: ${escapeHtml(e.nombre)}</span>`).join('')}
+          ${s.tecnicosAsignados.map(t => `<span class="equipo-chip">${escapeHtml(t.rol || 'Técnico')}: ${escapeHtml(t.nombre)}</span>`).join('')}
         </div>` : ''}
     </div>`;
   }).join('');
 }
 
 // ============ MODAL ============
+// v2.51: subtítulo con la Actividad, visible junto al título del modal
+// (h2 "Nueva/Editar Sesión") — antes había que buscarla al final de
+// "Datos generales" para saber en qué sesión se estaba. Se actualiza en
+// vivo (oninput de #fActividad, ver HTML) y al abrir/editar. No cambia
+// el campo original ni su posición en el formulario.
+function actualizarSubtituloModal(){
+  const val = document.getElementById('fActividad').value.trim();
+  const sub = document.getElementById('modalSubtitulo');
+  if(!sub) return;
+  if(val){
+    sub.textContent = val;
+    sub.style.display = 'block';
+  } else {
+    sub.style.display = 'none';
+  }
+}
+
 function abrirModalNuevo(){
   if(!proyectoId) return;
   editando = false;
   sesionActualId = null;
   document.getElementById('modalTitulo').textContent = 'Nueva Sesión';
   document.getElementById('btnEliminar').style.display = 'none';
+  document.getElementById('btnAbrirBitacora').style.display = 'none';
   document.getElementById('btnLinkBitacora').style.display = 'none';
   document.getElementById('btnLinkConsentimiento').style.display = 'none';
   limpiarFormulario();
@@ -1510,6 +1982,7 @@ function abrirModalNuevo(){
   cargarCatalogoEstudiosSesion();
   cargarCatalogoTemasSesion('');
   document.getElementById('fTemaNuevoBox').style.display = 'none';
+  actualizarSubtituloModal();
   mostrarPanelSesion();
 }
 
@@ -1518,8 +1991,16 @@ async function abrirModalEditar(id){
   if(!s) return;
   editando = true;
   sesionActualId = id;
+  // v2.57: refleja la sesión que se está editando en la URL (sin
+  // recargar), para que un F5 con el modal abierto vuelva a abrirlo en
+  // vez de devolver a la vista normal del proyecto — mismo parámetro
+  // `sesion` que ya usa el link de la agenda global. Se construye la URL
+  // desde cero (id + origen real + sesion) en vez de copiar location.href,
+  // para no arrastrar un `origen=agenda` viejo que ya no corresponda.
+  actualizarUrlSesion(id);
   document.getElementById('modalTitulo').textContent = 'Editar Sesión';
   document.getElementById('btnEliminar').style.display = 'inline-block';
+  document.getElementById('btnAbrirBitacora').style.display = 'inline-block';
   document.getElementById('btnLinkBitacora').style.display = 'inline-block';
   document.getElementById('btnLinkConsentimiento').style.display = 'inline-block';
   document.getElementById('fFecha').value = s.fecha || '';
@@ -1531,14 +2012,10 @@ async function abrirModalEditar(id){
   document.getElementById('fHoraInicio').value = s.horaInicio || '';
   document.getElementById('fHoraFin').value = s.horaFin || '';
   document.getElementById('fActividad').value = s.actividad || '';
+  document.getElementById('fTiempoSetup').value = (s.tiempoSetupMin !== undefined && s.tiempoSetupMin !== null) ? String(s.tiempoSetupMin) : '0';
+  actualizarSubtituloModal();
   document.getElementById('fNotasInternas').value = s.notasInternas || '';
   document.getElementById('fVisibleCliente').checked = s.visibleCliente !== false;
-  document.getElementById('equipoContainer').innerHTML = '';
-  if(s.equipoTecnico && s.equipoTecnico.length){
-    s.equipoTecnico.forEach(e => agregarFilaEquipo(e.rol, e.nombre));
-  } else {
-    agregarFilaEquipo();
-  }
   instrSesionKeys = Array.isArray(s.instrumentacionSesion) ? [...s.instrumentacionSesion] : [];
   instrSesionIndividual = (s.instrumentacionSesionIndividual && typeof s.instrumentacionSesionIndividual === 'object') ? {...s.instrumentacionSesionIndividual} : {};
   instrSesionPiezasSel = {};
@@ -1554,10 +2031,10 @@ async function abrirModalEditar(id){
     const actualPorNombre = {};
     if(Array.isArray(s.inputList)){
       s.inputList.forEach(it => {
-        if(it && !it.manual && (it.preamp || it.gain || it.canalInterfaz || it.instrumento || it.orden !== undefined)){
+        if(it && !it.manual && (it.preamp || it.gain || it.canalInterfaz || it.mic || it.instrumento || it.grupoCatalogo || it.subgrupoCatalogo || it.orden !== undefined)){
           const nombre = it.nombre || '';
           if(!actualPorNombre[nombre]) actualPorNombre[nombre] = [];
-          actualPorNombre[nombre].push({ preamp: it.preamp || '', gain: it.gain || '', canalInterfaz: it.canalInterfaz || '', instrumento: it.instrumento || '', orden: it.orden });
+          actualPorNombre[nombre].push({ preamp: it.preamp || '', gain: it.gain || '', canalInterfaz: it.canalInterfaz || '', mic: it.mic || '', instrumento: it.instrumento || '', grupoCatalogo: it.grupoCatalogo || '', subgrupoCatalogo: it.subgrupoCatalogo || '', orden: it.orden });
         }
       });
     }
@@ -1589,12 +2066,18 @@ function mostrarPanelSesion(){
   document.getElementById('modalBg').classList.add('active');
   document.getElementById('gridSesiones').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('sesionesDash').style.display = 'none';
   const topActions = document.querySelector('.top-actions');
   if(topActions) topActions.style.display = 'none';
   const pdfTop = document.getElementById('pdfActionsTop');
   if(pdfTop) pdfTop.dataset.wasVisible = pdfTop.style.display !== 'none' ? '1' : '0';
   if(pdfTop) pdfTop.style.display = 'none';
   window.scrollTo({top:0, behavior:'smooth'});
+  // v2.54: chip flotante de Cancelar/Guardar arranca visible; el
+  // listener de scroll (ver más abajo) lo oculta/muestra después.
+  const floatChip = document.getElementById('modalActionsFloat');
+  if(floatChip) floatChip.classList.remove('oculto');
+  ultimoScrollYFloat = window.scrollY;
 }
 
 function cerrarModal(){
@@ -1604,8 +2087,32 @@ function cerrarModal(){
   if(topActions) topActions.style.display = '';
   const pdfTop = document.getElementById('pdfActionsTop');
   if(pdfTop && pdfTop.dataset.wasVisible === '1') pdfTop.style.display = '';
+  // v2.57: quita `sesion` de la URL al cerrar (ver abrirModalEditar) —
+  // si no, un F5 después de cerrar el modal lo volvería a abrir solo.
+  actualizarUrlSesion(null);
   renderSesiones();
 }
+
+// v2.54: chip flotante (Cancelar/Guardar) aparece al scrollear hacia
+// arriba y se oculta al bajar — a pedido del usuario, para no ocupar
+// espacio fijo en mobile mientras se llena el formulario. Solo actúa
+// mientras el panel de sesión está activo (.sesion-panel.active);
+// umbral de 6px para no reaccionar a temblores/rebote del scroll.
+let ultimoScrollYFloat = 0;
+window.addEventListener('scroll', () => {
+  const panel = document.getElementById('modalBg');
+  const floatChip = document.getElementById('modalActionsFloat');
+  if(!panel || !floatChip || !panel.classList.contains('active')) return;
+  const y = window.scrollY;
+  const delta = y - ultimoScrollYFloat;
+  if(Math.abs(delta) < 6) return;
+  if(delta > 0 && y > 40){
+    floatChip.classList.add('oculto');
+  } else {
+    floatChip.classList.remove('oculto');
+  }
+  ultimoScrollYFloat = y;
+}, { passive: true });
 
 function limpiarFormulario(){
   document.getElementById('fFecha').value = '';
@@ -1614,23 +2121,14 @@ function limpiarFormulario(){
   document.getElementById('fHoraInicio').value = '';
   document.getElementById('fHoraFin').value = '';
   document.getElementById('fActividad').value = '';
+  document.getElementById('fTiempoSetup').value = '0';
   document.getElementById('fNotasInternas').value = '';
   document.getElementById('fVisibleCliente').checked = true;
-  document.getElementById('equipoContainer').innerHTML = '';
-  agregarFilaEquipo();
 }
 
-function agregarFilaEquipo(rol='', nombre=''){
-  const container = document.getElementById('equipoContainer');
-  const row = document.createElement('div');
-  row.className = 'equipo-row';
-  row.innerHTML = `
-    <input type="text" placeholder="Rol (ej: Técnico)" class="equipo-rol" value="${escapeHtml(rol)}">
-    <input type="text" placeholder="Nombre" class="equipo-nombre" value="${escapeHtml(nombre)}">
-    <button onclick="this.parentElement.remove()">✕</button>
-  `;
-  container.appendChild(row);
-}
+// v2.49: agregarFilaEquipo() y el campo "Equipo técnico" (texto libre
+// rol/nombre) se quitaron — quedaba duplicado con "Técnicos asignados"
+// (catálogo real + tarifa, v2.24). Ver changelog para el detalle.
 
 // ============ PICKER DE HORA — ruedas (v2.18) ============
 // Reemplaza al <input type="time"> nativo (tosco / distinto en cada
@@ -2043,6 +2541,15 @@ const GRUPOS_INSTRUMENTACION_LABELS = {
   bronces: 'Bronces', voces: 'Voces', teclas: 'Teclas', otros: 'Otros'
 };
 
+// v2.54: etiqueta de un grupo — primero busca en proyectoData.instrumentacionGrupos
+// (lo editado en proyecto.html v5.0), si no existe cae al diccionario fijo
+// de arriba, y si tampoco está ahí muestra la clave cruda.
+function labelGrupo(key){
+  const gp = (proyectoData && proyectoData.instrumentacionGrupos) || {};
+  if(gp[key] && gp[key].label) return gp[key].label;
+  return GRUPOS_INSTRUMENTACION_LABELS[key] || key;
+}
+
 // v2.12: músicos asignados a la sesión en edición (array de
 // {musicoId, nombre, correo, instrumento}) — se guarda en el campo nuevo
 // `musicosAsignados` del documento de sesión. La tarifa NO vive acá (se
@@ -2088,9 +2595,18 @@ let instrSesionCanalesManuales = [];
 // MOSTRAR y preservar al guardar — no se edita desde acá.
 let instrSesionBitacoraInfo = {};
 
+// v2.60: el orden de los grupos ya no depende de Object.keys(instr) —
+// Firestore no garantiza preservar el orden de campos de un mapa entre
+// guardado y lectura. Ahora se ordena según proyectoData.instrumentacionGrupos
+// (el catálogo maestro, reordenable con ↑↓ desde proyecto.html v5.2+), y
+// solo se listan los grupos que además tienen piezas cargadas. Si el
+// proyecto no tiene instrumentacionGrupos (proyectos viejos), cae al
+// orden de instr como antes.
 function gruposConPiezas(){
   const instr = (proyectoData && proyectoData.instrumentacion) || {};
-  return Object.keys(GRUPOS_INSTRUMENTACION_LABELS).filter(k => Array.isArray(instr[k]) && instr[k].length);
+  const gp = (proyectoData && proyectoData.instrumentacionGrupos) || {};
+  const clavesOrdenadas = Object.keys(gp).length ? Object.keys(gp) : Object.keys(instr);
+  return clavesOrdenadas.filter(k => Array.isArray(instr[k]) && instr[k].length);
 }
 
 // Piezas de un grupo que realmente van a grabarse: si el grupo no está en
@@ -2132,7 +2648,7 @@ function renderChecklistInstrumentacion(){
     return `
       <div class="instr-check-row">
         <input type="checkbox" id="instrChk_${key}" ${checked} onchange="toggleGrupoSesion('${key}', this.checked)">
-        <label for="instrChk_${key}">${GRUPOS_INSTRUMENTACION_LABELS[key]}</label>
+        <label for="instrChk_${key}">${labelGrupo(key)}</label>
         <span>(${n} pieza(s))</span>
       </div>
       <div class="instr-individual-row${marcado ? '' : ' deshabilitada'}" id="instrIndivRow_${key}">
@@ -2195,12 +2711,17 @@ function calcularInputListSesion(){
   Object.keys(instrSesionBitacoraInfo).forEach(k => { colas[k] = [...instrSesionBitacoraInfo[k]]; });
   instrSesionKeys.forEach(key => {
     piezasSeleccionadasGrupo(key).forEach(pieza => {
-      (pieza.unidades || [pieza.nombre]).forEach(unidad => {
-        const cola = colas[unidad];
-        const info = (cola && cola.length) ? cola.shift() : null;
-        lista.push({ canal, nombre: unidad, preamp: info ? info.preamp : '', gain: info ? info.gain : '', canalInterfaz: info ? info.canalInterfaz : '', instrumento: info ? info.instrumento : '', orden: (info && info.orden !== undefined && info.orden !== null) ? info.orden : canal });
-        canal++;
-      });
+      // v2.60: antes se iteraba pieza.unidades (sistema de cantidad viejo).
+      // Ese campo ya no lo escribe instrumentacion.js v1.2+, pero seguía
+      // presente y con nombres viejos en documentos ya guardados en
+      // Firestore, así que usarlo con fallback (`||`) mostraba el nombre
+      // viejo en vez del actual. Ahora se usa pieza.nombre directo — cada
+      // pieza ya viene individualizada desde el editor de proyecto.
+      const nombre = pieza.nombre;
+      const cola = colas[nombre];
+      const info = (cola && cola.length) ? cola.shift() : null;
+      lista.push({ canal, nombre, preamp: info ? info.preamp : '', gain: info ? info.gain : '', canalInterfaz: info ? info.canalInterfaz : '', mic: info ? info.mic : '', instrumento: info ? info.instrumento : '', grupoCatalogo: (info && info.grupoCatalogo) ? info.grupoCatalogo : key, subgrupoCatalogo: (info && info.subgrupoCatalogo) ? info.subgrupoCatalogo : (pieza.subgrupo || ''), orden: (info && info.orden !== undefined && info.orden !== null) ? info.orden : canal });
+      canal++;
     });
   });
   instrSesionCanalesManuales.forEach(it => {
@@ -2226,9 +2747,9 @@ function calcularBitacoraHistorialParaGuardar(historialPrevio){
   const previo = (historialPrevio && typeof historialPrevio === 'object') ? historialPrevio : {};
   const actual = {};
   calcularInputListSesion().forEach(it => {
-    if(!it.nombre || (!it.preamp && !it.gain && !it.canalInterfaz && !it.instrumento)) return;
+    if(!it.nombre || (!it.preamp && !it.gain && !it.canalInterfaz && !it.mic && !it.instrumento)) return;
     if(!actual[it.nombre]) actual[it.nombre] = [];
-    actual[it.nombre].push({ preamp: it.preamp, gain: it.gain, canalInterfaz: it.canalInterfaz, instrumento: it.instrumento, orden: it.orden });
+    actual[it.nombre].push({ preamp: it.preamp, gain: it.gain, canalInterfaz: it.canalInterfaz, mic: it.mic, instrumento: it.instrumento, orden: it.orden });
   });
   const resultado = {};
   const nombres = new Set([...Object.keys(previo), ...Object.keys(actual)]);
@@ -2250,14 +2771,22 @@ function renderInputListSesion(){
   // v2.35: mismo agrupador visual que bitacora.html/Reportes — renglones
   // consecutivos con el mismo `instrumento` se muestran bajo un
   // encabezado común, sin botones acá (esta vista es de solo lectura).
+  // v2.55: se agrupa por grupoCatalogo (resuelto con labelGrupo(), mismo
+  // criterio que etiquetaGrupoDe() en bitacora.html) en vez del campo
+  // viejo `instrumento` — antes un canal automático del checklist (que
+  // siempre trae grupoCatalogo pero nunca instrumento) no se agrupaba,
+  // mientras uno manual con un instrumento viejo guardado sí. Si un
+  // canal no tiene grupoCatalogo (dato antiguo), cae al texto de
+  // instrumento como respaldo, igual que en bitácora.
   const grupos = [];
   lista.forEach(it => {
-    const etiqueta = (it.instrumento || '').trim();
+    const etiqueta = it.grupoCatalogo ? labelGrupo(it.grupoCatalogo) : (it.instrumento || '').trim();
+    const claveGrupo = it.grupoCatalogo || etiqueta;
     const anterior = grupos[grupos.length - 1];
-    if(etiqueta && anterior && anterior.etiqueta === etiqueta){
+    if(claveGrupo && anterior && anterior.claveGrupo === claveGrupo){
       anterior.items.push(it);
     } else {
-      grupos.push({ etiqueta, items: [it] });
+      grupos.push({ etiqueta, claveGrupo, items: [it] });
     }
   });
   // v2.36: el badge de cada fila muestra la POSICIÓN según el orden que
@@ -2265,22 +2794,72 @@ function renderInputListSesion(){
   // por dentro (it.canal) solo para el matching de Preamp/Gain con
   // instrSesionBitacoraInfo, pero acá queda oculto, igual que en el
   // parcheo/frente de una consola digital.
+  // v2.46: cada grupo se pinta como fila con scroll horizontal de
+  // "consola-strip" (mismo look del modo consola de bitacora.html),
+  // en vez de filas apiladas. Orden dentro de la tira: canal → nombre
+  // → IN → Mic → Pre → Gain. Solo lectura: no hay click-to-edit acá,
+  // esta vista siempre fue de solo lectura.
   let posicion = 0;
   box.innerHTML = grupos.map(grupo => {
-    const filas = grupo.items.map(it => {
-      posicion++;
-      const infoHtml = (it.preamp || it.gain || it.canalInterfaz) ? `<span class="tag-bitacora">🎚️ ${it.canalInterfaz ? 'IN ' + escapeHtml(it.canalInterfaz) + ' · ' : ''}${it.preamp ? escapeHtml(it.preamp) : '—'} · ${it.gain ? escapeHtml(it.gain) : '—'}</span>` : '';
-      return `<div class="inputlist-row${it.manual ? ' manual' : ''}"><span class="ch-badge">${posicion}</span><span class="il-nombre">${escapeHtml(it.nombre || '—')}${it.manual ? '<span class="tag-manual">(manual)</span>' : ''}</span>${infoHtml}</div>`;
+    // v2.63: dentro de cada grupo, sub-agrupa por subgrupoCatalogo (mismo
+    // campo que bitacora.html v2.34/v2.36 — viene del catálogo o de
+    // canales manuales del Inge). Mismo criterio: consecutivos con igual
+    // subgrupo se juntan en su propia mini-columna con borde punteado +
+    // mini-título. Sin subgrupos, se ve idéntico a antes (sin wrapper).
+    const subgrupos = [];
+    grupo.items.forEach(it => {
+      const etq = (it.subgrupoCatalogo || '').trim();
+      const anterior = subgrupos[subgrupos.length - 1];
+      if(etq && anterior && anterior.etiqueta === etq){
+        anterior.items.push(it);
+      } else {
+        subgrupos.push({ etiqueta: etq, items: [it] });
+      }
+    });
+    const strips = subgrupos.map(sub => {
+      const tirasSub = sub.items.map(it => {
+        posicion++;
+        const datos = [];
+        if(it.canalInterfaz) datos.push(`<div>IN ${escapeHtml(it.canalInterfaz)}</div>`);
+        if(it.mic) datos.push(`<div>${escapeHtml(it.mic)}</div>`);
+        if(it.preamp) datos.push(`<div>${escapeHtml(it.preamp)}</div>`);
+        if(it.gain) datos.push(`<div>${escapeHtml(it.gain)} dB</div>`);
+        const datosHtml = datos.length ? `<div class="datos">${datos.join('')}</div>` : '';
+        return `<div class="consola-strip${it.manual ? ' manual' : ' checklist'}"><span class="ch">${posicion}</span><div class="nombre">${escapeHtml(it.nombre || '—')}</div><span class="${it.manual ? 'tag-manual' : 'tag-checklist'}">${it.manual ? '✋ (ING)' : '🎚️ (CHECK LIST)'}</span>${datosHtml}</div>`;
+      }).join('');
+      if(!sub.etiqueta) return tirasSub;
+      const sc = colorParaSubgrupoLog(sub.etiqueta);
+      return `<div class="consola-subgrupo-col" style="--sgc:${sc};--sgc-bg:${hexToRgbaLog(sc,0.12)};"><div class="consola-subgrupo-titulo">${escapeHtml(sub.etiqueta)}</div><div class="consola-subgrupo-strips">${tirasSub}</div></div>`;
     }).join('');
-    if(!grupo.etiqueta) return filas;
+    const fila = `<div class="consola-grupo-fila">${strips}</div>`;
+    if(!grupo.etiqueta) return fila;
     // v2.36: mismo color por grupo (hash de la etiqueta) que ya usan
     // bitacora.html y la pestaña Bitácora de Reportes — heredado vía
     // colorParaGrupoLog()/hexToRgbaLog(), mismas funciones de esa pestaña.
     const c = colorParaGrupoLog(grupo.etiqueta);
-    return `<div class="grupo-instrumento-log" style="--gc:${c};--gc-bg:${hexToRgbaLog(c,0.05)};"><div class="grupo-header-log" style="font-size:0.78rem;">🎚️ ${escapeHtml(grupo.etiqueta)}</div>${filas}</div>`;
+    return `<div class="grupo-instrumento-log" style="--gc:${c};--gc-bg:${hexToRgbaLog(c,0.05)};"><div class="grupo-header-log" style="font-size:0.78rem;">🎚️ ${escapeHtml(grupo.etiqueta)}</div>${fila}</div>`;
   }).join('');
 }
 /* ============ FIN INSTRUMENTACIÓN POR SESIÓN ============ */
+
+// v2.49: Firestore rechaza (con error, sin guardar nada) cualquier
+// objeto que tenga un valor `undefined` en algún campo, sin importar
+// qué tan anidado esté (arrays incluidos) — pasaba en guardarSesion()
+// al editar sesiones viejas cuyo inputList/instrumentacionSesionPiezas
+// tenía algún campo faltante que resultaba en undefined al reconstruirse.
+// Esta función recorre el objeto/array recursivamente y cambia cualquier
+// undefined por null (Firestore sí acepta null), como red de seguridad
+// — no cambia ningún otro valor ni la lógica de cálculo.
+function limpiarUndefinedProfundo(valor){
+  if(valor === undefined) return null;
+  if(Array.isArray(valor)) return valor.map(limpiarUndefinedProfundo);
+  if(valor && typeof valor === 'object' && !(valor instanceof Date) && typeof valor.toDate !== 'function'){
+    const limpio = {};
+    Object.keys(valor).forEach(k => { limpio[k] = limpiarUndefinedProfundo(valor[k]); });
+    return limpio;
+  }
+  return valor;
+}
 
 async function guardarSesion(){
   if(!proyectoId) return;
@@ -2290,13 +2869,6 @@ async function guardarSesion(){
     alert('Fecha y actividad son obligatorias.');
     return;
   }
-  const equipoTecnico = [];
-  document.querySelectorAll('#equipoContainer .equipo-row').forEach(row => {
-    const rol = row.querySelector('.equipo-rol').value.trim();
-    const nom = row.querySelector('.equipo-nombre').value.trim();
-    if(rol || nom) equipoTecnico.push({ rol, nombre: nom });
-  });
-
   const estudioSel = document.getElementById('fEstudio');
   const estudioId = estudioSel.value;
   const estudioNombre = estudioId ? estudioSel.options[estudioSel.selectedIndex].textContent : '';
@@ -2317,8 +2889,8 @@ async function guardarSesion(){
     temaNombre,
     horaInicio: document.getElementById('fHoraInicio').value,
     horaFin: document.getElementById('fHoraFin').value,
+    tiempoSetupMin: Number(document.getElementById('fTiempoSetup').value) || 0,
     actividad,
-    equipoTecnico,
     notasInternas: document.getElementById('fNotasInternas').value.trim(),
     visibleCliente: document.getElementById('fVisibleCliente').checked,
     instrumentacionSesion: instrSesionKeys,
@@ -2331,13 +2903,14 @@ async function guardarSesion(){
   };
 
   const sesionesRef = proyectosRef.doc(proyectoId).collection('sesiones');
+  const dataLimpia = limpiarUndefinedProfundo(data);
 
   try{
     if(editando && sesionActualId){
-      await sesionesRef.doc(sesionActualId).update(data);
+      await sesionesRef.doc(sesionActualId).update(dataLimpia);
     } else {
-      data.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
-      await sesionesRef.add(data);
+      dataLimpia.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
+      await sesionesRef.add(dataLimpia);
     }
     cerrarModal();
   } catch(err){
@@ -2358,12 +2931,10 @@ function copiarLinkBitacora(){
 // v2.38: todo lo de Ingeniería (Bitácora + Grabación/Edición/Mezcla/
 // Mastering, antes en el modal "Reportes" de acá) vive ahora en
 // bitacora.html — acá solo se abre ese link en pestaña nueva.
-function abrirBitacoraReportes(sesionId){
-  if(!proyectoId || !sesionId) return;
-  const base = location.href.replace(/logistica\.html.*$/, '');
-  const link = `${base}bitacora.html?p=${proyectoId}&s=${sesionId}`;
-  window.open(link, '_blank');
-}
+// v2.52: se quitó una segunda definición de esta misma función que
+// había quedado duplicada (código muerto, la de abajo siempre ganaba
+// por orden de declaración) — mismo comportamiento final, ninguna
+// llamada existente cambia.
 
 // v2.38: el modal "Reportes de ingeniería" (Grabación/Bitácora/Edición/
 // Mezcla/Mastering) se movió completo a bitacora.html — acá solo abrimos
@@ -2648,6 +3219,16 @@ function hexToRgbaLog(hex, alpha){
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
 }
+// v2.65: paleta separada para subgrupos (ej. "Bombo" dentro de
+// "Batería") — misma pareja de funciones que bitacora.html v2.66
+// (PALETA_SUBGRUPOS/colorParaSubgrupo), tonos neón/fríos a propósito
+// distintos de PALETA_GRUPOS_LOG (cálida).
+const PALETA_SUBGRUPOS_LOG = ['#39e6c4','#ff6ec7','#c6f24a','#4ad9ff','#ff9d3a','#b673ff'];
+function colorParaSubgrupoLog(etiqueta){
+  let hash = 0;
+  for(let i = 0; i < etiqueta.length; i++) hash = (hash * 17 + etiqueta.charCodeAt(i)) >>> 0;
+  return PALETA_SUBGRUPOS_LOG[hash % PALETA_SUBGRUPOS_LOG.length];
+}
 
 
 function exportarPDF(modo){
@@ -2718,7 +3299,7 @@ function exportarPDF(modo){
 
   sesionesFiltradas.forEach(s => {
     const notasHeight = (modo === 'interno' && s.notasInternas) ? doc.splitTextToSize(s.notasInternas, pageW - marginX*2 - 4).length * 5 + 8 : 0;
-    const equipoHeight = (s.equipoTecnico && s.equipoTecnico.length) ? 6.5 : 0;
+    const equipoHeight = (s.tecnicosAsignados && s.tecnicosAsignados.length) ? 6.5 : 0;
     const bloqueAltura = 30 + equipoHeight + notasHeight;
 
     if(y + bloqueAltura > pageHFull - 22){
@@ -2744,10 +3325,12 @@ function exportarPDF(modo){
     doc.text(`${fechaLegible}  ·  Sala: ${s.sala || '—'}  ·  ${s.horaInicio || '--:--'}–${s.horaFin || '--:--'}`, marginX + 6, y + 9);
 
     let yy = y + 16;
-    if(s.equipoTecnico && s.equipoTecnico.length){
+    // v2.50: texto del PDF migrado a tecnicosAsignados (quedó apuntando a
+    // equipoTecnico tras el fix de v2.49, mostrando el bloque vacío)
+    if(s.tecnicosAsignados && s.tecnicosAsignados.length){
       doc.setFontSize(9);
       doc.setTextColor(70, 70, 70);
-      const equipoStr = s.equipoTecnico.map(e => `${e.rol}: ${e.nombre}`).join('  ·  ');
+      const equipoStr = s.tecnicosAsignados.map(e => `${e.rol}: ${e.nombre}`).join('  ·  ');
       doc.text(equipoStr, marginX + 6, yy);
       yy += 7;
     }

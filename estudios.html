@@ -3,8 +3,94 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Estudios</title>
-<!-- AUDIOLINK · estudios.html · v1.1
+<title>Audiolink — Estudios (v2.1)</title>
+<!-- AUDIOLINK · estudios.html · v2.1
+     v2.1: BACKLINE_CALIDADES suma un 4to valor 'musico' ("🎤 Lo trae el
+     músico"), junto a sirve/complemento/alquilar. El <select> de calidad
+     se genera dinámicamente desde este array (renderBackline), así que
+     no se tocó el HTML del formulario ni la lógica de agregar/quitar/
+     actualizar backline. En cotizador.html se agrega el label
+     correspondiente en BACKLINE_CALIDAD_LABELS; resaltarCatalogoBackline()
+     ya filtraba solo por calidad==='alquilar', así que un ítem 'musico'
+     queda excluido del catálogo de alquiler sin más cambios.
+     v2.0: el formulario de alta/edición de estudio pasa de columna plana
+     a acordeón nativo <details>/<summary> (clase .form-section, mismo
+     patrón visual de logistica.html): 🏢 Datos generales (abierta),
+     🎸 Backline General del Estudio (cerrada), 🎚️ Sala A (abierta),
+     🎚️ Sala B (cerrada), 🎚️ Sala C (cerrada). Cambio puramente visual/
+     estructural — ningún id, name ni onclick de los campos se tocó, así
+     que guardarEstudio()/_estEditar() y todo el resto de la lógica
+     siguen leyendo exactamente las mismas referencias. El botón
+     "💾 Guardar estudio" y el mensaje de error quedan fuera de los
+     acordeones, siempre visibles al fondo del panel.
+     v1.9: nuevo campo "Backline General del Estudio", a nivel de estudio
+     (no por sala) — para casos como Icesi donde el backline es compartido
+     entre todas las salas. Reutiliza el mismo editor de backline por
+     sala (v2.10) con una clave nueva 'General' en backlineEditorState;
+     las funciones renderBackline/agregarBackline/actualizarBackline/
+     quitarBackline no cambiaron, ya eran genéricas por "letra". Se
+     guarda como backlineGeneral en el documento del estudio (aparte de
+     salaA/B/C), que es exactamente el campo que el cotizador (v9.16+)
+     ya esperaba leer. No se tocó specs, preamps, tarifas ni backline por
+     sala.
+     v1.8: backline (v1.7) ahora tiene un campo "subgrupo" (texto libre,
+     opcional) además de categoría/descripción/calidad — mismo patrón
+     que el subgrupo de instrumentacion.js/bitacora.html, para agrupar
+     piezas específicas dentro de una categoría (ej. categoría=Percusión,
+     subgrupo="Congas", pieza="Conga" / "Tumba" / "Quinto", cada una su
+     propio ítem). Campo opcional: si se deja vacío no cambia nada del
+     comportamiento actual. salaA/B/C.backline ahora
+     [{categoria,subgrupo,descripcion,calidad}]. No se agregó todavía
+     color por subgrupo (eso vive en bitacora/logistica sobre canales de
+     sesión, acá es solo catálogo de estudio).
+     v1.7: cada sala (A/B/C) ahora también tiene su propio catálogo
+     estructurado de backline (Batería / Percusión / Teclados) — mismo
+     patrón que preamps v1.6 (agregar/quitar, editable): descripción
+     libre + un nivel de calidad (Sirve tal cual / Sirve con complemento
+     / Alquilar), pensado para presupuestar qué hay que alquilar según
+     lo que ya tenga el estudio, sin tocar specs ni preamps.
+     salaA/B/C.backline = [{categoria, descripcion, calidad}]. Reutiliza
+     el mismo .row2 responsive que ya colapsa a una columna en mobile
+     (<=640px), sin CSS nuevo. No se conecta todavía a cotizador.html ni
+     proyecto.html — es solo el registro por ahora.
+     v1.6: cada sala (A/B/C) ahora tiene su propio catálogo estructurado
+     de preamps (nombre + cantidad de canales), editable con
+     agregar/quitar — antes esa info solo vivía como texto suelto dentro
+     de "Specs / Gear" (ej. "8 API, 2 Camilo Silva..."). El texto de
+     specs se deja intacto (no se migra ni se borra), esto es un campo
+     nuevo aparte: salaA/B/C.preamps = [{nombre, canales}]. Pensado para
+     que bitacora.html pueda ofrecer un selector real de preamp por
+     canal en vez de texto libre.
+     v1.5: se aumenta un poco el tamaño en mobile de botones/campos de
+     formulario (.btn/.btn-ghost, .field input/select/textarea, .field
+     label) para mejorar legibilidad y área táctil — no toca botones
+     chicos de utilidad. .btn-icon ("⋮") sube de 38px a 42px. Mismo
+     ajuste aplicado en paralelo a los otros 10 archivos del ecosistema
+     y a nav.css v1.1.
+     v1.4: el formulario de alta/edición deja de estar siempre visible
+     arriba de la lista (leftover de la migración modal→página) y pasa
+     a ser un panel oculto por defecto que reemplaza a la lista mientras
+     se edita — mismo patrón que el editor de sesión de logistica.html
+     v2.16 (clase .item-panel, botón "← Volver a la lista", sin overlay
+     ni position:fixed). Se agrega el botón "+ Nuevo estudio" y las
+     funciones abrirPanelEstudioNuevo()/mostrarPanelEstudio()/
+     cerrarPanelEstudio(). Se retira el botón suelto "Cancelar edición"
+     (queda cubierto por "← Volver a la lista"). Al guardar exitosamente
+     ahora se cierra el panel y vuelve a la lista (antes el formulario
+     seguía visible). De paso se corrige un bug real: _estEditar()
+     llamaba document.getElementById('modalEstudiosBg') — un elemento
+     que ya no existía desde v1.0 — lo que rompía silenciosamente el
+     scroll al editar. No se tocó sembrarEstudiosSemillaSiVacio() ni
+     ninguna otra lógica de Firestore.
+     v1.3: se quita el bloque de CSS de navegación (sidebar/topbar/
+     bottomnav) que vivía copiado en el <style> — ahora vive en nav.css
+     (compartido, junto con nav.js). Se agrega <link rel="stylesheet"
+     href="nav.css"> en el head. No se tocó ningún otro estilo.
+     v1.2
+     v1.2: se quita la copia local de escapeHtml() — ya se cargaba
+     utils.js, que ahora también provee escapeHtml() (misma función,
+     mismo resultado). No se tocó nada más.
+     v1.1
      V1.1: fix de arranque — en v1.0, escapeHtml()/escJsHtml() quedaron
      pegadas como texto suelto en el HTML (sin <script> alrededor) por un
      error de ensamblado, y además se cortó a mitad de la línea de
@@ -39,6 +125,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
 <script>
 // Anti-flash: aplica tema guardado ANTES de pintar el body
 (function(){
@@ -141,7 +228,7 @@ header{
 }
 .header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .header-actions .separador{width:1px;height:22px;background:var(--brd);margin:0 2px;}
-.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+.btn-icon{min-width:42px;min-height:42px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
 .brand{display:flex;align-items:center;gap:14px;}
 nav.links{display:flex;gap:8px;margin-left:20px;}
 nav.links a{
@@ -172,86 +259,6 @@ nav.links a:hover, nav.links a.active{color:var(--gold);background:var(--gold-bg
 .btn:hover{background:var(--gold);color:var(--bg);}
 .btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
 .btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
-/* ===== NAV V2.7: sidebar desktop (patrón Andamios) + bottomnav mobile (patrón Psico) ===== */
-:root{ --sb-w:220px; --sb-c:64px; --bn-h:58px; }
-.sidebar{
-  position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);
-  background:var(--surf);border-right:1px solid var(--brd);
-  display:flex;flex-direction:column;z-index:90;overflow:hidden;
-  transition:width 0.18s ease;
-}
-.sidebar.collapsed{width:var(--sb-c);}
-.sb-brand{
-  display:flex;align-items:center;gap:10px;padding:18px 16px;
-  border-bottom:1px solid var(--brd);flex-shrink:0;white-space:nowrap;overflow:hidden;
-}
-.sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
-.sidebar.collapsed .sb-brand h1{opacity:0;}
-.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
-.sb-item{
-  display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
-  color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
-  transition:background 0.15s,color 0.15s;
-}
-.sb-item i{font-style:normal;font-size:1.05rem;flex-shrink:0;width:20px;text-align:center;}
-.sb-item:hover{background:var(--surf-light);color:var(--txt);}
-.sb-item.active{background:var(--gold-bg);color:var(--gold);}
-.sidebar.collapsed .sb-item span{display:none;}
-.sb-foot{padding:10px 8px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.sb-toggle{
-  display:flex;align-items:center;gap:12px;padding:10px;border-radius:7px;cursor:pointer;
-  color:var(--muted);font-size:0.8rem;white-space:nowrap;overflow:hidden;
-}
-.sb-toggle:hover{background:var(--surf-light);color:var(--txt);}
-.sb-toggle i{transition:transform 0.2s;display:inline-block;}
-.sidebar.collapsed .sb-toggle i{transform:rotate(180deg);}
-.sidebar.collapsed .sb-toggle span{display:none;}
-.sb-credit{padding:8px 10px 4px;font-size:0.62rem;color:var(--faint);white-space:nowrap;overflow:hidden;letter-spacing:0.02em;}
-.sidebar.collapsed .sb-credit{opacity:0;}
-.main-wrap{margin-left:var(--sb-w);transition:margin-left 0.18s ease;}
-.main-wrap.expanded{margin-left:var(--sb-c);}
-
-.mobile-topbar{display:none;}
-.mobile-bottomnav{display:none;}
-.mas-mobile-panel{display:none;}
-
-@media (max-width:768px){
-  .sidebar{display:none;}
-  .main-wrap{margin-left:0;}
-  header{display:none;}
-  .mobile-topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--brd);
-    position:relative;z-index:1;
-  }
-  .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
-  .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
-  .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
-  main{padding-bottom:78px !important;}
-  .mobile-bottomnav{
-    display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
-    background:var(--surf);border-top:1px solid var(--brd);z-index:80;
-  }
-  .mobile-bottomnav a{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    color:var(--muted);text-decoration:none;font-size:0.64rem;letter-spacing:0.02em;
-  }
-  .mobile-bottomnav a i{font-style:normal;font-size:1.15rem;}
-  .mobile-bottomnav a.active{color:var(--gold);}
-  .mas-mobile-panel{
-    display:none;position:fixed;top:60px;right:14px;z-index:81;
-    background:var(--surf);border:1px solid var(--brd);border-radius:10px;
-    padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
-  }
-  .mas-mobile-panel.show{display:block;}
-  .mas-mobile-item{
-    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:7px;
-    color:var(--txt);font-size:0.82rem;cursor:pointer;white-space:nowrap;
-  }
-  .mas-mobile-item:hover{background:var(--surf-light);}
-  .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
-  .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
-}
 
 main{padding:28px;max-width:1200px;margin:0 auto;}
 .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
@@ -324,6 +331,14 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   padding:28px;
 }
 .modal h2{color:var(--gold);font-size:1.1rem;margin-bottom:20px;}
+/* v1.4: el formulario deja de estar siempre visible arriba de la lista
+   (leftover de la migración modal→página) y pasa a ser un panel oculto
+   por defecto, que reemplaza a la lista mientras se edita — mismo
+   patrón que .sesion-panel de logistica.html v2.16. Se combina con
+   .modal (que ya define el look del cuadro) solo para controlar
+   visibilidad. */
+.item-panel{display:none;}
+.item-panel.active{display:block;margin-top:4px;}
 .field{margin-bottom:16px;}
 .field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
 .field input,.field select,.field textarea{
@@ -342,6 +357,36 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   box-shadow:0 0 0 3px var(--gold-bg);
 }
 .field textarea{resize:vertical;min-height:70px;}
+/* v2.0: acordeón nativo <details>/<summary>, mismo patrón de
+   logistica.html (.form-section) — antes el modal apilaba Sala A/B/C +
+   Backline General en una sola columna plana y quedaba muy apeñuscado.
+   Ahora cada sala es una sección colapsable; Datos generales y Sala A
+   arrancan abiertas, Backline General/Sala B/Sala C arrancan cerradas.
+   No se tocó ningún id de input, solo el contenedor visual — la lógica
+   de guardarEstudio()/_estEditar() sigue leyendo los mismos ids. */
+.form-section{
+  border:1px solid var(--brd);border-radius:10px;padding:16px;margin-bottom:16px;
+  background:rgba(255,255,255,0.015);
+}
+.form-section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;
+  cursor:pointer;user-select:none;list-style:none;
+}
+.form-section-head::-webkit-details-marker{display:none;}
+.form-section-head .fs-textos{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.form-section-head .fs-titulo{
+  font-size:0.8rem;color:var(--gold);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.form-section-head .fs-subtitulo{font-size:0.76rem;color:var(--muted);font-weight:400;}
+.form-section-head .fs-flecha{font-size:0.75rem;color:var(--muted);transition:transform 0.15s;flex-shrink:0;}
+.form-section[open] .fs-flecha{transform:rotate(180deg);}
+.form-section:not([open]){margin-bottom:10px;}
+.form-section:not([open]) .form-section-head{margin-bottom:0;}
+.form-section .field:last-child{margin-bottom:0;}
+@media(max-width:640px){
+  .form-section{padding:12px;}
+}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .equipo-row{display:flex;gap:8px;margin-bottom:8px;}
 .equipo-row input{flex:1;}
@@ -520,6 +565,11 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   .pdf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .pdf-actions .btn{width:100%;}
   .modal{padding:20px;}
+  /* v1.5: se aumenta un poco tipografía/área táctil de botones y campos
+     de formulario en mobile — no toca botones chicos de utilidad. */
+  .btn,.btn-ghost{min-height:44px;font-size:0.95rem;}
+  .field input,.field select,.field textarea{min-height:44px;font-size:1rem;}
+  .field label{font-size:0.82rem;}
 }
 .back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
 .back-link:hover{color:var(--gold);}
@@ -552,80 +602,169 @@ window.NAV_CONFIG = {
     <h2 style="font-family:var(--T);font-size:1.4rem;">🏢 Estudios</h2>
   </div>
   <div style="padding:20px 24px 60px;">
-<div class="modal" style="max-width:560px;margin:0 auto;">
-    <h2>🏢 Estudios</h2>
-    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px;">
+<div class="top-actions" id="estudiosTopActions">
+  <div>
+    <h2 style="font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;">Catálogo de estudios</h2>
+    <p style="font-size:0.82rem;color:var(--muted);margin:4px 0 0;">
       Estos estudios alimentan el selector "Entorno Operativo" del Cotizador.
+    </p>
+  </div>
+  <button class="btn" onclick="abrirPanelEstudioNuevo()">+ Nuevo estudio</button>
+</div>
+<div id="estudiosLista" style="display:flex;flex-direction:column;gap:8px;max-width:560px;margin:16px auto 0;"></div>
+
+<div class="item-panel modal" id="estudioPanel" style="max-width:560px;margin:16px auto 0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="estudioPanelTitulo" style="margin-bottom:0;">Nuevo estudio</h2>
+      <button type="button" class="btn btn-ghost" onclick="cerrarPanelEstudio()">← Volver a la lista</button>
     </div>
     <input type="hidden" id="estudioEditId">
-    <div class="field">
-      <label>Nombre del estudio</label>
-      <input type="text" id="estudioNombre" placeholder="Ej. Universidad ICESI">
-    </div>
-    <div class="row2">
+
+    <details class="form-section" open>
+      <summary class="form-section-head">
+        <span class="fs-textos">
+          <span class="fs-titulo">🏢 Datos generales</span>
+          <span class="fs-subtitulo">Nombre del estudio y visibilidad de specs</span>
+        </span>
+        <span class="fs-flecha">▾</span>
+      </summary>
       <div class="field">
-        <label>Nombre Sala A</label>
-        <input type="text" id="estudioSalaANombre" placeholder="Estudio A">
+        <label>Nombre del estudio</label>
+        <input type="text" id="estudioNombre" placeholder="Ej. Universidad ICESI">
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="estudioSpecsVisibles" style="width:auto;">
+        <label style="margin:0;font-size:0.85rem;">Mostrar especificaciones técnicas en el cotizador</label>
+      </div>
+    </details>
+
+    <details class="form-section">
+      <summary class="form-section-head">
+        <span class="fs-textos">
+          <span class="fs-titulo">🎸 Backline General del Estudio</span>
+          <span class="fs-subtitulo">Compartido entre todas las salas, ej. Icesi</span>
+        </span>
+        <span class="fs-flecha">▾</span>
+      </summary>
+      <div class="field">
+        <label>Backline General del Estudio (compartido entre todas las salas, ej. Icesi)</label>
+        <div id="estudioSalaGeneralBackline"></div>
+        <span class="link-add" onclick="agregarBackline('General')">+ agregar backline general</span>
+      </div>
+    </details>
+
+    <details class="form-section" open>
+      <summary class="form-section-head">
+        <span class="fs-textos">
+          <span class="fs-titulo">🎚️ Sala A</span>
+          <span class="fs-subtitulo">Nombre, tarifa, specs, preamps y backline</span>
+        </span>
+        <span class="fs-flecha">▾</span>
+      </summary>
+      <div class="row2">
+        <div class="field">
+          <label>Nombre Sala A</label>
+          <input type="text" id="estudioSalaANombre" placeholder="Estudio A">
+        </div>
+        <div class="field">
+          <label>Tarifa Sala A (COP)</label>
+          <input type="number" id="estudioSalaATarifa" placeholder="0" min="0">
+        </div>
       </div>
       <div class="field">
-        <label>Tarifa Sala A (COP)</label>
-        <input type="number" id="estudioSalaATarifa" placeholder="0" min="0">
-      </div>
-    </div>
-    <div class="field">
-      <label>Specs / Gear Sala A (opcional)</label>
-      <textarea id="estudioSalaASpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Nombre Sala B</label>
-        <input type="text" id="estudioSalaBNombre" placeholder="Estudio B">
+        <label>Specs / Gear Sala A (opcional)</label>
+        <textarea id="estudioSalaASpecs" rows="2" placeholder="Layout, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
       </div>
       <div class="field">
-        <label>Tarifa Sala B (COP)</label>
-        <input type="number" id="estudioSalaBTarifa" placeholder="0" min="0">
-      </div>
-    </div>
-    <div class="field">
-      <label>Specs / Gear Sala B (opcional)</label>
-      <textarea id="estudioSalaBSpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Nombre Sala C</label>
-        <input type="text" id="estudioSalaCNombre" placeholder="Estudio C">
+        <label>Preamps Sala A</label>
+        <div id="estudioSalaAPreamps"></div>
+        <span class="link-add" onclick="agregarPreamp('A')">+ agregar preamp</span>
       </div>
       <div class="field">
-        <label>Tarifa Sala C (COP)</label>
-        <input type="number" id="estudioSalaCTarifa" placeholder="0" min="0">
+        <label>Backline Sala A (batería / percusión / teclados)</label>
+        <div id="estudioSalaABackline"></div>
+        <span class="link-add" onclick="agregarBackline('A')">+ agregar backline</span>
       </div>
-    </div>
-    <div class="field">
-      <label>Specs / Gear Sala C (opcional)</label>
-      <textarea id="estudioSalaCSpecs" rows="2" placeholder="Layout, preamps, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
-    </div>
-    <div class="field" style="display:flex;align-items:center;gap:8px;">
-      <input type="checkbox" id="estudioSpecsVisibles" style="width:auto;">
-      <label style="margin:0;font-size:0.85rem;">Mostrar especificaciones técnicas en el cotizador</label>
-    </div>
+    </details>
+
+    <details class="form-section">
+      <summary class="form-section-head">
+        <span class="fs-textos">
+          <span class="fs-titulo">🎚️ Sala B</span>
+          <span class="fs-subtitulo">Nombre, tarifa, specs, preamps y backline</span>
+        </span>
+        <span class="fs-flecha">▾</span>
+      </summary>
+      <div class="row2">
+        <div class="field">
+          <label>Nombre Sala B</label>
+          <input type="text" id="estudioSalaBNombre" placeholder="Estudio B">
+        </div>
+        <div class="field">
+          <label>Tarifa Sala B (COP)</label>
+          <input type="number" id="estudioSalaBTarifa" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="field">
+        <label>Specs / Gear Sala B (opcional)</label>
+        <textarea id="estudioSalaBSpecs" rows="2" placeholder="Layout, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
+      </div>
+      <div class="field">
+        <label>Preamps Sala B</label>
+        <div id="estudioSalaBPreamps"></div>
+        <span class="link-add" onclick="agregarPreamp('B')">+ agregar preamp</span>
+      </div>
+      <div class="field">
+        <label>Backline Sala B (batería / percusión / teclados)</label>
+        <div id="estudioSalaBBackline"></div>
+        <span class="link-add" onclick="agregarBackline('B')">+ agregar backline</span>
+      </div>
+    </details>
+
+    <details class="form-section">
+      <summary class="form-section-head">
+        <span class="fs-textos">
+          <span class="fs-titulo">🎚️ Sala C</span>
+          <span class="fs-subtitulo">Nombre, tarifa, specs, preamps y backline</span>
+        </span>
+        <span class="fs-flecha">▾</span>
+      </summary>
+      <div class="row2">
+        <div class="field">
+          <label>Nombre Sala C</label>
+          <input type="text" id="estudioSalaCNombre" placeholder="Estudio C">
+        </div>
+        <div class="field">
+          <label>Tarifa Sala C (COP)</label>
+          <input type="number" id="estudioSalaCTarifa" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="field">
+        <label>Specs / Gear Sala C (opcional)</label>
+        <textarea id="estudioSalaCSpecs" rows="2" placeholder="Layout, mics, monitores... lo que quieras que salga en la propuesta"></textarea>
+      </div>
+      <div class="field">
+        <label>Preamps Sala C</label>
+        <div id="estudioSalaCPreamps"></div>
+        <span class="link-add" onclick="agregarPreamp('C')">+ agregar preamp</span>
+      </div>
+      <div class="field">
+        <label>Backline Sala C (batería / percusión / teclados)</label>
+        <div id="estudioSalaCBackline"></div>
+        <span class="link-add" onclick="agregarBackline('C')">+ agregar backline</span>
+      </div>
+    </details>
+
     <div id="estudioErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
     <div class="row2" style="margin-top:6px;">
-      <button class="btn btn-ghost" id="btnEstudioCancelar" style="display:none;" onclick="cancelarEdicionEstudio()">Cancelar edición</button>
       <button class="btn" onclick="guardarEstudio()">💾 Guardar estudio</button>
     </div>
-    <div id="estudiosLista" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;"></div>
   </div>
 
   </div>
 </div>
 
 <script>
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
-}
-
 // v4.9: escapa un string para insertarlo de forma segura dentro de un
 // string de JS (comillas simples) que a su vez vive dentro de un atributo
 // HTML (comillas dobles). Sin esto, un texto con " rompe el atributo.
@@ -677,6 +816,116 @@ async function iniciarEstudios(){
   cargarListaEstudios();
 }
 
+// v2.9: catálogo estructurado de preamps por sala (antes solo vivían
+// como texto suelto dentro de "specs", ej. "8 API, 2 Camilo Silva...").
+// Cada sala guarda preamps:[{nombre, canales}]. No se tocó ni se borró
+// el texto de "specs" existente — sigue funcionando igual para la
+// propuesta del cotizador, esto es un campo nuevo aparte.
+let preampsEditorState = { A: [], B: [], C: [] };
+
+function renderPreamps(letra){
+  const cont = document.getElementById(`estudioSala${letra}Preamps`);
+  const lista = preampsEditorState[letra];
+  if(!lista.length){
+    cont.innerHTML = '<div style="font-size:0.8rem;color:var(--muted);">Sin preamps registrados aún.</div>';
+    return;
+  }
+  cont.innerHTML = lista.map((p, idx) => `
+    <div class="row2" style="margin-bottom:6px;">
+      <input type="text" placeholder="Ej: Camilo Silva" value="${escJsHtml(p.nombre)}"
+        oninput="actualizarPreamp('${letra}',${idx},'nombre',this.value)">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" min="1" placeholder="Canales" value="${p.canales || 1}" style="width:80px;"
+          oninput="actualizarPreamp('${letra}',${idx},'canales',this.value)">
+        <button class="btn-ghost" onclick="quitarPreamp('${letra}',${idx})" title="Quitar">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function agregarPreamp(letra){
+  preampsEditorState[letra].push({ nombre: '', canales: 1 });
+  renderPreamps(letra);
+}
+
+function actualizarPreamp(letra, idx, campo, valor){
+  if(campo === 'canales'){
+    preampsEditorState[letra][idx].canales = Math.max(1, parseInt(valor, 10) || 1);
+  } else {
+    preampsEditorState[letra][idx].nombre = valor;
+  }
+}
+
+function quitarPreamp(letra, idx){
+  preampsEditorState[letra].splice(idx, 1);
+  renderPreamps(letra);
+}
+
+// v2.10: mismo patrón que preamps (v2.9) — catálogo estructurado de
+// backline por sala, pensado para presupuestar alquiler: solo las 3
+// categorías donde la calidad del estudio realmente cambia si hay que
+// alquilar o no (Batería, Percusión, Teclados). Cada sala guarda
+// backline:[{categoria, descripcion, calidad}]. No toca specs ni
+// preamps, es un campo nuevo aparte, igual que preamps lo fue de specs.
+// v1.9: se suma la clave 'General' — mismo editor reutilizado (renderBackline/
+// agregarBackline/actualizarBackline/quitarBackline no cambian, ya son
+// genéricos por "letra"), para backline a nivel de estudio, compartido
+// entre todas las salas (casos como Icesi, donde el backline no es por
+// sala). Se guarda aparte, como backlineGeneral en el documento del
+// estudio (ver guardarEstudio), no dentro de salaA/B/C.
+let backlineEditorState = { A: [], B: [], C: [], General: [] };
+const BACKLINE_CATEGORIAS = ['Batería', 'Percusión', 'Teclados'];
+const BACKLINE_CALIDADES = [
+  { valor: 'sirve', etiqueta: 'Sirve tal cual' },
+  { valor: 'complemento', etiqueta: 'Sirve con complemento' },
+  { valor: 'alquilar', etiqueta: 'Alquilar' },
+  { valor: 'musico', etiqueta: '🎤 Lo trae el músico' }
+];
+
+function renderBackline(letra){
+  const cont = document.getElementById(`estudioSala${letra}Backline`);
+  const lista = backlineEditorState[letra];
+  if(!lista.length){
+    cont.innerHTML = '<div style="font-size:0.8rem;color:var(--muted);">Sin backline registrado aún.</div>';
+    return;
+  }
+  cont.innerHTML = lista.map((b, idx) => `
+    <div style="margin-bottom:8px;padding:8px;background:var(--surf2);border-radius:8px;">
+      <div class="row2" style="margin-bottom:6px;">
+        <select onchange="actualizarBackline('${letra}',${idx},'categoria',this.value)">
+          ${BACKLINE_CATEGORIAS.map(c => `<option value="${c}" ${b.categoria === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
+        <select onchange="actualizarBackline('${letra}',${idx},'calidad',this.value)">
+          ${BACKLINE_CALIDADES.map(c => `<option value="${c.valor}" ${b.calidad === c.valor ? 'selected' : ''}>${c.etiqueta}</option>`).join('')}
+        </select>
+      </div>
+      <div class="row2" style="margin-bottom:6px;">
+        <input type="text" placeholder="Subgrupo (opcional, ej: Congas)" value="${escJsHtml(b.subgrupo || '')}"
+          oninput="actualizarBackline('${letra}',${idx},'subgrupo',this.value)">
+        <input type="text" placeholder="Pieza (ej: Conga, Tumba, Quinto)" value="${escJsHtml(b.descripcion)}"
+          oninput="actualizarBackline('${letra}',${idx},'descripcion',this.value)">
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn-ghost" onclick="quitarBackline('${letra}',${idx})" title="Quitar">✕ Quitar</button>
+      </div>
+    </div>`).join('');
+}
+
+function agregarBackline(letra){
+  backlineEditorState[letra].push({ categoria: BACKLINE_CATEGORIAS[0], subgrupo: '', descripcion: '', calidad: BACKLINE_CALIDADES[0].valor });
+  renderBackline(letra);
+}
+
+function actualizarBackline(letra, idx, campo, valor){
+  backlineEditorState[letra][idx][campo] = valor;
+}
+
+function quitarBackline(letra, idx){
+  backlineEditorState[letra].splice(idx, 1);
+  renderBackline(letra);
+}
+
+// v1.4: limpia los campos del formulario (se usa al abrir "Nuevo
+// estudio" y al cerrar el panel), separado de mostrar/ocultar el panel.
 function cancelarEdicionEstudio(){
   document.getElementById('estudioEditId').value = '';
   document.getElementById('estudioNombre').value = '';
@@ -690,8 +939,37 @@ function cancelarEdicionEstudio(){
   document.getElementById('estudioSalaCTarifa').value = '';
   document.getElementById('estudioSalaCSpecs').value = '';
   document.getElementById('estudioSpecsVisibles').checked = false;
-  document.getElementById('btnEstudioCancelar').style.display = 'none';
   document.getElementById('estudioErr').textContent = '';
+  preampsEditorState = { A: [], B: [], C: [] };
+  renderPreamps('A'); renderPreamps('B'); renderPreamps('C');
+  backlineEditorState = { A: [], B: [], C: [], General: [] };
+  renderBackline('A'); renderBackline('B'); renderBackline('C'); renderBackline('General');
+}
+
+// v1.4: abre el panel en modo "nuevo" — mismo patrón que abrirModalNuevo()
+// de logistica.html.
+function abrirPanelEstudioNuevo(){
+  cancelarEdicionEstudio();
+  document.getElementById('estudioPanelTitulo').textContent = 'Nuevo estudio';
+  mostrarPanelEstudio();
+}
+
+// v1.4: muestra el panel de estudio y oculta la lista/barra superior —
+// mismo patrón que mostrarPanelSesion() de logistica.html.
+function mostrarPanelEstudio(){
+  document.getElementById('estudioPanel').classList.add('active');
+  document.getElementById('estudiosLista').style.display = 'none';
+  document.getElementById('estudiosTopActions').style.display = 'none';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// v1.4: cierra el panel, limpia el formulario y vuelve a mostrar la
+// lista — mismo patrón que cerrarModal() de logistica.html.
+function cerrarPanelEstudio(){
+  document.getElementById('estudioPanel').classList.remove('active');
+  document.getElementById('estudiosLista').style.display = '';
+  document.getElementById('estudiosTopActions').style.display = '';
+  cancelarEdicionEstudio();
 }
 
 // Primera vez que se abre el modal y la colección está vacía: crea los 3
@@ -770,9 +1048,10 @@ async function guardarEstudio(){
   }
   const data = {
     nombre,
-    salaA:{ nombre: document.getElementById('estudioSalaANombre').value.trim() || 'Sala A', tarifa: Number(document.getElementById('estudioSalaATarifa').value) || 0, specs: document.getElementById('estudioSalaASpecs').value.trim() },
-    salaB:{ nombre: document.getElementById('estudioSalaBNombre').value.trim() || 'Sala B', tarifa: Number(document.getElementById('estudioSalaBTarifa').value) || 0, specs: document.getElementById('estudioSalaBSpecs').value.trim() },
-    salaC:{ nombre: document.getElementById('estudioSalaCNombre').value.trim() || 'Sala C', tarifa: Number(document.getElementById('estudioSalaCTarifa').value) || 0, specs: document.getElementById('estudioSalaCSpecs').value.trim() },
+    salaA:{ nombre: document.getElementById('estudioSalaANombre').value.trim() || 'Sala A', tarifa: Number(document.getElementById('estudioSalaATarifa').value) || 0, specs: document.getElementById('estudioSalaASpecs').value.trim(), preamps: preampsEditorState.A.filter(p => p.nombre.trim()), backline: backlineEditorState.A.filter(b => b.descripcion.trim()) },
+    salaB:{ nombre: document.getElementById('estudioSalaBNombre').value.trim() || 'Sala B', tarifa: Number(document.getElementById('estudioSalaBTarifa').value) || 0, specs: document.getElementById('estudioSalaBSpecs').value.trim(), preamps: preampsEditorState.B.filter(p => p.nombre.trim()), backline: backlineEditorState.B.filter(b => b.descripcion.trim()) },
+    salaC:{ nombre: document.getElementById('estudioSalaCNombre').value.trim() || 'Sala C', tarifa: Number(document.getElementById('estudioSalaCTarifa').value) || 0, specs: document.getElementById('estudioSalaCSpecs').value.trim(), preamps: preampsEditorState.C.filter(p => p.nombre.trim()), backline: backlineEditorState.C.filter(b => b.descripcion.trim()) },
+    backlineGeneral: backlineEditorState.General.filter(b => b.descripcion.trim()),
     specsVisibles: document.getElementById('estudioSpecsVisibles').checked,
     activo: true
   };
@@ -784,7 +1063,7 @@ async function guardarEstudio(){
       data.creadoEn = new Date().toISOString();
       await db.collection('estudios').add(data);
     }
-    cancelarEdicionEstudio();
+    cerrarPanelEstudio();
     cargarListaEstudios();
   } catch(err){
     console.error(err);
@@ -808,9 +1087,22 @@ window._estEditar = async function(id){
     document.getElementById('estudioSalaCNombre').value = e.salaC?.nombre || '';
     document.getElementById('estudioSalaCTarifa').value = e.salaC?.tarifa || '';
     document.getElementById('estudioSalaCSpecs').value = e.salaC?.specs || '';
+    preampsEditorState = {
+      A: (e.salaA?.preamps || []).map(p => ({...p})),
+      B: (e.salaB?.preamps || []).map(p => ({...p})),
+      C: (e.salaC?.preamps || []).map(p => ({...p}))
+    };
+    renderPreamps('A'); renderPreamps('B'); renderPreamps('C');
+    backlineEditorState = {
+      A: (e.salaA?.backline || []).map(b => ({...b})),
+      B: (e.salaB?.backline || []).map(b => ({...b})),
+      C: (e.salaC?.backline || []).map(b => ({...b})),
+      General: (e.backlineGeneral || []).map(b => ({...b}))
+    };
+    renderBackline('A'); renderBackline('B'); renderBackline('C'); renderBackline('General');
     document.getElementById('estudioSpecsVisibles').checked = !!e.specsVisibles;
-    document.getElementById('btnEstudioCancelar').style.display = 'inline-block';
-    document.getElementById('modalEstudiosBg').querySelector('.modal').scrollTop = 0;
+    document.getElementById('estudioPanelTitulo').textContent = 'Editar estudio';
+    mostrarPanelEstudio();
   } catch(err){
     console.error(err);
   }

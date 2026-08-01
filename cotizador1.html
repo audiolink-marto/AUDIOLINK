@@ -3,41 +3,234 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V9.55</title>
-<!-- AUDIOLINK · cotizador.html · v9.55
-     V9.55 (a pedido del usuario, sobre v9.54): dos mejoras al Catálogo
-     Avalado de Backline, SIN tocar reglas de Firestore (quedan en
-     v2.13, allow read/write genérico para esStaff() — el angostamiento
-     de esquema se pospuso a pedido explícito del usuario):
-     (a) Deduplicado: agregarItemBacklineCatalogo() ahora normaliza
-         (trim + comparación sin mayúsculas) el nombre nuevo contra los
-         nombres de los ítems ACTIVOS ya cargados en
-         BACKLINE_CATALOGO_DATA antes de guardar; si ya existe, muestra
-         alert() y no llama a Firestore. Ítems inactivos (activo:false)
-         no cuentan para la comparación — se puede volver a crear un
-         nombre que ya se había "quitado" antes.
-     (b) Categorías: se agrega el campo `categoria` (string) a cada
-         documento de 'backlineCatalogo'. BACKLINE_CATALOGO_SEED se
-         reclasificó por tipo de instrumento (Percusión/Teclados/
-         Batería y Platillos) — mismos IDs, nombres y tarifas de
-         siempre, así que los borradores locales ya guardados
-         (localStorage) siguen restaurando igual. La fila "+ Añadir"
-         suma un <select> de categoría (Percusión/Batería y Platillos/
-         Teclados/Amplificación/Cuerdas/Otros, default "Otros").
-         renderBacklineCatalogo() ahora agrupa las filas por categoría
-         con un subtítulo por grupo, en vez de una lista plana; el
-         orden de categorías es fijo (CATEGORIAS_BACKLINE_ORDEN) y
-         dentro de cada una se respeta el orderBy('nombre') que ya
-         traía Firestore. Los documentos viejos sin `categoria` caen
-         en "Otros" (fallback en el map de carga).
-     Ningún cálculo, PDF, guardado de cotización ni
-     resaltarCatalogoBackline() se tocó — todos siguen leyendo
-     .backline-row de forma genérica por DOM, sin depender de IDs fijos
-     ni de la agrupación visual nueva.
-     Ver CHANGELOG.md para el historial completo de versiones
-     anteriores — este comentario de aquí en adelante solo documenta
-     la versión vigente (mismo patrón que proyecto.html/logistica.html/
-     bitacora.html/etc). -->
+<title>AUDIOLINK - Central de Operaciones & Cotizador V8.7</title>
+<!-- AUDIOLINK · cotizador.html · v9.14
+     V9.14: se aumenta un poco el tamaño en mobile de los campos
+     (.text-input, nuevo @media max-width:640px, font-size:16px para
+     evitar el auto-zoom de iOS al tocar un campo) y del botón de acción
+     principal (.btn-action). .btn-icon ("⋮") sube de 38px a 42px. No se
+     tocó ninguna fórmula de cálculo, el borrador local, ni la
+     exportación a PDF. Mismo ajuste aplicado en paralelo a los otros 10
+     archivos del ecosistema y a nav.css v1.1.
+     V9.13: se retira el bloque de CSS de navegación (sidebar/mobile-topbar/
+     bottomnav/panel "···") que estaba copiado y pegado en este archivo —
+     ahora vive centralizado en nav.css (<link> agregado en el <head>).
+     Esto corrige de paso un bug real: al header propio de esta página
+     (el que muestra "CENTRAL DE OPERACIONES...") le faltaba la regla
+     header{display:none} en el breakpoint mobile, así que quedaba
+     duplicado visualmente encima de la topbar mobile que inyecta nav.js;
+     nav.css ya trae esa regla, así que se corrige sola. También se
+     reemplaza la regla .btn-icon (que vivía metida dentro del @media con
+     propiedades extra de fondo/borde que no tenía el resto del
+     ecosistema) por la versión canónica, base y fuera de cualquier
+     media query, igual que en el resto de páginas. No se tocó ninguna
+     fórmula de cálculo, el borrador local, ni la exportación a PDF.
+     V9.12: se reconstruye el bloque manual de Músicos de Sesión (Tarifa A,
+     Tarifa B y Ensamble de Percusión de 3 músicos) que existía antes de
+     v9.4 y se había quitado al agregar el automático desde sesiones.
+     Vuelve SOLO para cotizaciones sueltas (sin proyecto vinculado) — con
+     proyecto vinculado se oculta y desmarca, igual que bloque-salas-manuales,
+     porque ahí ya se cobra automático vía musicosDesdeSesionesCache.
+     Tarifas reconstruidas en $0 a propósito (no había forma de recuperar
+     los valores originales) — AUDIOLINK las ajusta directamente. Se
+     conecta a validarYCalcular(), exportarPDF() y recolectarItemsPlanos().
+     V9.11: las 3 salas manuales (checkboxes Estudio A/B/C) ahora se
+     ocultan cuando hay proyecto vinculado (todo se cobra automático vía
+     salasDesdeSesionesCache) y se desmarcan al ocultarse, igual que ya
+     pasa con "Entorno Operativo Principal". Se mantiene la cotización
+     suelta (sin proyecto vinculado) intacta — ahí las salas manuales y
+     el selector de Entorno siguen visibles y funcionando igual que
+     siempre, por decisión explícita de AUDIOLINK. No se tocó ningún
+     cálculo ni la lógica de tieneSalaA/B/C existente.
+     V9.10: el chip verde "Salas de Sesión" ahora también muestra las
+     specs/preamps de cada sala (mismo campo 'specs' de salaA/B/C en
+     Firestore que ya usan las salas manuales), solo cuando el estudio
+     tiene 'specsVisibles' activo — mismo criterio que actualizarNombresSalas()
+     para las salas manuales. No se tocó ningún cálculo ni las salas
+     manuales A/B/C.
+     V9.9: (1) el chip verde "Salas de Sesión" ahora muestra también el
+     nombre del estudio de cada sala (ESTUDIOS_DATA[s.estudioId].nombre),
+     no solo el nombre de la sala; (2) el selector "Entorno Operativo
+     Principal" se oculta cuando hay proyecto vinculado y se hereda
+     automáticamente el estudio más usado en las sesiones de ese proyecto
+     (conteo por estudioId dentro de escucharTecnicosDesdeSesiones(), solo
+     se aplica si cambia respecto al valor actual, para no resetear
+     tarifas manuales editadas en cada actualización del snapshot). Sin
+     proyecto vinculado, el selector vuelve a mostrarse igual que antes
+     (cotización suelta). No se tocó la lógica de las salas manuales
+     A/B/C ni ningún cálculo existente.
+     V9.8: mejora visual de las 3 cajas "automático desde sesión" (Técnicos/
+     Músicos/Salas de Sesión) — pasan de texto plano separado por <br> a
+     tarjetas tipo "chip" con color por categoría (azul Técnicos, morado
+     Músicos, verde Salas), usando nuevas variables --blue/--purple (y el
+     --green ya existente) definidas para ambos temas (oscuro/claro). Solo
+     cambia el render de esas 3 cajas (renderTecnicosSesionesUI(),
+     renderMusicosSesionesUI(), renderSalasSesionesUI()) y su HTML/CSS
+     asociado — no se tocó ningún cálculo, subtotal, ni la exportación PDF.
+     V9.7: se completa la funcionalidad de "salas automáticas desde
+     sesiones" que había quedado a medias en una edición anterior (el
+     código ya sumaba salasDesdeSesionesCache en 3 lugares —subtotal,
+     PDF y guardado en proyecto— pero esa variable nunca se declaraba ni
+     se llenaba, lo que producía un ReferenceError en cada
+     validarYCalcular() y rompía en cascada el cálculo y el guardado).
+     Se agrega: (1) declaración y llenado de salasDesdeSesionesCache
+     dentro de escucharTecnicosDesdeSesiones(), agrupando por s.sala
+     (campo de logistica.html) y sumando horas, con la tarifa vigente
+     tomada de ESTUDIOS_DATA[s.estudioId]; (2) caja visible "Salas de
+     Sesión" (mismo patrón que Técnicos/Músicos de Sesión) vía
+     renderSalasSesionesUI(). No se tocó la lógica de salas manuales
+     (checkboxes Estudio A/B/C) ni ninguna fórmula existente.
+     V9.6: (1) las salas del estudio (Estudio A/B/C) ahora se ocultan (y
+     se desmarcan si estaban chequeadas) cuando el estudio seleccionado
+     no tiene esa sala configurada en Firestore — antes se mostraban
+     igual como "Sala B"/"Sala C" genéricas con tarifa $0, aunque el
+     estudio real solo tuviera 1 o 2 salas; (2) el cliente SÍ se hereda
+     desde v9.2 (aplicarDatosProyectoVinculado(), campo client-name) —
+     confirmado, sin cambios necesarios ahí; (3) el campo "Nombre del
+     Tema / Proyecto" se oculta cuando hay un proyecto vinculado (queda
+     sincronizado automáticamente con proyectoVinculadoData.nombre, ya
+     no hace falta escribirlo aparte) y vuelve a aparecer si se trabaja
+     una cotización suelta sin vincular, para no romper ese caso. No se
+     tocó ninguna fórmula de cálculo, el borrador local, ni la
+     exportación a PDF.
+     V9.5: se retira el rubro manual "Ingeniería de Grabación" (chk-ing,
+     grupo "Soporte Técnico Especializado" completo, y su datalist
+     lista-ingenieros) — quedaba redundante con los Técnicos de Sesión
+     automáticos (v9.2): cualquier ingeniero que grabe una sesión ya se
+     cobra solo con estar en tecnicosAsignados de logistica.html, y
+     mantener el checkbox manual abría la puerta a cobrarlo dos veces por
+     descuido. Se quitan sus 3 bloques de lógica (subtotal, PDF, guardado
+     en Firestore). No se tocó ninguna otra fórmula de cálculo, el
+     borrador local, ni la exportación a PDF de los rubros que sí quedan.
+     V9.4: (1) las listas automáticas de Técnicos y Músicos de Sesión ahora
+     muestran también el rol/instrumento de cada persona (t.rol desde
+     tecnicosAsignados, m.instrumento desde musicosAsignados — ambos ya
+     existían en logistica.html, solo faltaba mostrarlos acá); (2) se
+     retiran los rubros manuales "Músicos de Sesión (Tarifa A)", "(Tarifa
+     B)" y "Ensamble de Percusión (3 Músicos)" — checkboxes, inputs y sus
+     3 bloques de lógica (subtotal, PDF, guardado en Firestore) quedan
+     reemplazados por el bloque automático de músicos desde sesiones
+     (v9.3); (3) fix en cargarEstudiosDesdeFirestore(): se descartan
+     documentos de la colección 'estudios' sin campo `nombre` (o solo
+     espacios), que aparecían como una opción vacía en el selector
+     "Entorno Operativo Principal" — no se tocó el filtro de 'activo'
+     existente. No se tocó ninguna otra fórmula de cálculo, el borrador
+     local, ni la exportación a PDF de los rubros que sí quedan.
+     V9.3: tres cambios sobre el bloque de herencia automática desde el
+     proyecto/sesiones vinculadas: (1) aplicarDatosProyectoVinculado()
+     ahora también autocompleta "Cant. Temas" (track-qty) desde
+     proyectoVinculadoData.cantTemas (proyecto.html v4.16), con el mismo
+     criterio no-destructivo que ya usa para cliente/tema (solo si el
+     campo sigue en su valor por defecto "1"); (2) nuevo bloque "Músicos
+     de Sesión (automático, desde Logística)", mismo patrón que el de
+     Técnicos (v9.2): escucha proyectos/{id}/sesiones, lee el campo
+     musicosAsignados (logistica.html v2.32, con su nuevo subcampo
+     canales) y suma tarifa×canales por CADA aparición del músico (si
+     toca en 3 sesiones del proyecto, se cobra 3 veces — pedido
+     explícito, no se deduplica). Se suma a subtotalEjecucion, igual que
+     técnicos, y entra automáticamente al PDF y a
+     recolectarItemsPlanos(); (3) tanto la lista de técnicos como la de
+     músicos ahora muestran el valor $ calculado al lado de cada persona
+     y un total dentro de su propia caja (no se agrega fila nueva en el
+     resumen general, para no duplicar visualmente lo que ya estaba
+     sumado en Subtotal Ejecución); (4) FIX: los técnicos automáticos
+     (v9.2) nunca se habían agregado a recolectarItemsPlanos() — se
+     veían bien en pantalla y en el PDF, pero no quedaban guardados al
+     usar "Guardar Cotización en el Proyecto". Se agrega ahí, misma
+     fuente (tecnicosDesdeSesionesCache) que ya usan validarYCalcular()
+     y exportarPDF(). No se tocó ninguna fórmula de cálculo existente,
+     el borrador local, ni la exportación a PDF de los rubros manuales.
+     V9.1: fix de contraste en tema claro. Varios textos (h1, títulos de
+     panel, inputs de texto y numéricos, subtítulo de sala) tenían el color
+     hardcodeado en blanco (#FFFFFF) o en un gris fijo (#9A8F7A) en vez de
+     usar var(--txt)/var(--muted). En oscuro no se notaba (--txt es casi
+     blanco), pero en claro quedaban textos blancos sobre fondo claro,
+     casi ilegibles. Se cambiaron esos 6 valores hardcodeados a las
+     variables de tema correspondientes. No se tocó ningún estilo de
+     impresión (@media print, que usa negro/blanco fijo a propósito para
+     el PDF) ni ninguna fórmula de cálculo.
+     V9.0: Dos pendientes cerrados: (1) el cotizador ahora tiene soporte
+     completo de tema claro/oscuro (script de aplicación temprana +
+     bloque :root[data-tema="light"] a juego con su propia paleta +
+     soportaTema activado en NAV_CONFIG, el botón de tema ya aparece en
+     el nav); (2) el botón "Guardar Cotización en el Proyecto" ahora
+     muestra un texto de ayuda debajo explicando por qué está
+     deshabilitado (falta completar el formulario, o falta vincular un
+     proyecto). No se tocó la lógica de habilitado/deshabilitado
+     existente ni ninguna fórmula de cálculo.
+     V8.9: formatCOP() ahora vive en utils.js (compartido). Se agrega <script src="utils.js"> junto a firebase-config.js. No se tocó ninguna llamada a formatCOP() ni ninguna fórmula.
+     V8.8: el sidebar/topbar mobile/panel "···"/bottomnav (antes
+     copiados y pegados en cada archivo) ahora se cargan desde nav.js
+     (compartido por todo el ecosistema), inyectados en <div id="nav-
+     mount"></div>. Las funciones cerrarSesion(), toggleTema(),
+     toggleMasMobile() y el colapsar del sidebar también se movieron a
+     nav.js. Los ítems específicos de esta página (si los hay) se pasan
+     via window.NAV_CONFIG antes de cargar nav.js. No se tocó ninguna
+     otra lógica ni el CSS existente de .sidebar/.mobile-topbar/etc.
+     V8.7: firebaseConfig deja de estar copiado en este archivo; ahora se
+     carga desde firebase-config.js (compartido por todo el ecosistema,
+     mismos valores exactos). Se agrega <script src="firebase-config.js">
+     en el <head>, justo después de firebase-firestore-compat.js. No se
+     tocó firebase.initializeApp() ni ninguna otra lógica.
+     V8.6: fix bug de impresión/PDF — la topbar mobile, el bottomnav mobile,
+     el panel "···" y el sidebar (agregados en v8.2) no estaban ocultos en
+     @media print, así que se colaban al final del PDF exportado. Se agrega
+     regla que oculta .sidebar/.mobile-topbar/.mobile-bottomnav/.mas-mobile-
+     panel solo en impresión. También se agrega clear:both a
+     .print-footer-container para que el bloque de totales no quede mal
+     posicionado cuando hay notas (que usan float:left) antes de él. Cambios
+     100% CSS dentro de @media print; no se tocó ninguna fórmula de cálculo,
+     el borrador local, el guard de sesión, ni la lógica de exportarPDF().
+     V8.5: las specs técnicas/gear de cada sala dejan de estar fijas en el
+     HTML (antes solo existían para ICESI, texto hardcodeado). Ahora salen
+     del campo 'specs' de cada sala en Firestore (editable como texto libre
+     desde el modal Estudios en proyecto.html — layout, preamps, mics,
+     monitores, lo que se necesite). Los saltos de línea se respetan como
+     <br>. No se tocó ninguna fórmula de cálculo ni la exportación a PDF.
+     V8.4: fix — cargarEstudiosDesdeFirestore() combinaba where('activo','==',
+     true) con orderBy('nombre'), lo que exige un índice compuesto en
+     Firestore que no existía, y hacía fallar la consulta silenciosamente
+     (mensaje "Error cargando estudios" en el selector). Se cambia a traer
+     todos los estudios ordenados por nombre y filtrar 'activo' en JS. No
+     se tocó ninguna otra lógica.
+     V8.3: el selector "Entorno Operativo Principal" deja de tener 3
+     opciones fijas en el código (ICESI/Externo/Home Studio). Ahora se
+     llena en tiempo real desde la colección Firestore 'estudios' (activo:
+     true), editable desde el modal "Estudios" en proyecto.html. Se
+     reemplazan TARIFAS_ENTORNOS/NOMBRES_SALAS_ENTORNOS por ESTUDIOS_DATA +
+     cargarEstudiosDesdeFirestore(). Al abrir el modal "Estudios" por
+     primera vez en proyecto.html se siembran automáticamente los 3
+     entornos originales, así que el comportamiento no cambia hasta que se
+     edite algo. cargarEstudiosDesdeFirestore() respeta el entorno y las
+     tarifas que el borrador local (localStorage) tenía guardados, en vez
+     de resetear siempre al primer estudio de la lista. No se tocó ninguna
+     fórmula de cálculo, el borrador local, ni la exportación a PDF.
+     V8.2: se replica la arquitectura de navegación V2.7 de proyecto.html —
+     sidebar fija desktop (heredada de Andamios, colapsable a solo-iconos) +
+     mobile topbar/bottomnav/panel "···" (heredado de PsicoGestión),
+     reemplazando el link "← Volver" suelto del header. Se envuelve
+     .container en un nuevo .main-wrap que se ajusta al ancho del sidebar
+     (el .container conserva su max-width/margin:0 auto tal cual). Se
+     agregan también los créditos de diseño (Marto 🧠 · martowave@gmail.com)
+     al pie del sidebar y del panel móvil. No se tocó ninguna fórmula de
+     cálculo, el borrador local, el guard de sesión, ni la exportación a
+     PDF existentes.
+     V8.1: se incorporan efectos visuales del diseño ICESI (index.html),
+     elegidos pensando en mobile (nada depende de :hover para funcionar):
+     glow de foco en inputs, sombra suave en paneles al pasar el mouse
+     (desktop), barras VU decorativas junto al título, flecha animada en el
+     acordeón de backline, y un pulso sutil en el botón "Guardar Cotización"
+     que se activa solo cuando el formulario ya está listo pero falta
+     vincular un proyecto. Todo aditivo: no se tocó ninguna regla CSS ni
+     función JS existente, solo se agregaron reglas y dos líneas que
+     alternan una clase. No se aplicó a proyecto.html ni a login.html.
+     V8: se agrega guard de sesión de equipo interno (mismo patrón de
+     login.html/proyecto.html), vínculo a un proyecto de Firestore (por
+     ?id=... en la URL o selector si se abre suelto) y botón "Guardar
+     cotización en proyecto", que escribe en proyectos/{id}/cotizaciones con
+     el mismo formato {items, total, estado, notas, validez, creadoEn} que ya
+     lee el Cotizador simple de proyecto.html. No se tocó ninguna fórmula de
+     cálculo, el borrador local, ni la exportación a PDF existentes. -->
 <link rel="stylesheet" href="nav.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -241,30 +434,6 @@ h1 { font-family: var(--T); font-size: 32px; font-weight: 700; color: var(--txt)
 .input-unit-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .input-unit-label { font-family: var(--M); font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; line-height: 1; }
 .mult { color: var(--muted); font-size: 12px; font-family: var(--M); margin-bottom: 6px; user-select: none; }
-
-/* v9.17: resalta filas del Catálogo Avalado de Backline (tarifas) cuando
-   el diagnóstico nuevo (estudios.html backline/backlineGeneral) marca esa
-   pieza como "alquilar" para el estudio/sala seleccionado. Solo visual,
-   no cambia checkboxes ni el cálculo. */
-.backline-row-sugerida { border-left: 3px solid var(--gold); background: rgba(212,175,55,0.08); border-radius: 4px; padding-left: 8px; margin-left: -8px; }
-.backline-row-sugerida[data-motivo-sugerido="alquilar"] .input-main label::after { content: " — sugerido: alquilar"; color: var(--gold); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
-.backline-row-sugerida[data-motivo-sugerido="sirve"] .input-main label::after { content: " — ya en el estudio (cobra aparte)"; color: var(--gold); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
-/* v9.30: color distinto (verde) para la fila cuyo checkbox ya está
-   marcado, para revisar de un vistazo cuál quedó seleccionado entre
-   varias opciones sugeridas del mismo instrumento. */
-.backline-row:has(.chk-backline:checked) { border-left: 3px solid var(--green); background: var(--green-bg); border-radius: 4px; padding-left: 8px; margin-left: -8px; }
-
-/* v9.54: catálogo editable de Backline — botón quitar (por fila) y
-   botón/fila para añadir un ítem nuevo. Mismos tamaños/tipografía que el
-   resto de .row-input para no desentonar con las filas existentes. */
-.btn-quitar-backline { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.6; padding: 2px 4px; line-height: 1; }
-.btn-quitar-backline:hover { opacity: 1; }
-.backline-row-nuevo { border-top: 1px dashed var(--brd); margin-top: 8px; padding-top: 10px; }
-.btn-agregar-backline { background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 6px 12px; font-family: var(--M); font-size: 11px; cursor: pointer; white-space: nowrap; }
-.btn-agregar-backline:hover { background: var(--gold); color: var(--bg); }
-/* v9.55: subtítulo de categoría dentro del catálogo de Backline agrupado */
-.backline-categoria-titulo { font-family: var(--M); font-size: 10px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; margin: 14px 0 4px; }
-.backline-categoria-titulo:first-child { margin-top: 0; }
 
 .row-input input[type="number"] { 
   background: var(--bg); 
@@ -502,57 +671,6 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
   }
   .print-totals-line.bold span:last-child { color: #C4982C !important; }
 }
-
-/* ===================================================================
-   COMPARADOR DE TEMAS (v9.24) — bloque nuevo, aislado, no toca ningún
-   estilo existente arriba.
-   =================================================================== */
-.btn-comparar-temas {
-  width: 100%; padding: 8px 10px; border-radius: 6px;
-  background: var(--gold-bg); border: 1px solid var(--gold);
-  color: var(--gold); font-family: var(--M); font-size: 11px;
-  text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
-  transition: background 0.2s ease;
-}
-.btn-comparar-temas:hover { background: var(--gold); color: #000000; }
-
-.modal-comparador-bg {
-  display: none; position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
-  align-items: center; justify-content: center; padding: 20px;
-}
-.modal-comparador-bg.activo { display: flex; }
-.modal-comparador-box {
-  background: var(--surf); border: 1px solid var(--brd); border-radius: 10px;
-  padding: 24px; max-width: 640px; width: 100%; max-height: 85vh; overflow-y: auto;
-}
-.modal-comparador-box h3 {
-  color: var(--gold); font-size: 15px; margin: 0 0 4px 0;
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
-.modal-comparador-sub { color: var(--muted); font-size: 12px; margin-bottom: 18px; }
-.comparador-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 13px; }
-.comparador-grid .col-header {
-  font-family: var(--M); font-size: 10px; text-transform: uppercase;
-  color: var(--muted); padding-bottom: 6px; border-bottom: 1px solid var(--brd);
-}
-.comparador-grid .col-header.destacado { color: var(--gold); }
-.comparador-grid .fila-rubro { padding: 6px 0; border-bottom: 1px solid var(--faint, #2a2a2a); }
-.comparador-grid .fila-rubro.total-row { font-weight: 700; color: var(--gold); border-bottom: none; padding-top: 10px; }
-.comparador-grid .fila-rubro.fila-combo { background: var(--gold-bg, rgba(196,152,44,0.08)); font-weight: 600; border-radius: 6px; padding: 6px 8px; }
-.comparador-grid .etiqueta-escala {
-  font-size: 10px; text-transform: uppercase; color: var(--blue);
-  text-shadow: 0 0 6px var(--blue-bg), 0 0 10px rgba(74,135,201,0.35);
-  font-weight: 600; letter-spacing: 0.03em;
-  display: block; margin-top: 3px;
-}
-.modal-comparador-close {
-  margin-top: 20px; width: 100%; padding: 10px; border-radius: 6px;
-  background: transparent; border: 1px solid #555; color: var(--muted);
-  cursor: pointer; font-family: var(--M); font-size: 12px;
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
-.modal-comparador-close:hover { border-color: var(--gold); color: var(--gold); }
 </style>
 </head>
 <body>
@@ -625,7 +743,6 @@ window.NAV_CONFIG = {
       <div class="info-group">
         <label class="calc-label">Cant. Temas</label>
         <input type="number" id="track-qty" class="text-input" value="1" min="1" oninput="validarYCalcular()">
-        <button type="button" class="btn-comparar-temas" onclick="abrirComparadorTemas()" style="margin-top:6px;">⚖️ Comparar Temas</button>
       </div>
       <div class="info-group" id="row-entorno">
         <label class="calc-label">Entorno Operativo Principal</label>
@@ -669,7 +786,6 @@ window.NAV_CONFIG = {
               </div>
             </div>
             <div class="room-specs" id="specs-sala-a"></div>
-            <div class="room-specs" id="backline-sala-a"></div>
           </div>
           
           <div class="row-input" id="row-sala-b" style="flex-wrap: wrap;">
@@ -693,7 +809,6 @@ window.NAV_CONFIG = {
               </div>
             </div>
             <div class="room-specs" id="specs-sala-b"></div>
-            <div class="room-specs" id="backline-sala-b"></div>
           </div>
           
           <div class="row-input" id="row-sala-c" style="flex-wrap: wrap;">
@@ -717,7 +832,6 @@ window.NAV_CONFIG = {
               </div>
             </div>
             <div class="room-specs" id="specs-sala-c"></div>
-            <div class="room-specs" id="backline-sala-c"></div>
           </div>
         </div>
 
@@ -742,16 +856,168 @@ window.NAV_CONFIG = {
             <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             Catálogo Avalado de Backline (Por Día)
           </summary>
-          <div class="accordion-content" id="backline-catalogo-lista">
-            <!-- v9.54: filas generadas dinámicamente por renderBacklineCatalogo()
-                 desde la colección Firestore 'backlineCatalogo' — antes eran 16
-                 filas hardcodeadas acá (bl-1 a bl-16). Se conservan los mismos
-                 16 ítems, mismos nombres y tarifas, sembrados una sola vez con
-                 los MISMOS IDs (bl-1..bl-16) para que los borradores locales ya
-                 guardados (localStorage) sigan restaurando su checked/tarifa/
-                 días exactamente igual que antes. Ningún cálculo, PDF ni
-                 resaltarCatalogoBackline() se tocó — todos ya leían .backline-row
-                 de forma genérica por DOM, sin depender de IDs fijos. -->
+          <div class="accordion-content">
+            
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Congas LP Galaxy (3 pzs)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-1" data-rate="rate-bl-1" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-1" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-1" value="220000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Congas LP Estándar (3 pzs)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-2" data-rate="rate-bl-2" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-2" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-2" value="170000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Timbal LP Tito Puente</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-3" data-rate="rate-bl-3" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-3" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-3" value="170000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Timbal LP Matador</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-4" data-rate="rate-bl-4" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-4" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-4" value="170000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Bongó LP Pedrito Martínez</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-5" data-rate="rate-bl-5" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-5" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-5" value="120000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Set de Campanas LP Salsa</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-6" data-rate="rate-bl-6" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-6" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-6" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Güiro LP Oficial</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-7" data-rate="rate-bl-7" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-7" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-7" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+            
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Inst. Multipercusión Variados</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-12" data-rate="rate-bl-12" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-12" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-12" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Inst. Percusión Brasilera</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-13" data-rate="rate-bl-13" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-13" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-13" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Inst. Percusión Andina, Caribe, Pacífico</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-14" data-rate="rate-bl-14" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-14" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-14" value="70000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Batería DW Perf. / Stage Custom</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-8" data-rate="rate-bl-8" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-8" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-8" value="350000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Platillos Zildjian K Custom Dark</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-9" data-rate="rate-bl-9" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-9" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-9" value="170000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Teclado Nord Stage 2 (88t)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-10" data-rate="rate-bl-10" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-10" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-10" value="330000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Teclado Yamaha Montage (88t)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-11" data-rate="rate-bl-11" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-11" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-11" value="330000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+            
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Teclado Yamaha MX61</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-15" data-rate="rate-bl-15" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-15" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-15" value="110000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
+            <div class="row-input backline-row">
+              <div class="input-main"><label>Teclado Yamaha P45 (88t)</label></div>
+              <div class="input-controls">
+                <input type="checkbox" class="chk-backline" data-num="num-bl-16" data-rate="rate-bl-16" onchange="validarYCalcular()">
+                <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-bl-16" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
+                <span class="mult">×</span>
+                <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-bl-16" value="110000" min="0" class="rate-input" onchange="validarYCalcular()"></div>
+              </div>
+            </div>
+
           </div>
         </details>
       </div>
@@ -1085,162 +1351,6 @@ window.NAV_CONFIG = {
 // modal "Estudios" en proyecto.html). No se tocó ninguna fórmula de cálculo.
 let ESTUDIOS_DATA = {};
 
-// v9.54: catálogo de "Instrumentación Adicional" (antes 16 filas
-// hardcodeadas en el HTML, sin forma de añadir/quitar ítems sin editar
-// código). Ahora vive en la colección Firestore 'backlineCatalogo' (mismo
-// patrón de 'estudios'/'musicos': activo:false en vez de borrar). Se
-// siembra UNA sola vez, si la colección está vacía, con los mismos 16
-// ítems que ya existían — mismos nombres/tarifas, mismos IDs de documento
-// (bl-1..bl-16) para que los IDs de DOM (chk-bl-1, num-bl-1, rate-bl-1...)
-// sean IDÉNTICOS a los de antes y los borradores locales (localStorage)
-// ya guardados sigan restaurando checked/tarifa/días sin perder nada.
-const BACKLINE_CATALOGO_SEED = [
-  { id: 'bl-1',  nombre: 'Congas LP Galaxy (3 pzs)',                       tarifa: 220000, categoria: 'Percusión' },
-  { id: 'bl-2',  nombre: 'Congas LP Estándar (3 pzs)',                     tarifa: 170000, categoria: 'Percusión' },
-  { id: 'bl-3',  nombre: 'Timbal LP Tito Puente',                          tarifa: 170000, categoria: 'Percusión' },
-  { id: 'bl-4',  nombre: 'Timbal LP Matador',                              tarifa: 170000, categoria: 'Percusión' },
-  { id: 'bl-5',  nombre: 'Bongó LP Pedrito Martínez',                      tarifa: 120000, categoria: 'Percusión' },
-  { id: 'bl-6',  nombre: 'Set de Campanas LP Salsa',                       tarifa: 70000,  categoria: 'Percusión' },
-  { id: 'bl-7',  nombre: 'Güiro LP Oficial',                               tarifa: 70000,  categoria: 'Percusión' },
-  { id: 'bl-12', nombre: 'Inst. Multipercusión Variados',                  tarifa: 70000,  categoria: 'Percusión' },
-  { id: 'bl-13', nombre: 'Inst. Percusión Brasilera',                      tarifa: 70000,  categoria: 'Percusión' },
-  { id: 'bl-14', nombre: 'Inst. Percusión Andina, Caribe, Pacífico',       tarifa: 70000,  categoria: 'Percusión' },
-  { id: 'bl-8',  nombre: 'Batería DW Perf. / Stage Custom',                tarifa: 350000, categoria: 'Batería y Platillos' },
-  { id: 'bl-9',  nombre: 'Platillos Zildjian K Custom Dark',               tarifa: 170000, categoria: 'Batería y Platillos' },
-  { id: 'bl-10', nombre: 'Teclado Nord Stage 2 (88t)',                     tarifa: 330000, categoria: 'Teclados' },
-  { id: 'bl-11', nombre: 'Teclado Yamaha Montage (88t)',                   tarifa: 330000, categoria: 'Teclados' },
-  { id: 'bl-15', nombre: 'Teclado Yamaha MX61',                            tarifa: 110000, categoria: 'Teclados' },
-  { id: 'bl-16', nombre: 'Teclado Yamaha P45 (88t)',                       tarifa: 110000, categoria: 'Teclados' },
-];
-// v9.55: orden fijo de categorías para el render agrupado — no depende
-// de orderBy('nombre') de Firestore (eso sigue ordenando dentro de cada
-// categoría). Cualquier categoria que no esté en esta lista (ej. un
-// valor viejo o un typo) cae al final, agrupada bajo su propio nombre.
-const CATEGORIAS_BACKLINE_ORDEN = ['Percusión', 'Batería y Platillos', 'Teclados', 'Amplificación', 'Cuerdas', 'Otros'];
-let BACKLINE_CATALOGO_DATA = [];
-// v9.54: recuerda el último itemsBackline pasado a resaltarCatalogoBackline()
-// — necesario porque el catálogo ahora carga async desde Firestore, así que
-// si el resaltado (disparado por actualizarNombresSalas() o por las sesiones
-// reales del proyecto) llega ANTES de que las filas existan en el DOM, no
-// encuentra nada que resaltar. Al terminar de renderizar el catálogo se
-// vuelve a llamar resaltarCatalogoBackline() con este mismo valor.
-let ultimoBacklineParaResaltar = [];
-
-function renderBacklineCatalogo(){
-  const cont = document.getElementById('backline-catalogo-lista');
-  if(!cont) return;
-  // v9.55: agrupar por categoría (orden fijo, ver CATEGORIAS_BACKLINE_ORDEN;
-  // lo que no esté en esa lista cae al final agrupado bajo su propio
-  // nombre). Dentro de cada grupo se respeta el orden en que llegó el
-  // ítem (ya viene ordenado por nombre desde Firestore).
-  const grupos = {};
-  BACKLINE_CATALOGO_DATA.forEach(it => {
-    const cat = it.categoria || 'Otros';
-    if(!grupos[cat]) grupos[cat] = [];
-    grupos[cat].push(it);
-  });
-  const categoriasPresentes = Object.keys(grupos).sort((a, b) => {
-    const ia = CATEGORIAS_BACKLINE_ORDEN.indexOf(a);
-    const ib = CATEGORIAS_BACKLINE_ORDEN.indexOf(b);
-    if(ia === -1 && ib === -1) return a.localeCompare(b);
-    if(ia === -1) return 1;
-    if(ib === -1) return -1;
-    return ia - ib;
-  });
-  const filaItem = it => `
-    <div class="row-input backline-row">
-      <div class="input-main"><label>${escapeHtml(it.nombre)}</label></div>
-      <div class="input-controls">
-        <input type="checkbox" class="chk-backline" data-num="num-${it.id}" data-rate="rate-${it.id}" onchange="validarYCalcular()">
-        <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-${it.id}" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
-        <span class="mult">×</span>
-        <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-${it.id}" value="${it.tarifa}" min="0" class="rate-input" onchange="validarYCalcular()"></div>
-        <button type="button" class="btn-quitar-backline" title="Quitar del catálogo" onclick="quitarItemBacklineCatalogo('${it.id}')">🗑️</button>
-      </div>
-    </div>`;
-  const filas = categoriasPresentes.map(cat => `
-    <div class="backline-categoria-titulo">${escapeHtml(cat)}</div>
-    ${grupos[cat].map(filaItem).join('')}`).join('');
-  const opcionesCategoria = CATEGORIAS_BACKLINE_ORDEN.map(c => `<option value="${escapeHtml(c)}"${c === 'Otros' ? ' selected' : ''}>${escapeHtml(c)}</option>`).join('');
-  const filaNueva = `
-    <div class="row-input backline-row-nuevo">
-      <div class="input-main"><input type="text" id="nuevo-backline-nombre" placeholder="Nombre del ítem nuevo..." class="text-input"></div>
-      <div class="input-controls">
-        <select id="nuevo-backline-categoria" class="text-input">${opcionesCategoria}</select>
-        <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="nuevo-backline-tarifa" min="0" placeholder="0" class="rate-input"></div>
-        <button type="button" class="btn-agregar-backline" onclick="agregarItemBacklineCatalogo()">+ Añadir</button>
-      </div>
-    </div>`;
-  cont.innerHTML = filas + filaNueva;
-}
-
-async function cargarBacklineCatalogoDesdeFirestore(){
-  try{
-    let snap = await db.collection('backlineCatalogo').orderBy('nombre').get();
-    if(snap.empty){
-      // v9.54: siembra única (colección vacía) — mismo criterio que
-      // estudios.html v2.8 al sembrar ICESI/Externo/Home Studio.
-      const batch = db.batch();
-      BACKLINE_CATALOGO_SEED.forEach(it => {
-        batch.set(db.collection('backlineCatalogo').doc(it.id), { nombre: it.nombre, tarifa: it.tarifa, activo: true });
-      });
-      await batch.commit();
-      snap = await db.collection('backlineCatalogo').orderBy('nombre').get();
-    }
-    BACKLINE_CATALOGO_DATA = snap.docs
-      .filter(d => d.data().activo !== false)
-      .map(d => ({ id: d.id, nombre: d.data().nombre, tarifa: d.data().tarifa, categoria: d.data().categoria || 'Otros' }));
-    renderBacklineCatalogo();
-    // Restaurar checked/días/tarifa que el usuario ya tenía guardados en el
-    // borrador local para estas filas (antes se restauraban solo una vez,
-    // en window.onload, cuando las filas ya existían de entrada en el HTML).
-    if(typeof cargarBorrador === 'function') cargarBorrador();
-    if(typeof resaltarCatalogoBackline === 'function') resaltarCatalogoBackline(ultimoBacklineParaResaltar);
-    if(typeof validarYCalcular === 'function') validarYCalcular();
-  } catch(e){
-    console.error('Error cargando catálogo de Backline:', e);
-  }
-}
-
-async function agregarItemBacklineCatalogo(){
-  const nombreEl = document.getElementById('nuevo-backline-nombre');
-  const tarifaEl = document.getElementById('nuevo-backline-tarifa');
-  const categoriaEl = document.getElementById('nuevo-backline-categoria');
-  const nombre = (nombreEl.value || '').trim();
-  const tarifa = parseFloat(tarifaEl.value || 0);
-  const categoria = (categoriaEl && categoriaEl.value) || 'Otros';
-  if(!nombre){ alert('Escribe un nombre para el ítem.'); return; }
-  // v9.55: deduplicado — compara el nombre normalizado (trim + sin
-  // mayúsculas) contra los ítems ACTIVOS ya cargados en memoria. Los
-  // inactivos (activo:false, "quitados" del catálogo) no cuentan, así
-  // que se puede volver a crear un nombre que ya se había quitado antes.
-  const nombreNormalizado = nombre.toLowerCase();
-  const yaExiste = BACKLINE_CATALOGO_DATA.some(it => (it.nombre || '').trim().toLowerCase() === nombreNormalizado);
-  if(yaExiste){ alert(`Ya existe un ítem llamado "${nombre}" en el catálogo.`); return; }
-  try{
-    await db.collection('backlineCatalogo').add({ nombre, tarifa, activo: true, categoria });
-    await cargarBacklineCatalogoDesdeFirestore();
-  } catch(e){
-    console.error('Error agregando ítem al catálogo de Backline:', e);
-    alert('No se pudo agregar el ítem. Revisa tu conexión e intenta de nuevo.');
-  }
-}
-
-async function quitarItemBacklineCatalogo(id){
-  const item = BACKLINE_CATALOGO_DATA.find(it => it.id === id);
-  if(!confirm(`¿Quitar "${item ? item.nombre : id}" del catálogo?`)) return;
-  try{
-    // v9.54: mismo criterio no-destructivo que estudios/músicos —
-    // activo:false en vez de borrar el documento, por si se quiere
-    // reactivar después.
-    await db.collection('backlineCatalogo').doc(id).update({ activo: false });
-    await cargarBacklineCatalogoDesdeFirestore();
-  } catch(e){
-    console.error('Error quitando ítem del catálogo de Backline:', e);
-    alert('No se pudo quitar el ítem. Revisa tu conexión e intenta de nuevo.');
-  }
-}
-
 async function cargarEstudiosDesdeFirestore(){
   const sel = document.getElementById('selector-entorno');
   try{
@@ -1331,138 +1441,6 @@ function actualizarNombresSalas() {
   if (specsA){ specsA.style.display = mostrar; specsA.innerHTML = formatearSpecs(e.salaA?.specs); }
   if (specsB){ specsB.style.display = mostrar; specsB.innerHTML = formatearSpecs(e.salaB?.specs); }
   if (specsC){ specsC.style.display = mostrar; specsC.innerHTML = formatearSpecs(e.salaC?.specs); }
-
-  // v9.12: backline de cada sala (estudios.html v1.7/v1.8, campo
-  // salaA/B/C.backline=[{categoria,subgrupo,descripcion,calidad}]),
-  // agrupado por categoría, para ver de una vez qué cubre el estudio y
-  // qué toca presupuestar aparte al momento de cotizar. Mismo criterio
-  // de visibilidad que specs (specsVisibles) — si además la sala no
-  // tiene ítems de backline cargados, el bloque se oculta igual aunque
-  // specsVisibles esté activo, para no dejar un espacio vacío.
-  const backlineA = document.getElementById('backline-sala-a');
-  const backlineB = document.getElementById('backline-sala-b');
-  const backlineC = document.getElementById('backline-sala-c');
-  // v9.18: el backline ya no depende de specsVisibles — se muestra
-  // siempre que la sala (o el estudio, vía backlineGeneral) tenga ítems
-  // cargados, sin importar si el check de specsVisibles está marcado.
-  // Decisión tomada con el usuario: specsVisibles sigue controlando
-  // solo el texto libre de specs (arriba), no el backline.
-  const pintarBackline = (el, lista) => {
-    if(!el) return;
-    const tieneItems = Array.isArray(lista) && lista.length;
-    el.style.display = tieneItems ? 'block' : 'none';
-    el.innerHTML = tieneItems ? formatearBackline(lista) : '';
-  };
-  // v9.16: se suma backlineGeneral (estudios.html v1.9, a nivel de
-  // estudio — aplica a todas las salas, ej. Icesi) al backline propio de
-  // cada sala, para estudios donde el backline no es por sala sino
-  // compartido. Si una sala además tiene su propio backline específico,
-  // se muestran ambos juntos.
-  const combinarBackline = (salaBackline) => [...(e.backlineGeneral || []), ...(salaBackline || [])];
-  pintarBackline(backlineA, combinarBackline(e.salaA?.backline));
-  pintarBackline(backlineB, combinarBackline(e.salaB?.backline));
-  pintarBackline(backlineC, combinarBackline(e.salaC?.backline));
-
-  resaltarCatalogoBackline([...(e.backlineGeneral || []), ...(e.salaA?.backline || []), ...(e.salaB?.backline || []), ...(e.salaC?.backline || [])]);
-}
-
-// v9.17: cruza los ítems marcados "alquilar" en el diagnóstico nuevo
-// (estudios.html) contra las etiquetas fijas del Catálogo Avalado de
-// Backline (tarifas por día, más arriba en este mismo archivo) y resalta
-// las filas que probablemente correspondan — por coincidencia de
-// palabras (>3 letras) entre subgrupo/descripción y el <label> de cada
-// fila. Es una sugerencia visual, no toca checkboxes ni el cálculo; si
-// no hay coincidencias claras, simplemente no resalta nada (mejor no
-// sugerir que sugerir mal).
-function resaltarCatalogoBackline(itemsBackline){
-  // v9.54: se guarda para poder re-ejecutar el resaltado cuando el
-  // catálogo de Backline (ahora async, desde Firestore) termine de
-  // renderizar sus filas, por si este llamado llegó antes.
-  ultimoBacklineParaResaltar = itemsBackline;
-  const normalizar = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const palabrasDe = (s) => normalizar(s).split(/\s+/).filter(w => w.length > 3);
-  // v9.29: "sirve tal cual" se trata igual que "alquilar" — el estudio
-  // cobra aparte por ese backline aunque ya lo tenga, así que también
-  // debe sumarse a la cotización. Se retira el mecanismo de aviso +
-  // checkbox aparte de v9.27/v9.28 (ya no aplica: no hay caso en que
-  // "sirve" deba quedar sin cobrarse).
-  const aAlquilar = itemsBackline.filter(b => b.calidad === 'alquilar');
-  const aSirve = itemsBackline.filter(b => b.calidad === 'sirve');
-  const palabrasDeSet = (lista) => {
-    const out = [];
-    lista.forEach(b => out.push(...palabrasDe(b.subgrupo), ...palabrasDe(b.descripcion)));
-    return out;
-  };
-  const palabrasAlquilar = palabrasDeSet(aAlquilar);
-  const palabrasSirve = palabrasDeSet(aSirve);
-  let huboCoincidencia = false;
-  document.querySelectorAll('.backline-row').forEach(row => {
-    const label = row.querySelector('.input-main label');
-    const palabrasLabel = palabrasDe(label ? label.textContent : '');
-    const esAlquilar = palabrasAlquilar.length && palabrasLabel.some(w => palabrasAlquilar.includes(w));
-    // v9.33: si coincide con ambas listas a la vez, "alquilar" tiene
-    // prioridad visual (es el caso más urgente de gestionar).
-    const esSirve = !esAlquilar && palabrasSirve.length && palabrasLabel.some(w => palabrasSirve.includes(w));
-    const coincide = esAlquilar || esSirve;
-    row.classList.toggle('backline-row-sugerida', coincide);
-    row.setAttribute('data-motivo-sugerido', esAlquilar ? 'alquilar' : (esSirve ? 'sirve' : ''));
-    if(coincide){
-      huboCoincidencia = true;
-      // v9.30: se retira el auto-check (v9.22) — con varias opciones del
-      // mismo instrumento en el catálogo, marcar todas las coincidencias
-      // obligaba a desmarcar a mano las que no aplican. Ahora solo se
-      // resalta como sugerido; el usuario marca el que corresponde.
-    }
-  });
-  const acordeon = document.querySelector('.backline-accordion');
-  if(acordeon && huboCoincidencia) acordeon.open = true;
-  // v9.22: si se marcó algún checkbox automáticamente, se recalcula una
-  // vez para que el subtotal refleje los ítems recién marcados (marcar
-  // vía JS no dispara el onchange="validarYCalcular()" del checkbox).
-  if(huboCoincidencia && typeof validarYCalcular === 'function') validarYCalcular();
-}
-
-// v9.53: catálogo único de los 6 ítems de "Roles Musicales y
-// Postproducción" (Preproducción, Dirección Musical, Co-Arreglos,
-// Edición, Mezcla, Masterización). Antes este mismo patrón (chk-{id}/
-// name-{id}/rate-{id}) estaba copiado a mano en 3 funciones distintas
-// (calcularSubtotales, exportarPDF, y el armado de ítems al guardar/
-// exportar la cotización) — 18 líneas casi idénticas en total. Ahora
-// las 3 funciones recorren este mismo array; agregar un ítem nuevo a
-// futuro solo requiere sumar una línea acá (más los inputs chk-X/
-// name-X/rate-X en el HTML), no tocar las 3 funciones. No cambia
-// ninguna etiqueta, cálculo ni el orden en que ya aparecían.
-const ROLES_POST_ITEMS = [
-  { id: 'maquetacion', label: 'Preproducción - Maquetación', unidad: 'Tema(s)' },
-  { id: 'dir-mus', label: 'Roles Creativos - Dirección Musical', unidad: 'Tema(s)' },
-  { id: 'arreglos', label: 'Roles Creativos - Co-Arreglos / Apertura', unidad: 'Tema(s)' },
-  { id: 'edicion', label: 'Postproducción de Audio - Edición', unidad: 'Tema(s)' },
-  { id: 'mezcla', label: 'Postproducción de Audio - Mezcla Profesional', unidad: 'Track(s)' },
-  { id: 'master', label: 'Postproducción de Audio - Masterización', unidad: 'Track(s)' },
-];
-
-// v9.12: agrupa el backline de una sala por categoría (Batería/Percusión/
-// Teclados) para mostrarlo compacto en el selector de sala del cotizador.
-const BACKLINE_CALIDAD_LABELS = {
-  sirve: '✅ sirve tal cual',
-  complemento: '⚠️ sirve con complemento',
-  alquilar: '❌ alquilar',
-  musico: '🎤 lo trae el músico'
-};
-function formatearBackline(lista){
-  const porCategoria = {};
-  lista.forEach(b => {
-    const cat = (b.categoria || 'Otro').trim() || 'Otro';
-    (porCategoria[cat] = porCategoria[cat] || []).push(b);
-  });
-  return Object.keys(porCategoria).map(cat => {
-    const items = porCategoria[cat].map(b => {
-      const nombre = [b.subgrupo, b.descripcion].filter(x => (x || '').trim()).join(' — ') || '(sin descripción)';
-      const calidad = BACKLINE_CALIDAD_LABELS[b.calidad] || '';
-      return `${nombre.replace(/</g,'&lt;')} <span style="opacity:.75">${calidad}</span>`;
-    }).join('<br>');
-    return `<strong>🎸 ${cat}</strong><br>${items}`;
-  }).join('<br><br>');
 }
 
 function cambiarEntorno() {
@@ -1525,70 +1503,10 @@ function validarYCalcular() {
   if (btnPdf) btnPdf.disabled = inactivo;
 
   const cantTemas = parseInt(document.getElementById('track-qty').value || 1);
-
-  // v9.40: validarYCalcular() ya no tiene su propia copia de la fórmula
-  // de negocio — llama a calcularSubtotales() sin overrides (setup,
-  // grabación y músicos usan los datos reales cacheados, exactamente
-  // igual que antes de v9.40). subtotalSalas se combina con subtotalSetup
-  // en una sola fila "Salas" porque la UI real no tiene fila de Setup
-  // aparte (esa separación solo la pinta la caja verde de
-  // renderSalasSesionesUI(), que sigue funcionando igual, sin depender
-  // de esta función).
-  const r = calcularSubtotales(cantTemas);
-  const subtotalSalas = r.subtotalSalas + r.subtotalSetup;
-
-  document.getElementById('val-subtotal-salas').innerText = formatCOP(subtotalSalas);
-  document.getElementById('row-subtotal-salas').style.display = subtotalSalas > 0 ? 'flex' : 'none';
-
-  document.getElementById('val-subtotal-backline').innerText = formatCOP(r.subtotalBackline);
-  document.getElementById('row-subtotal-backline').style.display = r.subtotalBackline > 0 ? 'flex' : 'none';
-
-  document.getElementById('val-subtotal-ejecucion').innerText = formatCOP(r.subtotalEjecucion);
-  document.getElementById('row-subtotal-ejecucion').style.display = r.subtotalEjecucion > 0 ? 'flex' : 'none';
-
-  document.getElementById('val-subtotal-post').innerText = formatCOP(r.subtotalPost);
-  document.getElementById('row-subtotal-post').style.display = r.subtotalPost > 0 ? 'flex' : 'none';
-
-  document.getElementById('val-subtotal').innerText = formatCOP(r.subtotal);
-  document.getElementById('val-honorarios').innerText = formatCOP(r.honorarios);
-  document.getElementById('val-iva').innerText = formatCOP(r.iva);
-  document.getElementById('total-general').innerText = formatCOP(r.totalGeneral);
-
-  guardarBorrador();
-}
-
-/* ===================================================================
-   CÁLCULO ÚNICO (v9.40) — calcularSubtotales() es la única fuente de la
-   fórmula de negocio: la usa tanto validarYCalcular() (cotización real,
-   sin overrides = usa datos reales cacheados) como el Comparador de
-   Temas de abajo (con overrides, para simular "qué pasaría con N
-   temas"). No escribe nada en el DOM ni llama guardarBorrador() — eso
-   lo hace cada función que la llama, con lo que necesite.
-   =================================================================== */
-function calcularSubtotales(cantTemasOverride, setupMinOverride, grabacionCostoOverride, musicosDescuentoOverride, setupCostoOverride, tecnicosTransicionHorasOverride) {
-  const cantTemas = cantTemasOverride;
-  // v9.40: factor de músicos por tema — SOLO se activa la fórmula
-  // "1 + temasExtra × (1-%desc)" cuando musicosDescuentoOverride viene
-  // explícito (el Comparador de Temas). Si no viene (caso real,
-  // validarYCalcular() nunca lo pasa), factorMusicosBlend = 1 fijo, sin
-  // importar cuántos temas tenga la cotización — el músico se cobra una
-  // sola vez, como siempre. (Fix de un bug latente en v9.36-v9.39: antes,
-  // sin override, el factor terminaba siendo 1+temasExtra de todos modos,
-  // multiplicando músicos × cantidad de temas si esta función se llegaba
-  // a usar sin pasar el % — no afectaba nada hasta hoy porque el
-  // comparador siempre pasa el %, pero era una trampa para el futuro.)
-  const musicosOverrideActivo = musicosDescuentoOverride != null;
-  const pctDescMusicos = musicosOverrideActivo ? musicosDescuentoOverride : 0;
-  const factorTemasExtra = 1 - (pctDescMusicos / 100);
-  const temasExtra = Math.max(cantTemas - 1, 0);
-  const factorMusicosBlend = musicosOverrideActivo ? (1 + temasExtra * factorTemasExtra) : 1;
-
+  
   let subtotalSalas = 0;
-  let subtotalSetup = 0;
   let subtotalBackline = 0;
   let subtotalEjecucion = 0;
-  let subtotalMusicos = 0;
-  let subtotalTecnicos = 0;
   let subtotalPost = 0;
 
   if (document.getElementById('chk-sala-a').checked) {
@@ -1600,37 +1518,8 @@ function calcularSubtotales(cantTemasOverride, setupMinOverride, grabacionCostoO
   if (document.getElementById('chk-sala-c').checked) {
     subtotalSalas += parseInt(document.getElementById('num-sala-c').value || 0) * parseFloat(document.getElementById('rate-sala-c').value || 0);
   }
-  // v9.35: si se pasa grabacionCostoOverride, sustituye la parte de
-  // grabación real de sesiones (no la manual A/B/C de arriba) — usado
-  // por el Comparador de Temas para escalar la grabación × temas (el
-  // usuario confirmó que la grabación neta sí es ≈ proporcional al
-  // número de temas, a diferencia del setup).
-  // v9.42: tarifaBlend solo debe promediar las salas que SÍ tuvieron
-  // setup real — antes promediaba TODAS las salas de la sesión (incluidas
-  // las que nunca tuvieron setup), lo que arrastraba la tarifa hacia
-  // abajo y hacía que el Setup de 2 temas saliera más barato que el de
-  // 1 tema pese a tener más horas. Con una sola sala de setup, esto
-  // deja tarifaBlend = la tarifa real exacta de esa sala.
-  const tarifasSalas = salasDesdeSesionesCache.filter(s => (s.setupHoras || 0) > 0).map(s => s.tarifa).filter(t => t > 0);
-  const tarifaBlend = tarifasSalas.length ? tarifasSalas.reduce((a,b) => a+b, 0) / tarifasSalas.length : 0;
-  if (grabacionCostoOverride != null) {
-    subtotalSalas += grabacionCostoOverride;
-  } else {
-    salasDesdeSesionesCache.forEach(s => { subtotalSalas += (s.horas - (s.setupHoras || 0)) * s.tarifa; });
-  }
-  if (setupCostoOverride != null) {
-    // v9.41: cuando la columna "1 Tema" del comparador representa datos
-    // reales sin editar, se pasa el costo de Setup exacto (suma real de
-    // setupHoras × tarifa por sala) en vez de recalcularlo con
-    // tarifaBlend — evita el desfase de $ que se veía cuando hay salas
-    // con tarifas distintas (tarifaBlend es un promedio, no la tarifa
-    // real de la sala donde ocurrió el setup).
-    subtotalSetup = setupCostoOverride;
-  } else if (setupMinOverride == null) {
-    salasDesdeSesionesCache.forEach(s => { subtotalSetup += (s.setupHoras || 0) * s.tarifa; });
-  } else {
-    subtotalSetup = (setupMinOverride / 60) * tarifaBlend;
-  }
+  // v9.7: salas automáticas desde sesiones (ver escucharTecnicosDesdeSesiones)
+  salasDesdeSesionesCache.forEach(s => { subtotalSalas += s.horas * s.tarifa; });
 
   document.querySelectorAll('.backline-row').forEach(row => {
     const chk = row.querySelector('.chk-backline');
@@ -1644,204 +1533,65 @@ function calcularSubtotales(cantTemasOverride, setupMinOverride, grabacionCostoO
   if (document.getElementById('chk-ensamble').checked) {
     const ensayos = parseInt(document.getElementById('num-ensayos').value || 0);
     const personas = parseInt(document.getElementById('num-personas-ensamble').value || 0);
-    const val = ensayos * personas * parseFloat(document.getElementById('rate-ensamble').value || 0) * factorMusicosBlend;
-    subtotalEjecucion += val; subtotalMusicos += val;
+    subtotalEjecucion += ensayos * personas * parseFloat(document.getElementById('rate-ensamble').value || 0);
   }
+
+  // v9.12: Músicos de Sesión (Tarifa A/B) y Ensamble de Percusión
+  // reconstruidos — solo suman si el bloque está visible (cotización
+  // suelta); con proyecto vinculado el bloque se oculta y desmarca desde
+  // aplicarDatosProyectoVinculado(), así que estos checked ya vienen en
+  // false y no duplican lo que ya cobra musicosDesdeSesionesCache.
   if (document.getElementById('chk-musicos-a').checked) {
-    const val = parseInt(document.getElementById('num-musicos-a').value || 0) * parseFloat(document.getElementById('rate-musicos-a').value || 0) * factorMusicosBlend;
-    subtotalEjecucion += val; subtotalMusicos += val;
+    subtotalEjecucion += parseInt(document.getElementById('num-musicos-a').value || 0) * parseFloat(document.getElementById('rate-musicos-a').value || 0);
   }
   if (document.getElementById('chk-musicos-b').checked) {
-    const val = parseInt(document.getElementById('num-musicos-b').value || 0) * parseFloat(document.getElementById('rate-musicos-b').value || 0) * factorMusicosBlend;
-    subtotalEjecucion += val; subtotalMusicos += val;
+    subtotalEjecucion += parseInt(document.getElementById('num-musicos-b').value || 0) * parseFloat(document.getElementById('rate-musicos-b').value || 0);
   }
   if (document.getElementById('chk-ensamble-percusion').checked) {
-    const val = 3 * parseFloat(document.getElementById('rate-ensamble-percusion').value || 0) * factorMusicosBlend;
-    subtotalEjecucion += val; subtotalMusicos += val;
+    subtotalEjecucion += 3 * parseFloat(document.getElementById('rate-ensamble-percusion').value || 0);
   }
-  // v9.43: técnicos cobran por hora real (confirmado por el usuario) —
-  // si hay horas extra (comparador, tema 2+), se suman a CADA técnico de
-  // la sesión × su propia tarifa. Sin override (caso real),
-  // tecnicosTransicionHorasOverride es null y el comportamiento queda
-  // idéntico al de siempre (fijo).
-  // v9.45: fix — el nombre del parámetro quedó de la v9.43 pero desde
-  // esta versión ya NO representa solo "horas de transición": representa
-  // el crecimiento TOTAL de horas de sala por los temas 2+ (transición +
-  // grabación neta de esos temas), porque el técnico está desde que se
-  // abre la sala hasta que se cierra, no solo durante la transición
-  // (confirmado por el usuario). El cálculo real de ese número vive en
-  // abrirComparadorTemas().
-  const horasExtraTecnicos = tecnicosTransicionHorasOverride || 0;
-  tecnicosDesdeSesionesCache.forEach(t => { const val = (t.horas + horasExtraTecnicos) * t.tarifa; subtotalEjecucion += val; subtotalTecnicos += val; });
-  musicosDesdeSesionesCache.forEach(m => { const val = m.tarifa * m.canales * factorMusicosBlend; subtotalEjecucion += val; subtotalMusicos += val; });
 
-  // v9.53: antes eran 6 líneas de if() copiadas a mano (una por ítem);
-  // ahora recorre ROLES_POST_ITEMS. Mismo resultado exacto en $.
-  ROLES_POST_ITEMS.forEach(it => {
-    const chk = document.getElementById('chk-' + it.id);
-    if (chk && chk.checked) subtotalPost += parseFloat(document.getElementById('rate-' + it.id).value || 0) * cantTemas;
-  });
+  // v9.2: técnicos automáticos desde sesiones (ver escucharTecnicosDesdeSesiones)
+  tecnicosDesdeSesionesCache.forEach(t => { subtotalEjecucion += t.horas * t.tarifa; });
+  // v9.3: músicos automáticos desde sesiones (misma fuente, ver arriba)
+  musicosDesdeSesionesCache.forEach(m => { subtotalEjecucion += m.tarifa * m.canales; });
 
-  const subtotal = subtotalSalas + subtotalSetup + subtotalBackline + subtotalEjecucion + subtotalPost;
+  if (document.getElementById('chk-maquetacion').checked) subtotalPost += parseFloat(document.getElementById('rate-maquetacion').value || 0) * cantTemas;
+  if (document.getElementById('chk-dir-mus').checked) subtotalPost += parseFloat(document.getElementById('rate-dir-mus').value || 0) * cantTemas;
+  if (document.getElementById('chk-arreglos').checked) subtotalPost += parseFloat(document.getElementById('rate-arreglos').value || 0) * cantTemas;
+  if (document.getElementById('chk-edicion').checked) subtotalPost += parseFloat(document.getElementById('rate-edicion').value || 0) * cantTemas;
+  if (document.getElementById('chk-mezcla').checked) subtotalPost += parseFloat(document.getElementById('rate-mezcla').value || 0) * cantTemas;
+  if (document.getElementById('chk-master').checked) subtotalPost += parseFloat(document.getElementById('rate-master').value || 0) * cantTemas;
+
+  const subtotal = subtotalSalas + subtotalBackline + subtotalEjecucion + subtotalPost;
+
   const pctHonorarios = parseFloat(document.getElementById('num-honorarios').value || 0) / 100;
   const honorarios = subtotal * pctHonorarios;
+
   const subtotalConHonorarios = subtotal + honorarios;
   const pctIva = parseFloat(document.getElementById('num-iva').value || 0) / 100;
   const iva = subtotalConHonorarios * pctIva;
+
   const totalGeneral = subtotalConHonorarios + iva;
 
-  return { cantTemas, subtotalSalas, subtotalSetup, subtotalBackline, subtotalEjecucion, subtotalMusicos, subtotalTecnicos, subtotalPost, subtotal, honorarios, iva, totalGeneral };
-}
+  document.getElementById('val-subtotal-salas').innerText = formatCOP(subtotalSalas);
+  document.getElementById('row-subtotal-salas').style.display = subtotalSalas > 0 ? 'flex' : 'none';
 
-function abrirComparadorTemas() {
-  // v9.39: precarga del setup real — solo la primera vez que se abre el
-  // modal (no en cada recálculo por oninput). Si la sesión actual tiene
-  // exactamente 1 tema y hay setupHoras real cacheado, se usa ese valor
-  // real como punto de partida. Si no hay ningún setup cargado, el campo
-  // queda vacío (no se fuerza 60 min por defecto) — el usuario decide.
-  const modalYaAbierto = document.getElementById('modal-comparador-bg').classList.contains('activo');
-  if (!modalYaAbierto) {
-    const cantActualInicial = parseInt(document.getElementById('track-qty').value || 1);
-    const totalSetupMinReal = salasDesdeSesionesCache.reduce((acc, s) => acc + (s.setupHoras || 0), 0) * 60;
-    const inputSetupBase = document.getElementById('cmp-setup-base');
-    inputSetupBase.value = (cantActualInicial === 1 && totalSetupMinReal > 0) ? Math.round(totalSetupMinReal) : '';
-  }
+  document.getElementById('val-subtotal-backline').innerText = formatCOP(subtotalBackline);
+  document.getElementById('row-subtotal-backline').style.display = subtotalBackline > 0 ? 'flex' : 'none';
 
-  const cantActual = parseInt(document.getElementById('track-qty').value || 1);
-  const escenarioB = cantActual > 1 ? cantActual : 2;
+  document.getElementById('val-subtotal-ejecucion').innerText = formatCOP(subtotalEjecucion);
+  document.getElementById('row-subtotal-ejecucion').style.display = subtotalEjecucion > 0 ? 'flex' : 'none';
 
-  // v9.34: fórmula de setup para el comparador — setup(N) = base + (N-1)
-  // × transición. El primer tema necesita el setup completo; cada tema
-  // adicional en la misma sesión solo necesita la transición (parchar,
-  // abrir sesión, etc.), no el setup completo de nuevo.
-  const setupBaseMin = parseFloat(document.getElementById('cmp-setup-base').value) || 0;
-  const transicionMin = parseFloat(document.getElementById('cmp-setup-transicion').value) || 0;
-  const setupMinA = setupBaseMin;
-  const setupMinB = setupBaseMin + (escenarioB - 1) * transicionMin;
+  document.getElementById('val-subtotal-post').innerText = formatCOP(subtotalPost);
+  document.getElementById('row-subtotal-post').style.display = subtotalPost > 0 ? 'flex' : 'none';
 
-  // v9.35: la grabación real cacheada corresponde a cantActual temas (el
-  // valor que hay hoy en "Cant. Temas") — se calcula el costo real "por
-  // tema" y se escala × 1 y × escenarioB, en vez de copiar el mismo total
-  // fijo en ambas columnas.
-  const grabacionRealTotal = calcularSubtotales(cantActual).subtotalSalas;
-  const grabacionPorTema = cantActual > 0 ? grabacionRealTotal / cantActual : 0;
+  document.getElementById('val-subtotal').innerText = formatCOP(subtotal);
+  document.getElementById('val-honorarios').innerText = formatCOP(honorarios);
+  document.getElementById('val-iva').innerText = formatCOP(iva);
+  document.getElementById('total-general').innerText = formatCOP(totalGeneral);
 
-  // v9.36: % de descuento de músicos desde el 2do tema (mismo espíritu que
-  // el setup — el primer tema paga tarifa completa, los siguientes en la
-  // misma sesión pagan menos porque no hay desgaste/tiempo extra real).
-  const pctDescMusicos = parseFloat(document.getElementById('cmp-musicos-descuento').value) || 0;
-
-  // v9.41: si el campo de Setup sigue igual al valor real precargado (el
-  // usuario no lo editó) y estamos en el caso "1 tema real" (cantActual
-  // === 1), la columna "1 Tema" usa el costo de Setup EXACTO (suma real
-  // setupHoras × tarifa por sala) en vez de recalcularlo con tarifaBlend
-  // — así "1 Tema" es un espejo exacto del total en vivo. Si el usuario
-  // edita el campo a mano (para simular otro escenario) o cantActual > 1,
-  // se usa la aproximación de siempre.
-  const totalSetupMinReal = salasDesdeSesionesCache.reduce((acc, s) => acc + (s.setupHoras || 0), 0) * 60;
-  const totalSetupCostoReal = salasDesdeSesionesCache.reduce((acc, s) => acc + (s.setupHoras || 0) * s.tarifa, 0);
-  const setupSinEditar = cantActual === 1 && Math.round(totalSetupMinReal) === Math.round(setupBaseMin);
-
-  // v9.44: horasExtraTransicion se usa para restar de la grabación neta
-  // (el tiempo que la transición le quita a la grabación del tema 2+, ver
-  // nota v9.44 más abajo). Columna A (1 tema) = 0 horas extra, siempre.
-  const horasExtraTransicion = (escenarioB - 1) * (transicionMin / 60);
-
-  // v9.46: fix CRÍTICO — v9.45 usaba "grabacionPorTema" (que está en
-  // PESOS, el costo por tema) como si fueran HORAS para calcular
-  // horasExtraTecnicos. Eso multiplicaba horas de técnico × ~$430.000, y
-  // ese resultado (ya absurdo) se volvía a multiplicar por la tarifa del
-  // técnico, disparando el total a miles de millones. Se corrige
-  // calculando aparte la grabación neta real POR TEMA en horas (no en
-  // pesos), tomada de las horas cacheadas de sala (salasDesdeSesionesCache),
-  // que es lo único que puede mezclarse con horas de técnico.
-  const horasGrabTotalReal = salasDesdeSesionesCache.reduce((acc, s) => acc + (s.horas - (s.setupHoras || 0)), 0);
-  const horasGrabacionPorTema = cantActual > 0 ? horasGrabTotalReal / cantActual : 0;
-  const horasExtraTecnicos = (escenarioB - 1) * horasGrabacionPorTema;
-
-  // v9.48: horas base de Técnico para la etiqueta — antes (v9.46) se usaba
-  // el promedio cacheado real (tecnicosDesdeSesionesCache), pero ese dato
-  // histórico puede no coincidir con "Setup + Grabación" (ej. hora de
-  // entrada registrada distinta en Logística). Por definición de negocio
-  // (v9.45: "el técnico está desde que se abre la sala hasta que se
-  // cierra"), la base ahora se calcula como Setup + Grabación neta del
-  // tema 1 — así queda 100% consistente con la fila "Salas / Grabación" y
-  // "Setup Inge" de arriba. Solo afecta la etiqueta de horas, no el $.
-  const horasTecnicoBaseA = (setupMinA / 60) + horasGrabacionPorTema;
-  const horasTecnicoTotalB = horasTecnicoBaseA + horasExtraTecnicos;
-
-  // v9.47: horas reales de "Salas / Grabación" para la etiqueta gris de esa
-  // fila (mismo patrón que Técnicos arriba, no afecta ningún cálculo de $).
-  // Columna A = horas de grabación neta de 1 tema (horasGrabacionPorTema, ya
-  // calculada arriba). Columna B = esas horas × escenarioB, menos la misma
-  // transición que ya se resta en "grabacionCostoB" ($), para que la
-  // etiqueta de horas sea el espejo exacto de lo que se está cobrando.
-  const horasSalasTotalB = horasGrabacionPorTema * escenarioB - horasExtraTransicion;
-
-  // v9.44: tarifaBlend replicado acá (misma fórmula que calcularSubtotales,
-  // v9.42) porque es local a esa función — se necesita también aquí para
-  // descontar el costo de la transición de la grabación neta, con la
-  // misma tarifa que ya usa el Setup, evitando dos fuentes de verdad.
-  const tarifasSalasCmp = salasDesdeSesionesCache.filter(s => (s.setupHoras || 0) > 0).map(s => s.tarifa).filter(t => t > 0);
-  const tarifaBlendCmp = tarifasSalasCmp.length ? tarifasSalasCmp.reduce((a,b) => a+b, 0) / tarifasSalasCmp.length : 0;
-
-  // v9.44: la grabación neta de los temas 2+ ya NO se cobra completa
-  // encima del setup — se le resta la transición (mismo tiempo que ya se
-  // le suma a Setup abajo), para que el bloque total de horas de sala por
-  // tema adicional no crezca, solo se reparte distinto entre grabación y
-  // setup/transición (confirmado por el usuario).
-  const grabacionCostoB = grabacionPorTema * escenarioB - horasExtraTransicion * tarifaBlendCmp;
-
-  const a = calcularSubtotales(1, setupMinA, grabacionPorTema * 1, pctDescMusicos, setupSinEditar ? totalSetupCostoReal : null, 0);
-  const b = calcularSubtotales(escenarioB, setupMinB, grabacionCostoB, pctDescMusicos, null, horasExtraTecnicos);
-
-  const filas = [
-    ['Grabación neta', `${horasGrabacionPorTema.toFixed(2)}h → ${horasSalasTotalB.toFixed(2)}h`, a.subtotalSalas, b.subtotalSalas],
-    ['Setup Inge (estimado)', `${(setupMinA/60).toFixed(2)}h → ${(setupMinB/60).toFixed(2)}h`, a.subtotalSetup, b.subtotalSetup],
-    // v9.49: subtotal combinado — pedido del usuario para ver de un
-    // vistazo Grabación + Setup sumados, sin tener que sumarlos a mano
-    // leyendo las dos filas de arriba. Es la suma de las 2 filas
-    // anteriores, no un dato nuevo ni un cálculo distinto.
-    // v9.51: se agrega la etiqueta de horas (suma tal cual de Grabación +
-    // Setup, mismos datos ya calculados arriba para esas 2 filas, sin
-    // ningún cálculo nuevo) — antes esta fila no mostraba horas.
-    ['— Grabación + Setup', `${(horasGrabacionPorTema + setupMinA/60).toFixed(2)}h → ${(horasSalasTotalB + setupMinB/60).toFixed(2)}h`, a.subtotalSalas + a.subtotalSetup, b.subtotalSalas + b.subtotalSetup],
-    ['Backline', 'fijo', a.subtotalBackline, b.subtotalBackline],
-    ['Músicos', `1er 100% · resto ${100-pctDescMusicos}%`, a.subtotalMusicos, b.subtotalMusicos],
-    ['Técnicos', `${horasTecnicoBaseA.toFixed(2)}h → ${horasTecnicoTotalB.toFixed(2)}h`, a.subtotalTecnicos, b.subtotalTecnicos],
-    ['Post-producción', '× temas', a.subtotalPost, b.subtotalPost],
-  ];
-
-  let html = `
-    <div class="col-header">Rubro</div>
-    <div class="col-header destacado">1 Tema</div>
-    <div class="col-header destacado">${escenarioB} Temas</div>
-  `;
-  filas.forEach(([nombre, escala, valA, valB]) => {
-    // v9.51: la fila "— Grabación + Setup" (suma de las 2 de arriba) se
-    // resalta con fondo dorado suave para diferenciarla del resto de
-    // filas normales — mismo criterio visual que la caja "Salas de
-    // Sesión". No afecta ningún otro rubro de la tabla.
-    const esCombo = nombre === '— Grabación + Setup';
-    const claseCombo = esCombo ? ' fila-combo' : '';
-    html += `
-      <div class="fila-rubro${claseCombo}">${nombre}<span class="etiqueta-escala">${escala}</span></div>
-      <div class="fila-rubro${claseCombo}">${formatCOP(valA)}</div>
-      <div class="fila-rubro${claseCombo}">${formatCOP(valB)}</div>
-    `;
-  });
-  html += `
-    <div class="fila-rubro total-row">Total General</div>
-    <div class="fila-rubro total-row">${formatCOP(a.totalGeneral)}</div>
-    <div class="fila-rubro total-row">${formatCOP(b.totalGeneral)}</div>
-  `;
-
-  document.getElementById('comparador-grid-content').innerHTML = html;
-  document.getElementById('modal-comparador-bg').classList.add('activo');
-}
-
-function cerrarComparadorTemas() {
-  document.getElementById('modal-comparador-bg').classList.remove('activo');
+  guardarBorrador();
 }
 
 function exportarPDF() {
@@ -1938,18 +1688,9 @@ function exportarPDF() {
     const h = document.getElementById('num-sala-c').value; const r = document.getElementById('rate-sala-c').value;
     agregarFila(0, `Alquiler de Infraestructura - ${document.getElementById('label-sala-c').innerText}`, `${h} Hora(s)`, formatCOP(r), h*r);
   }
-  // v9.33: se desglosa en dos filas cuando hay setup del Inge cargado
-  // (setupHoras > 0) — antes iba todo mezclado en una sola fila de
-  // horas totales, sin que el cliente pudiera ver qué parte es setup.
-  // Si no hay setup, se comporta exactamente igual que antes (una fila).
+  // v9.7: salas automáticas desde sesiones — una fila por sala
   salasDesdeSesionesCache.forEach(s => {
-    const horasGrabacion = s.horas - (s.setupHoras || 0);
-    if (s.setupHoras > 0) {
-      agregarFila(0, `Alquiler de Infraestructura - ${s.salaNombre} (Grabación)`, `${horasGrabacion.toFixed(1)} Hora(s)`, formatCOP(s.tarifa), horasGrabacion*s.tarifa);
-      agregarFila(0, `Alquiler de Infraestructura - ${s.salaNombre} (Setup Técnico)`, `${s.setupHoras.toFixed(1)} Hora(s)`, formatCOP(s.tarifa), s.setupHoras*s.tarifa);
-    } else {
-      agregarFila(0, `Alquiler de Infraestructura - ${s.salaNombre}`, `${s.horas.toFixed(1)} Hora(s)`, formatCOP(s.tarifa), s.horas*s.tarifa);
-    }
+    agregarFila(0, `Alquiler de Infraestructura - ${s.salaNombre}`, `${s.horas.toFixed(1)} Hora(s)`, formatCOP(s.tarifa), s.horas*s.tarifa);
   });
 
   document.querySelectorAll('.backline-row').forEach(row => {
@@ -1991,16 +1732,30 @@ function exportarPDF() {
     agregarFila(2, `Personal de Ejecución - Músico de Sesión - ${m.nombre}`, `${m.canales} Canal(es)`, formatCOP(m.tarifa), m.tarifa*m.canales);
   });
 
-  // v9.53: antes eran 6 bloques if() casi idénticos copiados a mano;
-  // ahora recorre ROLES_POST_ITEMS. Mismo texto, mismo orden, mismo $.
-  ROLES_POST_ITEMS.forEach(it => {
-    const chk = document.getElementById('chk-' + it.id);
-    if (chk && chk.checked) {
-      const n = document.getElementById('name-' + it.id).value.trim();
-      const r = document.getElementById('rate-' + it.id).value;
-      agregarFila(3, `${it.label} ${n ? '[' + n + ']' : ''}`, `${cantTemas} ${it.unidad}`, formatCOP(r), cantTemas * r);
-    }
-  });
+  if (document.getElementById('chk-maquetacion').checked) {
+    const n = document.getElementById('name-maquetacion').value.trim(); const r = document.getElementById('rate-maquetacion').value;
+    agregarFila(3, `Preproducción - Maquetación ${n ? '['+n+']' : ''}`, `${cantTemas} Tema(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-dir-mus').checked) {
+    const n = document.getElementById('name-dir-mus').value.trim(); const r = document.getElementById('rate-dir-mus').value;
+    agregarFila(3, `Roles Creativos - Dirección Musical ${n ? '['+n+']' : ''}`, `${cantTemas} Tema(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-arreglos').checked) {
+    const n = document.getElementById('name-arreglos').value.trim(); const r = document.getElementById('rate-arreglos').value;
+    agregarFila(3, `Roles Creativos - Co-Arreglos / Apertura ${n ? '['+n+']' : ''}`, `${cantTemas} Tema(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-edicion').checked) {
+    const n = document.getElementById('name-edicion').value.trim(); const r = document.getElementById('rate-edicion').value;
+    agregarFila(3, `Postproducción de Audio - Edición ${n ? '['+n+']' : ''}`, `${cantTemas} Tema(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-mezcla').checked) {
+    const n = document.getElementById('name-mezcla').value.trim(); const r = document.getElementById('rate-mezcla').value;
+    agregarFila(3, `Postproducción de Audio - Mezcla Profesional ${n ? '['+n+']' : ''}`, `${cantTemas} Track(s)`, formatCOP(r), cantTemas*r);
+  }
+  if (document.getElementById('chk-master').checked) {
+    const n = document.getElementById('name-master').value.trim(); const r = document.getElementById('rate-master').value;
+    agregarFila(3, `Postproducción de Audio - Masterización ${n ? '['+n+']' : ''}`, `${cantTemas} Track(s)`, formatCOP(r), cantTemas*r);
+  }
 
   const tieneItems = grupos.some(g => g.filas.length > 0);
   if (!tieneItems) {
@@ -2128,7 +1883,6 @@ auth.onAuthStateChanged(async (user) => {
     }
     iniciarVinculoProyecto();
     cargarEstudiosDesdeFirestore();
-    cargarBacklineCatalogoDesdeFirestore();
   } catch (e) {
     console.error('Error validando sesión:', e);
     window.location.href = 'login.html';
@@ -2206,12 +1960,6 @@ function aplicarDatosProyectoVinculado() {
     campoTema.value = proyectoVinculadoData.nombre || '';
     if (filaTema) filaTema.style.display = 'none';
     if (filaEntorno) filaEntorno.style.display = 'none';
-    // v9.21: se revierte el criterio de v9.20 (que solo ocultaba las filas
-    // sueltas) — con proyecto vinculado se vuelve a ocultar TODO
-    // bloqueSalasManuales, igual que el diseño original v9.11, porque
-    // dejarlo visible duplicaba el backline con la caja verde "Salas de
-    // Sesión" de abajo. El backline ahora se muestra ahí (ver
-    // renderSalasSesionesUI() / v9.21 en el changelog).
     if (bloqueSalasManuales) {
       bloqueSalasManuales.style.display = 'none';
       ['a','b','c'].forEach(k => { const chk = document.getElementById('chk-sala-'+k); if (chk) chk.checked = false; });
@@ -2272,26 +2020,8 @@ function escucharTecnicosDesdeSesiones() {
       snap.forEach(doc => {
         const s = doc.data();
         const horas = horasEntre(s.horaInicio, s.horaFin);
-        // v9.24: horas de SALA incluían el tiempoSetupMin que el Inge
-        // carga en bitacora.html (selector "Set-up necesario", campo
-        // tiempoSetupMin en el documento de la sesión) sumado APARTE del
-        // rango horaInicio/horaFin, porque hasta entonces el rango
-        // representaba solo la grabación neta.
-        // v9.49: bitacora.html v2.68 redefinió la regla — el set-up ahora
-        // va DENTRO del rango horaInicio/horaFin (ej. 8:00-10:00 con
-        // set-up 60min = Setup 8:00-9:00 + Grabación 9:00-10:00), así que
-        // horasEntre(horaInicio,horaFin) YA incluye el setup. Sumarlo de
-        // nuevo aquí lo duplicaba (cobraba 3h en vez de 2h en el ejemplo).
-        // horasSala se deja igual a `horas`; se mantiene como variable
-        // aparte (en vez de usar `horas` directo) solo para no tocar el
-        // resto del bloque de abajo que ya la referencia por nombre.
-        // setupHoras (línea siguiente del forEach) sigue siendo el mismo
-        // dato informativo de siempre — solo se usa para desglosar en la
-        // UI cuánto del total es Setup vs Grabación, nunca se resta del
-        // total cobrado, así que ese desglose sigue funcionando igual.
-        const horasSala = horas;
         if (s.estudioId) conteoEstudios[s.estudioId] = (conteoEstudios[s.estudioId] || 0) + 1;
-        if (horasSala > 0 && s.sala) {
+        if (horas > 0 && s.sala) {
           if (!salasAcumulado[s.sala]) {
             // Tarifa vigente: se busca en ESTUDIOS_DATA (ya cargado por
             // cargarEstudiosDesdeFirestore()) la sala del estudio de esta
@@ -2302,29 +2032,16 @@ function escucharTecnicosDesdeSesiones() {
             let estudioNombre = '';
             let specs = '';
             let specsVisibles = false;
-            let backline = [];
             const est = ESTUDIOS_DATA[s.estudioId];
             if (est) {
               estudioNombre = est.nombre || '';
               specsVisibles = !!est.specsVisibles;
               const salaData = ['salaA', 'salaB', 'salaC'].map(k => est[k]).find(sd => sd && sd.nombre === s.sala);
               if (salaData) { tarifa = salaData.tarifa || 0; specs = salaData.specs || ''; }
-              // v9.21: mismo criterio que combinarBackline() de
-              // actualizarNombresSalas() — se suma backlineGeneral del
-              // estudio (compartido entre salas, ej. Icesi) al backline
-              // propio de la sala encontrada, para que la caja verde
-              // "Salas de Sesión" muestre el mismo backline que ya se ve
-              // en el modo manual/selector, sin duplicar la lógica.
-              backline = [...(est.backlineGeneral || []), ...(salaData?.backline || [])];
             }
-            salasAcumulado[s.sala] = { horas: 0, setupHoras: 0, tarifa, estudioNombre, specs, specsVisibles, backline };
+            salasAcumulado[s.sala] = { horas: 0, tarifa, estudioNombre, specs, specsVisibles };
           }
-          salasAcumulado[s.sala].horas += horasSala;
-          // v9.26: setupHoras es SOLO para desglosar en la UI cuánto de
-          // las horas totales es setup del Inge (bitacora.html) — no se
-          // resta ni se usa en ningún cálculo, `horas` ya trae la suma
-          // correcta desde v9.24 y sigue siendo la que se cobra.
-          salasAcumulado[s.sala].setupHoras += (Number(s.tiempoSetupMin) || 0) / 60;
+          salasAcumulado[s.sala].horas += horas;
         }
         if (horas > 0 && Array.isArray(s.tecnicosAsignados)) {
           s.tecnicosAsignados.forEach(t => {
@@ -2429,43 +2146,18 @@ function renderSalasSesionesUI() {
   if (!salasDesdeSesionesCache.length) { row.style.display = 'none'; return; }
   row.style.display = '';
   const totalSalas = salasDesdeSesionesCache.reduce((acc, s) => acc + s.horas * s.tarifa, 0);
-  // v9.31: subtotal agregado de setup — antes solo se veía la nota por
-  // fila ("incl. Xh setup Inge"), sin un total que sumara todas las
-  // salas. Se calcula horas y costo (horas × tarifa de esa sala) del
-  // setup, sumado entre todas las salas del proyecto.
-  const totalSetupHoras = salasDesdeSesionesCache.reduce((acc, s) => acc + (s.setupHoras || 0), 0);
-  const totalSetupCosto = salasDesdeSesionesCache.reduce((acc, s) => acc + (s.setupHoras || 0) * s.tarifa, 0);
-  // v9.32: subtotal de grabación neto — total de salas menos el setup,
-  // para que el desglose quede completo (Grabación + Setup = Total).
-  const totalGrabacionHoras = salasDesdeSesionesCache.reduce((acc, s) => acc + (s.horas - (s.setupHoras || 0)), 0);
-  const totalGrabacionCosto = totalSalas - totalSetupCosto;
-  // v9.51: horas totales de sala sumadas tal cual (sin desglosar
-  // Grabación/Setup) — a diferencia de las 2 líneas de arriba, esta
-  // SIEMPRE aparece (no depende de que haya setup > 0), porque respalda
-  // el mismo total en $ que ya se muestra en "Total (Grabación + Setup)".
-  const totalHorasSalas = salasDesdeSesionesCache.reduce((acc, s) => acc + s.horas, 0);
   lista.innerHTML = '<div class="sesion-chip-list">' + salasDesdeSesionesCache.map(s => `
     <div class="sesion-chip" style="flex-direction:column;align-items:stretch;gap:4px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div class="chip-info">
           <span class="chip-name">${s.salaNombre.replace(/</g,'&lt;')}${s.estudioNombre ? ' <span style="color:var(--muted);font-weight:400;">— ' + s.estudioNombre.replace(/</g,'&lt;') + '</span>' : ''}</span>
-          <span class="chip-sub">${s.horas.toFixed(1)}h × ${formatCOP(s.tarifa)}${s.setupHoras > 0 ? ` <span style="color:var(--gold);">(incl. ${s.setupHoras.toFixed(1)}h setup Inge)</span>` : ''}</span>
+          <span class="chip-sub">${s.horas.toFixed(1)}h × ${formatCOP(s.tarifa)}</span>
         </div>
         <span class="chip-total">${formatCOP(s.horas * s.tarifa)}</span>
       </div>
       ${s.specsVisibles && s.specs ? `<div style="font-size:0.74rem;color:var(--muted);line-height:1.4;padding-left:2px;">${s.specs.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>` : ''}
-      ${Array.isArray(s.backline) && s.backline.length ? `<div style="font-size:0.74rem;color:var(--muted);line-height:1.4;padding-left:2px;">${formatearBackline(s.backline)}</div>` : ''}
     </div>`).join('') + '</div>' +
-    (totalSetupHoras > 0 ? `<div class="sesion-auto-total"><span>Subtotal Grabación (${totalGrabacionHoras.toFixed(1)}h)</span><span>${formatCOP(totalGrabacionCosto)}</span></div>` : '') +
-    (totalSetupHoras > 0 ? `<div class="sesion-auto-total" style="color:var(--gold);"><span>Subtotal Setup Inge (${totalSetupHoras.toFixed(1)}h)</span><span>${formatCOP(totalSetupCosto)}</span></div>` : '') +
-    `<div class="sesion-auto-total" style="background:var(--gold-bg,rgba(230,180,80,0.12));border-radius:8px;padding:6px 8px;font-weight:600;"><span>Total (Grabación + Setup) — ${totalHorasSalas.toFixed(1)}h</span><span>${formatCOP(totalSalas)}</span></div>`;
-  // v9.22: en el flujo de proyecto vinculado (esta caja verde) el
-  // resaltado/marcado automático del Catálogo Avalado de Backline no se
-  // disparaba porque resaltarCatalogoBackline() solo se llamaba desde
-  // actualizarNombresSalas() (selector manual). Se combina el backline
-  // de todas las salas del caché de sesiones y se llama acá también,
-  // mismo criterio que el modo manual.
-  resaltarCatalogoBackline(salasDesdeSesionesCache.reduce((acc, s) => acc.concat(s.backline || []), []));
+    `<div class="sesion-auto-total"><span>Total Salas (sesiones)</span><span>${formatCOP(totalSalas)}</span></div>`;
 }
 
 // Muestra por qué "Guardar Cotización en el Proyecto" está deshabilitado,
@@ -2510,17 +2202,9 @@ function recolectarItemsPlanos() {
     push(`Alquiler de Infraestructura - ${document.getElementById('label-sala-c').innerText}`,
       Number(document.getElementById('num-sala-c').value) || 0, Number(document.getElementById('rate-sala-c').value) || 0);
   }
-  // v9.33: mismo desglose Grabación/Setup que exportarPDF(), para que el
-  // cotizador simple de proyecto.html (que consume esta función) también
-  // vea las dos líneas cuando hay setup cargado.
+  // v9.7: salas automáticas desde sesiones — una línea por sala
   salasDesdeSesionesCache.forEach(s => {
-    const horasGrabacion = s.horas - (s.setupHoras || 0);
-    if (s.setupHoras > 0) {
-      push(`Alquiler de Infraestructura - ${s.salaNombre} (Grabación)`, horasGrabacion, s.tarifa);
-      push(`Alquiler de Infraestructura - ${s.salaNombre} (Setup Técnico)`, s.setupHoras, s.tarifa);
-    } else {
-      push(`Alquiler de Infraestructura - ${s.salaNombre}`, s.horas, s.tarifa);
-    }
+    push(`Alquiler de Infraestructura - ${s.salaNombre}`, s.horas, s.tarifa);
   });
 
   document.querySelectorAll('.backline-row').forEach(row => {
@@ -2560,15 +2244,30 @@ function recolectarItemsPlanos() {
   musicosDesdeSesionesCache.forEach(m => {
     push(`Personal de Ejecución - Músico de Sesión - ${m.nombre}`, m.canales, m.tarifa);
   });
-  // v9.53: antes eran 6 bloques if() casi idénticos copiados a mano;
-  // ahora recorre ROLES_POST_ITEMS. Mismo texto, mismo orden, mismo $.
-  ROLES_POST_ITEMS.forEach(it => {
-    const chk = document.getElementById('chk-' + it.id);
-    if (chk && chk.checked) {
-      const n = document.getElementById('name-' + it.id).value.trim();
-      push(`${it.label} ${n ? '[' + n + ']' : ''}`, cantTemas, Number(document.getElementById('rate-' + it.id).value) || 0);
-    }
-  });
+  if (document.getElementById('chk-maquetacion').checked) {
+    const n = document.getElementById('name-maquetacion').value.trim();
+    push(`Preproducción - Maquetación ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-maquetacion').value) || 0);
+  }
+  if (document.getElementById('chk-dir-mus').checked) {
+    const n = document.getElementById('name-dir-mus').value.trim();
+    push(`Roles Creativos - Dirección Musical ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-dir-mus').value) || 0);
+  }
+  if (document.getElementById('chk-arreglos').checked) {
+    const n = document.getElementById('name-arreglos').value.trim();
+    push(`Roles Creativos - Co-Arreglos / Apertura ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-arreglos').value) || 0);
+  }
+  if (document.getElementById('chk-edicion').checked) {
+    const n = document.getElementById('name-edicion').value.trim();
+    push(`Postproducción de Audio - Edición ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-edicion').value) || 0);
+  }
+  if (document.getElementById('chk-mezcla').checked) {
+    const n = document.getElementById('name-mezcla').value.trim();
+    push(`Postproducción de Audio - Mezcla Profesional ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-mezcla').value) || 0);
+  }
+  if (document.getElementById('chk-master').checked) {
+    const n = document.getElementById('name-master').value.trim();
+    push(`Postproducción de Audio - Masterización ${n ? '['+n+']' : ''}`, cantTemas, Number(document.getElementById('rate-master').value) || 0);
+  }
 
   const subtotal = items.reduce((acc, it) => acc + it.cantidad * it.precio, 0);
   const pctHonorarios = Number(document.getElementById('num-honorarios').value) || 0;
@@ -2629,31 +2328,6 @@ if (_btnPdfObservado) {
   }).observe(_btnPdfObservado, { attributes: true, attributeFilter: ['disabled'] });
 }
 </script>
-
-<!-- COMPARADOR DE TEMAS (v9.24) — modal aislado, no forma parte del
-     formulario de cotización ni del flujo de guardar/exportar PDF. -->
-<div class="modal-comparador-bg" id="modal-comparador-bg">
-  <div class="modal-comparador-box">
-    <h3>⚖️ Comparador de Temas</h3>
-    <div class="modal-comparador-sub">Backline es fijo (no escala); Salas y Post-producción escalan × cantidad de temas; Setup y Músicos se estiman con las fórmulas de abajo.</div>
-    <div style="display:flex;gap:12px;margin-bottom:14px;">
-      <div class="info-group" style="flex:1;">
-        <label class="calc-label">Setup 1er tema (min)</label>
-        <input type="number" id="cmp-setup-base" class="text-input" placeholder="0" min="0" oninput="abrirComparadorTemas()">
-      </div>
-      <div class="info-group" style="flex:1;">
-        <label class="calc-label">Transición / tema extra (min)</label>
-        <input type="number" id="cmp-setup-transicion" class="text-input" value="15" min="0" oninput="abrirComparadorTemas()">
-      </div>
-      <div class="info-group" style="flex:1;">
-        <label class="calc-label">% desc. músicos desde 2do tema</label>
-        <input type="number" id="cmp-musicos-descuento" class="text-input" value="50" min="0" max="100" oninput="abrirComparadorTemas()">
-      </div>
-    </div>
-    <div class="comparador-grid" id="comparador-grid-content"></div>
-    <button type="button" class="modal-comparador-close" onclick="cerrarComparadorTemas()">Cerrar</button>
-  </div>
-</div>
 
 </body>
 </html>
