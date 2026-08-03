@@ -4,7 +4,7 @@ rules_version = '2';
 // Cubre: proyectos, proyectos/{id}/sesiones, proyectos/{id}/cotizaciones,
 // proyectos/{id}/pagos, proyectos/{id}/produccion, equipoInterno,
 // clientesAcceso, estudios, musicos, clientes, equipoTecnico,
-// backlineCatalogo, proyectos/{id}/sesiones/{id}/consentimientos.
+// backlineCatalogo, egresos, proyectos/{id}/sesiones/{id}/consentimientos.
 //
 // IMPORTANTE — léelo antes de publicar:
 // 1. El PRIMER correo de equipoInterno hay que crearlo manualmente desde la
@@ -231,6 +231,28 @@ rules_version = '2';
 // armada, no del catálogo crudo — se agregaría una regla de lectura
 // puntual aparte, como la de pagos/cotizaciones). No se tocó ninguna
 // otra regla, función, condición, match ni colección existente.
+//
+// v2.14 (esta entrega — egresos.html v1.0): se agrega el bloque
+// /egresos/{egresoId} — registro de pagos que el estudio hace hacia
+// músicos, equipo técnico y salas/estudios (simétrico a
+// proyectos/{id}/pagos, que registra los abonos que el CLIENTE hace hacia
+// el estudio). Colección raíz plana, sin subcolecciones, independiente
+// de proyectos (un egreso puede o no estar ligado a un proyecto/tema).
+// MISMO PATRÓN EXACTO que estudios/musicos/clientes/equipoTecnico/
+// backlineCatalogo: solo equipo interno lee y escribe; el cliente nunca
+// accede a esta colección directamente. No se tocó ninguna otra regla,
+// función, condición, match ni colección existente.
+//
+// v2.15 (esta entrega — bitacora.html v2.70): el panel de Mezcla y
+// Mastering agrega 4 campos nuevos al doc del TEMA — `referenciasMezcla`
+// (array de {nombre,link}), `masteringPlataforma`, `masteringLoudness` y
+// `entregablesMastering` (objeto {wav,streaming,vinilo,otro}). Se
+// agregan estos 4 campos a la lista `hasOnly` de las DOS excepciones de
+// escritura angosta ya existentes sobre /temas (la de esIngenieroDe() con
+// login, y la vieja sin login) — mismo criterio de siempre: solo esos
+// campos puntuales, nunca nombre/orden/activo del tema (eso sigue siendo
+// exclusivo del CRUD de logistica.html con esStaff()). No se tocó ninguna
+// otra regla, colección, match, función ni condición existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -418,14 +440,17 @@ service cloud.firestore {
       match /temas/{temaId} {
         allow read, write: if esStaff();
         // ---- Ingeniero con login (v2.10) — mismo alcance de campos que
-        // la excepción sin login de abajo: solo las 3 notas de etapa,
-        // nunca nombre/orden/activo (eso sigue siendo solo del CRUD de
-        // logistica.html, con esStaff()).
+        // la excepción sin login de abajo: solo las 3 notas de etapa +
+        // (v2.15) los 4 campos nuevos de Referencias/Loudness/
+        // Entregables — nunca nombre/orden/activo (eso sigue siendo solo
+        // del CRUD de logistica.html, con esStaff()).
         allow read: if esIngenieroDe(proyectoId);
         allow update: if esIngenieroDe(proyectoId) &&
           request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['notasEdicion', 'notasMezcla', 'notasMastering']);
-        // ---- Excepción sin login para bitacora.html (v2.9) ----
+            .hasOnly(['notasEdicion', 'notasMezcla', 'notasMastering',
+                       'referenciasMezcla', 'masteringPlataforma',
+                       'masteringLoudness', 'entregablesMastering']);
+        // ---- Excepción sin login para bitacora.html (v2.9, ampliada v2.15) ----
         // Edición/Mezcla/Mastering se movieron de la sesión al tema (un
         // tema suele tener varias sesiones pero una sola edición/mezcla/
         // mastering). Mismo patrón EXACTO que la excepción de sesiones:
@@ -434,12 +459,16 @@ service cloud.firestore {
         // prohibido para no poder enumerar temas del proyecto.
         allow get: if true;
         allow list: if false;
-        // Escritura sin login SOLO en estos 3 campos — nunca nombre,
-        // orden ni activo (eso solo lo toca el CRUD de logistica.html,
-        // que requiere login).
+        // Escritura sin login SOLO en estos campos — nunca nombre, orden
+        // ni activo (eso solo lo toca el CRUD de logistica.html, que
+        // requiere login). v2.15: se agregan los 4 campos nuevos de
+        // bitacora.html v2.70 (Referencias sonoras de Mezcla, Loudness/
+        // Plataforma y Entregables de Mastering), mismo criterio angosto.
         allow update: if
           request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['notasEdicion', 'notasMezcla', 'notasMastering']);
+            .hasOnly(['notasEdicion', 'notasMezcla', 'notasMastering',
+                       'referenciasMezcla', 'masteringPlataforma',
+                       'masteringLoudness', 'entregablesMastering']);
       }
     }
     // ---------- COTIZACIONES (collectionGroup, v1.3) ----------
@@ -476,12 +505,12 @@ service cloud.firestore {
     // ---------- INGENIEROS (v2.10) ----------
     // Rol acotado nuevo, mismo patrón que equipoInterno: el ingeniero
     // puede leer SOLO su propio doc (para el guard de sesión de
-    // bitacora.html), nunca escribirlo — activo/proyectosAsignados los
-    // administra el staff desde el modal "Ingenieros con acceso" de
-    // proyecto.html (pendiente de construir). No confundir con
-    // equipoInterno: un ingeniero en esta colección NO tiene esStaff(),
-    // su acceso real está acotado por esIngenieroDe() dentro de cada
-    // match de sesiones/temas.
+    // bitacora.html), nunca escribirlo — activo/proyectosAsignados/
+    // rolesPorProyecto (v2.15, ver proyecto.html v5.24) los administra el
+    // staff desde el modal "Ingenieros con acceso" de proyecto.html. No
+    // confundir con equipoInterno: un ingeniero en esta colección NO
+    // tiene esStaff(), su acceso real está acotado por esIngenieroDe()
+    // dentro de cada match de sesiones/temas.
     match /ingenieros/{correo} {
       allow get: if request.auth != null && request.auth.token.email == correo;
       // v2.12 (fix): agregarIngenieroAlProyecto() en proyecto.html v4.17
@@ -494,6 +523,10 @@ service cloud.firestore {
       // la colección (solo staff administra ingenieros).
       allow get: if esStaff();
       allow list: if esStaff();
+      // v2.15: `allow write: if esStaff()` ya cubre el campo nuevo
+      // `rolesPorProyecto` (proyecto.html v5.24, rol del ingeniero por
+      // proyecto) sin ningún cambio — write sin restricción de campos
+      // para staff incluye cualquier campo nuevo que se agregue al doc.
       allow write: if esStaff();
     }
     // ---------- CLIENTES ACCESO ----------
@@ -546,6 +579,17 @@ service cloud.firestore {
     // estudios/musicos/clientes/equipoTecnico: solo equipo interno lee y
     // escribe. El cliente nunca accede a esta colección directamente.
     match /backlineCatalogo/{itemId} {
+      allow read, write: if esStaff();
+    }
+    // ---------- EGRESOS (v2.14 — egresos.html v1.0) ----------
+    // Registro de pagos que el estudio hace hacia músicos, equipo técnico
+    // y salas/estudios (simétrico a proyectos/{id}/pagos, que registra los
+    // abonos que el CLIENTE hace hacia el estudio). Colección raíz plana,
+    // sin subcolecciones, independiente de proyectos (un egreso puede o no
+    // estar ligado a un proyecto/tema). MISMO PATRÓN EXACTO que estudios/
+    // musicos/clientes/equipoTecnico/backlineCatalogo: solo equipo interno
+    // lee y escribe. El cliente nunca accede a esta colección directamente.
+    match /egresos/{egresoId} {
       allow read, write: if esStaff();
     }
   }

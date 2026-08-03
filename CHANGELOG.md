@@ -705,12 +705,48 @@ sin acceso de ingeniero).
 
 ## index.html
 
-### v1.10
+### v2.6
+se agrega el panel "RESUMEN FINANCIERO · ESTE MES"
+(Ingresos/Egresos/Balance), debajo de Próximas Sesiones y arriba de
+Resumen Comercial. Dos listeners nuevos: `collectionGroup('pagos')`
+(sin `.where()`, mismo patrón que `sesionesCal`, para no depender de
+un índice compuesto nuevo) y `collection('egresos')` — el filtro de
+"mes actual" se hace en el cliente (mismo criterio que usa
+egresos.html). Balance = ingresos − egresos, coloreado verde/rojo
+según el signo. Ambas tarjetas enlazan a pagos.html/egresos.html
+respectivamente. Solo lectura, no gestiona nada desde acá. No se tocó
+ningún otro panel ni listener existente. Con esto queda cerrado el
+plan de mejoras acordado (alerta de vencidas + próximas sesiones +
+resumen financiero); accesos directos del nav (punto 4) se revisó y
+no requirió cambios — nav.js v1.3 ya está completo.
+
+### v2.5
+se agregan 2 mejoras al dashboard, ambas sin queries nuevas
+a Firestore: (1) banner de alerta "⚠️ N entregas vencidas" arriba de
+todo (visible sin scroll en mobile), calculado sobre `proyectos`
+(mismo campo `estado` que ya usan `.badge`/`.dot`). (2) panel nuevo
+"PRÓXIMAS SESIONES", ancho completo debajo del calendario/proyectos
+(se apila en mobile con el `.layout` responsive existente), tomando
+las próximas 5 sesiones de `sesionesCal` (ya cargado para el
+calendario, sin query nueva). No se tocó `renderCalendario()`,
+`eventosPorFecha()`, `renderListaProyectos()` ni el Resumen Comercial.
+Pendiente (acordado, no implementado aún): panel de Resumen
+Financiero (pagos/egresos, requiere 2 listeners nuevos y verificar
+índices de `collectionGroup('pagos')`) y revisión de accesos directos
+en `nav.js`.
+
+### v2.4
 se agrega `<script src="utils.js">` y se quita la copia
 local de escapeHtml() — misma función, mismo resultado, ahora
-centralizada (mismo patrón que proyecto.html/bitacora.html/etc). No
-se tocó nada más. Ver el comentario de cabecera del archivo para el
-historial de versiones anteriores (aún no migrado a este changelog).
+centralizada (mismo patrón que proyecto.html/bitacora.html/
+logistica.html/ingeniero.html). No se tocó renderListaProyectos(),
+mostrarDia() ni ninguna otra lógica del dashboard. (Nota: esta
+entrada reemplaza a la que decía "v1.10" — quedó registrada acá antes
+de aplicarse al archivo real, con una numeración que no correspondía
+a la línea de versiones vigente del archivo, v2.x. Este cambio es el
+mismo, ya aplicado, con el número correcto.) Ver el comentario de
+cabecera del archivo para el historial de versiones anteriores (aún
+no migrado a este changelog).
 
 ---
 

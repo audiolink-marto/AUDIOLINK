@@ -1,4 +1,11 @@
-/* AUDIOLINK · nav.js · v1.2
+/* AUDIOLINK · nav.js · v1.3
+   V1.3: se agregan los ítems "Egresos" (egresos.html) y "Equipo Técnico"
+   (equipo-tecnico.html) a ITEMS, después de "Pagos" — mismo criterio que
+   V1.2 (páginas nuevas del ecosistema que aún no estaban en el menú).
+   Ambos se suman también a idsFueraBottomnav para no saturar la barra
+   inferior móvil (quedan accesibles por sidebar desktop y panel "···"
+   móvil). No se tocó ninguna otra función, ítem existente ni la lógica
+   de inyección/colapsar/tema.
    V1.2: se agregan los ítems "Estudios" (estudios.html) y "Músicos"
    (musicos.html) a ITEMS, entre Clientes y Logística — mismos catálogos
    maestros que antes vivían como modales dentro de proyecto.html (ver
@@ -55,6 +62,8 @@
     { id:'musicos',   href:'musicos.html',   icon:'🎻', label:'Músicos'    },
     { id:'logistica', href:'logistica.html', icon:'🎚️', label:'Logística' },
     { id:'pagos',     href:'pagos.html',     icon:'💳', label:'Pagos'      },
+    { id:'egresos',   href:'egresos.html',   icon:'📤', label:'Egresos'    },
+    { id:'equipo-tecnico', href:'equipo-tecnico.html', icon:'🛠️', label:'Equipo Técnico' },
     { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador'  }
   ];
 
@@ -63,7 +72,7 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos'];
+  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos', 'egresos', 'equipo-tecnico'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
 

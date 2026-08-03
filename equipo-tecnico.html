@@ -4,7 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Equipo Técnico</title>
-<!-- AUDIOLINK · equipo-tecnico.html · v1.2
+<!-- AUDIOLINK · equipo-tecnico.html · v1.4
+     v1.4: "Total pagado" (v1.3) pasa de carga única (.get()) a tiempo
+     real (.onSnapshot()) — mismo motivo que musicos.html v1.8: se usa
+     para informes, necesita reflejar el estado exacto al momento de
+     generarlos. Solo lectura, no se tocó el CRUD de técnicos.
+     v1.3
+     v1.3: se agrega "Total pagado" — lectura de la colección egresos
+     (egresos.html v1.3), filtrada por personaTipo=='tecnico' y agrupada
+     por personaId. Se carga una sola vez al iniciar (no en tiempo real,
+     es solo dato de contexto) y se muestra en cada tarjeta y en el panel
+     de edición (solo lectura, no editable desde acá — el registro de
+     pagos sigue viviendo únicamente en egresos.html). No se tocó ninguna
+     otra lógica del CRUD de técnicos.
+     v1.2
      v1.2: se aumenta un poco el tamaño en mobile de botones/campos de
      formulario (.btn/.btn-ghost, .field input/select/textarea, .field
      label) para mejorar legibilidad y área táctil — no toca botones
@@ -256,6 +269,10 @@ window.NAV_CONFIG = { activo: 'equipo-tecnico' };
         <input type="checkbox" id="fActivo" checked>
         <label for="fActivo">Activo (aparece en el catálogo del Cotizador)</label>
       </div>
+      <div class="field" id="campoTotalPagadoTec" style="display:none;">
+        <label>Total pagado (histórico, ver egresos.html)</label>
+        <div style="font-family:var(--M);font-size:1rem;color:var(--gold);padding:4px 0;" id="valorTotalPagadoTec">—</div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cerrarPanel()">Cancelar</button>
@@ -273,6 +290,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 const equipoTecnicoRef = db.collection('equipoTecnico');
+const egresosRefTec = db.collection('egresos'); // v1.3: solo lectura, para "Total pagado"
 
 // ============ GUARD DE SESIÓN (mismo patrón que logistica.html/cotizador.html) ============
 auth.onAuthStateChanged(async (user) => {
@@ -301,8 +319,18 @@ auth.onAuthStateChanged(async (user) => {
 let tecnicos = [];
 let tecnicoActualId = null;
 let unsubscribeTecnicos = null;
+let totalesPagadosTec = {}; // v1.3: { personaId: totalAcumulado } desde egresos
 
 function initEquipoTecnico(){
+  egresosRefTec.where('personaTipo', '==', 'tecnico').onSnapshot(snap => {
+      totalesPagadosTec = {};
+      snap.forEach(d => {
+        const eg = d.data();
+        totalesPagadosTec[eg.personaId] = (totalesPagadosTec[eg.personaId] || 0) + (eg.monto || 0);
+      });
+      renderTecnicos();
+    }, err => console.error('Error escuchando totales de egresos:', err));
+
   unsubscribeTecnicos = equipoTecnicoRef.orderBy('nombre').onSnapshot(snap => {
     tecnicos = [];
     snap.forEach(d => tecnicos.push({ id: d.id, ...d.data() }));
@@ -329,6 +357,7 @@ function renderTecnicos(){
       </div>
       <div class="meta">${t.rol || 'Sin rol asignado'}</div>
       <div class="tarifa">${typeof formatCOP === 'function' ? formatCOP(t.tarifa || 0) : (t.tarifa || 0)}</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:6px;">Total pagado: ${typeof formatCOP === 'function' ? formatCOP(totalesPagadosTec[t.id] || 0) : (totalesPagadosTec[t.id] || 0)}</div>
     </div>
   `).join('');
 }
@@ -342,6 +371,7 @@ function abrirPanelNuevo(){
   document.getElementById('fTarifa').value = '';
   document.getElementById('fActivo').checked = true;
   document.getElementById('btnEliminar').style.display = 'none';
+  document.getElementById('campoTotalPagadoTec').style.display = 'none';
   mostrarPanel();
 }
 
@@ -355,6 +385,8 @@ function abrirPanelEditar(id){
   document.getElementById('fTarifa').value = t.tarifa || '';
   document.getElementById('fActivo').checked = t.activo !== false;
   document.getElementById('btnEliminar').style.display = 'inline-block';
+  document.getElementById('campoTotalPagadoTec').style.display = 'block';
+  document.getElementById('valorTotalPagadoTec').textContent = typeof formatCOP === 'function' ? formatCOP(totalesPagadosTec[id] || 0) : (totalesPagadosTec[id] || 0);
   mostrarPanel();
 }
 

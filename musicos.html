@@ -4,7 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Músicos</title>
-<!-- AUDIOLINK · musicos.html · v1.5
+<!-- AUDIOLINK · musicos.html · v1.8
+     v1.8: "Total pagado" (v1.7) pasa de carga única (.get()) a tiempo
+     real (.onSnapshot()) — a pedido explícito de AUDIOLINK: este dato se
+     usa para informes, así que debe reflejar el estado exacto al
+     momento de generarlos, no un snapshot de cuando se abrió la página.
+     Sigue siendo solo lectura, no se tocó el CRUD de músicos.
+     v1.7
+     v1.7: se agrega "Total pagado" — lectura de la colección egresos
+     (egresos.html v1.3), filtrada por personaTipo=='musico' y agrupada
+     por personaId. Se carga una sola vez al iniciar sesión (no en tiempo
+     real, es solo dato de contexto) y se muestra en cada fila de la
+     lista y en el panel de edición (solo lectura — el registro de pagos
+     sigue viviendo únicamente en egresos.html). No se tocó ninguna otra
+     lógica del CRUD de músicos, documentos ni Cloudinary.
+     v1.6
+     v1.6: se agrega el campo opcional "Tarifa de referencia" (COP) al
+     músico — NO es la tarifa de cálculo del cotizador (esa sigue viviendo
+     por sesión/instrumento en musicosDesdeSesionesCache, intacta). Es un
+     valor de referencia aparte, pensado para que egresos.html sugiera un
+     monto de partida al registrar un pago (editable, ignorable). Se
+     guarda como tarifaReferencia en el doc de musicos. No se tocó
+     Cloudinary, documentos adjuntos, lightbox ni ninguna otra lógica.
      v1.5: se aumenta un poco el tamaño en mobile de botones/campos de
      formulario (.btn/.btn-ghost, .field input/select/textarea, .field
      label) para mejorar legibilidad y área táctil — no toca botones
@@ -558,6 +579,16 @@ window.NAV_CONFIG = {
         <input type="text" id="musicoTelefono" placeholder="Ej. 3001234567">
       </div>
     </div>
+    <div class="row2">
+      <div class="field">
+        <label>Tarifa de referencia (COP)</label>
+        <input type="number" id="musicoTarifaReferencia" min="0" placeholder="Ej. 150000">
+      </div>
+    </div>
+    <div class="field" id="musicoCampoTotalPagado" style="display:none;">
+      <label>Total pagado (histórico, ver egresos.html)</label>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:1rem;color:var(--gold,#c9a24b);padding:4px 0;" id="musicoValorTotalPagado">—</div>
+    </div>
     <div id="musicoErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
     <div class="row2" style="margin-top:6px;">
       <button class="btn" onclick="guardarMusico()">💾 Guardar músico</button>
@@ -594,6 +625,7 @@ function escJsHtml(str){
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+let totalesPagadosMus = {}; // v1.7: { personaId: totalAcumulado } desde egresos, solo lectura
 
 // ============ GUARD DE SESIÓN ============
 auth.onAuthStateChanged(async (user) => {
@@ -636,6 +668,14 @@ function iniciarMusicos(){
   document.getElementById('musicoErr').textContent = '';
   cancelarEdicionMusico();
   cargarListaMusicos();
+  db.collection('egresos').where('personaTipo', '==', 'musico').onSnapshot(snap => {
+      totalesPagadosMus = {};
+      snap.forEach(d => {
+        const eg = d.data();
+        totalesPagadosMus[eg.personaId] = (totalesPagadosMus[eg.personaId] || 0) + (eg.monto || 0);
+      });
+      cargarListaMusicos(); // re-render con los totales actualizados
+    }, err => console.error('Error escuchando totales de egresos:', err));
 }
 
 // v1.4: limpia los campos del formulario (se usa al abrir "Nuevo músico"
@@ -647,6 +687,7 @@ function cancelarEdicionMusico(){
   document.getElementById('musicoInstrumento').value = '';
   document.getElementById('musicoCorreo').value = '';
   document.getElementById('musicoTelefono').value = '';
+  document.getElementById('musicoTarifaReferencia').value = '';
   document.getElementById('musicoErr').textContent = '';
 }
 
@@ -655,6 +696,7 @@ function cancelarEdicionMusico(){
 function abrirPanelMusicoNuevo(){
   cancelarEdicionMusico();
   document.getElementById('musicoPanelTitulo').textContent = 'Nuevo músico';
+  document.getElementById('musicoCampoTotalPagado').style.display = 'none';
   mostrarPanelMusico();
 }
 
@@ -711,6 +753,7 @@ async function cargarListaMusicos(){
             <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">
               ${escapeHtml(m.instrumento||'')} · CC ${escapeHtml(m.cedula||'')} ${m.telefono ? ' · '+escapeHtml(m.telefono) : ''}
             </div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">Total pagado: ${typeof formatCOP === 'function' ? formatCOP(totalesPagadosMus[d.id] || 0) : (totalesPagadosMus[d.id] || 0)}</div>
           </div>
           <div style="display:flex;gap:10px;flex-shrink:0;">
             <span style="cursor:pointer;font-size:0.9rem;" onclick="window._musEditar('${d.id}')" title="Editar">✎</span>
@@ -747,6 +790,7 @@ async function guardarMusico(){
     instrumento: document.getElementById('musicoInstrumento').value.trim(),
     correo: document.getElementById('musicoCorreo').value.trim(),
     telefono: document.getElementById('musicoTelefono').value.trim(),
+    tarifaReferencia: Number(document.getElementById('musicoTarifaReferencia').value) || 0,
     activo: true
   };
   const editId = document.getElementById('musicoEditId').value;
@@ -776,6 +820,9 @@ window._musEditar = async function(id){
     document.getElementById('musicoInstrumento').value = m.instrumento || '';
     document.getElementById('musicoCorreo').value = m.correo || '';
     document.getElementById('musicoTelefono').value = m.telefono || '';
+    document.getElementById('musicoTarifaReferencia').value = m.tarifaReferencia || '';
+    document.getElementById('musicoCampoTotalPagado').style.display = 'block';
+    document.getElementById('musicoValorTotalPagado').textContent = typeof formatCOP === 'function' ? formatCOP(totalesPagadosMus[id] || 0) : (totalesPagadosMus[id] || 0);
     document.getElementById('musicoPanelTitulo').textContent = 'Editar músico';
     mostrarPanelMusico();
   } catch(err){

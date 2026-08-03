@@ -4,7 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.3
+<!-- AUDIOLINK · index.html · v2.6
+     V2.6: se agrega el panel "RESUMEN FINANCIERO · ESTE MES" (Ingresos/
+     Egresos/Balance), debajo de Próximas Sesiones y arriba de Resumen
+     Comercial. Dos listeners nuevos: collectionGroup('pagos') (sin
+     .where(), igual patrón que sesionesCal) y collection('egresos') —
+     el filtro de "mes actual" se hace en el cliente (mismo criterio que
+     egresos.html), para no depender de un índice compuesto nuevo en
+     Firestore. Balance = ingresos - egresos, en verde/rojo según signo.
+     Enlaza a pagos.html/egresos.html. Solo lectura, no gestiona nada
+     desde acá. No se tocó ningún otro panel, listener ni función.
+     V2.5: se agregan 2 mejoras al dashboard, ambas SIN queries nuevas a
+     Firestore (reutilizan datos ya cargados en memoria): (1) banner
+     "⚠️ N entregas vencidas" arriba de todo, visible sin scroll en
+     mobile, calculado sobre `proyectos` (mismo campo `estado` que ya
+     usan .badge/.dot). (2) panel nuevo "PRÓXIMAS SESIONES", ancho
+     completo debajo del calendario/proyectos (se apila solo en mobile,
+     mismo .layout responsive de siempre), listando las próximas 5
+     sesiones desde hoy tomadas de `sesionesCal` (ya cargado para pintar
+     el calendario), enlazando a logistica.html?id=X. No se tocó
+     renderCalendario(), eventosPorFecha(), renderListaProyectos() ni el
+     Resumen Comercial.
+     V2.4: se agrega <script src="utils.js"> y se quita la copia local de
+     escapeHtml() — misma función, mismo resultado, ahora centralizada
+     (mismo patrón que proyecto.html/bitacora.html/logistica.html/
+     ingeniero.html). No se tocó renderListaProyectos(), mostrarDia() ni
+     ninguna otra lógica. Ver CHANGELOG.md para el detalle.
      V2.3: el detalle del día (mostrarDia) ahora muestra la palabra de
      estado de la entrega (Al día/Por confirmar/Vencido) junto a "entrega
      estimada", usando el mismo diccionario ESTADO_CAL_LABEL que alimenta
@@ -73,6 +98,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="utils.js"></script>
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -197,6 +223,25 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .badge.err{background:rgba(212,87,74,0.15);color:var(--err);}
 .empty{text-align:center;padding:30px 10px;color:var(--faint);font-size:0.85rem;}
 
+/* Alerta entregas vencidas (v2.5) */
+.alerta-vencidas{
+  display:none;align-items:center;gap:10px;
+  background:rgba(212,87,74,0.12);border:1px solid var(--err);border-radius:10px;
+  padding:12px 16px;margin-bottom:20px;cursor:pointer;font-size:0.88rem;color:var(--err);
+}
+.alerta-vencidas .num{font-weight:700;font-size:1rem;}
+
+/* Próximas sesiones (v2.5) */
+.sesion-item{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:12px 14px;border-radius:8px;background:var(--surf-light);
+  margin-bottom:8px;cursor:pointer;transition:all 0.2s;border:1px solid transparent;
+}
+.sesion-item:hover{border-color:var(--gold);}
+.sesion-item .nombre{font-size:0.9rem;font-weight:500;}
+.sesion-item .sub{font-size:0.75rem;color:var(--muted);margin-top:2px;}
+.sesion-item .fecha{font-size:0.75rem;color:var(--gold);white-space:nowrap;}
+
 /* Resumen comercial (v1.3) */
 .resumen-grid{display:flex;flex-direction:column;gap:10px;}
 .resumen-card{
@@ -207,6 +252,8 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .resumen-card:hover{border-color:var(--gold);}
 .resumen-card .label{font-size:0.85rem;color:var(--txt);}
 .resumen-card .num{font-size:1.3rem;font-weight:700;color:var(--gold);}
+.resumen-card .num.err{color:var(--err);}
+.resumen-card .num.ok{color:var(--ok);}
 </style>
 </head>
 <body>
@@ -234,6 +281,9 @@ window.NAV_CONFIG = { activo: 'dashboard' };
 <header style="display:none;"></header>
 
 <main>
+  <div class="alerta-vencidas" id="alertaVencidas" onclick="window.location.href='proyecto.html'">
+    ⚠️ <span id="textoVencidas"></span>
+  </div>
   <div class="layout">
 
     <div class="panel">
@@ -263,6 +313,30 @@ window.NAV_CONFIG = { activo: 'dashboard' };
       <div class="empty" id="emptyProyectos" style="display:none;">No hay proyectos aún.</div>
     </div>
 
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <h2>PRÓXIMAS SESIONES</h2>
+    <div id="listaProximasSesiones"></div>
+    <div class="empty" id="emptyProximasSesiones" style="display:none;">No hay sesiones próximas.</div>
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <h2>RESUMEN FINANCIERO · ESTE MES</h2>
+    <div class="resumen-grid">
+      <div class="resumen-card" onclick="window.location.href='pagos.html'">
+        <span class="label">💳 Ingresos (abonos)</span>
+        <span class="num ok" id="numIngresosMes">—</span>
+      </div>
+      <div class="resumen-card" onclick="window.location.href='egresos.html'">
+        <span class="label">📤 Egresos</span>
+        <span class="num err" id="numEgresosMes">—</span>
+      </div>
+      <div class="resumen-card" style="cursor:default;">
+        <span class="label">⚖️ Balance del mes</span>
+        <span class="num" id="numBalanceMes">—</span>
+      </div>
+    </div>
   </div>
 
   <div class="panel" style="margin-top:24px;">
@@ -331,7 +405,26 @@ proyectosRef.orderBy('creadoEn', 'desc').onSnapshot(snap => {
   snap.forEach(doc => proyectos.push({ id: doc.id, ...doc.data() }));
   renderListaProyectos();
   renderCalendario();
+  actualizarAlertaVencidas();
+  renderProximasSesiones();
 }, err => console.error("Error cargando proyectos:", err));
+
+// ============ ALERTA ENTREGAS VENCIDAS (v2.5) ============
+// Reutiliza `estado` de cada proyecto (ya calculado en otro lado del
+// ecosistema, mismo criterio que .badge/.dot). No agrega queries nuevas.
+function actualizarAlertaVencidas(){
+  const banner = document.getElementById('alertaVencidas');
+  const vencidas = proyectos.filter(p => p.estado === 'err').length;
+  if(vencidas === 0){
+    banner.style.display = 'none';
+    return;
+  }
+  document.getElementById('textoVencidas').textContent =
+    vencidas === 1
+      ? '1 entrega vencida — revisa el estado de tus proyectos'
+      : `${vencidas} entregas vencidas — revisa el estado de tus proyectos`;
+  banner.style.display = 'flex';
+}
 
 db.collectionGroup('sesiones').onSnapshot(snap => {
   sesionesCal = [];
@@ -340,13 +433,47 @@ db.collectionGroup('sesiones').onSnapshot(snap => {
     sesionesCal.push({ id: doc.id, proyectoId, ...doc.data() });
   });
   renderCalendario();
+  renderProximasSesiones();
 }, err => console.error('Error cargando sesiones para el calendario:', err));
 
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
+// ============ PRÓXIMAS SESIONES (v2.5) ============
+// Reutiliza `sesionesCal` (ya cargado para el calendario, sin query
+// nueva). Muestra las próximas 5 sesiones desde hoy, ordenadas por
+// fecha. No se tocó renderCalendario() ni eventosPorFecha().
+function renderProximasSesiones(){
+  const cont = document.getElementById('listaProximasSesiones');
+  const empty = document.getElementById('emptyProximasSesiones');
+  const hoyStr = new Date().toISOString().split('T')[0];
+
+  const proximas = sesionesCal
+    .filter(s => s.fecha && s.fecha.split('T')[0] >= hoyStr)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    .slice(0, 5);
+
+  if(proximas.length === 0){
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  cont.innerHTML = proximas.map(s => {
+    const proy = proyectos.find(p => p.id === s.proyectoId);
+    const nombreProy = proy ? proy.nombre : 'Proyecto';
+    const [y, m, d] = s.fecha.split('T')[0].split('-');
+    const fechaLegible = new Date(y, m - 1, d).toLocaleDateString('es-CO', { day:'numeric', month:'short' });
+    return `
+      <div class="sesion-item" onclick="irASesion('${s.proyectoId}')">
+        <div>
+          <div class="nombre">🎚️ ${escapeHtml(nombreProy)} — ${escapeHtml(s.actividad || 'Sesión')}</div>
+          <div class="sub">${escapeHtml(s.sala || '—')}</div>
+        </div>
+        <span class="fecha">${fechaLegible}</span>
+      </div>`;
+  }).join('');
 }
+
+// escapeHtml() ahora vive en utils.js (compartida por todo el ecosistema).
 
 // ============ LISTA PROYECTOS ============
 function renderListaProyectos(){
@@ -520,6 +647,55 @@ renderListaProyectos = function(){
   _origRenderListaProyectos();
   actualizarResumenComercial();
 };
+
+// ============ RESUMEN FINANCIERO (v2.6) ============
+// Reutiliza el mismo criterio de "mes actual" que egresos.html (filtro
+// de fecha por prefijo YYYY-MM). Sin .where() en Firestore (igual que
+// sesionesCal) para no depender de un índice compuesto nuevo — el
+// filtro de mes se hace acá, en el cliente. Solo lectura, no gestiona
+// pagos ni egresos desde acá.
+let pagosMesCache = [];
+let egresosMesCache = [];
+
+function mesActualStr(){
+  const hoy = new Date();
+  return `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+}
+
+function actualizarResumenFinanciero(){
+  const anioMes = mesActualStr();
+  const totalIngresos = pagosMesCache
+    .filter(p => (p.fecha || '').startsWith(anioMes))
+    .reduce((acc, p) => acc + (p.monto || 0), 0);
+  const totalEgresos = egresosMesCache
+    .filter(e => (e.fecha || '').startsWith(anioMes))
+    .reduce((acc, e) => acc + (e.monto || 0), 0);
+  const balance = totalIngresos - totalEgresos;
+
+  document.getElementById('numIngresosMes').textContent = formatCOP(totalIngresos);
+  document.getElementById('numEgresosMes').textContent = formatCOP(totalEgresos);
+  const balEl = document.getElementById('numBalanceMes');
+  balEl.textContent = formatCOP(balance);
+  balEl.className = 'num ' + (balance >= 0 ? 'ok' : 'err');
+}
+
+db.collectionGroup('pagos').onSnapshot(snap => {
+  pagosMesCache = [];
+  snap.forEach(doc => pagosMesCache.push(doc.data()));
+  actualizarResumenFinanciero();
+}, err => {
+  console.error('Error cargando pagos para el resumen financiero:', err);
+  document.getElementById('numIngresosMes').textContent = '—';
+});
+
+db.collection('egresos').onSnapshot(snap => {
+  egresosMesCache = [];
+  snap.forEach(doc => egresosMesCache.push(doc.data()));
+  actualizarResumenFinanciero();
+}, err => {
+  console.error('Error cargando egresos para el resumen financiero:', err);
+  document.getElementById('numEgresosMes').textContent = '—';
+});
 </script>
 
 </body>

@@ -4,7 +4,169 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.13
+<!-- AUDIOLINK · proyecto.html · v5.23
+     v5.23: "Egresos del proyecto" y "Margen real" (v5.21/v5.22) pasan de
+     carga única (.get()) a tiempo real (.onSnapshot()) — mismo motivo
+     que musicos.html v1.8 / equipo-tecnico.html v1.4: estos números se
+     usan para informes/decisiones, deben reflejar el estado exacto al
+     momento de consultarlos. Se agrega desuscribirEgresosProyecto() y se
+     llama al cambiar de proyecto o volver al listado, mismo patrón que
+     ya existía para suscribirDashboardDetalle/desuscribirDashboardDetalle
+     — para no dejar listeners de proyectos anteriores corriendo de
+     fondo. No se tocó ninguna otra lógica financiera.
+     v5.22
+     v5.22: se agrega "Margen real" al detalle — cobrado (resumenPagos,
+     ya existente) MENOS egresos del proyecto (resumenEgresosProyecto,
+     v5.21). Distinto del "Margen estimado" que ya existía en el PDF
+     interno (cotizado - presupuesto interno, una proyección antes de
+     que pase nada): este es el margen REAL con plata que ya entró y ya
+     salió. Solo se muestra si hay cotización aceptada Y al menos un
+     egreso registrado — si falta cualquiera de los dos, el número no
+     dice nada útil y no se muestra. No se tocó el cálculo de "Margen
+     estimado" del PDF interno ni ninguna otra lógica financiera; ambos
+     números conviven a propósito, no se reemplazan entre sí.
+     v5.21
+     v5.21: se agrega la tarjeta "Egresos del proyecto" en el detalle
+     (renderDetalleContent), junto al resumen financiero de Pagos ya
+     existente. Lee la colección raíz `egresos` (egresos.html v1.0+)
+     filtrada por proyectoId == proyecto abierto — carga UNA sola vez al
+     abrir el detalle (cargarEgresosProyecto), no en tiempo real y no
+     para todos los proyectos del listado a la vez (mismo criterio de
+     costo/beneficio que "Total pagado" en musicos.html/
+     equipo-tecnico.html). Muestra total + desglose por tipo (🎻 músicos/
+     🎚️ técnicos/🏢 salas) y un botón que enlaza a egresos.html. No se
+     tocó el resumen financiero de Pagos/cotizaciones, ni ningún otro
+     bloque del dashboard.
+     v5.20
+     v5.20 (a pedido de AUDIOLINK — "flujo visual: quita duplicados,
+     pero me gusta la barra y los números juntos"): resuelve las 3
+     duplicaciones detectadas tras el reordenamiento de v5.19:
+     (1) Equipo: se quita el <div class="equipo-list"> de solo lectura
+         que quedaba al final de renderDetalleContent() — era 100%
+         redundante con renderDashEquipo() (v5.11), que además permite
+         agregar/quitar. La regla CSS .equipo-list se deja sin usar por
+         si se reutiliza después, no se borró.
+     (2) Financiero: renderRutaEtapa(p) Y la dash-financiera-bar se
+         sacan de renderDashboardProyecto() (donde quedaban enterradas
+         entre narrativa/pago rápido y el resto del dashboard operativo
+         tras v5.19) y se mueven junto a resumenHtml, arriba, PEGADAS
+         una a la otra dentro del mismo bloque — a pedido explícito, la
+         barra y los números de Cotizado/Cobrado/Saldo quedan juntos,
+         no se quitó ninguna de las dos vistas.
+     (3) Etapa: renderRutaEtapa(p) (la ruta visual de etapas) se movió
+         justo debajo del chip "Etapa: X" en detalle-meta — mismo
+         criterio que (2), ambas vistas se quedan pero ahora están
+         adyacentes en vez de a dos scrolls de distancia.
+     renderDashboardProyecto(p) ya no recibe ni usa `r`/pctFinanciero
+     (se limpiaron esas variables, quedaban muertas tras sacar la barra
+     de ahí). Ningún cálculo cambió, solo la ubicación del HTML.
+
+     v5.19 (a pedido de AUDIOLINK — "las chips informativas, el
+     contexto y el resumen económico con pago rápido deberían ir
+     arriba"): reordenado renderDetalleContent() — sube el bloque de
+     identidad (chips .detalle-meta: Cliente/Artista, Prod. Ejecutivo,
+     Etapa, Comercial, Entrega est.) + narrativa (contexto) + resumen
+     financiero (Cotizado/Cobrado/Saldo) + pago rápido, todo ANTES de
+     renderDashboardProyecto(p) (cards operativas, temas, equipo,
+     instrumentación, producción, alertas, calendario). Antes iba:
+     dashboard operativo → resumen/pago rápido → chips → narrativa.
+     Ahora: identidad/chips → narrativa → resumen/pago rápido →
+     dashboard operativo. Solo reordenamiento — ninguna función ni
+     cálculo se tocó. Nota: interpreté "chips informativas" como el
+     bloque .detalle-meta (Cliente/Artista, Etapa, etc.) — si te
+     referías a las dash-cards (Sesiones/Instrumentación/Producción),
+     avísame y las subo también.
+
+     v5.18 (a pedido de AUDIOLINK — "el calendario está muy grande e
+     invasivo, déjalo al final"): renderMiniCalendario(p) se mueve del
+     tercer lugar (justo después de las dash-cards) al último lugar del
+     dashboard, después de renderDashAlertas(). Solo se reordenó esa
+     línea — ninguna función, estilo ni dato se tocó. La línea de
+     "Próxima sesión" queda ahora justo después de las cards (antes iba
+     pegada al calendario), sigue siendo el mismo resumen de una línea.
+
+     v5.17 (a pedido de AUDIOLINK — "margen en vez de descuadre"): en el
+     bloque "Resumen financiero" del informe interno, se agrega Margen
+     estimado = cotizado - presupuesto interno (+ %), solo cuando hay
+     presupuesto interno cargado Y cotización aceptada. A propósito NO
+     es una alerta de "descuadre" — presupuesto (costo interno) y
+     cotizado (precio al cliente) no deberían coincidir por diseño, así
+     que se muestra como margen/rentabilidad, no como error. Cambio
+     acotado a esas ~6 líneas del bloque financiero, sin tocar el resto
+     del informe interno ni el modo cliente.
+
+     v5.16 (a pedido de AUDIOLINK — "corrige el crédito, falta el
+     estudio, y haz el informe interno lo más completo posible"):
+     (1) Crédito del footer corregido a "Marto 🧠 · martowave@gmail.com"
+         — mismo texto/emoji exacto que .sb-credit en nav.js. Antes
+         decía "Diseñado por Marto · martowave@gmail.com", sin emoji.
+     (2) Cronograma de sesiones (ambos modos) ahora muestra
+         estudioNombre + sala, no solo sala — antes solo se leía
+         s.sala, que en logistica.html es el nombre de la SALA dentro
+         de un estudio (estudioNombre es el campo separado, agregado en
+         logistica.html v2.22). Sesiones viejas sin estudioId (sala en
+         texto libre) se siguen viendo igual, sin romper.
+     (3) Informe interno ampliado con dos bloques nuevos, exclusivos de
+         modo==='interno': "Resumen financiero" (cotizado/cobrado/saldo,
+         reutilizando resumenPagos ya calculado por
+         escucharPagosResumen — no se recalcula nada) y "Detalle
+         operativo de sesiones" (horario, estudio/sala, técnicos y
+         músicos asignados CON tarifa — mismos campos exactos que ya
+         guarda logistica.html en tecnicosAsignados/musicosAsignados,
+         sin inventar estructura nueva). Presupuesto y notas internas
+         siguen ahí, reordenados dentro del bloque financiero.
+     El modo cliente NO cambia en (3) — sigue sin tarifas ni resumen
+     financiero, solo temas + cronograma simple (fecha/actividad/lugar).
+
+     v5.15 (a pedido de AUDIOLINK — "añade mis créditos + lo que
+     propusiste para el resumen"): exportarPDF() suma tres cosas sobre
+     la migración HTML/CSS de v5.14, sin tocar el modelo de datos:
+     (1) Bloque "Temas" — nombre + estado de Edición/Mezcla/Mastering
+         por tema (ETIQUETA_ESTADO_TEMA), solo temas activos
+         (activo!==false), mismo orden que el dashboard. Sin notas
+         internas — esas siguen exclusivas de bitacora.html.
+     (2) Bloque "Cronograma de sesiones" — fecha + actividad/sala,
+         reutilizando sesionesDash ya cargado por el dashboard (mismo
+         criterio de filtro que useDashCalendario, sin listener nuevo).
+     (3) Crédito "Diseñado por Marto · martowave@gmail.com" en el
+         footer, mismo texto que ya usa nav.js en el pie del sidebar.
+     Ambos bloques (1) y (2) van en los DOS modos (cliente e interno) —
+     no es información sensible, mismo nivel de detalle que la ficha
+     que ya sale en ambos. El bloque confidencial (presupuesto/notas
+     internas) sigue exclusivo de modo interno, sin cambios.
+
+     v5.14 (a pedido de AUDIOLINK — "que se parezca al PDF del
+     cotizador"): exportarPDF(modo) migrado por completo de jsPDF (dibujo
+     manual con coordenadas x/y, sin salto de página — bug detectado en
+     esta misma sesión) a HTML/CSS + window.print(), MISMO modelo y
+     lenguaje visual que ya usa cotizador.html (.print-header,
+     .print-card, .print-meta-grid, dorado #C4982C, JetBrains Mono en
+     labels). Cambios:
+     (1) Nuevo bloque @media print en el <style> global: reutiliza los
+         mismos nombres de clase que cotizador.html a propósito, para
+         que ambos documentos —cotización y resumen de proyecto— salgan
+         visualmente consistentes. Oculta nav/sidebar/modales al
+         imprimir, deja visible solo #print-view.
+     (2) Nuevo <div id="print-view"> oculto dentro de #vistaDetalle,
+         donde exportarPDF() inyecta el HTML antes de llamar
+         window.print().
+     (3) exportarPDF(modo) reescrita: arma un string HTML (mismo
+         contenido que la versión jsPDF — ficha, equipo, narrativa,
+         bloque confidencial solo en modo interno) en vez de dibujar
+         con doc.text()/doc.rect(). El salto de página ya no es un
+         problema: lo maneja el navegador automáticamente vía @page.
+     (4) jsPDF ELIMINADO del todo: se quitó la etiqueta script que cargaba
+         cdnjs.cloudflare.com/.../jspdf.umd.min.js (no se usaba en
+         ningún otro lado del archivo, verificado antes de quitarlo).
+     (5) Cambio de comportamiento a tener en cuenta: antes el PDF se
+         abría listo en pestaña nueva (doc.output('bloburl')); ahora se
+         dispara el diálogo de impresión del navegador y hay que elegir
+         "Guardar como PDF" — mismo comportamiento que ya tiene
+         cotizador.html hoy.
+     No se agregó contenido nuevo en esta migración (temas, timeline de
+     sesiones, etc. quedan pendientes como mejora aparte, a propósito
+     para no mezclar cambio de arquitectura con cambio de contenido).
+
      v5.13 (a pedido de AUDIOLINK — "el conteo de temas debería excluir
      inactivos"): en renderDashTemas(), `cantReal` (usado en el aviso de
      descuadre contra cantTemas) ahora filtra activo!==false. Antes un
@@ -400,7 +562,6 @@
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script src="instrumentacion.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="nav.css">
@@ -876,7 +1037,57 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .dash-equipo-agregar{display:flex;gap:8px;flex-wrap:wrap;}
 .dash-equipo-agregar select,.dash-equipo-agregar input{flex:1;min-width:120px;}
 .dash-pago-rapido{display:flex;gap:8px;flex-wrap:wrap;}
-.dash-pago-rapido input,.dash-pago-rapido select{flex:1;min-width:110px;}
+/* ===== v5.14: PDF Cliente/Interno migrado a HTML/CSS + window.print() ===
+   Mismo lenguaje visual que cotizador.html (print-header, print-card,
+   etc.) para que los documentos que le llegan al cliente sean consistentes
+   entre sí. Reemplaza por completo el dibujo manual con jsPDF (coordenadas
+   x/y a mano, sin salto de página) — acá el navegador pagina solo. */
+@media print {
+  @page { size: letter; margin: 15mm 15mm 15mm 15mm; }
+  body { background:#FFFFFF !important; color:#000000 !important; font-family: var(--S); }
+  .waveform-bg, #nav-mount, .main-wrap > header,
+  #vistaListado, #modalBg, #modalEquipoBg,
+  .sidebar, .mobile-topbar, .mobile-bottomnav, .mas-mobile-panel { display:none !important; }
+  #vistaDetalle{ display:block !important; }
+  #vistaDetalle > *:not(#print-view){ display:none !important; }
+  #print-view{
+    display:block !important; color:#000000 !important; padding:0;
+    position:relative; min-height:100%;
+  }
+  .print-header{
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:3px solid #C4982C; padding-bottom:16px; margin-bottom:24px;
+  }
+  .print-title{ font-family: var(--T); font-size:26px; font-weight:bold; color:#111111; letter-spacing:-0.02em; }
+  .print-subtitle{ font-size:11px; color:#7A7060; font-family: var(--M); text-transform:uppercase; letter-spacing:0.15em; margin-top:2px; }
+  .print-meta-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+  .print-card{
+    background:#FAFAFA !important; border:1px solid #E5E5E5; border-radius:6px;
+    padding:14px; font-size:12.5px; line-height:1.6;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .print-card-title{
+    font-family: var(--M); font-size:10px; text-transform:uppercase;
+    color:#7A7060; letter-spacing:0.05em; margin-bottom:6px;
+  }
+  .print-section-title{
+    font-family: var(--M); font-size:11px; text-transform:uppercase;
+    color:#111111; letter-spacing:0.05em; font-weight:bold;
+    border-left:4px solid #C4982C; padding-left:10px; margin:22px 0 10px;
+  }
+  .print-equipo-item{ font-size:12.5px; margin-bottom:5px; }
+  .print-equipo-item b{ color:#7A7060; font-weight:600; }
+  .print-narrativa{ font-size:12px; line-height:1.6; color:#333333; white-space:pre-wrap; }
+  .print-confidencial{
+    background:#C4982C !important; color:#1a1400 !important; font-family: var(--M);
+    font-size:10px; text-transform:uppercase; letter-spacing:0.05em; font-weight:bold;
+    padding:8px 12px; border-radius:3px; margin:22px 0 14px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .print-footer-container{ margin-top:30px; border-top:2px solid #111111; padding-top:16px; }
+  .print-footer-grid{ display:flex; justify-content:space-between; font-size:10px; color:#555555; }
+}
+
 .dash-seccion-titulo-click{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
 .dash-seccion-caret{font-size:0.7rem;transition:transform 0.15s;color:var(--faint);}
 .dash-seccion-colapsable.colapsada .dash-seccion-caret{transform:rotate(-90deg);}
@@ -993,6 +1204,7 @@ window.NAV_CONFIG = {
   <div class="detalle" id="vistaDetalle">
     <span class="back-link" id="backLink" onclick="volverListado()">← Volver a proyectos</span>
     <div class="detalle-head" id="detalleContent"></div>
+    <div id="print-view" style="display:none;"></div>
     <div class="pdf-actions">
       <button class="btn" onclick="exportarPDF('cliente')">📄 PDF Cliente</button>
       <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
@@ -1260,6 +1472,37 @@ let editando = false;
 // Se llena por separado del listener de `proyectos` (misma lógica de
 // pagos.html: collectionGroup('cotizaciones') + subcolección pagos).
 let resumenPagos = {};
+
+// resumenEgresosProyecto: { total, porTipo:{musico,tecnico,estudio}, cantidad }
+// del proyecto actualmente abierto en el detalle. Se recalcula cada vez que
+// se abre un proyecto distinto (v5.21) — no es un mapa de todos los
+// proyectos, solo del que está activo, para no disparar N consultas.
+let resumenEgresosProyecto = null;
+let unsubscribeEgresosProyecto = null;
+
+function cargarEgresosProyecto(proyectoId){
+  desuscribirEgresosProyecto();
+  resumenEgresosProyecto = null;
+  unsubscribeEgresosProyecto = db.collection('egresos').where('proyectoId', '==', proyectoId)
+    .onSnapshot(snap => {
+      const r = { total: 0, porTipo: { musico: 0, tecnico: 0, estudio: 0 }, cantidad: 0 };
+      snap.forEach(d => {
+        const eg = d.data();
+        r.total += (eg.monto || 0);
+        r.porTipo[eg.personaTipo] = (r.porTipo[eg.personaTipo] || 0) + (eg.monto || 0);
+        r.cantidad += 1;
+      });
+      resumenEgresosProyecto = r;
+      if(proyectoActualId === proyectoId) renderDetalleContent();
+    }, err => console.error('Error escuchando egresos del proyecto:', err));
+}
+
+function desuscribirEgresosProyecto(){
+  if(unsubscribeEgresosProyecto){
+    unsubscribeEgresosProyecto();
+    unsubscribeEgresosProyecto = null;
+  }
+}
 
 // origenDetalle: si la URL trae ?from=pagos (ej. proyecto.html?id=X&from=pagos,
 // como ahora enlaza pagos.html), el botón "volver" del detalle regresa a
@@ -1753,24 +1996,20 @@ function renderDashboardProyecto(p){
     .sort((a,b) => a.fecha.localeCompare(b.fecha))[0];
 
   const instr = contarInstrumentacion(p.instrumentacion);
-  const r = resumenPagos[p.id];
-  const pctFinanciero = r && r.cotizado > 0 ? Math.min(100, Math.round((r.cobrado / r.cotizado) * 100)) : 0;
 
   return `
-    ${renderRutaEtapa(p)}
-    ${r ? `<div class="dash-financiera-bar"><div style="width:${pctFinanciero}%"></div></div>` : ''}
     <div class="dash-cards">
       <div class="dash-card"><span class="lbl">Sesiones</span><span class="val">${sesionesHechas} de ${totalSesiones}</span></div>
       <div class="dash-card"><span class="lbl">Instrumentación</span><span class="val">${instr.grupos} grupo(s)</span></div>
       <div class="dash-card"><span class="lbl">Producción</span><span class="val">${produccionDash.length} ítem(s)</span></div>
     </div>
-    ${renderMiniCalendario(p)}
     <div class="dash-proxima-sesion">${proximaSesion ? `Próxima sesión: ${new Date(proximaSesion.fecha + 'T00:00:00').toLocaleDateString('es-CO')} · ${escapeHtml(proximaSesion.actividad || '')}` : 'No hay sesiones próximas.'}</div>
     ${renderDashTemas(p)}
     ${renderDashEquipo(p)}
     ${renderDashInstrumentacion(p.instrumentacion, p.instrumentacionGrupos, p.etapaActual)}
     ${renderDashProduccionSesiones(p.etapaActual)}
     ${renderDashAlertas()}
+    ${renderMiniCalendario(p)}
   `;
 }
 /* ============ FIN DASHBOARD DE PROYECTO ============ */
@@ -2423,6 +2662,7 @@ function verDetalle(id){
   }
 
   if(cambioDeProyecto) suscribirDashboardDetalle(id);
+  if(cambioDeProyecto) cargarEgresosProyecto(id);
   renderDetalleContent();
 }
 
@@ -2438,21 +2678,51 @@ function renderDetalleContent(){
 
   const r = resumenPagos[proyectoActualId];
   const pagado = r && r.saldo <= 0;
+  const pctFinanciero = r && r.cotizado > 0 ? Math.min(100, Math.round((r.cobrado / r.cotizado) * 100)) : 0;
   const resumenHtml = r ? `
     <div class="resumen-financiero">
       <div class="monto-item"><span class="lbl">Cotizado</span><span class="val">${formatCOP(r.cotizado)}</span></div>
       <div class="monto-item"><span class="lbl">Cobrado</span><span class="val">${formatCOP(r.cobrado)}</span></div>
       <div class="monto-item saldo ${pagado ? 'pagado' : ''}"><span class="lbl">Saldo</span><span class="val">${formatCOP(r.saldo)}</span></div>
-    </div>` : '';
+    </div>
+    <div class="dash-financiera-bar"><div style="width:${pctFinanciero}%"></div></div>` : '';
   const pagoRapidoHtml = r ? renderPagoRapido() : '';
+
+  // v5.21: tarjeta "Egresos del proyecto" — total pagado a músicos/
+  // técnicos/salas para ESTE proyecto, leído de la colección egresos.
+  const etiquetasTipoEgr = { musico: '🎻 Músicos', tecnico: '🎚️ Técnicos', estudio: '🏢 Salas' };
+  let egresosHtml = '';
+  if(resumenEgresosProyecto){
+    const re = resumenEgresosProyecto;
+    const chipsEgr = Object.keys(re.porTipo)
+      .filter(t => re.porTipo[t] > 0)
+      .map(t => `<span class="chip">${etiquetasTipoEgr[t]}: ${formatCOP(re.porTipo[t])}</span>`)
+      .join('');
+    egresosHtml = `
+      <div class="resumen-financiero" style="margin-top:10px;">
+        <div class="monto-item"><span class="lbl">Egresos del proyecto</span><span class="val">${formatCOP(re.total)}</span></div>
+      </div>
+      <div class="detalle-meta" style="margin-top:6px;">${chipsEgr}
+        <a href="egresos.html" class="chip" style="text-decoration:none;">Ver detalle en Egresos →</a>
+      </div>`;
+    // v5.22: Margen real (cobrado - egresos) — solo si hay cotización
+    // aceptada (r existe) y al menos un egreso registrado. No confundir
+    // con "Margen estimado" del PDF interno (cotizado - presupuesto),
+    // que es una proyección antes de que pase nada; este es con plata
+    // que ya entró y ya salió.
+    if(r && re.total > 0){
+      const margenReal = r.cobrado - re.total;
+      egresosHtml += `
+      <div class="resumen-financiero" style="margin-top:6px;">
+        <div class="monto-item ${margenReal < 0 ? 'saldo' : ''}"><span class="lbl">Margen real (cobrado − egresos)</span><span class="val">${formatCOP(margenReal)}</span></div>
+      </div>`;
+    }
+  }
 
   document.getElementById('detalleContent').innerHTML = `
     <span class="tipo-tag">${p.tipo === 'propio' ? 'Proyecto propio' : escapeHtml(p.clienteArtista || 'Cliente')}</span>
     <h2>${escapeHtml(p.nombre)}</h2>
     <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
-    ${renderDashboardProyecto(p)}
-    ${resumenHtml}
-    ${pagoRapidoHtml}
     <div class="detalle-meta">
       <span class="chip">Cliente/Artista: ${escapeHtml(p.clienteArtista || '—')}</span>
       <span class="chip">Prod. Ejecutivo: ${escapeHtml(p.productorEjecutivo || '—')}</span>
@@ -2460,11 +2730,12 @@ function renderDetalleContent(){
       <span class="chip">Comercial: ${COMERCIAL_LABEL[p.estadoComercial] || 'Cotización'}</span>
       <span class="chip">Entrega est.: ${entrega}</span>
     </div>
+    ${renderRutaEtapa(p)}
     ${p.narrativa ? `<div class="narrativa-box">${escapeHtml(p.narrativa)}</div>` : ''}
-    ${p.equipo && p.equipo.length ? `
-      <div class="equipo-list">
-        ${p.equipo.map(e => `<span class="equipo-chip">${escapeHtml(e.rol)}: ${escapeHtml(e.nombre)}</span>`).join('')}
-      </div>` : ''}
+    ${resumenHtml}
+    ${egresosHtml}
+    ${pagoRapidoHtml}
+    ${renderDashboardProyecto(p)}
   `;
   pintarSelectEquipoDash();
   const fPago = document.getElementById('dashPagoFecha');
@@ -2480,6 +2751,8 @@ function volverListado(){
   document.getElementById('vistaDetalle').classList.remove('active');
   document.getElementById('vistaListado').style.display = 'block';
   proyectoActualId = null;
+  resumenEgresosProyecto = null;
+  desuscribirEgresosProyecto();
   desuscribirDashboardDetalle();
 }
 
@@ -2514,179 +2787,164 @@ function editarProyectoActual(){
 }
 
 // ============ EXPORTAR PDF ============
+// v5.14: exportarPDF migrado de jsPDF (dibujo manual x/y, sin salto de
+// página) a HTML/CSS + window.print(), mismo modelo que cotizador.html.
+// Paridad de contenido exacta con la versión jsPDF anterior: header,
+// ficha (cliente/artista, productor ejecutivo, etapa, entrega estimada,
+// estado comercial), equipo, narrativa, bloque confidencial (solo modo
+// 'interno': presupuesto + notas internas). No se agregó contenido nuevo
+// en esta migración — eso queda para después, a propósito.
 function exportarPDF(modo){
   const p = proyectos.find(x => x.id === proyectoActualId);
   if(!p) return;
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const goldRGB = [201, 162, 75];
-  const darkRGB = [11, 11, 13];
-  const surfRGB = [21, 21, 23];
-  const mutedRGB = [154, 151, 143];
-  const pageW = 210;
-  const marginX = 18;
+  const fecha = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
 
-  // ===== HEADER dark con marca =====
-  doc.setFillColor(...darkRGB);
-  doc.rect(0, 0, pageW, 38, 'F');
-  doc.setDrawColor(...goldRGB);
-  doc.setLineWidth(0.6);
-  doc.line(0, 38, pageW, 38);
+  let html = `
+    <div class="print-header">
+      <div>
+        <div class="print-title">AUDIOLINK</div>
+        <div class="print-subtitle">${modo === 'interno' ? 'Informe Interno · Confidencial' : 'Resumen de Proyecto'}</div>
+      </div>
+      <div style="font-family:var(--M);font-size:10px;color:#7A7060;">${fecha}</div>
+    </div>
 
-  doc.setTextColor(...goldRGB);
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(20);
-  doc.text('AUDIOLINK', marginX, 20);
-  doc.setFontSize(8.5);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(...mutedRGB);
-  doc.text(
-    modo === 'interno' ? 'INFORME INTERNO · CONFIDENCIAL' : 'RESUMEN DE PROYECTO',
-    marginX, 28
-  );
-  doc.setFontSize(8);
-  doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - marginX, 28, { align:'right' });
+    <div style="font-family:var(--T);font-size:19px;font-weight:bold;color:#111111;margin-bottom:2px;">${escapeHtml(p.nombre || 'Sin nombre')}</div>
+    <div style="font-family:var(--M);font-size:9.5px;color:#7A7060;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:20px;">
+      ${p.tipo === 'propio' ? 'Proyecto propio' : 'Cliente'} · Etapa: ${escapeHtml(ETAPAS_LABEL[p.etapaActual] || '—')}
+    </div>
 
-  // ===== TÍTULO PROYECTO =====
-  let y = 52;
-  doc.setTextColor(20, 20, 20);
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(17);
-  doc.text(p.nombre || 'Sin nombre', marginX, y);
+    <div class="print-meta-grid">
+      <div class="print-card">
+        <div class="print-card-title">Titular del Proyecto</div>
+        <strong>Cliente / Artista:</strong> ${escapeHtml(p.clienteArtista || '—')}<br>
+        <strong>Productor Ejecutivo:</strong> ${escapeHtml(p.productorEjecutivo || '—')}
+      </div>
+      <div class="print-card">
+        <div class="print-card-title">Estado del Proyecto</div>
+        <strong>Etapa actual:</strong> ${escapeHtml(ETAPAS_LABEL[p.etapaActual] || '—')}<br>
+        <strong>Entrega estimada:</strong> ${p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada).toLocaleDateString('es-CO') : '—'}<br>
+        <strong>Estado comercial:</strong> ${escapeHtml(COMERCIAL_LABEL[p.estadoComercial] || 'Cotización')}
+      </div>
+    </div>
+  `;
 
-  // tag tipo + badge estado
-  y += 7;
-  doc.setFontSize(8.5);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(...mutedRGB);
-  doc.text((p.tipo === 'propio' ? 'PROYECTO PROPIO' : 'CLIENTE') + '   ·   ETAPA: ' + (ETAPAS_LABEL[p.etapaActual] || '—').toUpperCase(), marginX, y);
-
-  y += 10;
-  doc.setDrawColor(230, 230, 230);
-  doc.setLineWidth(0.3);
-  doc.line(marginX, y, pageW - marginX, y);
-  y += 10;
-
-  // ===== FICHA DATOS (bloque con fondo suave) =====
-  const fichaAltura = 45;
-  doc.setFillColor(246, 244, 239);
-  doc.roundedRect(marginX, y - 6, pageW - marginX*2, fichaAltura, 2, 2, 'F');
-
-  const colIzqX = marginX + 6;
-  const colDerX = marginX + 98;
-  let yFicha = y + 2;
-
-  const campoFicha = (x, yy, label, val) => {
-    doc.setFontSize(7.5);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(...goldRGB.map ? goldRGB : goldRGB);
-    doc.setTextColor(140, 108, 40);
-    doc.text(label.toUpperCase(), x, yy);
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.setTextColor(30, 30, 30);
-    doc.text(String(val || '—'), x, yy + 5.5);
-  };
-
-  campoFicha(colIzqX, yFicha, 'Cliente / Artista', p.clienteArtista);
-  campoFicha(colDerX, yFicha, 'Productor Ejecutivo', p.productorEjecutivo);
-  yFicha += 13;
-  campoFicha(colIzqX, yFicha, 'Etapa actual', ETAPAS_LABEL[p.etapaActual]);
-  campoFicha(colDerX, yFicha, 'Entrega estimada', p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada).toLocaleDateString('es-CO') : '—');
-  yFicha += 13;
-  campoFicha(colIzqX, yFicha, 'Estado comercial', COMERCIAL_LABEL[p.estadoComercial] || 'Cotización');
-
-  y += fichaAltura + 20;
-
-  // ===== EQUIPO =====
   if(p.equipo && p.equipo.length){
-    doc.setFontSize(10.5);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(20, 20, 20);
-    doc.text('Equipo asignado', marginX, y);
-    y += 7;
-    doc.setFontSize(9.5);
-    doc.setFont(undefined, 'normal');
+    html += `<div class="print-section-title">Equipo asignado</div>`;
     p.equipo.forEach(e => {
-      doc.setTextColor(...goldRGB.map ? [140,108,40] : [140,108,40]);
-      doc.setFont(undefined, 'bold');
-      doc.text('•', marginX, y);
-      doc.setTextColor(50, 50, 50);
-      doc.text(`${e.rol}: `, marginX + 5, y);
-      doc.setFont(undefined, 'normal');
-      const rolWidth = doc.getTextWidth(`${e.rol}: `);
-      doc.text(e.nombre || '', marginX + 5 + rolWidth, y);
-      y += 6.5;
+      html += `<div class="print-equipo-item"><b>${escapeHtml(e.rol || '')}:</b> ${escapeHtml(e.nombre || '')}</div>`;
     });
-    y += 4;
   }
 
-  // ===== NARRATIVA =====
   if(p.narrativa){
-    doc.setFontSize(10.5);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(20, 20, 20);
-    doc.text('Contexto', marginX, y);
-    y += 3;
-    doc.setDrawColor(...goldRGB);
-    doc.setLineWidth(1.2);
-    doc.line(marginX, y, marginX, y + 1);
-    y += 6;
-    doc.setFontSize(9.5);
-    doc.setFont(undefined, 'normal');
-    doc.setTextColor(70, 70, 70);
-    const splitNarrativa = doc.splitTextToSize(p.narrativa, pageW - marginX*2 - 4);
-    doc.text(splitNarrativa, marginX + 4, y);
-    y += splitNarrativa.length * 5.5 + 6;
+    html += `
+      <div class="print-section-title">Contexto</div>
+      <div class="print-narrativa">${escapeHtml(p.narrativa)}</div>
+    `;
   }
 
-  // ===== BLOQUE CONFIDENCIAL (solo interno) =====
+  // v5.15 (a pedido de AUDIOLINK — "añade créditos + lo que propusiste
+  // para el resumen"): bloque de Temas (nombre + estado por etapa, sin
+  // notas internas de edición/mezcla/mastering) y timeline de sesiones
+  // (fecha + sala/actividad), en AMBOS modos — no es información
+  // sensible, mismo nivel de detalle que la ficha que ya sale en los
+  // dos. Van antes del bloque confidencial, que sigue exclusivo de
+  // 'interno'. Reutiliza temasDash/sesionesDash ya cargados por el
+  // dashboard — no abre listeners nuevos.
+  const temasActivos = temasDash.filter(t => t.activo !== false)
+    .sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity) || (a.nombre || '').localeCompare(b.nombre || ''));
+  if(temasActivos.length){
+    html += `<div class="print-section-title">Temas</div>`;
+    temasActivos.forEach(t => {
+      html += `
+        <div class="print-equipo-item" style="margin-bottom:9px;">
+          <b>${escapeHtml(t.nombre || 'Sin nombre')}</b><br>
+          <span style="font-size:11px;color:#555;">
+            Edición: ${ETIQUETA_ESTADO_TEMA[t.estadoEdicion] || 'Pendiente'} ·
+            Mezcla: ${ETIQUETA_ESTADO_TEMA[t.estadoMezcla] || 'Pendiente'} ·
+            Mastering: ${ETIQUETA_ESTADO_TEMA[t.estadoMastering] || 'Pendiente'}
+          </span>
+        </div>`;
+    });
+  }
+
+  const sesionesConFecha = sesionesDash.filter(s => s.fecha).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  if(sesionesConFecha.length){
+    html += `<div class="print-section-title">Cronograma de sesiones</div>`;
+    sesionesConFecha.forEach(s => {
+      const fechaTxt = new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
+      const lugar = [s.estudioNombre, s.sala].filter(Boolean).map(escapeHtml).join(' — ');
+      html += `<div class="print-equipo-item"><b>${fechaTxt}:</b> ${escapeHtml(s.actividad || 'Sesión')}${lugar ? ' · ' + lugar : ''}</div>`;
+    });
+  }
+
   if(modo === 'interno'){
-    y += 4;
-    doc.setFillColor(217, 164, 65);
-    doc.roundedRect(marginX, y - 6, pageW - marginX*2, 10, 1.5, 1.5, 'F');
-    doc.setTextColor(35, 27, 10);
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(9);
-    doc.text('⚠  INFORMACIÓN CONFIDENCIAL — SOLO USO INTERNO', marginX + 4, y);
-    y += 14;
+    html += `<div class="print-confidencial">⚠ Información confidencial — solo uso interno</div>`;
 
-    doc.setTextColor(30, 30, 30);
-    doc.setFontSize(9.5);
-    doc.setFont(undefined, 'bold');
-    doc.text('Presupuesto:', marginX, y);
-    doc.setFont(undefined, 'normal');
-    const presupuesto = (p.costos && p.costos.presupuesto) ? p.costos.presupuesto.toLocaleString('es-CO') : '0';
-    doc.text(`$${presupuesto}`, marginX + 32, y);
-    y += 8;
-
+    // --- Resumen financiero (reutiliza resumenPagos, ya calculado por
+    // escucharPagosResumen — no se recalcula nada acá) ---
+    const r = resumenPagos[proyectoActualId];
+    const presupuestoNum = (p.costos && p.costos.presupuesto) ? Number(p.costos.presupuesto) : 0;
+    html += `<div class="print-section-title" style="margin-top:0;">Resumen financiero</div>`;
+    html += `<div style="font-size:12px;margin-bottom:2px;"><strong>Presupuesto interno:</strong> ${formatCOP(presupuestoNum)}</div>`;
+    if(r){
+      html += `
+        <div style="font-size:12px;"><strong>Cotizado:</strong> ${formatCOP(r.cotizado)}</div>
+        <div style="font-size:12px;"><strong>Cobrado:</strong> ${formatCOP(r.cobrado)}</div>
+        <div style="font-size:12px;margin-bottom:6px;"><strong>Saldo:</strong> ${formatCOP(r.saldo)}</div>
+      `;
+      // v5.17: margen estimado (cotizado - presupuesto interno), no un
+      // "descuadre" — a propósito NO son el mismo número por diseño
+      // (presupuesto = costo interno, cotizado = precio al cliente).
+      // Solo se muestra si hay presupuesto interno cargado, si no la
+      // resta no dice nada útil.
+      if(presupuestoNum > 0){
+        const margen = r.cotizado - presupuestoNum;
+        const margenPct = r.cotizado > 0 ? ((margen / r.cotizado) * 100).toFixed(1) : '0.0';
+        html += `<div style="font-size:12px;margin-bottom:6px;"><strong>Margen estimado:</strong> ${formatCOP(margen)} (${margenPct}%)</div>`;
+      }
+    } else {
+      html += `<div style="font-size:11px;color:#777;margin-bottom:6px;">Sin cotización aceptada aún.</div>`;
+    }
     if(p.costos && p.costos.notasInternas){
-      doc.setFont(undefined, 'bold');
-      doc.text('Notas internas:', marginX, y);
-      y += 6;
-      doc.setFont(undefined, 'normal');
-      doc.setFontSize(9);
-      const splitNotas = doc.splitTextToSize(p.costos.notasInternas, pageW - marginX*2);
-      doc.text(splitNotas, marginX, y);
-      y += splitNotas.length * 5;
+      html += `<div style="font-size:11px;margin-top:4px;"><strong>Notas internas:</strong><br>${escapeHtml(p.costos.notasInternas)}</div>`;
+    }
+
+    // --- Detalle operativo de sesiones: horario, estudio/sala, técnicos
+    // y músicos asignados con tarifa (equipoTecnico/musicos, snapshot
+    // guardado por logistica.html en cada sesión — mismos campos que ya
+    // usa logistica.html, no se inventa estructura nueva) ---
+    if(sesionesConFecha.length){
+      html += `<div class="print-section-title">Detalle operativo de sesiones</div>`;
+      sesionesConFecha.forEach(s => {
+        const fechaTxt = new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
+        const horario = (s.horaInicio && s.horaFin) ? `${s.horaInicio}–${s.horaFin}` : '';
+        const lugar = [s.estudioNombre, s.sala].filter(Boolean).join(' — ');
+        html += `<div class="print-equipo-item" style="margin-bottom:7px;">
+          <b>${fechaTxt}${horario ? ' · ' + horario : ''}</b> — ${escapeHtml(s.actividad || 'Sesión')}${lugar ? ' · ' + escapeHtml(lugar) : ''}`;
+        if(Array.isArray(s.tecnicosAsignados) && s.tecnicosAsignados.length){
+          html += `<br><span style="font-size:10.5px;color:#555;">🔧 ${s.tecnicosAsignados.map(t => escapeHtml(t.nombre || '') + (t.rol ? ' (' + escapeHtml(t.rol) + ')' : '') + (t.tarifa ? ' · ' + formatCOP(t.tarifa) : '')).join(' · ')}</span>`;
+        }
+        if(Array.isArray(s.musicosAsignados) && s.musicosAsignados.length){
+          html += `<br><span style="font-size:10.5px;color:#555;">🎻 ${s.musicosAsignados.map(m => escapeHtml(m.nombre || '') + (m.instrumento ? ' (' + escapeHtml(m.instrumento) + ')' : '') + (m.tarifa ? ' · ' + formatCOP(m.tarifa) + (m.canales > 1 ? ' × ' + m.canales + ' canales' : '') : '')).join(' · ')}</span>`;
+        }
+        html += `</div>`;
+      });
     }
   }
 
-  // ===== FOOTER =====
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setDrawColor(230, 230, 230);
-  doc.setLineWidth(0.2);
-  doc.line(marginX, pageHeight - 15, pageW - marginX, pageHeight - 15);
-  doc.setFontSize(7.5);
-  doc.setTextColor(...mutedRGB);
-  doc.setFont(undefined, 'normal');
-  doc.text('AUDIOLINK — Producción y Logística Musical', marginX, pageHeight - 10);
-  doc.text(modo === 'interno' ? 'Documento confidencial' : 'Documento generado automáticamente', pageW - marginX, pageHeight - 10, { align:'right' });
+  html += `
+    <div class="print-footer-container">
+      <div class="print-footer-grid">
+        <span>AUDIOLINK — Producción y Logística Musical</span>
+        <span>${modo === 'interno' ? 'Documento confidencial' : 'Documento generado automáticamente'}</span>
+      </div>
+      <div style="text-align:center;font-size:9.5px;color:#8a8578;margin-top:8px;letter-spacing:0.02em;">Marto 🧠 · martowave@gmail.com</div>
+    </div>
+  `;
 
-  // Abrir en pestaña nueva en vez de descargar
-  const blobUrl = doc.output('bloburl');
-  window.open(blobUrl, '_blank');
+  document.getElementById('print-view').innerHTML = html;
+  window.print();
 }
 
 // ============ MODAL: EQUIPO INTERNO (v2.1) ============

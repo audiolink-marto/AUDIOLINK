@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Egresos</title>
+<!-- AUDIOLINK · egresos.html · v1.9
+     v1.9: (1) el gráfico de gasto mensual ahora usa
+     obtenerEgresosFiltrados() en vez de egresosCache completo — respeta
+     el mismo filtro/búsqueda/vista activa que ya aplican CSV y PDF
+     (v1.7); se llama a renderGraficoMensual() también desde
+     renderPersonas()/renderProyectos(), no solo desde renderResumen(),
+     para que reaccione al cambiar filtro/búsqueda sin esperar un cambio
+     en egresosCache. (2) se agrega separador visual (línea dorada sutil)
+     entre el grid de tarjetas y el bloque del gráfico, que quedaba
+     pegado al final de la última tarjeta. No se tocó ninguna otra
+     lógica.
+     v1.8
+     v1.8: se mueve el bloque "Gasto mensual" (gráfico de barras) de
+     arriba (junto a la barra de resumen) al final de la hoja, después
+     del grid de personas/proyectos. Solo cambio de posición en el HTML;
+     no se tocó el CSS, la lógica de renderGraficoMensual() ni ninguna
+     otra parte.
+     v1.7
+     v1.7: CSV y PDF ahora exportan según el filtro/búsqueda ACTIVOS en
+     pantalla, no siempre todo egresosCache. Se agrega
+     obtenerEgresosFiltrados(), que replica el mismo criterio que ya usan
+     renderPersonas()/renderProyectos() según la vista activa: en "Por
+     persona", chip de tipo + buscador de persona; en "Por proyecto",
+     buscador de proyecto (los chips de tipo no aplican en esa vista,
+     igual que en pantalla). Si no hay ningún filtro/búsqueda activo,
+     exporta todo — mismo comportamiento que antes. El título del PDF
+     indica cuando el resultado está filtrado. No se tocó ninguna otra
+     lógica.
+     v1.6
+     v1.6: se agrega "Exportar PDF" — mismo lenguaje visual que
+     proyecto.html v5.14+ y cotizador.html (HTML/CSS + window.print(),
+     SIN jsPDF): header dorado, JetBrains Mono para metadatos, mismas
+     clases print-header/print-title/print-subtitle/print-section-title/
+     print-footer-container reutilizadas tal cual. Se agrega solo una
+     tabla nueva (print-table) para el listado de egresos, que no existía
+     en el resto del ecosistema. Exporta TODOS los egresos cargados (no
+     solo los filtrados en pantalla, igual que el CSV) con fecha/tipo/
+     persona/proyecto/monto/anticipo, más el total al final. No se tocó
+     ninguna otra lógica ni el CSV existente.
+     v1.5
+     v1.5: se agregan 2 cosas menores, ambas sobre egresosCache (sin
+     nuevas colecciones ni dependencias): (1) botón "Exportar CSV" en la
+     barra de resumen, descarga TODOS los egresos cargados (no solo los
+     filtrados en pantalla) con columnas fecha/tipo/persona/sala/
+     proyecto/tema/monto/anticipo/método/concepto; (2) gráfico simple de
+     gasto mensual (barras CSS, últimos 6 meses) debajo de la barra de
+     resumen — no se agregó ninguna librería de charts, son <div> con
+     alto proporcional. No se tocó ninguna otra lógica.
+     v1.4
+     v1.4: en modo edición, si se deja vacío el proyecto/tema (que antes
+     sí tenía asignado), ahora se borra ese campo del documento con
+     FieldValue.delete() en vez de quedar "pegado" con el valor viejo
+     (Firestore update() solo escribe lo que se manda, no borra por sí
+     solo — limitación documentada en v1.3, resuelta acá). Al crear un
+     egreso nuevo el comportamiento no cambia: si el campo está vacío,
+     simplemente no se agrega. No se tocó ninguna otra lógica.
+     v1.3
+     v1.3: se agrega editar/eliminar un egreso ya registrado — antes solo
+     se podía crear. En el modal por persona, cada pago del historial
+     ahora tiene ✎ (editar) y ✕ (eliminar, con confirm()). Editar precarga
+     el formulario con esos datos, cambia el botón a "Actualizar pago" y
+     aparece "Cancelar edición"; si no se selecciona un comprobante nuevo,
+     se conserva el que ya tenía (no se borra ni se re-sube). El modal de
+     proyecto (solo lectura) no se tocó — la edición vive únicamente en el
+     modal por persona, donde ya está el formulario. No se tocó ninguna
+     otra lógica de registro, resumen, búsqueda ni Cloudinary/lightbox.
+     v1.2
+     v1.2: se agrega buscador de texto en vivo, uno por vista (no
+     comparten input porque filtran cosas distintas): en "Por persona"
+     filtra por nombre de persona (funciona en conjunto con los chips de
+     tipo ya existentes); en "Por proyecto" filtra por nombre de
+     proyecto. Sin distinguir mayúsculas/tildes (normalize). No se tocó
+     ninguna otra lógica de registro, resumen ni modales.
+     v1.1
+     v1.1: se agregan 3 resúmenes, todos sobre el mismo egresosCache que ya
+     se cargaba (sin nuevas dependencias ni colecciones): (1) barra de
+     resumen fija con total del mes actual y total en anticipos (conteo +
+     suma, no "pendiente por liquidar" — ese dato requeriría un campo
+     anticipoLiquidado que no existe todavía); (2) toggle "Por persona" /
+     "Por proyecto"; (3) vista nueva "Por proyecto": tarjetas con total +
+     desglose por tipo (músicos/técnicos/salas), click abre modal de SOLO
+     LECTURA con el historial de egresos de ese proyecto (incluye un
+     bucket "Sin proyecto asociado" para los egresos sueltos). No se tocó
+     el modal de registro por persona, ni Cloudinary, ni el lightbox, ni
+     ninguna lógica de guardado existente.
+     v1.0
+     v1.0: Primera versión. Registro de pagos que el ESTUDIO hace hacia afuera
+     (músicos, equipo técnico y salas/estudios) — simétrico a pagos.html,
+     que registra lo que el CLIENTE paga hacia el estudio. Colección
+     Firestore nueva y separada 'egresos' (raíz, no subcolección), con
+     cada documento: { personaId, personaNombre, personaTipo
+     ('musico'|'tecnico'|'estudio'), salaId/salaNombre (solo si
+     personaTipo='estudio'), proyectoId/proyectoNombre (opcional),
+     temaId/temaNombre (opcional), monto, fecha, concepto, esAnticipo,
+     metodo, comprobanteUrl/comprobantePublicId/comprobanteTipo/
+     comprobantePaginas (opcional, mismo patrón Cloudinary que
+     pagos.html), creadoEn }.
+
+     Lee de tres catálogos existentes SIN tocarlos: musicos (campo nuevo
+     tarifaReferencia agregado en musicos.html v1.6), equipoTecnico
+     (campo tarifa), estudios (salaA/salaB/salaC, cada una con su propia
+     tarifa). Al elegir persona (y sala, si aplica) se sugiere el monto
+     desde esa tarifa de referencia — el monto final siempre es editable,
+     nunca se fuerza.
+
+     Vista principal: tarjetas por persona (todas las que tengan al menos
+     un egreso registrado, o el catálogo completo activo), con total
+     pagado y fecha del último pago, filtrable por tipo. Click en tarjeta
+     abre modal de historial + formulario de registro (mismo patrón
+     visual de modalBg/lightbox que pagos.html v2.3, comprobante opcional
+     vía Cloudinary cloud "dv7lelmoy", preset "AUDIOLINK APP").
+
+     Estructura, estilos, sidebar/nav.js, tema claro/oscuro y guard de
+     sesión calcados de pagos.html/equipo-tecnico.html, sin inventar
+     patrones nuevos. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --musico:#a78bfa;
+  --musico-bg:rgba(167,139,250,0.12);
+  --tecnico:#4a9eff;
+  --tecnico-bg:rgba(74,158,255,0.12);
+  --sala:#e0a96d;
+  --sala-bg:rgba(224,169,109,0.12);
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0.5;}
+.waveform-bg svg{position:absolute;bottom:0;left:0;width:200%;height:220px;animation:wave-drift 22s linear infinite;}
+.waveform-bg path{fill:none;stroke:var(--gold);stroke-width:1.2;opacity:0.14;}
+@keyframes wave-drift{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+header, main{position:relative;z-index:1;}
+.btn-icon{min-width:42px;min-height:42px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+.btn{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  transition:all 0.2s;font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+.btn-err{background:transparent;border:1px solid var(--err);color:var(--err);}
+.btn-err:hover{background:var(--err);color:#fff;}
+main{padding:28px;max-width:1100px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+
+.filtros{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.filtro-chip{
+  padding:7px 14px;border-radius:20px;font-size:0.8rem;cursor:pointer;
+  border:1px solid var(--brd);color:var(--muted);background:var(--surf);
+  transition:all 0.2s;font-weight:500;
+}
+.filtro-chip.active{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+
+.resumen-bar{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:12px;margin-bottom:20px;
+}
+.resumen-card{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:14px 16px;
+}
+.resumen-card .label{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:4px;}
+.resumen-card .valor{font-family:var(--M);font-size:1.15rem;color:var(--gold);}
+.resumen-card .sub{font-size:0.72rem;color:var(--faint);margin-top:2px;}
+
+.grafico-mensual{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:14px 16px;margin-top:28px;margin-bottom:20px;
+  position:relative;
+}
+.grafico-mensual::before{
+  content:"";position:absolute;top:-16px;left:0;right:0;height:1px;
+  background:linear-gradient(90deg, transparent, var(--gold) 50%, transparent);
+  opacity:0.4;
+}
+.grafico-mensual .titulo{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:12px;}
+.grafico-barras{display:flex;align-items:flex-end;gap:10px;height:100px;}
+.barra-mes{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+.barra-mes .barra{width:100%;background:var(--gold-bg);border:1px solid var(--gold);border-radius:4px 4px 0 0;min-height:2px;transition:all 0.2s;}
+.barra-mes .valor{font-size:0.62rem;color:var(--muted);font-family:var(--M);}
+.barra-mes .label{font-size:0.68rem;color:var(--faint);}
+
+.vista-toggle{display:flex;gap:6px;margin-bottom:16px;}
+.vista-toggle-btn{
+  padding:8px 16px;border-radius:6px;font-size:0.82rem;cursor:pointer;
+  border:1px solid var(--brd);color:var(--muted);background:var(--surf);
+  transition:all 0.2s;font-weight:500;
+}
+.vista-toggle-btn.active{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+
+.buscador{margin-bottom:14px;}
+.buscador input{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);
+  padding:10px 14px;border-radius:8px;font-size:0.88rem;font-family:inherit;
+}
+.buscador input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+
+.proyecto-card{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:16px;cursor:pointer;transition:all 0.2s;
+}
+.proyecto-card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.proyecto-card h3{font-size:1rem;font-weight:600;margin-bottom:8px;}
+.proyecto-card .total{font-family:var(--M);font-size:1.1rem;color:var(--gold);margin-bottom:8px;}
+.desglose-tipo{display:flex;gap:8px;flex-wrap:wrap;}
+.desglose-chip{font-size:0.72rem;padding:3px 9px;border-radius:20px;font-weight:500;}
+.desglose-chip.musico{background:var(--musico-bg);color:var(--musico);}
+.desglose-chip.tecnico{background:var(--tecnico-bg);color:var(--tecnico);}
+.desglose-chip.estudio{background:var(--sala-bg);color:var(--sala);}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+.card{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:16px;cursor:pointer;transition:all 0.2s;
+}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;}
+.card h3{font-size:1rem;font-weight:600;}
+.tipo-badge{
+  font-size:0.68rem;padding:3px 9px;border-radius:20px;font-weight:600;
+  letter-spacing:0.02em;text-transform:uppercase;flex-shrink:0;white-space:nowrap;
+}
+.tipo-badge.musico{background:var(--musico-bg);color:var(--musico);}
+.tipo-badge.tecnico{background:var(--tecnico-bg);color:var(--tecnico);}
+.tipo-badge.sala{background:var(--sala-bg);color:var(--sala);}
+.card .total{font-family:var(--M);font-size:1.05rem;color:var(--gold);margin-top:6px;}
+.card .ultimo{font-size:0.76rem;color:var(--muted);margin-top:4px;}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+
+/* Modal (calcado de pagos.html) */
+.modal-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);
+  z-index:1000;align-items:center;justify-content:center;padding:16px;
+  overflow-y:auto;
+}
+.modal-bg.active{display:flex;}
+.modal{
+  background:var(--surf);border:1px solid var(--brd);border-radius:12px;
+  padding:24px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;
+  margin:auto;
+}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;gap:10px;}
+.modal-head h2{font-size:1.1rem;font-family:var(--T);color:var(--gold);}
+.modal-sub{font-size:0.82rem;color:var(--muted);margin-bottom:18px;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;flex-shrink:0;}
+
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);
+  padding:10px 12px;border-radius:6px;font-size:0.9rem;font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);
+}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.checkbox-field{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+.checkbox-field input{width:auto;}
+.checkbox-field label{margin:0;font-size:0.85rem;color:var(--txt);}
+.hint{font-size:0.74rem;color:var(--faint);margin-top:-8px;margin-bottom:14px;}
+.upload-status{font-size:0.76rem;margin-top:6px;color:var(--muted);}
+.upload-status.ok{color:var(--ok);}
+.upload-status.err{color:var(--err);}
+.modal-actions{display:flex;justify-content:flex-end;margin-top:8px;}
+
+.historial-titulo{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin:22px 0 10px;padding-top:18px;border-top:1px solid var(--brd);}
+.abono-item{border:1px solid var(--brd);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.abono-main{display:flex;align-items:center;gap:10px;}
+.abono-main strong{font-family:var(--M);color:var(--gold);}
+.abono-main .info{font-size:0.76rem;color:var(--muted);margin-top:2px;}
+.abono-acciones{display:flex;gap:10px;margin-left:auto;flex-shrink:0;}
+.abono-acciones span{cursor:pointer;font-size:0.9rem;}
+.abono-acciones span.del{color:var(--err);}
+.modal-actions.editando{gap:10px;}
+.anticipo-tag{font-size:0.68rem;color:var(--warn);background:rgba(217,164,65,0.1);padding:2px 8px;border-radius:10px;margin-left:6px;}
+.comprobante-thumb{width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;flex-shrink:0;border:1px solid var(--brd);}
+
+/* Lightbox comprobante (calcado de pagos.html) */
+.lightbox-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);
+  z-index:1100;align-items:center;justify-content:center;padding:20px;
+}
+.lightbox-bg.active{display:flex;}
+.lightbox-content{position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.lightbox-content img{max-width:100%;max-height:80vh;border-radius:8px;}
+.lightbox-close{position:absolute;top:-36px;right:0;background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;}
+.lightbox-nav{display:flex;gap:16px;align-items:center;color:#fff;font-size:0.85rem;}
+.lightbox-nav button{background:rgba(255,255,255,0.1);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;}
+.lightbox-nav button:disabled{opacity:0.3;cursor:not-allowed;}
+
+@media (max-width:640px){
+  main{padding:16px;}
+  .row2{grid-template-columns:1fr;}
+  .field input,.field select,.field textarea{min-height:44px;font-size:1rem;}
+  .btn,.btn-ghost,.btn-err{min-height:44px;font-size:0.95rem;}
+}
+
+/* v1.6: mismo bloque @media print de proyecto.html v5.14+/cotizador.html
+   — HTML/CSS + window.print(), sin jsPDF. Clases idénticas para que el
+   PDF se vea consistente en todo el ecosistema; se agrega .print-table
+   (no existía antes) para el listado de egresos. */
+@media print {
+  @page { size: letter; margin: 15mm 15mm 15mm 15mm; }
+  body { background:#FFFFFF !important; color:#000000 !important; font-family: var(--S); }
+  .waveform-bg, #nav-mount, .modal-bg, .lightbox-bg,
+  .sidebar, .mobile-topbar, .mobile-bottomnav, .mas-mobile-panel { display:none !important; }
+  main > *:not(#print-view){ display:none !important; }
+  #print-view{
+    display:block !important; color:#000000 !important; padding:0;
+    position:relative; min-height:100%;
+  }
+  .print-header{
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:3px solid #C4982C; padding-bottom:16px; margin-bottom:24px;
+  }
+  .print-title{ font-family: var(--T); font-size:26px; font-weight:bold; color:#111111; letter-spacing:-0.02em; }
+  .print-subtitle{ font-size:11px; color:#7A7060; font-family: var(--M); text-transform:uppercase; letter-spacing:0.15em; margin-top:2px; }
+  .print-section-title{
+    font-family: var(--M); font-size:11px; text-transform:uppercase;
+    color:#111111; letter-spacing:0.05em; font-weight:bold;
+    border-left:4px solid #C4982C; padding-left:10px; margin:22px 0 10px;
+  }
+  .print-table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+  .print-table th{
+    text-align:left; font-family: var(--M); font-size:9.5px; text-transform:uppercase;
+    color:#7A7060; letter-spacing:0.04em; border-bottom:2px solid #111111; padding:6px 8px;
+  }
+  .print-table td{ border-bottom:1px solid #E5E5E5; padding:6px 8px; }
+  .print-table tfoot td{ font-weight:bold; border-top:2px solid #111111; border-bottom:none; padding-top:10px; }
+  .print-footer-container{ margin-top:30px; border-top:2px solid #111111; padding-top:16px; }
+  .print-footer-grid{ display:flex; justify-content:space-between; font-size:10px; color:#555555; }
+}
+</style>
+</head>
+<body>
+
+<div class="waveform-bg">
+  <svg viewBox="0 0 1400 220" preserveAspectRatio="none">
+    <path d="M0,110 Q35,40 70,110 T140,110 T210,110 T280,110 T350,110 T420,110 T490,110 T560,110 T630,110 T700,110 T770,110 T840,110 T910,110 T980,110 T1050,110 T1120,110 T1190,110 T1260,110 T1330,110 T1400,110"/>
+  </svg>
+</div>
+
+<script>
+window.NAV_CONFIG = { activo: 'egresos' };
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<header style="display:none;"></header>
+
+<main>
+  <div class="top-actions">
+    <div>
+      <h2>EGRESOS</h2>
+      <p style="font-size:0.82rem;color:var(--muted);margin:4px 0 0;">Pagos a músicos, equipo técnico y salas.</p>
+    </div>
+  </div>
+
+  <div class="resumen-bar" id="resumenBar">
+    <div class="resumen-card">
+      <div class="label">Este mes</div>
+      <div class="valor" id="resumenMes">—</div>
+    </div>
+    <div class="resumen-card">
+      <div class="label">Anticipos registrados</div>
+      <div class="valor" id="resumenAnticipos">—</div>
+      <div class="sub" id="resumenAnticiposSub"></div>
+    </div>
+    <div class="resumen-card" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+      <button class="btn btn-ghost" onclick="exportarEgresosCSV()">📥 CSV</button>
+      <button class="btn btn-ghost" onclick="exportarEgresosPDF()">🖨️ PDF</button>
+    </div>
+  </div>
+
+  <div class="vista-toggle">
+    <div class="vista-toggle-btn active" data-vista="persona" onclick="setVista('persona')">Por persona</div>
+    <div class="vista-toggle-btn" data-vista="proyecto" onclick="setVista('proyecto')">Por proyecto</div>
+  </div>
+
+  <div class="buscador" id="buscadorPersona">
+    <input type="text" id="buscarPersona" placeholder="🔍 Buscar por nombre..." oninput="renderPersonas()">
+  </div>
+  <div class="buscador" id="buscadorProyecto" style="display:none;">
+    <input type="text" id="buscarProyecto" placeholder="🔍 Buscar por proyecto..." oninput="renderProyectos()">
+  </div>
+
+  <div class="filtros" id="filtros">
+    <div class="filtro-chip active" data-tipo="todos" onclick="setFiltro('todos')">Todos</div>
+    <div class="filtro-chip" data-tipo="musico" onclick="setFiltro('musico')">🎻 Músicos</div>
+    <div class="filtro-chip" data-tipo="tecnico" onclick="setFiltro('tecnico')">🎚️ Técnicos</div>
+    <div class="filtro-chip" data-tipo="estudio" onclick="setFiltro('estudio')">🏢 Salas</div>
+  </div>
+
+  <div class="grid" id="gridPersonas"></div>
+  <div class="grid" id="gridProyectos" style="display:none;"></div>
+  <div class="empty" id="emptyState" style="display:none;">No hay personas/salas en los catálogos activos.</div>
+
+  <div class="grafico-mensual">
+    <div class="titulo">Gasto mensual (últimos 6 meses)</div>
+    <div class="grafico-barras" id="graficoBarras"></div>
+  </div>
+
+  <div id="print-view" style="display:none;"></div>
+</main>
+</div>
+
+<!-- MODAL: historial + registro de egreso -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this) cerrarModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="modalTitulo">—</h2>
+      </div>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="modal-sub" id="modalSub">—</div>
+
+    <div class="field">
+      <label>Proyecto (opcional)</label>
+      <select id="fProyecto" onchange="onCambioProyectoModal()">
+        <option value="">— Sin proyecto asociado —</option>
+      </select>
+    </div>
+    <div class="field" id="campoTemaWrap" style="display:none;">
+      <label>Tema (opcional)</label>
+      <select id="fTema">
+        <option value="">— Sin tema específico —</option>
+      </select>
+    </div>
+
+    <div class="field" id="campoSalaWrap" style="display:none;">
+      <label>Sala</label>
+      <select id="fSala" onchange="onCambioSalaModal()">
+        <option value="">Selecciona una sala</option>
+      </select>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Monto (COP)</label>
+        <input type="number" id="fMonto" min="0" placeholder="0">
+      </div>
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="fFecha">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Método</label>
+        <select id="fMetodo">
+          <option value="transferencia">Transferencia</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Comprobante (opcional)</label>
+        <input type="file" id="fComprobante" accept="image/*,application/pdf">
+      </div>
+    </div>
+    <div class="field">
+      <label>Concepto</label>
+      <input type="text" id="fConcepto" placeholder="Ej. Grabación batería, Mezcla tema X...">
+    </div>
+    <div class="checkbox-field">
+      <input type="checkbox" id="fEsAnticipo">
+      <label for="fEsAnticipo">Este pago es un anticipo</label>
+    </div>
+    <div id="uploadStatus" class="upload-status"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btnCancelarEdicionEgreso" style="display:none;" onclick="cancelarEdicionEgreso()">Cancelar edición</button>
+      <button class="btn" id="btnRegistrarEgreso" onclick="registrarEgreso()">Registrar pago</button>
+    </div>
+
+    <div class="historial-titulo">Historial de pagos</div>
+    <div id="listaEgresos"></div>
+    <div class="empty" id="emptyEgresos" style="display:none;padding:24px 0;">Aún no hay pagos registrados.</div>
+  </div>
+</div>
+
+<!-- MODAL: detalle de egresos por proyecto (solo lectura) -->
+<div class="modal-bg" id="modalProyectoBg" onclick="if(event.target===this) cerrarModalProyecto()">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="modalProyectoTitulo">—</h2>
+      </div>
+      <button class="modal-close" onclick="cerrarModalProyecto()">✕</button>
+    </div>
+    <div class="modal-sub" id="modalProyectoSub">—</div>
+    <div id="listaEgresosProyecto"></div>
+  </div>
+</div>
+
+<!-- LIGHTBOX comprobante -->
+<div class="lightbox-bg" id="lightboxBg" onclick="if(event.target===this) cerrarLightbox()">
+  <div class="lightbox-content">
+    <button class="lightbox-close" onclick="cerrarLightbox()">✕</button>
+    <img id="lightboxImg" src="" alt="Comprobante">
+    <div class="lightbox-nav">
+      <button id="lightboxPrev" onclick="lightboxPagina(-1)">‹ Anterior</button>
+      <span id="lightboxPagInfo"></span>
+      <button id="lightboxNext" onclick="lightboxPagina(1)">Siguiente ›</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ FIREBASE CONFIG ============
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const egresosRef = db.collection('egresos');
+const proyectosRef = db.collection('proyectos');
+
+// ============ GUARD DE SESIÓN (mismo patrón que el resto del ecosistema) ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    window.location.href = 'login.html';
+    return;
+  }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+    initEgresos();
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+// cerrarSesion(), toggleTema(), toggleMasMobile() y el colapsar del sidebar
+// viven en nav.js — no se duplican acá.
+
+// ============ ESTADO ============
+let musicosCache = [];
+let tecnicosCache = [];
+let estudiosCache = [];
+let proyectosCache = [];
+let egresosCache = []; // todos los egresos, en memoria, para armar totales y filtrar por persona
+let filtroActual = 'todos';
+
+let modalPersonaId = null;
+let modalPersonaTipo = null;
+let modalPersonaNombre = null;
+let vistaActual = 'persona';
+let modalProyectoIdActivo = null; // null = bucket "sin proyecto"
+let egresoEditId = null; // v1.3: id del egreso en edición dentro del modal por persona, null = modo "nuevo"
+
+function initEgresos(){
+  Promise.all([
+    db.collection('musicos').orderBy('nombre').get().catch(() => null),
+    db.collection('equipoTecnico').orderBy('nombre').get().catch(() => null),
+    db.collection('estudios').orderBy('nombre').get().catch(() => null),
+    proyectosRef.orderBy('creadoEn', 'desc').get().catch(() => null)
+  ]).then(([snapMus, snapTec, snapEst, snapProy]) => {
+    musicosCache = snapMus ? snapMus.docs.map(d => ({ id: d.id, ...d.data() })).filter(m => m.activo !== false) : [];
+    tecnicosCache = snapTec ? snapTec.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => t.activo !== false) : [];
+    estudiosCache = snapEst ? snapEst.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+    proyectosCache = snapProy ? snapProy.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+    llenarSelectProyectos();
+    escucharEgresos();
+  });
+}
+
+function escucharEgresos(){
+  egresosRef.orderBy('fecha', 'desc').onSnapshot(snap => {
+    egresosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderResumen();
+    renderVistaActual();
+    if(document.getElementById('modalBg').classList.contains('active') && modalPersonaId){
+      renderHistorialModal();
+    }
+    if(document.getElementById('modalProyectoBg').classList.contains('active')){
+      renderHistorialModalProyecto();
+    }
+  }, err => console.error('Error cargando egresos:', err));
+}
+
+// ============ RESUMEN (v1.1) ============
+function renderResumen(){
+  const hoy = new Date();
+  const anioMes = hoy.toISOString().slice(0, 7); // "YYYY-MM"
+  const delMes = egresosCache.filter(eg => (eg.fecha || '').startsWith(anioMes));
+  const totalMes = delMes.reduce((acc, eg) => acc + (eg.monto || 0), 0);
+  document.getElementById('resumenMes').textContent = typeof formatCOP === 'function' ? formatCOP(totalMes) : totalMes;
+
+  const anticipos = egresosCache.filter(eg => eg.esAnticipo === true);
+  const totalAnticipos = anticipos.reduce((acc, eg) => acc + (eg.monto || 0), 0);
+  document.getElementById('resumenAnticipos').textContent = typeof formatCOP === 'function' ? formatCOP(totalAnticipos) : totalAnticipos;
+  document.getElementById('resumenAnticiposSub').textContent = anticipos.length + (anticipos.length === 1 ? ' pago registrado' : ' pagos registrados');
+
+  renderGraficoMensual();
+}
+
+// v1.5: barras CSS simples de gasto por mes, últimos 6 meses (incluye el
+// actual). Sin librería de charts — solo <div> con alto proporcional al
+// máximo del rango visible.
+function renderGraficoMensual(){
+  const cont = document.getElementById('graficoBarras');
+  const datosGrafico = obtenerEgresosFiltrados();
+  const meses = [];
+  const hoy = new Date();
+  for(let i = 5; i >= 0; i--){
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+    const key = d.toISOString().slice(0, 7);
+    const label = d.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '');
+    meses.push({ key, label, total: 0 });
+  }
+  datosGrafico.forEach(eg => {
+    const key = (eg.fecha || '').slice(0, 7);
+    const mes = meses.find(m => m.key === key);
+    if(mes) mes.total += (eg.monto || 0);
+  });
+  const maxTotal = Math.max(...meses.map(m => m.total), 1);
+  cont.innerHTML = meses.map(m => `
+    <div class="barra-mes">
+      <div class="valor">${m.total > 0 ? (typeof formatCOP === 'function' ? formatCOP(m.total) : m.total) : ''}</div>
+      <div class="barra" style="height:${Math.max(2, Math.round((m.total / maxTotal) * 80))}px;"></div>
+      <div class="label">${m.label}</div>
+    </div>`).join('');
+}
+
+// v1.7: replica el mismo filtro/búsqueda que ya se ve en pantalla, según
+// la vista activa — usada por ambos exportadores (CSV y PDF).
+function obtenerEgresosFiltrados(){
+  if(vistaActual === 'persona'){
+    const busqueda = normalizarTexto(document.getElementById('buscarPersona').value);
+    return egresosCache.filter(eg =>
+      (filtroActual === 'todos' || eg.personaTipo === filtroActual) &&
+      (!busqueda || normalizarTexto(eg.personaNombre).includes(busqueda))
+    );
+  }
+  const busquedaProy = normalizarTexto(document.getElementById('buscarProyecto').value);
+  if(!busquedaProy) return egresosCache;
+  return egresosCache.filter(eg => normalizarTexto(eg.proyectoNombre || 'Sin proyecto asociado').includes(busquedaProy));
+}
+
+// v1.6: exporta TODOS los egresos cargados a PDF (HTML/CSS + window.print(),
+// mismo patrón que proyecto.html/cotizador.html — sin jsPDF). No solo los
+// filtrados en pantalla, igual criterio que el CSV.
+function exportarEgresosPDF(){
+  const datos = obtenerEgresosFiltrados();
+  if(datos.length === 0){
+    alert('No hay egresos para exportar con el filtro actual.');
+    return;
+  }
+  const hayFiltro = datos.length !== egresosCache.length;
+  const fecha = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+  const iconos = { musico: '🎻', tecnico: '🎚️', estudio: '🏢' };
+  const total = datos.reduce((acc, eg) => acc + (eg.monto || 0), 0);
+
+  let html = `
+    <div class="print-header">
+      <div>
+        <div class="print-title">AUDIOLINK</div>
+        <div class="print-subtitle">Reporte de Egresos${hayFiltro ? ' (filtrado)' : ''}</div>
+      </div>
+      <div style="font-family:var(--M);font-size:10px;color:#7A7060;">${fecha}</div>
+    </div>
+    <div class="print-section-title" style="margin-top:0;">Listado de pagos (${datos.length})</div>
+    <table class="print-table">
+      <thead>
+        <tr>
+          <th>Fecha</th><th>Tipo</th><th>Persona / Sala</th><th>Proyecto</th><th>Monto</th><th>Anticipo</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${datos.map(eg => `
+        <tr>
+          <td>${eg.fecha || '—'}</td>
+          <td>${iconos[eg.personaTipo] || ''} ${escapeHtml(eg.personaTipo || '')}</td>
+          <td>${escapeHtml(eg.personaNombre || '—')}${eg.salaNombre ? ' · ' + escapeHtml(eg.salaNombre) : ''}</td>
+          <td>${escapeHtml(eg.proyectoNombre || '—')}${eg.temaNombre ? ' → ' + escapeHtml(eg.temaNombre) : ''}</td>
+          <td>${typeof formatCOP === 'function' ? formatCOP(eg.monto || 0) : (eg.monto || 0)}</td>
+          <td>${eg.esAnticipo ? 'Sí' : 'No'}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr><td colspan="4">Total</td><td colspan="2">${typeof formatCOP === 'function' ? formatCOP(total) : total}</td></tr>
+      </tfoot>
+    </table>
+    <div class="print-footer-container">
+      <div class="print-footer-grid">
+        <span>AUDIOLINK — Producción y Logística Musical</span>
+        <span>Documento confidencial — solo uso interno</span>
+      </div>
+      <div style="text-align:center;font-size:9.5px;color:#8a8578;margin-top:8px;letter-spacing:0.02em;">Marto 🧠 · martowave@gmail.com</div>
+    </div>
+  `;
+
+  document.getElementById('print-view').innerHTML = html;
+  window.print();
+}
+
+// v1.5: exporta TODOS los egresos cargados a CSV (no solo los filtrados
+// en pantalla) — descarga directa, sin dependencias externas.
+function exportarEgresosCSV(){
+  const datos = obtenerEgresosFiltrados();
+  if(datos.length === 0){
+    alert('No hay egresos para exportar con el filtro actual.');
+    return;
+  }
+  const encabezados = ['Fecha','Tipo','Persona','Sala','Proyecto','Tema','Monto','Anticipo','Método','Concepto'];
+  const filas = datos.map(eg => [
+    eg.fecha || '',
+    eg.personaTipo || '',
+    eg.personaNombre || '',
+    eg.salaNombre || '',
+    eg.proyectoNombre || '',
+    eg.temaNombre || '',
+    eg.monto || 0,
+    eg.esAnticipo ? 'Sí' : 'No',
+    eg.metodo || '',
+    (eg.concepto || '').replace(/"/g, '""')
+  ]);
+  const csv = [encabezados, ...filas]
+    .map(fila => fila.map(v => `"${v}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `egresos_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============ TOGGLE DE VISTA (v1.1) ============
+function setVista(vista){
+  vistaActual = vista;
+  document.querySelectorAll('.vista-toggle-btn').forEach(el => el.classList.toggle('active', el.dataset.vista === vista));
+  document.getElementById('filtros').style.display = vista === 'persona' ? 'flex' : 'none';
+  document.getElementById('buscadorPersona').style.display = vista === 'persona' ? 'block' : 'none';
+  document.getElementById('buscadorProyecto').style.display = vista === 'proyecto' ? 'block' : 'none';
+  document.getElementById('gridPersonas').style.display = vista === 'persona' ? 'grid' : 'none';
+  document.getElementById('gridProyectos').style.display = vista === 'proyecto' ? 'grid' : 'none';
+  renderVistaActual();
+}
+
+// v1.2: normaliza texto para comparar sin distinguir mayúsculas/tildes
+function normalizarTexto(str){
+  return String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function renderVistaActual(){
+  if(vistaActual === 'persona') renderPersonas(); else renderProyectos();
+}
+
+// ============ LISTA DE PERSONAS/SALAS ============
+function construirListaPersonas(){
+  const lista = [];
+  musicosCache.forEach(m => lista.push({ id: m.id, tipo: 'musico', nombre: m.nombre || '(sin nombre)', tarifaRef: m.tarifaReferencia || 0 }));
+  tecnicosCache.forEach(t => lista.push({ id: t.id, tipo: 'tecnico', nombre: t.nombre || '(sin nombre)', tarifaRef: t.tarifa || 0 }));
+  estudiosCache.forEach(e => {
+    ['salaA','salaB','salaC'].forEach(salaKey => {
+      const sala = e[salaKey];
+      if(sala && sala.nombre){
+        lista.push({ id: e.id, tipo: 'estudio', salaId: salaKey, nombre: sala.nombre, tarifaRef: sala.tarifa || 0 });
+      }
+    });
+  });
+  return lista;
+}
+
+function totalesPorPersona(id, tipo, salaId){
+  const relacionados = egresosCache.filter(eg => eg.personaId === id && eg.personaTipo === tipo && (tipo !== 'estudio' || eg.salaId === salaId));
+  const total = relacionados.reduce((acc, eg) => acc + (eg.monto || 0), 0);
+  const ultimo = relacionados.length ? relacionados[0].fecha : null; // egresosCache ya viene ordenado por fecha desc
+  return { total, ultimo, cantidad: relacionados.length };
+}
+
+function setFiltro(tipo){
+  filtroActual = tipo;
+  document.querySelectorAll('.filtro-chip').forEach(el => el.classList.toggle('active', el.dataset.tipo === tipo));
+  renderPersonas();
+}
+
+function renderPersonas(){
+  const grid = document.getElementById('gridPersonas');
+  const empty = document.getElementById('emptyState');
+  let lista = construirListaPersonas();
+  if(filtroActual !== 'todos') lista = lista.filter(p => p.tipo === filtroActual);
+  const busqueda = normalizarTexto(document.getElementById('buscarPersona').value);
+  if(busqueda) lista = lista.filter(p => normalizarTexto(p.nombre).includes(busqueda));
+
+  if(lista.length === 0){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    renderGraficoMensual();
+    return;
+  }
+  empty.style.display = 'none';
+
+  const iconos = { musico: '🎻', tecnico: '🎚️', estudio: '🏢' };
+  const etiquetas = { musico: 'Músico', tecnico: 'Técnico', estudio: 'Sala' };
+
+  grid.innerHTML = lista.map(p => {
+    const { total, ultimo } = totalesPorPersona(p.id, p.tipo, p.salaId);
+    return `
+    <div class="card" onclick="abrirModalPersona('${p.id}','${p.tipo}',${p.salaId ? `'${p.salaId}'` : 'null'},'${escJsHtmlEg(p.nombre)}',${p.tarifaRef})">
+      <div class="card-top">
+        <h3>${iconos[p.tipo]} ${escapeHtml(p.nombre)}</h3>
+        <span class="tipo-badge ${p.tipo}">${etiquetas[p.tipo]}</span>
+      </div>
+      <div class="total">${typeof formatCOP === 'function' ? formatCOP(total) : total}</div>
+      <div class="ultimo">${ultimo ? 'Último pago: ' + ultimo : 'Sin pagos registrados'}</div>
+    </div>`;
+  }).join('');
+  renderGraficoMensual();
+}
+
+function escJsHtmlEg(str){
+  return String(str || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}
+
+// ============ VISTA POR PROYECTO (v1.1) ============
+function renderProyectos(){
+  const grid = document.getElementById('gridProyectos');
+  const empty = document.getElementById('emptyState');
+
+  // Agrupa egresosCache por proyectoId — null/"" cae en un bucket aparte
+  const grupos = {};
+  egresosCache.forEach(eg => {
+    const key = eg.proyectoId || '_sin_proyecto';
+    if(!grupos[key]) grupos[key] = { proyectoId: eg.proyectoId || null, proyectoNombre: eg.proyectoNombre || 'Sin proyecto asociado', total: 0, porTipo: { musico: 0, tecnico: 0, estudio: 0 }, cantidad: 0 };
+    grupos[key].total += (eg.monto || 0);
+    grupos[key].porTipo[eg.personaTipo] = (grupos[key].porTipo[eg.personaTipo] || 0) + (eg.monto || 0);
+    grupos[key].cantidad += 1;
+  });
+
+  const lista = Object.values(grupos)
+    .filter(g => {
+      const busqueda = normalizarTexto(document.getElementById('buscarProyecto').value);
+      return !busqueda || normalizarTexto(g.proyectoNombre).includes(busqueda);
+    })
+    .sort((a, b) => b.total - a.total);
+
+  if(lista.length === 0){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    renderGraficoMensual();
+    return;
+  }
+  empty.style.display = 'none';
+
+  const etiquetasTipo = { musico: '🎻 Músicos', tecnico: '🎚️ Técnicos', estudio: '🏢 Salas' };
+
+  grid.innerHTML = lista.map(g => {
+    const chips = Object.keys(g.porTipo)
+      .filter(t => g.porTipo[t] > 0)
+      .map(t => `<span class="desglose-chip ${t}">${etiquetasTipo[t]}: ${typeof formatCOP === 'function' ? formatCOP(g.porTipo[t]) : g.porTipo[t]}</span>`)
+      .join('');
+    return `
+    <div class="proyecto-card" onclick="abrirModalProyecto(${g.proyectoId ? `'${g.proyectoId}'` : 'null'}, '${escJsHtmlEg(g.proyectoNombre)}')">
+      <h3>${escapeHtml(g.proyectoNombre)}</h3>
+      <div class="total">${typeof formatCOP === 'function' ? formatCOP(g.total) : g.total} <span style="font-size:0.72rem;color:var(--muted);font-family:var(--S);">(${g.cantidad} ${g.cantidad === 1 ? 'pago' : 'pagos'})</span></div>
+      <div class="desglose-tipo">${chips}</div>
+    </div>`;
+  }).join('');
+  renderGraficoMensual();
+}
+
+function abrirModalProyecto(proyectoId, proyectoNombre){
+  modalProyectoIdActivo = proyectoId;
+  document.getElementById('modalProyectoTitulo').textContent = proyectoNombre;
+  document.getElementById('modalProyectoSub').textContent = 'Historial de egresos (solo lectura)';
+  renderHistorialModalProyecto();
+  document.getElementById('modalProyectoBg').classList.add('active');
+}
+
+function cerrarModalProyecto(){
+  document.getElementById('modalProyectoBg').classList.remove('active');
+  modalProyectoIdActivo = null;
+}
+
+function renderHistorialModalProyecto(){
+  const cont = document.getElementById('listaEgresosProyecto');
+  const relacionados = egresosCache.filter(eg => (eg.proyectoId || null) === modalProyectoIdActivo);
+  const iconos = { musico: '🎻', tecnico: '🎚️', estudio: '🏢' };
+
+  if(relacionados.length === 0){
+    cont.innerHTML = '<div class="empty" style="padding:24px 0;">Sin pagos registrados.</div>';
+    return;
+  }
+
+  cont.innerHTML = relacionados.map(eg => `
+    <div class="abono-item">
+      <div class="abono-main">
+        <div>
+          <strong>${typeof formatCOP === 'function' ? formatCOP(eg.monto || 0) : (eg.monto || 0)}</strong>
+          ${eg.esAnticipo ? '<span class="anticipo-tag">Anticipo</span>' : ''}
+          <div class="info">
+            ${iconos[eg.personaTipo] || ''} ${escapeHtml(eg.personaNombre || '—')}${eg.salaNombre ? ' · ' + escapeHtml(eg.salaNombre) : ''}
+            · ${eg.fecha || '—'} · ${escapeHtml(eg.metodo || '—')}
+            ${eg.temaNombre ? ' · ' + escapeHtml(eg.temaNombre) : ''}
+            ${eg.concepto ? ' · ' + escapeHtml(eg.concepto) : ''}
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ============ PROYECTOS / TEMAS EN EL MODAL ============
+function llenarSelectProyectos(){
+  const sel = document.getElementById('fProyecto');
+  sel.innerHTML = '<option value="">— Sin proyecto asociado —</option>' +
+    proyectosCache.map(p => `<option value="${p.id}">${escapeHtml(p.nombre || '(sin nombre)')}</option>`).join('');
+}
+
+function onCambioProyectoModal(){
+  const proyectoId = document.getElementById('fProyecto').value;
+  const temaWrap = document.getElementById('campoTemaWrap');
+  const temaSel = document.getElementById('fTema');
+  temaSel.innerHTML = '<option value="">— Sin tema específico —</option>';
+  if(!proyectoId){
+    temaWrap.style.display = 'none';
+    return;
+  }
+  temaWrap.style.display = 'block';
+  proyectosRef.doc(proyectoId).collection('temas').orderBy('orden').get()
+    .then(snap => {
+      temaSel.innerHTML = '<option value="">— Sin tema específico —</option>' +
+        snap.docs.map(d => `<option value="${d.id}">${escapeHtml((d.data().nombre) || '(sin nombre)')}</option>`).join('');
+    })
+    .catch(() => {
+      // fallback sin orderBy por si algún tema viejo no tiene 'orden'
+      proyectosRef.doc(proyectoId).collection('temas').get().then(snap => {
+        temaSel.innerHTML = '<option value="">— Sin tema específico —</option>' +
+          snap.docs.map(d => `<option value="${d.id}">${escapeHtml((d.data().nombre) || '(sin nombre)')}</option>`).join('');
+      });
+    });
+}
+
+// ============ SALA (solo cuando personaTipo === 'estudio') ============
+function onCambioSalaModal(){
+  const salaId = document.getElementById('fSala').value;
+  if(!salaId) return;
+  const estudio = estudiosCache.find(e => e.id === modalPersonaId);
+  if(!estudio) return;
+  const sala = estudio[salaId];
+  if(sala && sala.tarifa){
+    document.getElementById('fMonto').value = sala.tarifa;
+  }
+}
+
+// ============ MODAL ============
+function abrirModalPersona(id, tipo, salaId, nombre, tarifaRef){
+  modalPersonaId = id;
+  modalPersonaTipo = tipo;
+  modalPersonaNombre = nombre;
+  cancelarEdicionEgreso(); // v1.3: siempre entra en modo "nuevo" al abrir
+
+  const etiquetas = { musico: 'Músico', tecnico: 'Técnico', estudio: 'Sala' };
+  document.getElementById('modalTitulo').textContent = nombre;
+  document.getElementById('modalSub').textContent = etiquetas[tipo] || tipo;
+
+  document.getElementById('fProyecto').value = '';
+  document.getElementById('campoTemaWrap').style.display = 'none';
+  document.getElementById('fTema').innerHTML = '<option value="">— Sin tema específico —</option>';
+  document.getElementById('fMonto').value = '';
+  document.getElementById('fFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fMetodo').value = 'transferencia';
+  document.getElementById('fConcepto').value = '';
+  document.getElementById('fEsAnticipo').checked = false;
+  document.getElementById('fComprobante').value = '';
+  document.getElementById('uploadStatus').textContent = '';
+
+  const salaWrap = document.getElementById('campoSalaWrap');
+  const salaSel = document.getElementById('fSala');
+  if(tipo === 'estudio'){
+    salaWrap.style.display = 'block';
+    const estudio = estudiosCache.find(e => e.id === id);
+    const opciones = [];
+    if(estudio){
+      ['salaA','salaB','salaC'].forEach(k => {
+        if(estudio[k] && estudio[k].nombre) opciones.push(`<option value="${k}" ${k===salaId?'selected':''}>${escapeHtml(estudio[k].nombre)}</option>`);
+      });
+    }
+    salaSel.innerHTML = '<option value="">Selecciona una sala</option>' + opciones.join('');
+    if(salaId){
+      salaSel.value = salaId;
+      onCambioSalaModal();
+    }
+  } else {
+    salaWrap.style.display = 'none';
+    if(tarifaRef) document.getElementById('fMonto').value = tarifaRef;
+  }
+
+  renderHistorialModal();
+  document.getElementById('modalBg').classList.add('active');
+}
+
+function cerrarModal(){
+  document.getElementById('modalBg').classList.remove('active');
+  modalPersonaId = null;
+  modalPersonaTipo = null;
+  modalPersonaNombre = null;
+}
+
+function renderHistorialModal(){
+  const cont = document.getElementById('listaEgresos');
+  const empty = document.getElementById('emptyEgresos');
+  const salaActual = modalPersonaTipo === 'estudio' ? document.getElementById('fSala').value : null;
+
+  const relacionados = egresosCache.filter(eg =>
+    eg.personaId === modalPersonaId &&
+    eg.personaTipo === modalPersonaTipo &&
+    (modalPersonaTipo !== 'estudio' || !salaActual || eg.salaId === salaActual)
+  );
+
+  if(relacionados.length === 0){
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  cont.innerHTML = relacionados.map(eg => {
+    let comprobanteHtml = '';
+    if(eg.comprobanteUrl){
+      if(eg.comprobanteTipo === 'pdf'){
+        const totalPag = eg.comprobantePaginas || 1;
+        const thumbUrl = urlPaginaPdf(eg.comprobanteUrl, 1);
+        comprobanteHtml = `<img src="${thumbUrl}" class="comprobante-thumb" alt="Comprobante (PDF)" title="Ver comprobante" onclick='abrirLightbox(${JSON.stringify(eg.comprobanteUrl)}, "pdf", ${totalPag})'>`;
+      } else {
+        comprobanteHtml = `<img src="${eg.comprobanteUrl}" class="comprobante-thumb" alt="Comprobante" title="Ver comprobante" onclick='abrirLightbox(${JSON.stringify(eg.comprobanteUrl)}, "imagen", 1)'>`;
+      }
+    }
+    return `
+    <div class="abono-item">
+      <div class="abono-main">
+        ${comprobanteHtml}
+        <div>
+          <strong>${typeof formatCOP === 'function' ? formatCOP(eg.monto || 0) : (eg.monto || 0)}</strong>
+          ${eg.esAnticipo ? '<span class="anticipo-tag">Anticipo</span>' : ''}
+          <div class="info">
+            ${eg.fecha || '—'} · ${escapeHtml(eg.metodo || '—')}
+            ${eg.proyectoNombre ? ' · ' + escapeHtml(eg.proyectoNombre) : ''}
+            ${eg.temaNombre ? ' → ' + escapeHtml(eg.temaNombre) : ''}
+            ${eg.concepto ? ' · ' + escapeHtml(eg.concepto) : ''}
+          </div>
+        </div>
+        <div class="abono-acciones">
+          <span onclick="editarEgreso('${eg.id}')" title="Editar">✎</span>
+          <span class="del" onclick="eliminarEgreso('${eg.id}')" title="Eliminar">✕</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============ EDITAR / ELIMINAR (v1.3) ============
+function editarEgreso(id){
+  const eg = egresosCache.find(e => e.id === id);
+  if(!eg) return;
+  egresoEditId = id;
+
+  document.getElementById('fProyecto').value = eg.proyectoId || '';
+  onCambioProyectoModal();
+  if(eg.proyectoId && eg.temaId){
+    // el select de temas se llena async en onCambioProyectoModal(); se
+    // asigna el valor apenas esté disponible, sin bloquear el resto del precargado
+    const intento = setInterval(() => {
+      const sel = document.getElementById('fTema');
+      if([...sel.options].some(o => o.value === eg.temaId)){
+        sel.value = eg.temaId;
+        clearInterval(intento);
+      }
+    }, 150);
+    setTimeout(() => clearInterval(intento), 3000);
+  }
+
+  if(modalPersonaTipo === 'estudio' && eg.salaId){
+    document.getElementById('fSala').value = eg.salaId;
+  }
+  document.getElementById('fMonto').value = eg.monto || '';
+  document.getElementById('fFecha').value = eg.fecha || '';
+  document.getElementById('fMetodo').value = eg.metodo || 'transferencia';
+  document.getElementById('fConcepto').value = eg.concepto || '';
+  document.getElementById('fEsAnticipo').checked = !!eg.esAnticipo;
+  document.getElementById('fComprobante').value = '';
+  document.getElementById('uploadStatus').textContent = eg.comprobanteUrl ? 'Ya tiene comprobante — solo se reemplaza si eliges uno nuevo.' : '';
+  document.getElementById('uploadStatus').className = 'upload-status';
+
+  document.getElementById('btnRegistrarEgreso').textContent = 'Actualizar pago';
+  document.getElementById('btnCancelarEdicionEgreso').style.display = 'inline-block';
+
+  document.querySelector('.modal').scrollTop = 0;
+}
+
+function cancelarEdicionEgreso(){
+  egresoEditId = null;
+  const btn = document.getElementById('btnRegistrarEgreso');
+  const btnCancelar = document.getElementById('btnCancelarEdicionEgreso');
+  if(btn) btn.textContent = 'Registrar pago';
+  if(btnCancelar) btnCancelar.style.display = 'none';
+}
+
+async function eliminarEgreso(id){
+  const eg = egresosCache.find(e => e.id === id);
+  if(!eg) return;
+  const monto = typeof formatCOP === 'function' ? formatCOP(eg.monto || 0) : (eg.monto || 0);
+  if(!confirm(`¿Eliminar este pago de ${monto} (${eg.fecha || 'sin fecha'})? Esta acción no se puede deshacer.`)) return;
+  try{
+    await egresosRef.doc(id).delete();
+    if(egresoEditId === id) cancelarEdicionEgreso();
+  } catch(err){
+    console.error(err);
+    alert('Error eliminando el pago. Revisa la consola.');
+  }
+}
+
+// ============ COMPROBANTE (Cloudinary — mismo patrón que pagos.html) ============
+const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
+const CLOUDINARY_UPLOAD_PRESET = 'AUDIOLINK APP';
+
+async function subirComprobanteCloudinary(file){
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if(!resp.ok) throw new Error('Cloudinary respondió con error ' + resp.status);
+  return resp.json();
+}
+
+function urlPaginaPdf(url, pagina){
+  return url.replace('/upload/', `/upload/pg_${pagina}/`).replace(/\.pdf($|\?)/i, '.jpg$1');
+}
+
+// ============ LIGHTBOX ============
+let lightboxUrlBase = null;
+let lightboxTipo = 'imagen';
+let lightboxPaginaActual = 1;
+let lightboxTotalPaginas = 1;
+
+function abrirLightbox(url, tipo, totalPaginas){
+  lightboxUrlBase = url;
+  lightboxTipo = tipo;
+  lightboxPaginaActual = 1;
+  lightboxTotalPaginas = totalPaginas || 1;
+  renderLightbox();
+  document.getElementById('lightboxBg').classList.add('active');
+}
+
+function renderLightbox(){
+  const img = document.getElementById('lightboxImg');
+  img.src = lightboxTipo === 'pdf' ? urlPaginaPdf(lightboxUrlBase, lightboxPaginaActual) : lightboxUrlBase;
+  const info = document.getElementById('lightboxPagInfo');
+  const prev = document.getElementById('lightboxPrev');
+  const next = document.getElementById('lightboxNext');
+  if(lightboxTipo === 'pdf' && lightboxTotalPaginas > 1){
+    info.textContent = `Página ${lightboxPaginaActual} de ${lightboxTotalPaginas}`;
+    prev.style.display = 'flex';
+    next.style.display = 'flex';
+    prev.disabled = lightboxPaginaActual <= 1;
+    next.disabled = lightboxPaginaActual >= lightboxTotalPaginas;
+  } else {
+    info.textContent = '';
+    prev.style.display = 'none';
+    next.style.display = 'none';
+  }
+}
+
+function lightboxPagina(delta){
+  const nueva = lightboxPaginaActual + delta;
+  if(nueva < 1 || nueva > lightboxTotalPaginas) return;
+  lightboxPaginaActual = nueva;
+  renderLightbox();
+}
+
+function cerrarLightbox(){
+  document.getElementById('lightboxBg').classList.remove('active');
+}
+
+// ============ REGISTRAR EGRESO ============
+async function registrarEgreso(){
+  const monto = Number(document.getElementById('fMonto').value);
+  if(!monto || monto <= 0){
+    alert('Ingresa un monto válido.');
+    return;
+  }
+  if(modalPersonaTipo === 'estudio' && !document.getElementById('fSala').value){
+    alert('Selecciona la sala pagada.');
+    return;
+  }
+
+  const btn = document.getElementById('btnRegistrarEgreso');
+  const statusEl = document.getElementById('uploadStatus');
+  const fileInput = document.getElementById('fComprobante');
+  const file = fileInput.files && fileInput.files[0];
+
+  const proyectoId = document.getElementById('fProyecto').value;
+  const proyectoSel = document.getElementById('fProyecto');
+  const temaId = document.getElementById('fTema').value;
+  const temaSel = document.getElementById('fTema');
+
+  const data = {
+    personaId: modalPersonaId,
+    personaNombre: modalPersonaNombre,
+    personaTipo: modalPersonaTipo,
+    monto,
+    fecha: document.getElementById('fFecha').value || null,
+    metodo: document.getElementById('fMetodo').value,
+    concepto: document.getElementById('fConcepto').value.trim(),
+    esAnticipo: document.getElementById('fEsAnticipo').checked
+  };
+  if(!egresoEditId){
+    data.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
+  }
+
+  if(modalPersonaTipo === 'estudio'){
+    const salaId = document.getElementById('fSala').value;
+    data.salaId = salaId;
+    data.salaNombre = document.getElementById('fSala').selectedOptions[0].textContent;
+  }
+  if(proyectoId){
+    data.proyectoId = proyectoId;
+    data.proyectoNombre = proyectoSel.selectedOptions[0].textContent;
+  } else if(egresoEditId){
+    // v1.4: se quitó el proyecto que este egreso ya tenía — se borra el
+    // campo del documento en vez de dejarlo con el valor viejo.
+    data.proyectoId = firebase.firestore.FieldValue.delete();
+    data.proyectoNombre = firebase.firestore.FieldValue.delete();
+  }
+  if(temaId){
+    data.temaId = temaId;
+    data.temaNombre = temaSel.selectedOptions[0].textContent;
+  } else if(egresoEditId){
+    data.temaId = firebase.firestore.FieldValue.delete();
+    data.temaNombre = firebase.firestore.FieldValue.delete();
+  }
+
+  btn.disabled = true;
+  try{
+    if(file){
+      statusEl.textContent = 'Subiendo comprobante...';
+      statusEl.className = 'upload-status';
+      try{
+        const resultado = await subirComprobanteCloudinary(file);
+        data.comprobanteUrl = resultado.secure_url;
+        data.comprobantePublicId = resultado.public_id;
+        data.comprobanteTipo = resultado.format === 'pdf' ? 'pdf' : 'imagen';
+        if(data.comprobanteTipo === 'pdf'){
+          data.comprobantePaginas = resultado.pages || 1;
+        }
+        statusEl.textContent = 'Comprobante subido correctamente.';
+        statusEl.className = 'upload-status ok';
+      } catch(errUpload){
+        console.error('Error subiendo comprobante a Cloudinary:', errUpload);
+        statusEl.textContent = 'No se pudo subir el comprobante. El pago se registrará sin él.';
+        statusEl.className = 'upload-status err';
+      }
+    }
+
+    if(egresoEditId){
+      // v1.3: modo edición — si no se eligió archivo nuevo, se conserva el
+      // comprobante existente (no se toca ni se borra); si se eligió uno
+      // nuevo, `data` ya trae las claves de comprobante actualizadas arriba.
+      await egresosRef.doc(egresoEditId).update(data);
+      cancelarEdicionEgreso();
+    } else {
+      await egresosRef.add(data);
+    }
+
+    document.getElementById('fMonto').value = '';
+    document.getElementById('fConcepto').value = '';
+    document.getElementById('fEsAnticipo').checked = false;
+    fileInput.value = '';
+    if(!file) statusEl.textContent = '';
+  } catch(err){
+    console.error(err);
+    alert('Error registrando el pago. Revisa la consola.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>

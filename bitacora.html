@@ -3,8 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación (v2.68)</title>
-<!-- AUDIOLINK · bitacora.html · v2.67
+<title>Audiolink — Bitácora de Grabación (v2.69)</title>
+<!-- AUDIOLINK · bitacora.html · v2.69
+     v2.69: el guard de sesión ahora lee el rol del ingeniero PARA ESTE
+     PROYECTO (`rolesPorProyecto[proyectoId]`, nuevo campo agregado desde
+     proyecto.html v5.24 — mapa {proyectoId: rol}, un mismo ingeniero
+     puede tener rol distinto en cada proyecto). Si existe un rol
+     reconocido (grabacion/edicion/mezcla/mastering), al terminar de
+     cargar la sesión se auto-abre esa pestaña en vez de quedarse
+     siempre en "Bitácora" por defecto — así el Inge cae directo en lo
+     suyo al entrar. Si no hay rol asignado (proyectos viejos, staff
+     interno, o ingeniero sin rol específico) el comportamiento queda
+     IDÉNTICO a antes (Bitácora por defecto) — no se tocó
+     `proyectosAsignados` ni el resto del chequeo de acceso, cero riesgo
+     sobre el guard ya funcionando. No se tocó ninguna otra lógica.
+     v2.67
      v2.67: Vista Consola — la tarjeta de cada canal (.consola-strip) no
      mostraba el color de su subgrupo: las reglas .consola-strip.manual/
      .checklist fijaban border-color/background a --gold/--ok siempre,
@@ -492,6 +505,43 @@ h1{
 .consola-strip .datos{font-size:0.68rem;color:var(--muted);line-height:1.6;}
 .consola-strip .datos div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
+/* v2.70: "última toma registrada" en Grabación — mismo lenguaje visual
+   que .dash-grabacion-item, acento dorado, para que se sienta parte del
+   mismo sistema. Solo lectura, se repinta en cada onSnapshot de tomas. */
+.ultima-toma-box{
+  border:1px solid var(--gold);border-radius:8px;padding:10px 12px;margin-bottom:14px;
+  background:var(--gold-bg);font-size:0.85rem;line-height:1.4;
+}
+.ultima-toma-box .label{font-size:0.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;}
+.ultima-toma-box .nombre{font-weight:700;color:var(--gold);}
+
+/* v2.70: traspaso de notas entre etapas — solo lectura, mismo doc de
+   tema que ya se carga, sin escritura nueva. */
+.traspaso-box{
+  border:1px dashed var(--brd);border-radius:8px;padding:10px 12px;margin-bottom:14px;
+  background:var(--surf2);font-size:0.82rem;line-height:1.5;color:var(--muted);
+}
+.traspaso-box .label{font-size:0.66rem;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;color:var(--accent2);}
+.traspaso-box .vacio{font-style:italic;opacity:0.7;}
+
+/* v2.70: referencias sonoras (Mezcla) */
+.referencias-box{margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;}
+.referencia-item{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  border:1px solid var(--brd);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:0.85rem;
+}
+.referencia-item a{color:var(--accent2);text-decoration:none;font-weight:600;}
+.referencia-item a:hover{text-decoration:underline;}
+.referencia-add-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.referencia-add-row input{flex:1;min-width:120px;}
+
+/* v2.70: loudness/plataforma + entregables (Mastering) */
+.mastering-box{margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;}
+.mastering-box .field{margin-bottom:10px;}
+.entregables-lista{display:flex;flex-direction:column;gap:8px;margin-top:6px;}
+.entregable-check{display:flex;align-items:center;gap:8px;font-size:0.85rem;}
+.entregable-check input{width:16px;height:16px;}
+
 #bitacoraToolbar{
   position:sticky;top:0;background:var(--bg);z-index:5;padding:10px 0 8px;
   margin-bottom:6px;border-bottom:1px solid var(--brd);
@@ -794,6 +844,8 @@ h1{
       <button class="crono-guardar" onclick="cronoGuardar()">Finalizar y guardar</button>
       <div class="crono-guardado-msg" id="cronoGuardadoMsg"></div>
     </div>
+    <!-- v2.70: última toma registrada, visible sin scrollear la lista -->
+    <div class="ultima-toma-box" id="ultimaTomaBox" style="display:none;"></div>
     <div id="tomasFormBox"></div>
     <div class="field" style="margin-top:14px;">
       <label>Notas generales de grabación</label>
@@ -831,6 +883,8 @@ h1{
   </div>
   <div class="panel" id="panel_mezcla">
     <div class="error-box" id="avisoSinTemaMezcla" style="display:none;">Esta sesión no tiene un tema asignado. Asígnale un tema desde Logística para poder guardar notas de mezcla.</div>
+    <!-- v2.70: traspaso — lo que dejó Edición, solo lectura -->
+    <div class="traspaso-box" id="traspasoEdicionBox" style="display:none;"></div>
     <div class="field">
       <label>Notas de mezcla</label>
       <textarea id="notasMezcla" placeholder="Decisiones de mezcla, referencias, pendientes..." style="min-height:160px;" onchange="guardarNotaEtapa('Mezcla', this.value)" disabled></textarea>
@@ -857,9 +911,21 @@ h1{
       </div>
       <div id="etapaSesionesListaMezcla"></div>
     </div>
+    <!-- v2.70: referencias sonoras — array {nombre,link} en temaData.referenciasMezcla -->
+    <div class="referencias-box">
+      <div class="etapa-sesiones-titulo" style="margin-bottom:10px;">🔗 Referencias sonoras</div>
+      <div id="referenciasMezclaLista"></div>
+      <div class="referencia-add-row">
+        <input type="text" id="referenciaNuevoNombre" placeholder="Nombre (ej: Tema referencia X)">
+        <input type="url" id="referenciaNuevoLink" placeholder="https://...">
+        <button class="btn-nueva-sesion" onclick="agregarReferenciaMezcla()">+ Agregar</button>
+      </div>
+    </div>
   </div>
   <div class="panel" id="panel_mastering">
     <div class="error-box" id="avisoSinTemaMastering" style="display:none;">Esta sesión no tiene un tema asignado. Asígnale un tema desde Logística para poder guardar notas de mastering.</div>
+    <!-- v2.70: traspaso — lo que dejó Mezcla, solo lectura -->
+    <div class="traspaso-box" id="traspasoMezclaBox" style="display:none;"></div>
     <div class="field">
       <label>Notas de mastering</label>
       <textarea id="notasMastering" placeholder="Loudness objetivo, referencias, entregables..." style="min-height:160px;" onchange="guardarNotaEtapa('Mastering', this.value)" disabled></textarea>
@@ -885,6 +951,35 @@ h1{
         <div class="crono-guardado-msg" id="etapaCronoMsgMastering"></div>
       </div>
       <div id="etapaSesionesListaMastering"></div>
+    </div>
+    <!-- v2.70: loudness/plataforma objetivo — temaData.masteringPlataforma / masteringLoudness -->
+    <div class="mastering-box">
+      <div class="etapa-sesiones-titulo" style="margin-bottom:10px;">🎯 Loudness objetivo</div>
+      <div class="field">
+        <label>Plataforma destino</label>
+        <select id="masteringPlataformaSelect" onchange="onCambioPlataformaMastering()" disabled>
+          <option value="">Sin definir</option>
+          <option value="Spotify">Spotify (-14 LUFS)</option>
+          <option value="YouTube">YouTube (-14 LUFS)</option>
+          <option value="CD">CD (-9 LUFS)</option>
+          <option value="Vinilo">Vinilo (-16 LUFS)</option>
+          <option value="personalizado">Personalizado…</option>
+        </select>
+      </div>
+      <div class="field" id="masteringLoudnessCustomBox" style="display:none;">
+        <label>Loudness (LUFS)</label>
+        <input type="text" id="masteringLoudnessCustom" placeholder="Ej: -8 LUFS" onchange="guardarLoudnessCustomMastering(this.value)">
+      </div>
+    </div>
+    <!-- v2.70: checklist de entregables — temaData.entregablesMastering -->
+    <div class="mastering-box">
+      <div class="etapa-sesiones-titulo" style="margin-bottom:10px;">📦 Entregables</div>
+      <div class="entregables-lista">
+        <label class="entregable-check"><input type="checkbox" id="entregableWav" onchange="guardarEntregableMastering('wav', this.checked)" disabled> WAV Master</label>
+        <label class="entregable-check"><input type="checkbox" id="entregableStreaming" onchange="guardarEntregableMastering('streaming', this.checked)" disabled> Versión Streaming</label>
+        <label class="entregable-check"><input type="checkbox" id="entregableVinilo" onchange="guardarEntregableMastering('vinilo', this.checked)" disabled> Versión Vinilo</label>
+        <input type="text" id="entregableOtro" placeholder="Otro entregable (opcional)..." onchange="guardarEntregableOtroMastering(this.value)" disabled>
+      </div>
     </div>
   </div>
 
@@ -1833,6 +1928,10 @@ async function cargarNotasTema(temaId){
     temaData = null;
     deshabilitarTabsTema(true);
     renderDashboard();
+    renderTraspasos(); // v2.70
+    renderReferenciasMezcla(); // v2.70
+    renderMasteringLoudness(); // v2.70
+    renderEntregablesMastering(); // v2.70
     cargarSesionesGrabacionTema(''); // v2.32: oculta el listado si no hay tema
     return;
   }
@@ -1845,6 +1944,10 @@ async function cargarNotasTema(temaId){
       temaRef = null;
       temaData = null;
       deshabilitarTabsTema(true);
+      renderTraspasos(); // v2.70
+      renderReferenciasMezcla(); // v2.70
+      renderMasteringLoudness(); // v2.70
+      renderEntregablesMastering(); // v2.70
       cargarSesionesGrabacionTema(''); // v2.32
       return;
     }
@@ -1856,6 +1959,10 @@ async function cargarNotasTema(temaId){
     ['Edicion','Mezcla','Mastering'].forEach(etapa => renderSesionesEtapa(etapa));
     deshabilitarTabsTema(false);
     renderDashboard();
+    renderTraspasos(); // v2.70
+    renderReferenciasMezcla(); // v2.70
+    renderMasteringLoudness(); // v2.70
+    renderEntregablesMastering(); // v2.70
     cargarSesionesGrabacionTema(temaId); // v2.32: listado de sesiones de Grabación del tema
   } catch(err){
     console.error('Error cargando el tema:', err);
@@ -1863,8 +1970,146 @@ async function cargarNotasTema(temaId){
     temaData = null;
     deshabilitarTabsTema(true);
     renderDashboard();
+    renderTraspasos(); // v2.70
+    renderReferenciasMezcla(); // v2.70
+    renderMasteringLoudness(); // v2.70
+    renderEntregablesMastering(); // v2.70
     cargarSesionesGrabacionTema(''); // v2.32
   }
+}
+
+// ============ v2.70: TRASPASO ENTRE ETAPAS, REFERENCIAS, LOUDNESS, ENTREGABLES ============
+// Todo lo de este bloque lee/escribe SOLO campos nuevos del mismo doc de
+// tema que ya se carga arriba (temaData/temaRef) — no agrega ninguna
+// colección ni lectura nueva a Firestore, salvo los propios update() de
+// guardado, mismo patrón angosto que guardarNotaEtapa().
+
+// --- Traspaso: solo lectura, muestra lo que dejó la etapa anterior ---
+function renderTraspasos(){
+  const boxEdicion = document.getElementById('traspasoEdicionBox');
+  const boxMezcla = document.getElementById('traspasoMezclaBox');
+  if(!temaData){
+    if(boxEdicion) boxEdicion.style.display = 'none';
+    if(boxMezcla) boxMezcla.style.display = 'none';
+    return;
+  }
+  const notasEdicion = (temaData.notasEdicion || '').trim();
+  if(boxEdicion){
+    boxEdicion.style.display = 'block';
+    boxEdicion.innerHTML = `<div class="label">✂️ Lo que dejó Edición</div>${notasEdicion ? escapeHtml(notasEdicion) : '<span class="vacio">Sin notas de Edición todavía.</span>'}`;
+  }
+  const notasMezcla = (temaData.notasMezcla || '').trim();
+  if(boxMezcla){
+    boxMezcla.style.display = 'block';
+    boxMezcla.innerHTML = `<div class="label">🎚️ Lo que dejó Mezcla</div>${notasMezcla ? escapeHtml(notasMezcla) : '<span class="vacio">Sin notas de Mezcla todavía.</span>'}`;
+  }
+}
+
+// --- Referencias sonoras (Mezcla) — array {nombre,link} ---
+function renderReferenciasMezcla(){
+  const cont = document.getElementById('referenciasMezclaLista');
+  if(!cont) return;
+  const refs = (temaData && Array.isArray(temaData.referenciasMezcla)) ? temaData.referenciasMezcla : [];
+  if(!refs.length){
+    cont.innerHTML = '<div class="empty">Sin referencias agregadas todavía.</div>';
+    return;
+  }
+  cont.innerHTML = refs.map((r, i) => `
+    <div class="referencia-item">
+      <a href="${escapeHtml(r.link)}" target="_blank" rel="noopener">${escapeHtml(r.nombre || r.link)}</a>
+      <span style="cursor:pointer;color:var(--err);" onclick="eliminarReferenciaMezcla(${i})">🗑️</span>
+    </div>`).join('');
+}
+async function agregarReferenciaMezcla(){
+  if(!temaRef){ console.error('No se puede agregar referencia: sin tema asignado.'); return; }
+  const nombreEl = document.getElementById('referenciaNuevoNombre');
+  const linkEl = document.getElementById('referenciaNuevoLink');
+  const nombre = nombreEl.value.trim();
+  const link = linkEl.value.trim();
+  if(!link) return;
+  try{
+    await temaRef.update({
+      referenciasMezcla: firebase.firestore.FieldValue.arrayUnion({ nombre: nombre || link, link })
+    });
+    if(!temaData.referenciasMezcla) temaData.referenciasMezcla = [];
+    temaData.referenciasMezcla.push({ nombre: nombre || link, link });
+    nombreEl.value = '';
+    linkEl.value = '';
+    renderReferenciasMezcla();
+  } catch(err){ console.error('Error agregando referencia:', err); }
+}
+async function eliminarReferenciaMezcla(idx){
+  if(!temaRef || !temaData || !Array.isArray(temaData.referenciasMezcla)) return;
+  const item = temaData.referenciasMezcla[idx];
+  if(!item) return;
+  try{
+    await temaRef.update({ referenciasMezcla: firebase.firestore.FieldValue.arrayRemove(item) });
+    temaData.referenciasMezcla.splice(idx, 1);
+    renderReferenciasMezcla();
+  } catch(err){ console.error('Error eliminando referencia:', err); }
+}
+
+// --- Loudness/plataforma objetivo (Mastering) ---
+const PRESETS_LOUDNESS = { Spotify: '-14 LUFS', YouTube: '-14 LUFS', CD: '-9 LUFS', Vinilo: '-16 LUFS' };
+function renderMasteringLoudness(){
+  const sel = document.getElementById('masteringPlataformaSelect');
+  const customBox = document.getElementById('masteringLoudnessCustomBox');
+  const customInput = document.getElementById('masteringLoudnessCustom');
+  if(!sel) return;
+  const plataforma = (temaData && temaData.masteringPlataforma) || '';
+  sel.value = plataforma;
+  const esPersonalizado = plataforma === 'personalizado';
+  customBox.style.display = esPersonalizado ? 'block' : 'none';
+  if(esPersonalizado) customInput.value = (temaData && temaData.masteringLoudness) || '';
+}
+async function onCambioPlataformaMastering(){
+  if(!temaRef) return;
+  const sel = document.getElementById('masteringPlataformaSelect');
+  const plataforma = sel.value;
+  const loudness = plataforma === 'personalizado' ? '' : (PRESETS_LOUDNESS[plataforma] || '');
+  try{
+    await temaRef.update({ masteringPlataforma: plataforma, masteringLoudness: loudness });
+    temaData.masteringPlataforma = plataforma;
+    temaData.masteringLoudness = loudness;
+    renderMasteringLoudness();
+  } catch(err){ console.error('Error guardando plataforma de mastering:', err); }
+}
+async function guardarLoudnessCustomMastering(valor){
+  if(!temaRef) return;
+  try{
+    await temaRef.update({ masteringLoudness: valor.trim() });
+    temaData.masteringLoudness = valor.trim();
+  } catch(err){ console.error('Error guardando loudness personalizado:', err); }
+}
+
+// --- Entregables (Mastering) — objeto {wav,streaming,vinilo,otro} ---
+function renderEntregablesMastering(){
+  const e = (temaData && temaData.entregablesMastering) || {};
+  const wav = document.getElementById('entregableWav');
+  const streaming = document.getElementById('entregableStreaming');
+  const vinilo = document.getElementById('entregableVinilo');
+  const otro = document.getElementById('entregableOtro');
+  if(!wav) return;
+  wav.checked = !!e.wav;
+  streaming.checked = !!e.streaming;
+  vinilo.checked = !!e.vinilo;
+  otro.value = e.otro || '';
+}
+async function guardarEntregableMastering(campo, valor){
+  if(!temaRef) return;
+  try{
+    await temaRef.update({ [`entregablesMastering.${campo}`]: valor });
+    if(!temaData.entregablesMastering) temaData.entregablesMastering = {};
+    temaData.entregablesMastering[campo] = valor;
+  } catch(err){ console.error('Error guardando entregable:', err); }
+}
+async function guardarEntregableOtroMastering(valor){
+  if(!temaRef) return;
+  try{
+    await temaRef.update({ 'entregablesMastering.otro': valor.trim() });
+    if(!temaData.entregablesMastering) temaData.entregablesMastering = {};
+    temaData.entregablesMastering.otro = valor.trim();
+  } catch(err){ console.error('Error guardando entregable "otro":', err); }
 }
 
 // v2.32: lista, dentro del dashboard, todas las sesiones de Grabación
@@ -1929,6 +2174,13 @@ function deshabilitarTabsTema(sinTema){
       document.getElementById(`etapaSesionesLista${etapa}`).innerHTML = '';
     }
   });
+  // v2.70: sin tema tampoco se puede guardar loudness/entregables/referencias
+  document.getElementById('masteringPlataformaSelect').disabled = sinTema;
+  document.getElementById('masteringLoudnessCustom').disabled = sinTema;
+  document.getElementById('entregableWav').disabled = sinTema;
+  document.getElementById('entregableStreaming').disabled = sinTema;
+  document.getElementById('entregableVinilo').disabled = sinTema;
+  document.getElementById('entregableOtro').disabled = sinTema;
 }
 
 async function guardarNotaEtapa(etapaCap, valor){
@@ -1944,6 +2196,11 @@ async function guardarNotaEtapa(etapaCap, valor){
       return;
     }
     await temaRef.update({ [`notas${etapaCap}`]: valor.trim() });
+    // v2.70: mantiene temaData local al día y repinta los traspasos
+    // (así si Edición y Mezcla están ambas abiertas, o se vuelve a
+    // entrar sin recargar, el texto de "lo que dejó X" no queda viejo).
+    if(temaData) temaData[`notas${etapaCap}`] = valor.trim();
+    renderTraspasos();
   } catch(err){
     console.error('Error guardando nota de etapa:', err);
   }
@@ -1993,6 +2250,7 @@ function suscribirTomas(){
       tomasReporte = [];
       snap.forEach(d => tomasReporte.push({ id: d.id, ...d.data() }));
       renderListaTomasLocal();
+      renderUltimaToma(); // v2.70
       renderDashboard();
     }, err => console.error('Error cargando tomas:', err));
 }
@@ -2068,6 +2326,21 @@ function renderFormTomas(s){
   ratingTomaActual = 0;
   usarTomaActual = null;
 }
+
+// v2.70: atajo de teclado 1-5 para calificar sin soltar el mouse/manos
+// de la consola. Solo actúa si el panel Grabación está activo, el
+// formulario de toma está visible, y el foco NO está en un input/
+// textarea (para no interferir con "Nombre/código en el DAW" ni "Nota").
+document.addEventListener('keydown', (e) => {
+  if(!'12345'.includes(e.key)) return;
+  const panelTomas = document.getElementById('panel_tomas');
+  if(!panelTomas || !panelTomas.classList.contains('activa')) return;
+  const formulario = document.getElementById('tomaFormularioBox');
+  if(!formulario || formulario.style.display === 'none') return;
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  setRatingToma(Number(e.key));
+});
 
 function setRatingToma(n){
   ratingTomaActual = n;
@@ -2151,6 +2424,23 @@ async function confirmarToma(){
   }
 }
 
+// v2.70: "última toma registrada" siempre visible arriba, para confirmar
+// de un vistazo que se guardó bien sin scrollear la lista completa.
+// Solo lectura — lee el mismo array `tomasReporte` que ya llena
+// suscribirTomas(), no agrega ninguna consulta nueva a Firestore.
+function renderUltimaToma(){
+  const box = document.getElementById('ultimaTomaBox');
+  if(!box) return;
+  if(!tomasReporte.length){ box.style.display = 'none'; return; }
+  const t = tomasReporte[tomasReporte.length - 1];
+  const estrellas = t.rating ? '★'.repeat(t.rating) + '☆'.repeat(5 - t.rating) : 'sin calificar';
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div class="label">✅ Última toma registrada</div>
+    <span class="nombre">${escapeHtml(t.codigo || t.instrumento)}</span> · ${escapeHtml(t.instrumento)} · ${t.hora || ''} · ${estrellas}
+  `;
+}
+
 function renderListaTomasLocal(){
   const cont = document.getElementById('tomasLocalLista');
   if(!cont) return;
@@ -2204,18 +2494,34 @@ auth.onAuthStateChanged(async (user) => {
     const staffDoc = await db.collection('equipoInterno').doc(user.email).get();
     const esStaffLocal = staffDoc.exists && staffDoc.data().activo === true;
     let tieneAcceso = esStaffLocal;
+    let rolIng = null; // v2.69
     if(!tieneAcceso){
       const ingDoc = await db.collection('ingenieros').doc(user.email).get();
       const ing = ingDoc.exists ? ingDoc.data() : null;
       tieneAcceso = !!ing && ing.activo === true &&
         Array.isArray(ing.proyectosAsignados) && ing.proyectosAsignados.includes(proyectoId);
+      // v2.69: rolesPorProyecto es un mapa {proyectoId: rol}, agregado
+      // desde proyecto.html v5.24 — puede no existir en asignaciones
+      // viejas o quedar vacío ('') si no se eligió rol específico.
+      if(tieneAcceso){
+        rolIng = (ing.rolesPorProyecto || {})[proyectoId] || null;
+      }
     }
     if(!tieneAcceso){
       document.getElementById('contenido').innerHTML =
         '<div class="error-box">Tu cuenta no tiene acceso a este proyecto. Si crees que es un error, contacta a producción.</div>';
       return;
     }
-    cargar();
+    await cargar();
+    // v2.69: si el ingeniero tiene un rol reconocido para este proyecto,
+    // cae directo en su pestaña en vez de quedarse en Bitácora por
+    // defecto. Sin rol asignado (o staff interno) -> comportamiento
+    // idéntico a antes. 'grabacion' abre el panel "Grabación" (tomas),
+    // que es donde efectivamente se trabaja esa etapa.
+    const MAPA_ROL_TAB = { grabacion: 'tomas', edicion: 'edicion', mezcla: 'mezcla', mastering: 'mastering' };
+    if(rolIng && MAPA_ROL_TAB[rolIng]){
+      cambiarTab(MAPA_ROL_TAB[rolIng]);
+    }
   } catch(e){
     console.error('Error validando acceso:', e);
     document.getElementById('contenido').innerHTML =
@@ -2283,11 +2589,22 @@ match /proyectos/{proyectoId}/temas/{temaId} {
   allow update: if
     request.resource.data.diff(resource.data).affectedKeys()
       .hasOnly(['notasEdicion', 'notasMezcla', 'notasMastering',
-                 'sesionesEdicion', 'sesionesMezcla', 'sesionesMastering']);
+                 'sesionesEdicion', 'sesionesMezcla', 'sesionesMastering',
+                 'referenciasMezcla', 'masteringPlataforma', 'masteringLoudness',
+                 'entregablesMastering']);
     // v2.29: se agregan los 3 campos de historial de sesiones de trabajo
     // (arrayUnion desde etapaCronoGuardar) a la misma excepción — sin
     // login, SOLO puede modificar estos 6 campos — nunca nombre, orden
     // ni activo (eso solo lo toca el CRUD de logistica.html con login)
+    // v2.70: se agregan 4 campos nuevos (referencias sonoras de Mezcla,
+    // plataforma/loudness objetivo y checklist de entregables de
+    // Mastering) — mismo criterio: acceso sin login solo puede tocar
+    // estos campos puntuales, nunca nombre/orden/activo del tema.
+    // NOTA: como esta guía SOLO corre con el guard de sesión activo
+    // (usuario logueado, ver v2.32), en la práctica tus reglas normales
+    // de auth (staff/ingeniero) ya cubren esta escritura — esta
+    // excepción es la misma "puerta angosta sin login" de siempre, se
+    // actualiza por consistencia con el resto del comentario.
 }
 
 Esto no reemplaza tus reglas de auth normal para el resto del sistema,
