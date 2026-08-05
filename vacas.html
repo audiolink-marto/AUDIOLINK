@@ -535,8 +535,14 @@ window.NAV_CONFIG = { activo: 'vacas' };
 
 <script>
 // ============================================================
-// AUDIOLINK · vacas.html · v1.1
+// AUDIOLINK · vacas.html · v1.2
 // Panel admin — gestión de vacas colectivas
+// v1.2: fix — faltaba const auth = firebase.auth(). El archivo ya usa
+// auth.onAuthStateChanged() (guard de sesión) y auth.currentUser.email
+// (creadoPor/registradoPor) en varios puntos, pero nunca declaraba la
+// constante — mismo tipo de omisión que el fix de v1.1 con
+// initializeApp(). Causaba "auth is not defined". Se agregó una sola
+// línea junto a la inicialización de Firebase, nada más se tocó.
 // v1.1: fix — faltaba firebase.initializeApp(firebaseConfig) antes de
 // firebase.firestore(). firebase-config.js SOLO define el objeto
 // firebaseConfig (no inicializa la app por sí solo, ver su propio
@@ -549,6 +555,7 @@ window.NAV_CONFIG = { activo: 'vacas' };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 const { FieldValue } = firebase.firestore;
 
 let tabActual = 'activas';
