@@ -535,10 +535,19 @@ window.NAV_CONFIG = { activo: 'vacas' };
 
 <script>
 // ============================================================
-// AUDIOLINK · vacas.html · v1.0
+// AUDIOLINK · vacas.html · v1.1
 // Panel admin — gestión de vacas colectivas
+// v1.1: fix — faltaba firebase.initializeApp(firebaseConfig) antes de
+// firebase.firestore(). firebase-config.js SOLO define el objeto
+// firebaseConfig (no inicializa la app por sí solo, ver su propio
+// comentario de cabecera); cada página del ecosistema debe llamar
+// initializeApp() explícitamente, y a vacas.html se le quedó afuera.
+// Eso causaba "No Firebase App '[DEFAULT]' has been created" y en
+// cascada "Cannot access 'db' before initialization". Se agregó una
+// sola línea, nada más se tocó.
 // ============================================================
 
+firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const { FieldValue } = firebase.firestore;
 
