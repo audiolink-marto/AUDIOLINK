@@ -4,7 +4,9 @@ rules_version = '2';
 // Cubre: proyectos, proyectos/{id}/sesiones, proyectos/{id}/cotizaciones,
 // proyectos/{id}/pagos, proyectos/{id}/produccion, equipoInterno,
 // clientesAcceso, estudios, musicos, clientes, equipoTecnico,
-// backlineCatalogo, egresos, proyectos/{id}/sesiones/{id}/consentimientos.
+// backlineCatalogo, egresos, proyectos/{id}/sesiones/{id}/consentimientos,
+// eventos, eventos/{id}/canales, catalogoIconos,
+// vacas, vacas/{id}/participantes, vacas/{id}/participantes/{id}/abonos.
 //
 // IMPORTANTE — léelo antes de publicar:
 // 1. El PRIMER correo de equipoInterno hay que crearlo manualmente desde la
@@ -253,6 +255,21 @@ rules_version = '2';
 // campos puntuales, nunca nombre/orden/activo del tema (eso sigue siendo
 // exclusivo del CRUD de logistica.html con esStaff()). No se tocó ninguna
 // otra regla, colección, match, función ni condición existente.
+//
+// v2.16 (esta entrega — eventos.html v1.25, módulo Live): eventos.html
+// agregó un modal "⚙️ Tipos de ícono" que lee/escribe una colección nueva,
+// raíz, `catalogoIconos` (catálogo GLOBAL de tipos de ícono del Stageplot:
+// nombre, forma base, color, tamaño en cm y patrón de detección — no
+// depende de ningún evento puntual). No existía ningún match para esta
+// colección, así que sin este bloque el modal se habría quedado sin datos
+// (onSnapshot fallando en silencio) o, al intentar guardar/agregar/borrar
+// un tipo, con "Missing or insufficient permissions". Se agrega
+// /catalogoIconos/{claveId} con el MISMO PATRÓN EXACTO que estudios/
+// musicos/clientes/equipoTecnico/backlineCatalogo/egresos: solo equipo
+// interno lee y escribe; el cliente nunca accede a esta colección. No se
+// tocó ninguna otra regla, función, condición, match ni colección
+// existente — ni siquiera el match de /eventos/{eventoId} y su
+// subcolección /canales, que quedan exactamente igual.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -591,6 +608,84 @@ service cloud.firestore {
     // lee y escribe. El cliente nunca accede a esta colección directamente.
     match /egresos/{egresoId} {
       allow read, write: if esStaff();
+    }
+    // ---------- EVENTOS (v2.15 — eventos.html v1.0+, módulo Live) ----------
+    // Colección nueva, raíz, independiente de proyectos (sonido en vivo,
+    // no grabación). Cada documento: nombre/fecha/lugar/cliente/estado/
+    // notas/mixes (array embebido de mixes del evento — sin colección
+    // propia). Subcolección eventos/{id}/canales = Input List (numero,
+    // fuente, micro, stand, phantom, mixId, notas, volMonitor,
+    // notasMonitor, notasStage, posX, posY — estos últimos 5 se
+    // agregaron en versiones posteriores de eventos.html sin requerir
+    // cambios de regla, ya que `write` no restringe campos para staff).
+    // MISMO PATRÓN EXACTO que estudios/musicos/clientes/equipoTecnico/
+    // backlineCatalogo/egresos: solo equipo interno lee y escribe. El
+    // cliente nunca accede a esta colección ni a su subcolección.
+    match /eventos/{eventoId} {
+      allow read, write: if esStaff();
+      match /canales/{canalId} {
+        allow read, write: if esStaff();
+      }
+    }
+    // ---------- CATÁLOGO DE ÍCONOS (v2.16 — eventos.html v1.25) ----------
+    // Colección nueva, raíz, GLOBAL (no cuelga de ningún evento): catálogo
+    // de tipos de ícono del Stageplot (clave, nombre, formaBase, color,
+    // anchoCM, altoCM, patron de detección, abrev) que se edita desde el
+    // modal "⚙️ Tipos de ícono" de eventos.html. Un documento por tipo,
+    // id = clave. MISMO PATRÓN EXACTO que estudios/musicos/clientes/
+    // equipoTecnico/backlineCatalogo/egresos/eventos: solo equipo interno
+    // lee y escribe (crear, editar, borrar/restaurar un tipo). El cliente
+    // nunca accede a esta colección directamente.
+    match /catalogoIconos/{claveId} {
+      allow read, write: if esStaff();
+    }
+    // ---------- VACAS (v2.17 — vacas.html v1.0 / vaca.html v1.0) ----------
+    // Sistema de recolección grupal ("vaca") con cuota fija por participante.
+    // Flujo: admin crea la vaca → comparte link público de registro → cada
+    // participante se registra sin login → admin registra abonos → cada
+    // participante consulta su estado via link personal (vacaId + participanteId).
+    //
+    // PATRÓN DE SEGURIDAD SIN LOGIN: los IDs generados por Firestore son
+    // imposibles de adivinar sin el link exacto. vacaId = secreto del link
+    // de registro; participanteId = secreto del link personal. list siempre
+    // bloqueado para público — no se puede enumerar vacas ni participantes
+    // sin auth.
+    //
+    // DENORMALIZACIÓN: el doc raíz de la vaca lleva `numParticipantes`
+    // (FieldValue.increment en cada registro) para que la vista pública
+    // pueda mostrar el conteo sin necesitar `list` sobre la subcolección
+    // de participantes (que expondría nombres/contactos de todos).
+    match /vacas/{vacaId} {
+      // Staff: acceso total (crear, editar, cerrar, borrar vacas).
+      allow read, write: if esStaff();
+      // Público: solo get puntual del doc raíz (nombre, cuota_fija,
+      // numParticipantes, estado). list bloqueado — el vacaId está en el
+      // link de registro y no es adivinable por terceros.
+      allow get: if true;
+
+      match /participantes/{participanteId} {
+        // Staff: acceso total (leer lista completa, editar, borrar).
+        allow read, write: if esStaff();
+        // Público:
+        //   create → registrarse en la vaca (nombre + contacto Nequi).
+        //   get    → ver su propio estado via link personal. El participanteId
+        //            viaja en la URL como "secreto" — sin el link personal es
+        //            imposible llegar a este doc; list sigue bloqueado para
+        //            no poder enumerar participantes sin auth.
+        allow create: if true;
+        allow get: if true;
+
+        match /abonos/{abonoId} {
+          // Staff: acceso total (registrar y corregir abonos).
+          allow read, write: if esStaff();
+          // Público: read (get + list) sobre los abonos de ESTE participante.
+          // El "secreto" compuesto es vacaId + participanteId — cualquiera
+          // que llegue a este path ya tiene el link personal completo.
+          // Solo staff puede crear/editar/borrar abonos (la confirmación de
+          // Nequi la hace el admin manualmente).
+          allow read: if true;
+        }
+      }
     }
   }
 }

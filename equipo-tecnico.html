@@ -4,7 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Equipo Técnico</title>
-<!-- AUDIOLINK · equipo-tecnico.html · v1.4
+<!-- AUDIOLINK · equipo-tecnico.html · v1.6
+     v1.6: mismo cambio que musicos.html v2.0 — mitigación de costo de
+     collectionGroup('sesiones'): (1) botón manual "🔄 Calcular
+     registrado" en vez de disparo automático; (2) caché en localStorage
+     15 min (audiolink_registrados_tecnicos); (3) advertencia visible de
+     sesiones sin tarifa asignada (no suman, pero ahora se avisa cuántas
+     quedaron fuera). No se tocó ninguna otra lógica.
+     v1.5
+     v1.5: mismo agregado que musicos.html v1.9, adaptado a técnicos:
+     "Registrado" (suma de tarifa de todas las sesiones donde el técnico
+     aparece en tecnicosAsignados — SIN multiplicar por canales, ese
+     campo no existe para técnicos, es tarifa plana por asignación), vía
+     db.collectionGroup('sesiones') (ya permitido para staff, no se
+     tocaron reglas). Estado Pagado/Abonado/Pendiente (Total pagado v1.4
+     vs Registrado). Botón "📄 Exportar informe" en el panel — mismo
+     estilo visual que musicos.html/egresos.html. No se tocó ninguna otra
+     lógica del CRUD.
+     v1.4
      v1.4: "Total pagado" (v1.3) pasa de carga única (.get()) a tiempo
      real (.onSnapshot()) — mismo motivo que musicos.html v1.8: se usa
      para informes, necesita reflejar el estado exacto al momento de
@@ -206,6 +223,28 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .checkbox-field input{width:auto;}
 .checkbox-field label{margin:0;font-size:0.85rem;color:var(--txt);}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+/* v1.5: mismo bloque @media print que musicos.html v1.9/egresos.html
+   v1.6+ — HTML/CSS + window.print(), sin jsPDF. */
+@media print {
+  @page { size: letter; margin: 15mm 15mm 15mm 15mm; }
+  body { background:#FFFFFF !important; color:#000000 !important; font-family: var(--S); }
+  #nav-mount, main > *:not(#print-view) { display:none !important; }
+  main{padding:0;}
+  #print-view{ display:block !important; color:#000000 !important; padding:0; }
+  .print-header{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #C4982C; padding-bottom:16px; margin-bottom:24px; }
+  .print-title{ font-family: var(--T); font-size:26px; font-weight:bold; color:#111111; letter-spacing:-0.02em; }
+  .print-subtitle{ font-size:11px; color:#7A7060; font-family: var(--M); text-transform:uppercase; letter-spacing:0.15em; margin-top:2px; }
+  .print-section-title{ font-family: var(--M); font-size:11px; text-transform:uppercase; color:#111111; letter-spacing:0.05em; font-weight:bold; border-left:4px solid #C4982C; padding-left:10px; margin:22px 0 10px; }
+  .print-resumen-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:6px; }
+  .print-resumen-item{ border:1px solid #E5E5E5; border-radius:6px; padding:10px; }
+  .print-resumen-item .lbl{ font-size:9.5px; text-transform:uppercase; color:#7A7060; letter-spacing:0.04em; }
+  .print-resumen-item .val{ font-family: var(--M); font-size:14px; font-weight:bold; color:#111111; margin-top:2px; }
+  .print-table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+  .print-table th{ text-align:left; font-family: var(--M); font-size:9.5px; text-transform:uppercase; color:#7A7060; letter-spacing:0.04em; border-bottom:2px solid #111111; padding:6px 8px; }
+  .print-table td{ border-bottom:1px solid #E5E5E5; padding:6px 8px; }
+  .print-footer-container{ margin-top:30px; border-top:2px solid #111111; padding-top:16px; }
+  .print-footer-grid{ display:flex; justify-content:space-between; font-size:10px; color:#555555; }
+}
 </style>
 </head>
 <body>
@@ -237,6 +276,11 @@ window.NAV_CONFIG = { activo: 'equipo-tecnico' };
   <div class="top-actions">
     <h2>EQUIPO TÉCNICO</h2>
     <button class="btn" onclick="abrirPanelNuevo()" id="btnNuevo">+ Nuevo técnico</button>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+    <button class="btn btn-ghost" onclick="cargarRegistradosTecnicos(true)">🔄 Calcular registrado</button>
+    <span id="registradoCacheInfoTec" style="font-size:0.72rem;color:var(--muted);"></span>
   </div>
 
   <div class="grid" id="gridTecnicos"></div>
@@ -273,13 +317,21 @@ window.NAV_CONFIG = { activo: 'equipo-tecnico' };
         <label>Total pagado (histórico, ver egresos.html)</label>
         <div style="font-family:var(--M);font-size:1rem;color:var(--gold);padding:4px 0;" id="valorTotalPagadoTec">—</div>
       </div>
+      <div class="field" id="campoRegistradoTec" style="display:none;">
+        <label>Registrado (tarifa en sus sesiones asignadas)</label>
+        <div style="font-family:var(--M);font-size:1rem;color:var(--txt);padding:4px 0;" id="valorRegistradoTec">—</div>
+        <div style="margin-top:4px;" id="badgeEstadoTec"></div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cerrarPanel()">Cancelar</button>
       <button class="btn" onclick="guardarTecnico()">Guardar</button>
+      <button class="btn btn-ghost" id="btnInformeTec" style="display:none;" onclick="exportarInformeTecnico()">📄 Exportar informe</button>
       <button class="btn btn-ghost" style="display:none;color:var(--err);border-color:var(--err);" id="btnEliminar" onclick="eliminarTecnico()">Eliminar</button>
     </div>
   </div>
+
+  <div id="print-view" style="display:none;"></div>
 
 </main>
 </div><!-- /main-wrap -->
@@ -320,6 +372,69 @@ let tecnicos = [];
 let tecnicoActualId = null;
 let unsubscribeTecnicos = null;
 let totalesPagadosTec = {}; // v1.3: { personaId: totalAcumulado } desde egresos
+let totalesRegistradosTec = {}; // v1.5: { tecnicoId: totalRegistrado } — suma de tarifa en sesiones (collectionGroup)
+let tecnicoIdParaInforme = null;
+let tecnicoNombreParaInforme = '';
+
+let sinTarifaTec = {}; // v1.6: { tecnicoId: cantidadDeSesionesSinTarifa }
+
+// v1.6: mismo patrón de caché/botón manual que musicos.html v2.0.
+function cargarRegistradosTecnicos(forzar){
+  const CACHE_KEY = 'audiolink_registrados_tecnicos';
+  const CACHE_MIN = 15;
+  if(!forzar){
+    try{
+      const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      if(cache && (Date.now() - cache.ts) < CACHE_MIN * 60 * 1000){
+        totalesRegistradosTec = cache.registrados;
+        sinTarifaTec = cache.sinTarifa;
+        mostrarInfoCacheRegistradoTec(cache.ts);
+        renderTecnicos();
+        return;
+      }
+    } catch(e){ /* caché corrupto o inexistente, se ignora y se recalcula */ }
+  }
+  document.getElementById('registradoCacheInfoTec').textContent = 'Calculando…';
+  db.collectionGroup('sesiones').get()
+    .then(snap => {
+      totalesRegistradosTec = {};
+      sinTarifaTec = {};
+      snap.forEach(d => {
+        const s = d.data();
+        (s.tecnicosAsignados || []).forEach(t => {
+          if(!t.tecnicoId) return;
+          if(t.tarifa == null){
+            sinTarifaTec[t.tecnicoId] = (sinTarifaTec[t.tecnicoId] || 0) + 1;
+            return;
+          }
+          totalesRegistradosTec[t.tecnicoId] = (totalesRegistradosTec[t.tecnicoId] || 0) + Number(t.tarifa);
+        });
+      });
+      const ts = Date.now();
+      try{
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts, registrados: totalesRegistradosTec, sinTarifa: sinTarifaTec }));
+      } catch(e){ /* localStorage lleno o no disponible, se sigue sin cachear */ }
+      mostrarInfoCacheRegistradoTec(ts);
+      renderTecnicos();
+    })
+    .catch(err => console.error('Error cargando registrado (sesiones) de técnicos:', err));
+}
+
+function mostrarInfoCacheRegistradoTec(ts){
+  const mins = Math.round((Date.now() - ts) / 60000);
+  document.getElementById('registradoCacheInfoTec').textContent =
+    mins === 0 ? 'Calculado hace instantes' : `Calculado hace ${mins} min`;
+}
+
+// v1.5: Pagado/Abonado/Pendiente — pagado vs registrado
+function estadoPagoTecnico(id){
+  const pagado = totalesPagadosTec[id] || 0;
+  const registrado = totalesRegistradosTec[id] || 0;
+  if(registrado === 0) return null;
+  if(pagado >= registrado) return { texto: 'Pagado', color: 'var(--ok)' };
+  if(pagado > 0) return { texto: 'Abonado', color: 'var(--warn)' };
+  return { texto: 'Pendiente', color: 'var(--err)' };
+}
 
 function initEquipoTecnico(){
   egresosRefTec.where('personaTipo', '==', 'tecnico').onSnapshot(snap => {
@@ -338,6 +453,8 @@ function initEquipoTecnico(){
   }, err => {
     console.error('Error cargando equipoTecnico:', err);
   });
+
+  cargarRegistradosTecnicos(); // v1.6: usa caché de localStorage si está vigente (15 min); si no, calcula
 }
 
 function renderTecnicos(){
@@ -357,7 +474,10 @@ function renderTecnicos(){
       </div>
       <div class="meta">${t.rol || 'Sin rol asignado'}</div>
       <div class="tarifa">${typeof formatCOP === 'function' ? formatCOP(t.tarifa || 0) : (t.tarifa || 0)}</div>
-      <div style="font-size:0.72rem;color:var(--muted);margin-top:6px;">Total pagado: ${typeof formatCOP === 'function' ? formatCOP(totalesPagadosTec[t.id] || 0) : (totalesPagadosTec[t.id] || 0)}</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:6px;">Total pagado: ${typeof formatCOP === 'function' ? formatCOP(totalesPagadosTec[t.id] || 0) : (totalesPagadosTec[t.id] || 0)}${totalesRegistradosTec[t.id] ? ' de ' + formatCOP(totalesRegistradosTec[t.id]) : ''}
+        ${(() => { const e = estadoPagoTecnico(t.id); return e ? `<span style="color:${e.color};font-weight:600;margin-left:6px;">● ${e.texto}</span>` : ''; })()}
+        ${sinTarifaTec[t.id] ? `<div style="color:var(--warn);margin-top:2px;">⚠️ ${sinTarifaTec[t.id]} sesión(es) sin tarifa asignada</div>` : ''}
+      </div>
     </div>
   `).join('');
 }
@@ -372,6 +492,8 @@ function abrirPanelNuevo(){
   document.getElementById('fActivo').checked = true;
   document.getElementById('btnEliminar').style.display = 'none';
   document.getElementById('campoTotalPagadoTec').style.display = 'none';
+  document.getElementById('campoRegistradoTec').style.display = 'none';
+  document.getElementById('btnInformeTec').style.display = 'none';
   mostrarPanel();
 }
 
@@ -387,7 +509,74 @@ function abrirPanelEditar(id){
   document.getElementById('btnEliminar').style.display = 'inline-block';
   document.getElementById('campoTotalPagadoTec').style.display = 'block';
   document.getElementById('valorTotalPagadoTec').textContent = typeof formatCOP === 'function' ? formatCOP(totalesPagadosTec[id] || 0) : (totalesPagadosTec[id] || 0);
+  document.getElementById('campoRegistradoTec').style.display = 'block';
+  document.getElementById('valorRegistradoTec').textContent = typeof formatCOP === 'function' ? formatCOP(totalesRegistradosTec[id] || 0) : (totalesRegistradosTec[id] || 0);
+  const est = estadoPagoTecnico(id);
+  document.getElementById('badgeEstadoTec').innerHTML = (est ? `<span style="color:${est.color};font-weight:600;font-size:0.8rem;">● ${est.texto}</span>` : '<span style="color:var(--muted);font-size:0.8rem;">Sin sesiones con tarifa registrada</span>') +
+    (sinTarifaTec[id] ? `<div style="color:var(--warn);font-size:0.76rem;margin-top:4px;">⚠️ ${sinTarifaTec[id]} sesión(es) sin tarifa asignada (no incluidas en Registrado)</div>` : '');
+  document.getElementById('btnInformeTec').style.display = 'inline-block';
+  tecnicoIdParaInforme = id;
+  tecnicoNombreParaInforme = t.nombre || '';
   mostrarPanel();
+}
+
+// v1.5: informe PDF de un técnico — registrado/pagado/saldo/estado +
+// historial de sus pagos. Mismo lenguaje visual que musicos.html v1.9.
+async function exportarInformeTecnico(){
+  if(!tecnicoIdParaInforme) return;
+  const id = tecnicoIdParaInforme;
+  const registrado = totalesRegistradosTec[id] || 0;
+  const pagado = totalesPagadosTec[id] || 0;
+  const saldo = registrado - pagado;
+  const est = estadoPagoTecnico(id);
+  const fecha = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  let pagosHtml = '<tr><td colspan="4" style="color:#888;">Sin pagos registrados.</td></tr>';
+  try{
+    const snap = await db.collection('egresos').where('personaId', '==', id).get();
+    const pagos = snap.docs.map(d => d.data()).filter(eg => eg.personaTipo === 'tecnico').sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    if(pagos.length){
+      pagosHtml = pagos.map(eg => `<tr>
+        <td>${eg.fecha || '—'}</td>
+        <td>${escapeHtml(eg.proyectoNombre || '—')}${eg.temaNombre ? ' → ' + escapeHtml(eg.temaNombre) : ''}</td>
+        <td>${eg.esAnticipo ? 'Anticipo' : 'Pago'}</td>
+        <td>${formatCOP(eg.monto || 0)}</td>
+      </tr>`).join('');
+    }
+  } catch(err){
+    console.error('Error cargando pagos para el informe:', err);
+  }
+
+  const html = `
+    <div class="print-header">
+      <div>
+        <div class="print-title">AUDIOLINK</div>
+        <div class="print-subtitle">Informe de pagos — ${escapeHtml(tecnicoNombreParaInforme)}</div>
+      </div>
+      <div style="font-family:var(--M);font-size:10px;color:#7A7060;">${fecha}</div>
+    </div>
+    <div class="print-resumen-grid">
+      <div class="print-resumen-item"><div class="lbl">Registrado</div><div class="val">${formatCOP(registrado)}</div></div>
+      <div class="print-resumen-item"><div class="lbl">Pagado</div><div class="val">${formatCOP(pagado)}</div></div>
+      <div class="print-resumen-item"><div class="lbl">Saldo</div><div class="val">${formatCOP(saldo)}</div></div>
+      <div class="print-resumen-item"><div class="lbl">Estado</div><div class="val">${est ? est.texto : '—'}</div></div>
+    </div>
+    ${sinTarifaTec[id] ? `<div style="font-size:11px;color:#8a6d1a;margin-top:6px;">⚠️ ${sinTarifaTec[id]} sesión(es) sin tarifa asignada, no incluidas en "Registrado".</div>` : ''}
+    <div class="print-section-title">Historial de pagos</div>
+    <table class="print-table">
+      <thead><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>Monto</th></tr></thead>
+      <tbody>${pagosHtml}</tbody>
+    </table>
+    <div class="print-footer-container">
+      <div class="print-footer-grid">
+        <span>AUDIOLINK — Producción y Logística Musical</span>
+        <span>Documento confidencial — solo uso interno</span>
+      </div>
+      <div style="text-align:center;font-size:9.5px;color:#8a8578;margin-top:8px;letter-spacing:0.02em;">Marto 🧠 · martowave@gmail.com</div>
+    </div>
+  `;
+  document.getElementById('print-view').innerHTML = html;
+  window.print();
 }
 
 function mostrarPanel(){

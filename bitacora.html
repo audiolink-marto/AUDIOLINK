@@ -3,8 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación (v2.69)</title>
-<!-- AUDIOLINK · bitacora.html · v2.69
+<title>Audiolink — Bitácora de Grabación (v2.71)</title>
+<!-- AUDIOLINK · bitacora.html · v2.71
+     v2.71: checklist accionable en Edición/Mezcla/Mastering — reemplaza
+     el rol de "pendientes" que cumplía la textarea libre. Campo nuevo
+     por etapa `checklist{Edicion|Mezcla|Mastering}` (array de
+     {texto, hecho}) en el doc de tema, mismo patrón que
+     entregablesMastering/referenciasMezcla (v2.70): agregar (arrayUnion),
+     tildar/destildar y borrar reescriben el array completo con update()
+     porque Firestore no permite editar un elemento por índice dentro de
+     un array. La textarea de cada etapa se RENOMBRA a "Notas generales"
+     y queda para contexto/decisiones que no son una tarea puntual — no
+     se borra ni se pierde nada de lo ya guardado en notasEdicion/Mezcla/
+     Mastering, sigue siendo el mismo campo de siempre. Requiere que
+     firestore.rules agregue 'checklistEdicion', 'checklistMezcla',
+     'checklistMastering' a las 2 excepciones angostas de /temas (mismo
+     lugar donde ya están referenciasMezcla/masteringPlataforma/etc de
+     v2.70) — sin ese ajuste, agregar/tildar pendientes falla con
+     "Missing or insufficient permissions".
+     v2.69
      v2.69: el guard de sesión ahora lee el rol del ingeniero PARA ESTE
      PROYECTO (`rolesPorProyecto[proyectoId]`, nuevo campo agregado desde
      proyecto.html v5.24 — mapa {proyectoId: rol}, un mismo ingeniero
@@ -525,6 +542,21 @@ h1{
 .traspaso-box .vacio{font-style:italic;opacity:0.7;}
 
 /* v2.70: referencias sonoras (Mezcla) */
+/* v2.71: checklist accionable por etapa (Edición/Mezcla/Mastering) —
+   mismo lenguaje visual que .entregables-lista, pero con texto libre
+   por item en vez de opciones fijas. */
+.checklist-box{margin-bottom:16px;}
+.checklist-item{
+  display:flex;align-items:center;gap:8px;border:1px solid var(--brd);border-radius:8px;
+  padding:8px 10px;margin-bottom:6px;font-size:0.85rem;
+}
+.checklist-item input[type="checkbox"]{width:16px;height:16px;flex-shrink:0;}
+.checklist-item .texto{flex:1;}
+.checklist-item.hecho .texto{text-decoration:line-through;opacity:0.55;}
+.checklist-item .borrar{cursor:pointer;color:var(--err);flex-shrink:0;}
+.checklist-add-row{display:flex;gap:8px;margin-top:4px;}
+.checklist-add-row input{flex:1;}
+
 .referencias-box{margin-top:16px;border-top:1px solid var(--brd);padding-top:14px;}
 .referencia-item{
   display:flex;justify-content:space-between;align-items:center;gap:8px;
@@ -854,9 +886,19 @@ h1{
   </div>
   <div class="panel" id="panel_edicion">
     <div class="error-box" id="avisoSinTemaEdicion" style="display:none;">Esta sesión no tiene un tema asignado. Asígnale un tema desde Logística para poder guardar notas de edición.</div>
+    <!-- v2.71: checklist accionable — reemplaza la textarea como lugar
+         para "pendientes", la textarea queda para contexto/decisiones -->
+    <div class="checklist-box">
+      <div class="etapa-sesiones-titulo" style="margin-bottom:10px;">☑️ Pendientes de edición</div>
+      <div id="checklistEdicionLista"></div>
+      <div class="checklist-add-row">
+        <input type="text" id="checklistNuevoEdicion" placeholder="Ej: revisar toma 3 de voz..." onkeydown="if(event.key==='Enter'){event.preventDefault();agregarChecklistItem('Edicion');}">
+        <button class="btn-nueva-sesion" onclick="agregarChecklistItem('Edicion')" disabled id="btnChecklistAddEdicion">+ Agregar</button>
+      </div>
+    </div>
     <div class="field">
-      <label>Notas de edición</label>
-      <textarea id="notasEdicion" placeholder="Comping, ediciones, pendientes..." style="min-height:160px;" onchange="guardarNotaEtapa('Edicion', this.value)" disabled></textarea>
+      <label>Notas generales</label>
+      <textarea id="notasEdicion" placeholder="Contexto, decisiones que no son una tarea puntual..." style="min-height:100px;" onchange="guardarNotaEtapa('Edicion', this.value)" disabled></textarea>
     </div>
     <div class="etapa-sesiones-box">
       <div class="etapa-sesiones-header">
@@ -885,9 +927,17 @@ h1{
     <div class="error-box" id="avisoSinTemaMezcla" style="display:none;">Esta sesión no tiene un tema asignado. Asígnale un tema desde Logística para poder guardar notas de mezcla.</div>
     <!-- v2.70: traspaso — lo que dejó Edición, solo lectura -->
     <div class="traspaso-box" id="traspasoEdicionBox" style="display:none;"></div>
+    <div class="checklist-box">
+      <div class="etapa-sesiones-titulo" style="margin-bottom:10px;">☑️ Pendientes de mezcla</div>
+      <div id="checklistMezclaLista"></div>
+      <div class="checklist-add-row">
+        <input type="text" id="checklistNuevoMezcla" placeholder="Ej: automatizar entrada del coro..." onkeydown="if(event.key==='Enter'){event.preventDefault();agregarChecklistItem('Mezcla');}">
+        <button class="btn-nueva-sesion" onclick="agregarChecklistItem('Mezcla')" disabled id="btnChecklistAddMezcla">+ Agregar</button>
+      </div>
+    </div>
     <div class="field">
-      <label>Notas de mezcla</label>
-      <textarea id="notasMezcla" placeholder="Decisiones de mezcla, referencias, pendientes..." style="min-height:160px;" onchange="guardarNotaEtapa('Mezcla', this.value)" disabled></textarea>
+      <label>Notas generales</label>
+      <textarea id="notasMezcla" placeholder="Contexto, decisiones que no son una tarea puntual..." style="min-height:100px;" onchange="guardarNotaEtapa('Mezcla', this.value)" disabled></textarea>
     </div>
     <div class="etapa-sesiones-box">
       <div class="etapa-sesiones-header">
@@ -926,9 +976,17 @@ h1{
     <div class="error-box" id="avisoSinTemaMastering" style="display:none;">Esta sesión no tiene un tema asignado. Asígnale un tema desde Logística para poder guardar notas de mastering.</div>
     <!-- v2.70: traspaso — lo que dejó Mezcla, solo lectura -->
     <div class="traspaso-box" id="traspasoMezclaBox" style="display:none;"></div>
+    <div class="checklist-box">
+      <div class="etapa-sesiones-titulo" style="margin-bottom:10px;">☑️ Pendientes de mastering</div>
+      <div id="checklistMasteringLista"></div>
+      <div class="checklist-add-row">
+        <input type="text" id="checklistNuevoMastering" placeholder="Ej: exportar versión streaming..." onkeydown="if(event.key==='Enter'){event.preventDefault();agregarChecklistItem('Mastering');}">
+        <button class="btn-nueva-sesion" onclick="agregarChecklistItem('Mastering')" disabled id="btnChecklistAddMastering">+ Agregar</button>
+      </div>
+    </div>
     <div class="field">
-      <label>Notas de mastering</label>
-      <textarea id="notasMastering" placeholder="Loudness objetivo, referencias, entregables..." style="min-height:160px;" onchange="guardarNotaEtapa('Mastering', this.value)" disabled></textarea>
+      <label>Notas generales</label>
+      <textarea id="notasMastering" placeholder="Contexto, decisiones que no son una tarea puntual..." style="min-height:100px;" onchange="guardarNotaEtapa('Mastering', this.value)" disabled></textarea>
     </div>
     <div class="etapa-sesiones-box">
       <div class="etapa-sesiones-header">
@@ -1929,6 +1987,7 @@ async function cargarNotasTema(temaId){
     deshabilitarTabsTema(true);
     renderDashboard();
     renderTraspasos(); // v2.70
+    renderChecklistesTodas(); // v2.71
     renderReferenciasMezcla(); // v2.70
     renderMasteringLoudness(); // v2.70
     renderEntregablesMastering(); // v2.70
@@ -1945,6 +2004,7 @@ async function cargarNotasTema(temaId){
       temaData = null;
       deshabilitarTabsTema(true);
       renderTraspasos(); // v2.70
+    renderChecklistesTodas(); // v2.71
       renderReferenciasMezcla(); // v2.70
       renderMasteringLoudness(); // v2.70
       renderEntregablesMastering(); // v2.70
@@ -1960,6 +2020,7 @@ async function cargarNotasTema(temaId){
     deshabilitarTabsTema(false);
     renderDashboard();
     renderTraspasos(); // v2.70
+    renderChecklistesTodas(); // v2.71
     renderReferenciasMezcla(); // v2.70
     renderMasteringLoudness(); // v2.70
     renderEntregablesMastering(); // v2.70
@@ -1971,6 +2032,7 @@ async function cargarNotasTema(temaId){
     deshabilitarTabsTema(true);
     renderDashboard();
     renderTraspasos(); // v2.70
+    renderChecklistesTodas(); // v2.71
     renderReferenciasMezcla(); // v2.70
     renderMasteringLoudness(); // v2.70
     renderEntregablesMastering(); // v2.70
@@ -1985,6 +2047,9 @@ async function cargarNotasTema(temaId){
 // guardado, mismo patrón angosto que guardarNotaEtapa().
 
 // --- Traspaso: solo lectura, muestra lo que dejó la etapa anterior ---
+function renderChecklistesTodas(){
+  ['Edicion','Mezcla','Mastering'].forEach(etapa => renderChecklistEtapa(etapa));
+}
 function renderTraspasos(){
   const boxEdicion = document.getElementById('traspasoEdicionBox');
   const boxMezcla = document.getElementById('traspasoMezclaBox');
@@ -2047,6 +2112,72 @@ async function eliminarReferenciaMezcla(idx){
     temaData.referenciasMezcla.splice(idx, 1);
     renderReferenciasMezcla();
   } catch(err){ console.error('Error eliminando referencia:', err); }
+}
+
+// ============ v2.71: CHECKLIST ACCIONABLE POR ETAPA ============
+// Igual que el resto del bloque v2.70: campo nuevo en el mismo doc de
+// tema (`checklist${etapaCap}`, array de {texto, hecho}), sin colección
+// ni lectura nueva. Genérico para Edicion/Mezcla/Mastering — una sola
+// función por acción, parametrizada por etapaCap, para no triplicar
+// código entre las 3 pestañas.
+function renderChecklistEtapa(etapaCap){
+  const cont = document.getElementById(`checklist${etapaCap}Lista`);
+  if(!cont) return;
+  const items = (temaData && Array.isArray(temaData[`checklist${etapaCap}`])) ? temaData[`checklist${etapaCap}`] : [];
+  if(!items.length){
+    cont.innerHTML = '<div class="empty">Sin pendientes agregados todavía.</div>';
+    return;
+  }
+  cont.innerHTML = items.map((it, i) => `
+    <div class="checklist-item ${it.hecho ? 'hecho' : ''}">
+      <input type="checkbox" ${it.hecho ? 'checked' : ''} onchange="toggleChecklistItem('${etapaCap}', ${i}, this.checked)">
+      <span class="texto">${escapeHtml(it.texto)}</span>
+      <span class="borrar" onclick="eliminarChecklistItem('${etapaCap}', ${i})">🗑️</span>
+    </div>`).join('');
+}
+async function agregarChecklistItem(etapaCap){
+  if(!temaRef){ console.error('No se puede agregar pendiente: sin tema asignado.'); return; }
+  const input = document.getElementById(`checklistNuevo${etapaCap}`);
+  const texto = input.value.trim();
+  if(!texto) return;
+  const item = { texto, hecho: false };
+  try{
+    await temaRef.update({ [`checklist${etapaCap}`]: firebase.firestore.FieldValue.arrayUnion(item) });
+    if(!temaData[`checklist${etapaCap}`]) temaData[`checklist${etapaCap}`] = [];
+    temaData[`checklist${etapaCap}`].push(item);
+    input.value = '';
+    renderChecklistEtapa(etapaCap);
+  } catch(err){ console.error('Error agregando pendiente:', err); }
+}
+async function toggleChecklistItem(etapaCap, idx, checked){
+  if(!temaRef || !temaData || !Array.isArray(temaData[`checklist${etapaCap}`])) return;
+  const items = temaData[`checklist${etapaCap}`];
+  if(!items[idx]) return;
+  // v2.71: Firestore no permite editar UN elemento de un array in-place
+  // (arrayUnion/arrayRemove comparan el objeto completo) — se reescribe
+  // el array completo con update(), mismo patrón que sesionesEdicion/
+  // Mezcla/Mastering (etapaCronoGuardar) ya usa en otras partes del
+  // archivo para listas que sí necesitan editarse por índice.
+  const copia = items.map((it, i) => i === idx ? { ...it, hecho: checked } : it);
+  try{
+    await temaRef.update({ [`checklist${etapaCap}`]: copia });
+    temaData[`checklist${etapaCap}`] = copia;
+    renderChecklistEtapa(etapaCap);
+  } catch(err){
+    console.error('Error actualizando pendiente:', err);
+    renderChecklistEtapa(etapaCap); // revierte el checkbox visualmente
+  }
+}
+async function eliminarChecklistItem(etapaCap, idx){
+  if(!temaRef || !temaData || !Array.isArray(temaData[`checklist${etapaCap}`])) return;
+  const items = temaData[`checklist${etapaCap}`];
+  if(!items[idx]) return;
+  const copia = items.filter((_, i) => i !== idx);
+  try{
+    await temaRef.update({ [`checklist${etapaCap}`]: copia });
+    temaData[`checklist${etapaCap}`] = copia;
+    renderChecklistEtapa(etapaCap);
+  } catch(err){ console.error('Error eliminando pendiente:', err); }
 }
 
 // --- Loudness/plataforma objetivo (Mastering) ---
@@ -2181,6 +2312,11 @@ function deshabilitarTabsTema(sinTema){
   document.getElementById('entregableStreaming').disabled = sinTema;
   document.getElementById('entregableVinilo').disabled = sinTema;
   document.getElementById('entregableOtro').disabled = sinTema;
+  // v2.71: mismo criterio para los 3 checklist accionables
+  ['Edicion','Mezcla','Mastering'].forEach(etapa => {
+    document.getElementById(`checklistNuevo${etapa}`).disabled = sinTema;
+    document.getElementById(`btnChecklistAdd${etapa}`).disabled = sinTema;
+  });
 }
 
 async function guardarNotaEtapa(etapaCap, valor){

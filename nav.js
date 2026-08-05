@@ -1,4 +1,17 @@
-/* AUDIOLINK · nav.js · v1.3
+/* AUDIOLINK · nav.js · v1.5
+   V1.5: se agrega el ítem "Vacas" (vacas.html) a ITEMS, después de
+   "Cotizador" — módulo de vaca colectiva (crowdfunding interno). Se suma
+   también a idsFueraBottomnav para no saturar la barra inferior móvil
+   (queda accesible por sidebar desktop y panel "···" móvil). No se tocó
+   ninguna otra función, ítem existente ni la lógica de
+   inyección/colapsar/tema.
+   V1.4: se agrega el ítem "Eventos" (eventos.html) a ITEMS, después de
+   "Equipo Técnico" — módulo Live (sonido en vivo), mismo criterio que
+   V1.3 (página nueva del ecosistema que aún no estaba en el menú). Se
+   suma también a idsFueraBottomnav para no saturar la barra inferior
+   móvil (queda accesible por sidebar desktop y panel "···" móvil). No
+   se tocó ninguna otra función, ítem existente ni la lógica de
+   inyección/colapsar/tema.
    V1.3: se agregan los ítems "Egresos" (egresos.html) y "Equipo Técnico"
    (equipo-tecnico.html) a ITEMS, después de "Pagos" — mismo criterio que
    V1.2 (páginas nuevas del ecosistema que aún no estaban en el menú).
@@ -64,7 +77,9 @@
     { id:'pagos',     href:'pagos.html',     icon:'💳', label:'Pagos'      },
     { id:'egresos',   href:'egresos.html',   icon:'📤', label:'Egresos'    },
     { id:'equipo-tecnico', href:'equipo-tecnico.html', icon:'🛠️', label:'Equipo Técnico' },
-    { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador'  }
+    { id:'eventos',   href:'eventos.html',   icon:'🎤', label:'Eventos'    },
+    { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador'  },
+    { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas'      }
   ];
 
   // Ítems que se sacan del mobile-bottomnav (para no saturar la barra de 4
@@ -72,7 +87,7 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos', 'egresos', 'equipo-tecnico'];
+  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
 

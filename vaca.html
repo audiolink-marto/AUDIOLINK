@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="es" data-tema="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vaca · AUDIOLINK</title>
+  <style>
+    /* ===== AUDIOLINK · vaca.html · v1.0
+       Vista pública sin auth. Dos estados según URL:
+       ?id=XXX        → formulario de registro
+       ?id=XXX&p=YYY  → portal personal (saldo, abonos, progreso global)
+    ===== */
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f1117;
+      --bg2:     #181c26;
+      --bg3:     #1e2333;
+      --border:  #2a2f42;
+      --text:    #e8eaf0;
+      --text2:   #8b90a0;
+      --accent:  #4f8ef7;
+      --green:   #3ecf8e;
+      --red:     #f76f6f;
+      --yellow:  #f5c842;
+      --radius:  10px;
+      --shadow:  0 2px 16px rgba(0,0,0,.45);
+      --T: 'Inter', 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--T);
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px 60px;
+    }
+
+    /* ===== TOPBAR MINIMAL ===== */
+    .topbar {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .topbar-brand {
+      font-family: var(--T);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .topbar-brand span { color: var(--text2); font-weight: 400; margin-left: 4px; font-size: 0.78rem; letter-spacing: 0; }
+
+    /* ===== CARD ===== */
+    .card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-top {
+      padding: 24px 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .vaca-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--accent);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .vaca-nombre {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .vaca-desc {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.55;
+    }
+
+    /* cuota pill */
+    .cuota-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      background: rgba(79,142,247,.1);
+      border: 1px solid rgba(79,142,247,.25);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .card-body { padding: 24px; }
+
+    /* ===== SECCIÓN: PROGRESO GLOBAL ===== */
+    .seccion-titulo {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--text2);
+      margin-bottom: 14px;
+    }
+
+    .progreso-wrap { margin-bottom: 24px; }
+    .progreso-nums {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 8px;
+    }
+    .progreso-monto {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--green);
+      line-height: 1;
+    }
+    .progreso-meta {
+      font-size: 12px;
+      color: var(--text2);
+    }
+    .progreso-bar {
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progreso-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 99px;
+      transition: width .6s ease;
+    }
+    .progreso-sub {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    /* ===== SECCIÓN: SALDO PERSONAL ===== */
+    .saldo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .saldo-box {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .saldo-box label {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+    .saldo-box span {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .saldo-box.abonado span { color: var(--green); }
+    .saldo-box.pendiente span { color: var(--yellow); }
+
+    /* chip estado */
+    .estado-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .chip-pagado   { background: rgba(62,207,142,.12); color: var(--green); border: 1px solid rgba(62,207,142,.25); }
+    .chip-parcial  { background: rgba(245,200,66,.1);  color: var(--yellow); border: 1px solid rgba(245,200,66,.25); }
+    .chip-pendiente{ background: rgba(247,111,111,.1); color: var(--red);    border: 1px solid rgba(247,111,111,.25); }
+
+    /* ===== HISTORIAL ABONOS ===== */
+    .abono-lista { display: flex; flex-direction: column; gap: 8px; }
+    .abono-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .abono-left { display: flex; flex-direction: column; gap: 2px; }
+    .abono-fecha { font-size: 11px; color: var(--text2); }
+    .abono-nota  { font-size: 12px; color: var(--text2); font-style: italic; }
+    .abono-monto { font-weight: 700; color: var(--green); font-size: 14px; }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    /* ===== FORMULARIO REGISTRO ===== */
+    .registro-intro {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.55;
+      margin-bottom: 20px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 10px 12px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color .15s;
+    }
+    .form-group input:focus { border-color: var(--accent); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: .88; }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* ===== VISTA LINK GENERADO ===== */
+    .link-box {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: var(--text2);
+      word-break: break-all;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .link-box strong { color: var(--text); display: block; margin-bottom: 4px; }
+
+    /* ===== ESTADOS ===== */
+    .vista { display: none; }
+    .vista.show { display: block; }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: var(--text2);
+      font-size: 13px;
+      gap: 10px;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-state, .empty-abonos {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--text2);
+      font-size: 13px;
+    }
+    .error-state .ico { font-size: 2.2rem; margin-bottom: 8px; }
+
+    /* ===== TOAST ===== */
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .2s, transform .2s;
+      z-index: 999;
+      pointer-events: none;
+      max-width: 320px;
+    }
+    #toast.show { opacity: 1; transform: none; }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      margin-top: 28px;
+      font-size: 11px;
+      color: var(--text2);
+      text-align: center;
+      opacity: .6;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 20px 12px 50px; }
+      .topbar { margin-bottom: 20px; }
+      .card-top, .card-body { padding: 18px 16px; }
+      .progreso-monto { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <span class="topbar-brand">AUDIOLINK <span>· vaca colectiva</span></span>
+  </div>
+
+  <div class="card">
+    <!-- Header de la vaca (siempre visible una vez cargada) -->
+    <div class="card-top" id="cardTop" style="display:none">
+      <div class="vaca-label">🐄 Vaca colectiva</div>
+      <div class="vaca-nombre" id="vacaNombre">—</div>
+      <div class="vaca-desc" id="vacaDesc"></div>
+      <div class="cuota-pill" id="cuotaPill">💳 Cuota: —</div>
+    </div>
+
+    <div class="card-body">
+
+      <!-- CARGANDO -->
+      <div id="vistaLoading" class="vista show">
+        <div class="loading"><div class="spinner"></div> Cargando…</div>
+      </div>
+
+      <!-- ERROR -->
+      <div id="vistaError" class="vista">
+        <div class="error-state">
+          <div class="ico">⚠️</div>
+          <p id="errorMsg">Ocurrió un error.</p>
+        </div>
+      </div>
+
+      <!-- REGISTRO -->
+      <div id="vistaRegistro" class="vista">
+        <p class="registro-intro">
+          Completa tus datos para unirte a esta vaca. Una vez registrado recibirás un link personal para consultar tu estado de pagos.
+        </p>
+        <div class="form-group">
+          <label>Nombre completo</label>
+          <input type="text" id="regNombre" placeholder="Tu nombre" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label>Número Nequi / WhatsApp</label>
+          <input type="tel" id="regContacto" placeholder="300 123 4567" autocomplete="tel" />
+        </div>
+        <button class="btn btn-primary" id="btnRegistrar" onclick="registrarse()">Unirme a la vaca 🐄</button>
+      </div>
+
+      <!-- LINK GENERADO (post-registro) -->
+      <div id="vistaLinkGenerado" class="vista">
+        <div class="error-state">
+          <div class="ico">✅</div>
+          <p style="color:var(--text);font-weight:700;margin-bottom:8px">¡Ya estás dentro!</p>
+          <p style="margin-bottom:20px">Guarda tu link personal para consultar tu saldo en cualquier momento:</p>
+        </div>
+        <div class="link-box">
+          <strong>Tu link personal</strong>
+          <span id="linkGenerado"></span>
+        </div>
+        <button class="btn btn-primary" onclick="copiarLinkGenerado()">📋 Copiar link</button>
+      </div>
+
+      <!-- PORTAL PERSONAL -->
+      <div id="vistaPortal" class="vista">
+
+        <div class="seccion-titulo">Progreso general</div>
+        <div class="progreso-wrap">
+          <div class="progreso-nums">
+            <div>
+              <div class="progreso-monto" id="portalRecaudado">$0</div>
+              <div class="progreso-meta" id="portalMeta">de $0 · meta estimada</div>
+            </div>
+          </div>
+          <div class="progreso-bar"><div class="progreso-fill" id="portalFill" style="width:0%"></div></div>
+          <div class="progreso-sub" id="portalSub"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="seccion-titulo" id="portalNombreLabel">Mi saldo</div>
+        <div id="portalEstadoChip"></div>
+
+        <div class="saldo-grid">
+          <div class="saldo-box abonado">
+            <label>Abonado</label>
+            <span id="portalAbonado">$0</span>
+          </div>
+          <div class="saldo-box pendiente">
+            <label>Pendiente</label>
+            <span id="portalPendiente">$0</span>
+          </div>
+        </div>
+
+        <div class="seccion-titulo">Mis abonos</div>
+        <div id="portalAbonos">
+          <div class="loading"><div class="spinner"></div> Cargando abonos…</div>
+        </div>
+
+      </div>
+
+    </div><!-- /card-body -->
+  </div><!-- /card -->
+
+  <div class="footer">AUDIOLINK · panel interno</div>
+  <div id="toast"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+// ============================================================
+// AUDIOLINK · vaca.html · v1.0
+// Vista pública — registro y portal personal por token URL
+// Sin auth. Lee/escribe Firestore según reglas públicas.
+// ============================================================
+
+const db   = firebase.firestore();
+const params = new URLSearchParams(window.location.search);
+const vacaId = params.get('id');
+const partId = params.get('p');
+
+let vacaData = null;
+let linkGeneradoUrl = '';
+
+// ===== INICIO =====
+(async function init() {
+  if (!vacaId) {
+    mostrarError('URL inválida. Falta el identificador de la vaca.');
+    return;
+  }
+
+  try {
+    const snap = await db.collection('vacas').doc(vacaId).get();
+    if (!snap.exists) {
+      mostrarError('Esta vaca no existe o el link es incorrecto.');
+      return;
+    }
+    vacaData = snap.data();
+
+    // Mostrar header
+    document.getElementById('vacaNombre').textContent = vacaData.nombre || '—';
+    const descEl = document.getElementById('vacaDesc');
+    if (vacaData.descripcion) {
+      descEl.textContent = vacaData.descripcion;
+    } else {
+      descEl.style.display = 'none';
+    }
+    document.getElementById('cuotaPill').textContent = '💳 Cuota: ' + formatCOP(vacaData.cuota_fija || 0);
+    document.getElementById('cardTop').style.display = '';
+
+    // Decidir vista
+    if (partId) {
+      await cargarPortal();
+    } else {
+      mostrarVista('vistaRegistro');
+    }
+
+  } catch (err) {
+    mostrarError('Error al cargar: ' + err.message);
+  }
+})();
+
+// ===== REGISTRO =====
+async function registrarse() {
+  const nombre   = document.getElementById('regNombre').value.trim();
+  const contacto = document.getElementById('regContacto').value.trim();
+
+  if (!nombre)   { mostrarToast('⚠️ Ingresa tu nombre'); return; }
+  if (!contacto) { mostrarToast('⚠️ Ingresa tu contacto Nequi'); return; }
+  if (!vacaData || vacaData.estado !== 'activa') {
+    mostrarToast('⚠️ Esta vaca ya no está activa');
+    return;
+  }
+
+  const btn = document.getElementById('btnRegistrar');
+  btn.disabled = true;
+  btn.textContent = 'Registrando…';
+
+  try {
+    const token = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    const batch = db.batch();
+
+    const partRef = db.collection('vacas').doc(vacaId).collection('participantes').doc();
+    batch.set(partRef, {
+      nombre,
+      contacto,
+      fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
+      totalAbonado: 0,
+      linkToken: token
+    });
+
+    const vacaRef = db.collection('vacas').doc(vacaId);
+    batch.update(vacaRef, {
+      numParticipantes: firebase.firestore.FieldValue.increment(1)
+    });
+
+    await batch.commit();
+
+    // Generar link personal
+    const base = window.location.origin + window.location.pathname;
+    linkGeneradoUrl = `${base}?id=${vacaId}&p=${partRef.id}`;
+    document.getElementById('linkGenerado').textContent = linkGeneradoUrl;
+    mostrarVista('vistaLinkGenerado');
+
+  } catch (err) {
+    mostrarToast('Error: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Unirme a la vaca 🐄';
+  }
+}
+
+function copiarLinkGenerado() {
+  navigator.clipboard.writeText(linkGeneradoUrl)
+    .then(() => mostrarToast('🔗 Link copiado — guárdalo en un lugar seguro'))
+    .catch(() => mostrarToast('No se pudo copiar, cópialo manualmente'));
+}
+
+// ===== PORTAL PERSONAL =====
+async function cargarPortal() {
+  mostrarVista('vistaPortal');
+
+  try {
+    // Cargar datos del participante
+    const partSnap = await db.collection('vacas').doc(vacaId)
+      .collection('participantes').doc(partId).get();
+
+    if (!partSnap.exists) {
+      mostrarError('Participante no encontrado. Verifica tu link.');
+      return;
+    }
+
+    const p = partSnap.data();
+    const cuota    = vacaData.cuota_fija || 0;
+    const abonado  = p.totalAbonado || 0;
+    const pendiente = Math.max(0, cuota - abonado);
+    const pct      = cuota > 0 ? Math.min(100, Math.round(abonado / cuota * 100)) : 0;
+
+    // Label personalizado
+    document.getElementById('portalNombreLabel').textContent = 'Mi saldo — ' + (p.nombre || '');
+
+    // Chip de estado
+    const chipEl = document.getElementById('portalEstadoChip');
+    if (abonado >= cuota) {
+      chipEl.innerHTML = `<span class="estado-chip chip-pagado">✓ Cuota completa</span>`;
+    } else if (abonado > 0) {
+      chipEl.innerHTML = `<span class="estado-chip chip-parcial">⏳ ${pct}% abonado</span>`;
+    } else {
+      chipEl.innerHTML = `<span class="estado-chip chip-pendiente">⚠️ Sin abonos aún</span>`;
+    }
+
+    document.getElementById('portalAbonado').textContent  = formatCOP(abonado);
+    document.getElementById('portalPendiente').textContent = formatCOP(pendiente);
+
+    // Progreso global (anónimo)
+    await cargarProgresoGlobal(cuota);
+
+    // Abonos propios
+    await cargarAbonos();
+
+  } catch (err) {
+    mostrarError('Error al cargar tu portal: ' + err.message);
+  }
+}
+
+async function cargarProgresoGlobal(cuota) {
+  try {
+    const snap = await db.collection('vacas').doc(vacaId)
+      .collection('participantes').get();
+
+    let totalRecaudado = 0;
+    let alDia = 0;
+    const n = snap.size;
+
+    snap.forEach(doc => {
+      const d = doc.data();
+      totalRecaudado += d.totalAbonado || 0;
+      if ((d.totalAbonado || 0) >= cuota) alDia++;
+    });
+
+    const meta = cuota * n;
+    const pctGlobal = meta > 0 ? Math.min(100, Math.round(totalRecaudado / meta * 100)) : 0;
+
+    document.getElementById('portalRecaudado').textContent = formatCOP(totalRecaudado);
+    document.getElementById('portalMeta').textContent = `de ${formatCOP(meta)} · meta total`;
+    document.getElementById('portalFill').style.width = pctGlobal + '%';
+    document.getElementById('portalSub').textContent =
+      `${alDia} de ${n} participante${n !== 1 ? 's' : ''} al día`;
+
+  } catch (_) {
+    // Si falla el progreso global, no bloquea el resto
+    document.getElementById('portalSub').textContent = '';
+  }
+}
+
+async function cargarAbonos() {
+  const cont = document.getElementById('portalAbonos');
+  try {
+    const snap = await db.collection('vacas').doc(vacaId)
+      .collection('participantes').doc(partId)
+      .collection('abonos')
+      .orderBy('creadoEn', 'desc')
+      .get();
+
+    if (snap.empty) {
+      cont.innerHTML = `<div class="empty-abonos">Sin abonos registrados aún.</div>`;
+      return;
+    }
+
+    let html = '<div class="abono-lista">';
+    snap.forEach(doc => {
+      const a = doc.data();
+      const fechaStr = a.fecha
+        ? new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' })
+        : '—';
+      html += `
+        <div class="abono-item">
+          <div class="abono-left">
+            <span class="abono-fecha">${fechaStr}</span>
+            ${a.nota ? `<span class="abono-nota">${escapeHtml(a.nota)}</span>` : ''}
+          </div>
+          <span class="abono-monto">+${formatCOP(a.monto)}</span>
+        </div>`;
+    });
+    html += '</div>';
+    cont.innerHTML = html;
+
+  } catch (err) {
+    cont.innerHTML = `<div class="empty-abonos">Error al cargar abonos.</div>`;
+  }
+}
+
+// ===== UTILIDADES =====
+function mostrarVista(id) {
+  ['vistaLoading','vistaError','vistaRegistro','vistaLinkGenerado','vistaPortal'].forEach(v => {
+    document.getElementById(v).classList.remove('show');
+  });
+  document.getElementById(id).classList.add('show');
+}
+
+function mostrarError(msg) {
+  document.getElementById('errorMsg').textContent = msg;
+  mostrarVista('vistaError');
+}
+
+function formatCOP(n) {
+  return '$' + Number(n || 0).toLocaleString('es-CO');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function mostrarToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// Enter en inputs de registro
+['regNombre','regContacto'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') registrarse();
+  });
+});
+</script>
+</body>
+</html>

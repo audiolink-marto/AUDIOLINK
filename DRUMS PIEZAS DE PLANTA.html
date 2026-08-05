@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stage Plot - Piezas Batería a Escala v2.0</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --border-color: #334155;
+      --stroke-color: #f8fafc;
+      --fill-drum: #334155;
+      --fill-cymbal: #0284c7;
+      --fill-seat: #475569;
+      --accent-color: #38bdf8;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 2rem;
+      background-color: var(--bg-color);
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin: 0 0 0.5rem 0;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #f1f5f9;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--accent-color);
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .svg-wrapper {
+      width: 100%;
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(15, 23, 42, 0.5);
+      border-radius: 6px;
+      border: 1px dashed var(--border-color);
+    }
+
+    /* Estilos globales para los vectores SVG */
+    .sp-stroke {
+      stroke: var(--stroke-color);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .sp-drum {
+      fill: var(--fill-drum);
+    }
+
+    .sp-cymbal {
+      fill: var(--fill-cymbal);
+      fill-opacity: 0.2;
+      stroke: var(--accent-color);
+      stroke-width: 2;
+    }
+
+    .sp-seat {
+      fill: var(--fill-seat);
+    }
+
+    .sp-hardware {
+      stroke: var(--text-muted);
+      stroke-width: 1.5;
+      fill: none;
+    }
+
+    .sp-label {
+      fill: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+      user-select: none;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Piezas de Batería (Vista en Planta)</h1>
+    <div class="subtitle">Componentes independientes a escala proporcional (v2.0)</div>
+  </header>
+
+  <main class="grid-container">
+
+    <!-- 1. BOMBO 22" -->
+    <div class="card">
+      <div class="card-title">Bombo 22" (220x260 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-bombo-22" viewBox="0 0 220 260" width="180" height="212" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-bombo">
+            <!-- Patas estabilizadoras -->
+            <line x1="10" y1="210" x2="30" y2="180" class="sp-hardware" stroke-width="3" />
+            <line x1="210" y1="210" x2="190" y2="180" class="sp-hardware" stroke-width="3" />
+            <circle cx="10" cy="210" r="4" fill="var(--stroke-color)" />
+            <circle cx="210" cy="210" r="4" fill="var(--stroke-color)" />
+            
+            <!-- Cuerpo del bombo -->
+            <rect x="15" y="40" width="190" height="180" rx="6" class="sp-stroke sp-drum" />
+            <!-- Aros de afinación -->
+            <rect x="10" y="45" width="200" height="12" rx="2" class="sp-stroke" fill="#1e293b" />
+            <rect x="10" y="203" width="200" height="12" rx="2" class="sp-stroke" fill="#1e293b" />
+            
+            <!-- Pedal -->
+            <rect x="98" y="5" width="24" height="35" rx="3" class="sp-hardware" />
+            <line x1="110" y1="40" x2="110" y2="15" class="sp-stroke" />
+            
+            <text x="110" y="130" class="sp-label">BOMBO 22"</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 2. CAJA 14" -->
+    <div class="card">
+      <div class="card-title">Caja / Snare 14" (140x140 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-caja-14" viewBox="0 0 140 140" width="140" height="140" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-caja">
+            <!-- Mecanismo Bordonero -->
+            <rect x="5" y="62" width="8" height="16" rx="2" fill="var(--stroke-color)" />
+            <rect x="127" y="62" width="8" height="16" rx="2" fill="var(--stroke-color)" />
+            <!-- Cuerpo -->
+            <circle cx="70" cy="70" r="62" class="sp-stroke sp-drum" />
+            <!-- Aro interno -->
+            <circle cx="70" cy="70" r="54" stroke="var(--border-color)" stroke-width="1.5" fill="none" />
+            <!-- Bellotas / Lugs -->
+            <circle cx="70" cy="12" r="3" fill="var(--stroke-color)" />
+            <circle cx="70" cy="128" r="3" fill="var(--stroke-color)" />
+            <circle cx="12" cy="70" r="3" fill="var(--stroke-color)" />
+            <circle cx="128" cy="70" r="3" fill="var(--stroke-color)" />
+            <text x="70" y="70" class="sp-label">CAJA 14"</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 3. TOM 1 (10") -->
+    <div class="card">
+      <div class="card-title">Tom 1 (100x100 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-tom-10" viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-tom10">
+            <circle cx="50" cy="50" r="44" class="sp-stroke sp-drum" />
+            <circle cx="50" cy="50" r="38" stroke="var(--border-color)" stroke-width="1" fill="none" />
+            <text x="50" y="50" class="sp-label">TOM 10"</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 4. TOM 2 (12") -->
+    <div class="card">
+      <div class="card-title">Tom 2 (120x120 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-tom-12" viewBox="0 0 120 120" width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-tom12">
+            <circle cx="60" cy="60" r="52" class="sp-stroke sp-drum" />
+            <circle cx="60" cy="60" r="44" stroke="var(--border-color)" stroke-width="1" fill="none" />
+            <text x="60" y="60" class="sp-label">TOM 12"</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 5. GOLIAT 16" -->
+    <div class="card">
+      <div class="card-title">Goliat / Floor Tom 16" (160x160 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-goliat-16" viewBox="0 0 160 160" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-goliat">
+            <!-- Anclajes de Patas -->
+            <rect x="18" y="28" width="10" height="10" rx="2" fill="var(--stroke-color)" />
+            <rect x="132" y="28" width="10" height="10" rx="2" fill="var(--stroke-color)" />
+            <rect x="75" y="142" width="10" height="10" rx="2" fill="var(--stroke-color)" />
+            <!-- Cuerpo -->
+            <circle cx="80" cy="80" r="70" class="sp-stroke sp-drum" />
+            <circle cx="80" cy="80" r="60" stroke="var(--border-color)" stroke-width="1.5" fill="none" />
+            <text x="80" y="80" class="sp-label">GOLIAT 16"</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 6. HI-HAT 14" -->
+    <div class="card">
+      <div class="card-title">Hi-Hat 14" (140x140 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-hihat-14" viewBox="0 0 140 140" width="140" height="140" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-hihat">
+            <!-- Base de trípode -->
+            <line x1="70" y1="70" x2="20" y2="120" class="sp-hardware" />
+            <line x1="70" y1="70" x2="120" y2="120" class="sp-hardware" />
+            <line x1="70" y1="70" x2="70" y2="15" class="sp-hardware" />
+            <!-- Platillo -->
+            <circle cx="70" cy="70" r="60" class="sp-cymbal" />
+            <circle cx="70" cy="70" r="42" stroke="var(--accent-color)" stroke-width="1" stroke-dasharray="3 3" fill="none" />
+            <circle cx="70" cy="70" r="12" class="sp-stroke" fill="var(--fill-drum)" />
+            <text x="70" y="70" class="sp-label">HH 14"</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 7. CRASH 16" -->
+    <div class="card">
+      <div class="card-title">Crash 16" (160x160 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-crash-16" viewBox="0 0 160 160" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-crash">
+            <!-- Base soporte -->
+            <circle cx="80" cy="80" r="30" class="sp-hardware" stroke-dasharray="2 2" />
+            <!-- Platillo -->
+            <circle cx="80" cy="80" r="70" class="sp-cymbal" />
+            <circle cx="80" cy="80" r="50" stroke="var(--accent-color)" stroke-width="1" stroke-dasharray="4 2" fill="none" />
+            <!-- Campana -->
+            <circle cx="80" cy="80" r="14" class="sp-stroke" fill="var(--fill-drum)" />
+            <circle cx="80" cy="80" r="4" fill="var(--stroke-color)" />
+            <text x="80" y="80" class="sp-label">CRASH 16"</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 8. RIDE 20" -->
+    <div class="card">
+      <div class="card-title">Ride 20" (200x200 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-ride-20" viewBox="0 0 200 200" width="180" height="180" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-ride">
+            <!-- Platillo grande -->
+            <circle cx="100" cy="100" r="90" class="sp-cymbal" />
+            <circle cx="100" cy="100" r="68" stroke="var(--accent-color)" stroke-width="1" stroke-dasharray="4 2" fill="none" />
+            <circle cx="100" cy="100" r="44" stroke="var(--accent-color)" stroke-width="1" stroke-dasharray="4 2" fill="none" />
+            <!-- Campana grande -->
+            <circle cx="100" cy="100" r="22" class="sp-stroke" fill="var(--fill-drum)" />
+            <circle cx="100" cy="100" r="5" fill="var(--stroke-color)" />
+            <text x="100" y="100" class="sp-label">RIDE 20"</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 9. SILLÍN -->
+    <div class="card">
+      <div class="card-title">Sillín / Throne (140x140 px)</div>
+      <div class="svg-wrapper">
+        <svg id="sp-sillin" viewBox="0 0 140 140" width="140" height="140" xmlns="http://www.w3.org/2000/svg">
+          <g id="piece-sillin">
+            <!-- Asiento redondo o ergonómico -->
+            <circle cx="70" cy="70" r="52" class="sp-stroke sp-seat" />
+            <circle cx="70" cy="70" r="44" stroke="var(--border-color)" stroke-width="2" fill="none" />
+            <text x="70" y="70" class="sp-label">SILLÍN</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>

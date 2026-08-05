@@ -4,7 +4,33 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Músicos</title>
-<!-- AUDIOLINK · musicos.html · v1.8
+<!-- AUDIOLINK · musicos.html · v2.0
+     v2.0: mitigación de costo de collectionGroup('sesiones') (v1.9),
+     acordada con AUDIOLINK: (1) ya NO se dispara sola al abrir la
+     página — pasa a un botón "🔄 Calcular registrado" arriba de la
+     lista; (2) el resultado se cachea en localStorage 15 minutos
+     (audiolink_registrados_musicos) — si hay caché vigente al entrar,
+     se usa ese en vez de volver a consultar Firestore; el botón fuerza
+     un recálculo real e ignora el caché. (3) se agrega advertencia
+     visible cuando una persona tiene sesiones sin tarifa asignada (se
+     siguen sin sumar como $0, pero ahora se avisa cuántas quedaron
+     fuera del cálculo, para no dar una cifra silenciosamente
+     incompleta). No se tocó ninguna otra lógica.
+     v1.9
+     v1.9: se agrega "Registrado" (suma de tarifa × canales de todas las
+     sesiones donde el músico aparece en musicosAsignados, vía
+     db.collectionGroup('sesiones'), ya permitido para staff por las
+     reglas existentes v1.4/v2.10 — no se tocaron reglas) y el estado
+     Pagado/Abonado/Pendiente (Total pagado v1.8 vs Registrado). Sesiones
+     con tarifa null se saltan del cálculo (no cuentan como $0 "roto").
+     Se muestra en cada fila de la lista y en el panel de edición. Se
+     agrega botón "📄 Exportar informe" en el panel — PDF con el mismo
+     lenguaje visual del ecosistema (print-header/print-table dorado,
+     window.print() sin jsPDF, igual criterio que egresos.html v1.6):
+     registrado/pagado/saldo/estado + historial de pagos de ese músico
+     (lee egresos filtrado por personaId). No se tocó ninguna otra
+     lógica del CRUD.
+     v1.8
      v1.8: "Total pagado" (v1.7) pasa de carga única (.get()) a tiempo
      real (.onSnapshot()) — a pedido explícito de AUDIOLINK: este dato se
      usa para informes, así que debe reflejar el estado exacto al
@@ -510,6 +536,27 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
 .back-link:hover{color:var(--gold);}
 .empty{text-align:center;padding:60px 20px;color:var(--faint);}
+/* v1.9: mismo bloque @media print que egresos.html v1.6+ — HTML/CSS +
+   window.print(), sin jsPDF. Mismas clases para consistencia visual. */
+@media print {
+  @page { size: letter; margin: 15mm 15mm 15mm 15mm; }
+  body { background:#FFFFFF !important; color:#000000 !important; font-family: var(--S); }
+  #nav-mount, .bg-waves, .main-wrap > *:not(#print-view) { display:none !important; }
+  #print-view{ display:block !important; color:#000000 !important; padding:0; }
+  .print-header{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #C4982C; padding-bottom:16px; margin-bottom:24px; }
+  .print-title{ font-family: var(--T); font-size:26px; font-weight:bold; color:#111111; letter-spacing:-0.02em; }
+  .print-subtitle{ font-size:11px; color:#7A7060; font-family: var(--M); text-transform:uppercase; letter-spacing:0.15em; margin-top:2px; }
+  .print-section-title{ font-family: var(--M); font-size:11px; text-transform:uppercase; color:#111111; letter-spacing:0.05em; font-weight:bold; border-left:4px solid #C4982C; padding-left:10px; margin:22px 0 10px; }
+  .print-resumen-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:6px; }
+  .print-resumen-item{ border:1px solid #E5E5E5; border-radius:6px; padding:10px; }
+  .print-resumen-item .lbl{ font-size:9.5px; text-transform:uppercase; color:#7A7060; letter-spacing:0.04em; }
+  .print-resumen-item .val{ font-family: var(--M); font-size:14px; font-weight:bold; color:#111111; margin-top:2px; }
+  .print-table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+  .print-table th{ text-align:left; font-family: var(--M); font-size:9.5px; text-transform:uppercase; color:#7A7060; letter-spacing:0.04em; border-bottom:2px solid #111111; padding:6px 8px; }
+  .print-table td{ border-bottom:1px solid #E5E5E5; padding:6px 8px; }
+  .print-footer-container{ margin-top:30px; border-top:2px solid #111111; padding-top:16px; }
+  .print-footer-grid{ display:flex; justify-content:space-between; font-size:10px; color:#555555; }
+}
 </style>
 
 </head>
@@ -546,6 +593,10 @@ window.NAV_CONFIG = {
     </p>
   </div>
   <button class="btn" onclick="abrirPanelMusicoNuevo()">+ Nuevo músico</button>
+</div>
+<div style="max-width:560px;margin:0 auto 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+  <button class="btn btn-ghost" onclick="cargarRegistradosMusicos(true)">🔄 Calcular registrado</button>
+  <span id="registradoCacheInfo" style="font-size:0.72rem;color:var(--muted);"></span>
 </div>
 <div id="musicosLista" style="display:flex;flex-direction:column;gap:8px;max-width:560px;margin:16px auto 0;"></div>
 
@@ -589,13 +640,21 @@ window.NAV_CONFIG = {
       <label>Total pagado (histórico, ver egresos.html)</label>
       <div style="font-family:'JetBrains Mono',monospace;font-size:1rem;color:var(--gold,#c9a24b);padding:4px 0;" id="musicoValorTotalPagado">—</div>
     </div>
+    <div class="field" id="musicoCampoRegistrado" style="display:none;">
+      <label>Registrado (tarifa × canales en sus sesiones)</label>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:1rem;color:var(--txt);padding:4px 0;" id="musicoValorRegistrado">—</div>
+      <div style="margin-top:4px;" id="musicoBadgeEstado"></div>
+    </div>
     <div id="musicoErr" style="color:var(--err);font-size:0.82rem;margin:6px 0;"></div>
     <div class="row2" style="margin-top:6px;">
       <button class="btn" onclick="guardarMusico()">💾 Guardar músico</button>
+      <button class="btn btn-ghost" id="musicoBtnInforme" style="display:none;" onclick="exportarInformeMusico()">📄 Exportar informe</button>
     </div>
   </div>
 
   </div>
+
+  <div id="print-view" style="display:none;"></div>
 </div>
 
 <!-- LIGHTBOX ARCHIVO PRODUCCIÓN (v3.9) -->
@@ -626,6 +685,74 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 let totalesPagadosMus = {}; // v1.7: { personaId: totalAcumulado } desde egresos, solo lectura
+let totalesRegistradosMus = {}; // v1.9: { musicoId: totalRegistrado } — suma de tarifa×canales en sesiones (collectionGroup)
+let musicoIdParaInforme = null;
+let musicoNombreParaInforme = '';
+
+let sinTarifaMus = {}; // v2.0: { musicoId: cantidadDeSesionesSinTarifa }
+
+// v2.0: forzar=true ignora el caché (lo dispara el botón "Calcular
+// registrado"). Sin forzar, si hay caché vigente (<15 min) en
+// localStorage se usa ese en vez de volver a consultar Firestore —
+// mitigación de costo de collectionGroup('sesiones'), acordada con
+// AUDIOLINK.
+function cargarRegistradosMusicos(forzar){
+  const CACHE_KEY = 'audiolink_registrados_musicos';
+  const CACHE_MIN = 15;
+  if(!forzar){
+    try{
+      const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      if(cache && (Date.now() - cache.ts) < CACHE_MIN * 60 * 1000){
+        totalesRegistradosMus = cache.registrados;
+        sinTarifaMus = cache.sinTarifa;
+        mostrarInfoCacheRegistrado(cache.ts);
+        cargarListaMusicos();
+        return;
+      }
+    } catch(e){ /* caché corrupto o inexistente, se ignora y se recalcula */ }
+  }
+  document.getElementById('registradoCacheInfo').textContent = 'Calculando…';
+  db.collectionGroup('sesiones').get()
+    .then(snap => {
+      totalesRegistradosMus = {};
+      sinTarifaMus = {};
+      snap.forEach(d => {
+        const s = d.data();
+        (s.musicosAsignados || []).forEach(m => {
+          if(!m.musicoId) return;
+          if(m.tarifa == null){
+            sinTarifaMus[m.musicoId] = (sinTarifaMus[m.musicoId] || 0) + 1;
+            return; // sesión sin tarifa: no suma, pero queda contada como advertencia
+          }
+          const monto = Number(m.tarifa) * Number(m.canales || 1);
+          totalesRegistradosMus[m.musicoId] = (totalesRegistradosMus[m.musicoId] || 0) + monto;
+        });
+      });
+      const ts = Date.now();
+      try{
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts, registrados: totalesRegistradosMus, sinTarifa: sinTarifaMus }));
+      } catch(e){ /* localStorage lleno o no disponible, se sigue sin cachear */ }
+      mostrarInfoCacheRegistrado(ts);
+      cargarListaMusicos();
+    })
+    .catch(err => console.error('Error cargando registrado (sesiones) de músicos:', err));
+}
+
+function mostrarInfoCacheRegistrado(ts){
+  const mins = Math.round((Date.now() - ts) / 60000);
+  document.getElementById('registradoCacheInfo').textContent =
+    mins === 0 ? 'Calculado hace instantes' : `Calculado hace ${mins} min`;
+}
+
+// v1.9: Pagado/Abonado/Pendiente — pagado vs registrado
+function estadoPagoMusico(id){
+  const pagado = totalesPagadosMus[id] || 0;
+  const registrado = totalesRegistradosMus[id] || 0;
+  if(registrado === 0) return null; // sin sesiones con tarifa registrada, no hay con qué comparar
+  if(pagado >= registrado) return { texto: 'Pagado', color: 'var(--ok)' };
+  if(pagado > 0) return { texto: 'Abonado', color: 'var(--warn)' };
+  return { texto: 'Pendiente', color: 'var(--err)' };
+}
 
 // ============ GUARD DE SESIÓN ============
 auth.onAuthStateChanged(async (user) => {
@@ -668,6 +795,7 @@ function iniciarMusicos(){
   document.getElementById('musicoErr').textContent = '';
   cancelarEdicionMusico();
   cargarListaMusicos();
+  cargarRegistradosMusicos(); // v2.0: usa caché de localStorage si está vigente (15 min); si no, calcula
   db.collection('egresos').where('personaTipo', '==', 'musico').onSnapshot(snap => {
       totalesPagadosMus = {};
       snap.forEach(d => {
@@ -697,6 +825,8 @@ function abrirPanelMusicoNuevo(){
   cancelarEdicionMusico();
   document.getElementById('musicoPanelTitulo').textContent = 'Nuevo músico';
   document.getElementById('musicoCampoTotalPagado').style.display = 'none';
+  document.getElementById('musicoCampoRegistrado').style.display = 'none';
+  document.getElementById('musicoBtnInforme').style.display = 'none';
   mostrarPanelMusico();
 }
 
@@ -753,7 +883,10 @@ async function cargarListaMusicos(){
             <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">
               ${escapeHtml(m.instrumento||'')} · CC ${escapeHtml(m.cedula||'')} ${m.telefono ? ' · '+escapeHtml(m.telefono) : ''}
             </div>
-            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">Total pagado: ${typeof formatCOP === 'function' ? formatCOP(totalesPagadosMus[d.id] || 0) : (totalesPagadosMus[d.id] || 0)}</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">Total pagado: ${typeof formatCOP === 'function' ? formatCOP(totalesPagadosMus[d.id] || 0) : (totalesPagadosMus[d.id] || 0)}${totalesRegistradosMus[d.id] ? ' de ' + formatCOP(totalesRegistradosMus[d.id]) : ''}
+              ${(() => { const e = estadoPagoMusico(d.id); return e ? `<span style="color:${e.color};font-weight:600;margin-left:6px;">● ${e.texto}</span>` : ''; })()}
+              ${sinTarifaMus[d.id] ? `<div style="color:var(--warn);margin-top:2px;">⚠️ ${sinTarifaMus[d.id]} sesión(es) sin tarifa asignada (no incluidas en Registrado)</div>` : ''}
+            </div>
           </div>
           <div style="display:flex;gap:10px;flex-shrink:0;">
             <span style="cursor:pointer;font-size:0.9rem;" onclick="window._musEditar('${d.id}')" title="Editar">✎</span>
@@ -809,6 +942,69 @@ async function guardarMusico(){
   }
 }
 
+// v1.9: informe PDF de un músico — registrado/pagado/saldo/estado +
+// historial de sus pagos (lee egresos filtrado por personaId). Mismo
+// lenguaje visual que egresos.html v1.6+ (print-header/print-table
+// dorado, window.print() sin jsPDF).
+async function exportarInformeMusico(){
+  if(!musicoIdParaInforme) return;
+  const id = musicoIdParaInforme;
+  const registrado = totalesRegistradosMus[id] || 0;
+  const pagado = totalesPagadosMus[id] || 0;
+  const saldo = registrado - pagado;
+  const est = estadoPagoMusico(id);
+  const fecha = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  let pagosHtml = '<tr><td colspan="4" style="color:#888;">Sin pagos registrados.</td></tr>';
+  try{
+    const snap = await db.collection('egresos').where('personaId', '==', id).get();
+    const pagos = snap.docs.map(d => d.data()).filter(eg => eg.personaTipo === 'musico').sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    if(pagos.length){
+      pagosHtml = pagos.map(eg => {
+        return `<tr>
+          <td>${eg.fecha || '—'}</td>
+          <td>${escapeHtml(eg.proyectoNombre || '—')}${eg.temaNombre ? ' → ' + escapeHtml(eg.temaNombre) : ''}</td>
+          <td>${eg.esAnticipo ? 'Anticipo' : 'Pago'}</td>
+          <td>${formatCOP(eg.monto || 0)}</td>
+        </tr>`;
+      }).join('');
+    }
+  } catch(err){
+    console.error('Error cargando pagos para el informe:', err);
+  }
+
+  const html = `
+    <div class="print-header">
+      <div>
+        <div class="print-title">AUDIOLINK</div>
+        <div class="print-subtitle">Informe de pagos — ${escapeHtml(musicoNombreParaInforme)}</div>
+      </div>
+      <div style="font-family:var(--M);font-size:10px;color:#7A7060;">${fecha}</div>
+    </div>
+    <div class="print-resumen-grid">
+      <div class="print-resumen-item"><div class="lbl">Registrado</div><div class="val">${formatCOP(registrado)}</div></div>
+      <div class="print-resumen-item"><div class="lbl">Pagado</div><div class="val">${formatCOP(pagado)}</div></div>
+      <div class="print-resumen-item"><div class="lbl">Saldo</div><div class="val">${formatCOP(saldo)}</div></div>
+      <div class="print-resumen-item"><div class="lbl">Estado</div><div class="val">${est ? est.texto : '—'}</div></div>
+    </div>
+    ${sinTarifaMus[id] ? `<div style="font-size:11px;color:#8a6d1a;margin-top:6px;">⚠️ ${sinTarifaMus[id]} sesión(es) sin tarifa asignada, no incluidas en "Registrado".</div>` : ''}
+    <div class="print-section-title">Historial de pagos</div>
+    <table class="print-table">
+      <thead><tr><th>Fecha</th><th>Proyecto</th><th>Tipo</th><th>Monto</th></tr></thead>
+      <tbody>${pagosHtml}</tbody>
+    </table>
+    <div class="print-footer-container">
+      <div class="print-footer-grid">
+        <span>AUDIOLINK — Producción y Logística Musical</span>
+        <span>Documento confidencial — solo uso interno</span>
+      </div>
+      <div style="text-align:center;font-size:9.5px;color:#8a8578;margin-top:8px;letter-spacing:0.02em;">Marto 🧠 · martowave@gmail.com</div>
+    </div>
+  `;
+  document.getElementById('print-view').innerHTML = html;
+  window.print();
+}
+
 window._musEditar = async function(id){
   try{
     const doc = await db.collection('musicos').doc(id).get();
@@ -823,6 +1019,14 @@ window._musEditar = async function(id){
     document.getElementById('musicoTarifaReferencia').value = m.tarifaReferencia || '';
     document.getElementById('musicoCampoTotalPagado').style.display = 'block';
     document.getElementById('musicoValorTotalPagado').textContent = typeof formatCOP === 'function' ? formatCOP(totalesPagadosMus[id] || 0) : (totalesPagadosMus[id] || 0);
+    document.getElementById('musicoCampoRegistrado').style.display = 'block';
+    document.getElementById('musicoValorRegistrado').textContent = typeof formatCOP === 'function' ? formatCOP(totalesRegistradosMus[id] || 0) : (totalesRegistradosMus[id] || 0);
+    const est = estadoPagoMusico(id);
+    document.getElementById('musicoBadgeEstado').innerHTML = (est ? `<span style="color:${est.color};font-weight:600;font-size:0.8rem;">● ${est.texto}</span>` : '<span style="color:var(--muted);font-size:0.8rem;">Sin sesiones con tarifa registrada</span>') +
+      (sinTarifaMus[id] ? `<div style="color:var(--warn);font-size:0.76rem;margin-top:4px;">⚠️ ${sinTarifaMus[id]} sesión(es) sin tarifa asignada (no incluidas en Registrado)</div>` : '');
+    document.getElementById('musicoBtnInforme').style.display = 'inline-block';
+    musicoIdParaInforme = id;
+    musicoNombreParaInforme = m.nombre || '';
     document.getElementById('musicoPanelTitulo').textContent = 'Editar músico';
     mostrarPanelMusico();
   } catch(err){
