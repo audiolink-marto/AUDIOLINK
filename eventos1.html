@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Eventos</title>
-<!-- AUDIOLINK · eventos.html · v1.59
+<!-- AUDIOLINK · eventos.html · v1.60
+     v1.60: Stageplot PDF — nueva estrategia para la posición del número:
+     en vez de recalcular por fórmula (v1.57/v1.58, ambos fallidos), ahora
+     se MIDE la posición real del ícono/número en el DOM visible
+     (getBoundingClientRect, mismo criterio que ya usa
+     actualizarConectorNumero() para el conector en pantalla) justo antes
+     de generar el SVG del PDF. El PDF copia así literalmente lo que se ve
+     en pantalla — una sola fuente de verdad, sin fórmulas paralelas que
+     desincronizar. Cambio adicional no-destructivo: cada .stage-icono
+     ahora lleva data-canal-id (antes no tenía forma de ubicarse por canal
+     en el DOM). Si el ícono no se encuentra en el DOM por algún motivo,
+     cae al centrado simple de v1.56 como respaldo.
      v1.59: REVERTIDO — v1.57/v1.58 (fix del ancla del número en el PDF)
      empeoraron el resultado en vez de corregirlo, confirmado por el
      usuario. Se vuelve al comportamiento de v1.56 (centrado simple:
@@ -2524,6 +2535,7 @@ function renderStageCanvas(){
     const el = document.createElement('div');
     el.className = 'stage-icono' + (c.id === canalSeleccionadoStage ? ' sel' : '');
     el.title = `#${c.numero ?? '—'} · ${c.fuente || 'Sin nombre'}`;
+    el.dataset.canalId = c.id; // v1.60: para poder ubicar el ícono real en el DOM al exportar el PDF (medir en vez de recalcular)
     el.style.left = (c.posX ?? 50) + '%';
     el.style.top = (c.posY ?? 50) + '%';
     const med = medidasIconoPorFuente(c.fuente, c.tipoForzado);
@@ -3485,15 +3497,30 @@ async function capturarStageCanvasComoImagen(){
     const rotIcono = c.rotacion ? ` transform="rotate(${c.rotacion} ${cx} ${cy})"` : '';
     out += `<g${rotIcono}><svg x="${cx-iw/2}" y="${cy-ih/2}" width="${iw}" height="${ih}" viewBox="0 0 100 100">${iconoInner}</svg></g>`;
     // número
-    // v1.59: REVERTIDO a v1.56 — los intentos v1.57/v1.58 de hacer
-    // coincidir el ancla del número con la de pantalla empeoraron el
-    // resultado en vez de mejorarlo (confirmado por el usuario); se
-    // vuelve al centrado simple original mientras se replantea la
-    // estrategia de impresión del canvas.
-    const offX = c.numOffsetX ?? 0, offY = c.numOffsetY ?? 0;
-    const nx = cx + offX, ny = cy + offY;
-    if(Math.hypot(offX,offY) > 4){
-      out += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${C.gold}" stroke-dasharray="3 3" stroke-width="1"/>`;
+    // v1.60: en vez de recalcular la posición del número por fórmula
+    // (v1.57/v1.58, ambos fallidos), se MIDE directamente del DOM real
+    // en pantalla — mismo criterio que ya usa actualizarConectorNumero()
+    // para el conector en pantalla. Así el PDF copia literalmente lo que
+    // el usuario ve, sin mantener dos fórmulas sincronizadas a mano. Si
+    // por algún motivo el ícono no se encuentra en el DOM (ej. canvas no
+    // renderizado aún), cae al centrado simple de v1.56 como respaldo.
+    const iconElReal = canvasEl.querySelector(`.stage-icono[data-canal-id="${c.id}"]`);
+    const formaElReal = iconElReal ? iconElReal.querySelector('.stage-forma') : null;
+    const numElReal = iconElReal ? iconElReal.querySelector('.stage-num') : null;
+    let nx, ny, medCx = cx, medCy = cy;
+    if(formaElReal && numElReal){
+      const formaRectReal = formaElReal.getBoundingClientRect();
+      const numRectReal = numElReal.getBoundingClientRect();
+      medCx = (formaRectReal.left + formaRectReal.width/2) - rect.left;
+      medCy = (formaRectReal.top + formaRectReal.height/2) - rect.top;
+      nx = (numRectReal.left + numRectReal.width/2) - rect.left;
+      ny = (numRectReal.top + numRectReal.height/2) - rect.top;
+    } else {
+      const offX = c.numOffsetX ?? 0, offY = c.numOffsetY ?? 0;
+      nx = cx + offX; ny = cy + offY;
+    }
+    if(Math.hypot(nx-medCx, ny-medCy) > 4){
+      out += `<line x1="${medCx}" y1="${medCy}" x2="${nx}" y2="${ny}" stroke="${C.gold}" stroke-dasharray="3 3" stroke-width="1"/>`;
     }
     out += `<rect x="${nx-14}" y="${ny-10}" width="26" height="14" rx="3" fill="#0b0b0d" stroke="${C.gold}" stroke-width="0.8"/>`;
     out += `<text x="${nx}" y="${ny+1}" text-anchor="middle" font-size="9" font-weight="700" fill="${C.gold}" font-family="'JetBrains Mono',monospace">#${c.numero ?? '—'}</text>`;

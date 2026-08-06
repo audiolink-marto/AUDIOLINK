@@ -20,7 +20,7 @@
       --border:  #2a2f42;
       --text:    #e8eaf0;
       --text2:   #8b90a0;
-      --accent:  #4f8ef7;
+      --accent:  #2dd4bf; /* v1.4: turquesa — antes #4f8ef7, mismo cambio de marca aplicado en vacas.html v1.8 */
       --green:   #3ecf8e;
       --red:     #f76f6f;
       --yellow:  #f5c842;
@@ -38,6 +38,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+      overflow-x: hidden;
       padding: 32px 16px 60px;
     }
 
@@ -104,13 +106,25 @@
       align-items: center;
       gap: 6px;
       margin-top: 14px;
-      background: rgba(79,142,247,.1);
-      border: 1px solid rgba(79,142,247,.25);
+      /* v1.4: antes rgba(79,142,247,...) hardcodeado (el azul viejo
+         escrito a mano, no leía var(--accent)) — se actualiza al mismo
+         turquesa para que no quedara desincronizado del resto. */
+      background: rgba(45,212,191,.1);
+      border: 1px solid rgba(45,212,191,.25);
       border-radius: 20px;
       padding: 4px 12px;
       font-size: 12px;
       font-weight: 700;
       color: var(--accent);
+    }
+
+    /* v1.8: nota chiquita, siempre visible bajo el pill de cuota */
+    .cuota-nota {
+      margin-top: 8px;
+      font-size: 10.5px;
+      line-height: 1.4;
+      color: var(--text2);
+      opacity: .8;
     }
 
     .card-body { padding: 24px; }
@@ -220,6 +234,86 @@
     .abono-nota  { font-size: 12px; color: var(--text2); font-style: italic; }
     .abono-monto { font-weight: 700; color: var(--green); font-size: 14px; }
 
+    /* v1.11: miniatura de comprobante (mismo tratamiento que vacas.html v1.16) */
+    .comprobante-thumb {
+      width: 36px; height: 36px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    /* v1.11: lightbox simple, mismo markup/estilos que vacas.html v1.16 */
+    .lightbox-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.85);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      cursor: zoom-out;
+    }
+    .lightbox-overlay.show { display: flex; }
+    .lightbox-overlay img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 16px; right: 20px;
+      color: #fff;
+      font-size: 28px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    /* v1.12: footer de créditos — mismo texto exacto de .sb-credit en
+       nav.js (sidebar del ecosistema). No fijo, discreto. */
+    .app-credit {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text2);
+      opacity: .6;
+      padding: 24px 16px 16px;
+    }
+
+    /* v1.12: "rueditas" de fondo — círculos difuminados flotando muy
+       lento, opacidad baja, en los colores de acento de la app. Puro
+       CSS, sin JS ni imágenes, para no sumar peso. position:fixed +
+       pointer-events:none para que nunca interfieran con el contenido
+       ni con clics/scroll. */
+    .bg-decor {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: -1;
+      pointer-events: none;
+    }
+    .bg-decor span {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(2px);
+      opacity: .12;
+      animation: bgFloat linear infinite;
+    }
+    .bg-decor span:nth-child(1) { width: 140px; height: 140px; left: 8%;  top: 70%; background: var(--accent); animation-duration: 34s; }
+    .bg-decor span:nth-child(2) { width: 90px;  height: 90px;  left: 80%; top: 15%; background: var(--green);  animation-duration: 26s; animation-delay: -6s; }
+    .bg-decor span:nth-child(3) { width: 60px;  height: 60px;  left: 60%; top: 85%; background: var(--accent); animation-duration: 20s; animation-delay: -3s; }
+    .bg-decor span:nth-child(4) { width: 110px; height: 110px; left: 20%; top: 5%;  background: var(--green);  animation-duration: 30s; animation-delay: -12s; }
+    @keyframes bgFloat {
+      0%   { transform: translate(0, 0) scale(1); }
+      50%  { transform: translate(24px, -32px) scale(1.08); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bg-decor span { animation: none; }
+    }
+
     .divider {
       height: 1px;
       background: var(--border);
@@ -243,7 +337,7 @@
       color: var(--text2);
       margin-bottom: 6px;
     }
-    .form-group input {
+    .form-group input, .form-group select {
       width: 100%;
       background: var(--bg3);
       border: 1px solid var(--border);
@@ -255,7 +349,12 @@
       font-family: inherit;
       transition: border-color .15s;
     }
-    .form-group input:focus { border-color: var(--accent); }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+
+    /* v1.6: fila país + número */
+    .form-group-contacto { display: flex; gap: 8px; }
+    .form-group-contacto select { flex: 0 0 84px; }
+    .form-group-contacto input { flex: 1; }
 
     .btn {
       display: inline-flex;
@@ -276,6 +375,8 @@
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-primary:hover { opacity: .88; }
     .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 
     /* ===== VISTA LINK GENERADO ===== */
     .link-box {
@@ -351,6 +452,32 @@
       opacity: .6;
     }
 
+    /* ===== MODAL CONFIRMAR (v1.7) ===== */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 998;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal-confirm {
+      width: 100%;
+      max-width: 360px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      text-align: center;
+    }
+    .modal-confirm p { font-size: 13px; color: var(--text2); line-height: 1.55; margin: 10px 0 20px; }
+    .modal-confirm .modal-confirm-acciones { display: flex; gap: 10px; }
+    .modal-confirm .modal-confirm-acciones .btn { flex: 1; }
+
     @media (max-width: 480px) {
       body { padding: 20px 12px 50px; }
       .topbar { margin-bottom: 20px; }
@@ -360,6 +487,8 @@
   </style>
 </head>
 <body>
+<!-- v1.12: rueditas de fondo — puramente decorativo, no interactivo -->
+<div class="bg-decor" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
 
   <div class="topbar">
     <span class="topbar-brand">AUDIOLINK <span>· vaca colectiva</span></span>
@@ -372,6 +501,7 @@
       <div class="vaca-nombre" id="vacaNombre">—</div>
       <div class="vaca-desc" id="vacaDesc"></div>
       <div class="cuota-pill" id="cuotaPill">💳 Cuota: —</div>
+      <div class="cuota-nota">💡 La cuota baja sola a medida que se suma más gente — nadie queda pagando el total.</div>
     </div>
 
     <div class="card-body">
@@ -389,10 +519,18 @@
         </div>
       </div>
 
-      <!-- REGISTRO -->
+      <!-- BIENVENIDA (v1.7) -->
+      <div id="vistaBienvenida" class="vista">
+        <p class="registro-intro">
+          Te están invitando a una vaca colectiva. La cuota se reparte entre todos los que confirmen su participación — mientras más gente entre, menos te toca a ti. Al confirmar, recibirás un link personal para consultar tu saldo en cualquier momento.
+        </p>
+        <button class="btn btn-primary" onclick="pedirConfirmacionUnirse()">Quiero unirme 🐄</button>
+      </div>
+
+      <!-- REGISTRO / CONFIRMACIÓN DE PARTICIPACIÓN -->
       <div id="vistaRegistro" class="vista">
         <p class="registro-intro">
-          Completa tus datos para unirte a esta vaca. Una vez registrado recibirás un link personal para consultar tu estado de pagos.
+          Confirma tu participación en esta vaca. La cuota se reparte entre todos los confirmados — si entra más gente, tu parte puede bajar. Al confirmar recibirás un link personal para consultar tu estado de pagos.
         </p>
         <div class="form-group">
           <label>Nombre completo</label>
@@ -400,9 +538,23 @@
         </div>
         <div class="form-group">
           <label>Número Nequi / WhatsApp</label>
-          <input type="tel" id="regContacto" placeholder="300 123 4567" autocomplete="tel" />
+          <div class="form-group-contacto">
+            <select id="regPais" onchange="document.getElementById('regPaisOtro').style.display = this.value === 'otro' ? '' : 'none'">
+              <option value="57" selected>🇨🇴 +57</option>
+              <option value="1">🇺🇸🇨🇦 +1</option>
+              <option value="34">🇪🇸 +34</option>
+              <option value="44">🇬🇧 +44</option>
+              <option value="33">🇫🇷 +33</option>
+              <option value="49">🇩🇪 +49</option>
+              <option value="39">🇮🇹 +39</option>
+              <option value="351">🇵🇹 +351</option>
+              <option value="otro">Otro…</option>
+            </select>
+            <input type="tel" id="regContacto" placeholder="300 123 4567" autocomplete="tel" />
+          </div>
+          <input type="text" id="regPaisOtro" placeholder="Código de país (ej: 31)" style="display:none; margin-top:8px" />
         </div>
-        <button class="btn btn-primary" id="btnRegistrar" onclick="registrarse()">Unirme a la vaca 🐄</button>
+        <button class="btn btn-primary" id="btnRegistrar" onclick="registrarse()">Confirmar mi participación 🐄</button>
       </div>
 
       <!-- LINK GENERADO (post-registro) -->
@@ -416,7 +568,8 @@
           <strong>Tu link personal</strong>
           <span id="linkGenerado"></span>
         </div>
-        <button class="btn btn-primary" onclick="copiarLinkGenerado()">📋 Copiar link</button>
+        <button class="btn btn-primary" onclick="irAMiPortal()">Ir a mi portal →</button>
+        <button class="btn btn-ghost" style="margin-top:10px" onclick="copiarLinkGenerado()">📋 Copiar link (para guardarlo)</button>
       </div>
 
       <!-- PORTAL PERSONAL -->
@@ -444,8 +597,8 @@
             <label>Abonado</label>
             <span id="portalAbonado">$0</span>
           </div>
-          <div class="saldo-box pendiente">
-            <label>Pendiente</label>
+          <div class="saldo-box pendiente" id="portalPendienteBox">
+            <label id="portalPendienteLabel">Pendiente</label>
             <span id="portalPendiente">$0</span>
           </div>
         </div>
@@ -461,6 +614,26 @@
   </div><!-- /card -->
 
   <div class="footer">AUDIOLINK · panel interno</div>
+  <div class="modal-backdrop" id="modalConfirmarUnirse">
+    <div class="modal-confirm">
+      <div style="font-size:2rem;margin-bottom:6px">🐄</div>
+      <p id="confirmarUnirseTexto">¿Confirmas que quieres unirte?</p>
+      <div class="modal-confirm-acciones">
+        <button class="btn btn-ghost" onclick="cerrarModalConfirmarUnirse()">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarUnirse()">Sí, unirme</button>
+      </div>
+    </div>
+  </div>
+
+<!-- v1.11: lightbox para ver comprobantes en grande -->
+<div class="lightbox-overlay" id="lightboxComprobante" onclick="cerrarLightbox()">
+  <span class="lightbox-close" onclick="cerrarLightbox()">✕</span>
+  <img id="lightboxImg" src="" alt="Comprobante" onclick="event.stopPropagation()" />
+</div>
+
+<!-- v1.12: créditos, mismo texto exacto que .sb-credit en nav.js -->
+<div class="app-credit">Marto 🧠 · martowave@gmail.com</div>
+
   <div id="toast"></div>
 
 <!-- Firebase -->
@@ -471,11 +644,160 @@
 
 <script>
 // ============================================================
-// AUDIOLINK · vaca.html · v1.0
+// AUDIOLINK · vaca.html · v1.12
+//
+// v1.12 (a pedido del usuario — 2 ajustes de estética, portal público
+// nada más porque es el único sin sidebar/nav.js):
+//   (a) Créditos: footer discreto, no fijo, con el texto EXACTO que ya
+//       usa .sb-credit en nav.js ("Marto 🧠 · martowave@gmail.com") —
+//       no se inventó texto nuevo, se copió tal cual del archivo que
+//       compartió el usuario.
+//   (b) "Rueditas" de fondo: 4 círculos difuminados (blur), opacidad
+//       baja (.12), en los colores --accent/--green que ya usa la app,
+//       flotando con una animación CSS lenta (@keyframes bgFloat).
+//       position:fixed + z-index:-1 + pointer-events:none, así que
+//       nunca tapan ni interfieren con nada del contenido ni el scroll.
+//       Respeta prefers-reduced-motion. Cero JS, cero imágenes, cero
+//       peso extra de archivo aparte del CSS.
+// No se tocó registrarse(), cargarPortal(), cargarAbonos() ni ninguna
+// otra función — son cambios puramente de CSS/HTML decorativo.
+//
+// AUDIOLINK · vaca.html · v1.11
+//
+// v1.11 (a pedido del usuario — miniatura + lightbox de comprobante en
+// el portal público, mismo tratamiento aplicado en vacas.html v1.16):
+// cargarAbonos() muestra una miniatura de 36px junto a cada abono que
+// tenga comprobanteUrl (dato que ya se guarda desde vacas.html v1.15).
+// cloudinaryThumb() solo inserta parámetros de transformación en la URL
+// ya guardada — no sube nada nuevo ni gasta almacenamiento extra. Click
+// en la miniatura abre un lightbox (overlay, sin librerías externas,
+// mismo código que el de vacas.html). No se tocó registrarse(),
+// cargarPortal() ni ninguna otra función.
+//
+// AUDIOLINK · vaca.html · v1.10
+//
+// v1.10 (a pedido del usuario — detección de duplicados, no bloqueante):
+// registrarse() hace una consulta por nombre exacto en participantes
+// antes de la transacción de la v1.9. Si ya existe alguien con ese
+// nombre en la vaca, se avisa con confirm() y el usuario decide si
+// continúa o cancela — no se bloquea el registro, solo se advierte.
+// Si la consulta falla por cualquier motivo, no bloquea tampoco: sigue
+// de largo. No se tocó la transacción de cuota (v1.9) ni ninguna otra
+// función.
+//
+// AUDIOLINK · vaca.html · v1.8
 // Vista pública — registro y portal personal por token URL
 // Sin auth. Lee/escribe Firestore según reglas públicas.
+// v1.8 (2 ajustes a pedido del usuario):
+//   (a) Nota de tranquilidad sobre la cuota — antes solo vivía dentro
+//       del párrafo largo de vistaBienvenida/vistaRegistro (fácil de no
+//       leer, y desaparecía en otras vistas). Se agrega .cuota-nota,
+//       chiquita (10.5px) y siempre visible pegada al cuota-pill del
+//       header (#cardTop), que se muestra en TODAS las vistas una vez
+//       cargada la vaca: "La cuota baja sola a medida que se suma más
+//       gente — nadie queda pagando el total." No se quitó el texto
+//       largo existente en vistaBienvenida/vistaRegistro, esta nota es
+//       adicional y persistente.
+//   (b) vistaLinkGenerado (pantalla post-registro) ahora tiene dos
+//       botones: "Ir a mi portal →" (irAMiPortal(), navega directo con
+//       window.location.href) como acción primaria, y "📋 Copiar link"
+//       como secundaria (btn-ghost) para quien prefiera guardarlo antes
+//       de entrar. Antes solo existía copiar. Se agregó .btn-ghost a
+//       este archivo en v1.7 para el modal de confirmación, se reutiliza
+//       aquí sin cambios.
+// No se tocó registrarse(), cargarPortal(), cargarAbonos() ni ninguna
+// otra función existente.
+// v1.7 (a pedido del usuario — "todo está muy directo"): se agrega una
+// vista de bienvenida (vistaBienvenida) que ahora es la PRIMERA pantalla
+// para alguien que abre el link de invitación (sin &p=, vaca activa).
+// Antes init() mandaba directo a vistaRegistro; ahora manda a
+// vistaBienvenida, que explica el mecanismo de la vaca y tiene un botón
+// "Quiero unirme 🐄". Ese botón NO entra directo al formulario — abre un
+// modal de confirmación propio (modalConfirmarUnirse, nuevo, con su
+// propio CSS .modal-backdrop/.modal-confirm ya que este archivo no tenía
+// modales hasta ahora) con el nombre de la vaca y una advertencia corta
+// de que la cuota se recalcula al confirmar. Solo si el participante
+// confirma ahí, pasa a vistaRegistro (el formulario real de nombre/
+// contacto, sin cambios). Se agregó también .btn-ghost (no existía en
+// este archivo) para el botón "Cancelar" del modal. mostrarVista() se
+// actualizó para incluir 'vistaBienvenida' en la lista de vistas que
+// controla. El flujo de vaca cerrada (v1.5/v1.6, mensaje directo sin
+// pasar por bienvenida) y el del portal personal (&p= presente) NO se
+// tocaron. No se tocó registrarse(), cargarPortal(), cargarAbonos() ni
+// ninguna otra función existente.
+// v1.6 (a pedido del usuario, mismo cambio en vacas.html v1.11): se
+// agrega selector de país (regPais) junto al campo de contacto en el
+// formulario de registro — antes notificarWhatsApp() en vacas.html
+// adivinaba el código por cantidad de dígitos (10 = Colombia), lo que
+// fallaba con números de otros países que también tienen 10 dígitos
+// (ej. EE.UU./Canadá). Ahora el participante elige su país al
+// registrarse (Colombia, EE.UU./Canadá, España, Reino Unido, Francia,
+// Alemania, Italia, Portugal, u "Otro" con código manual) y ese valor
+// se guarda como paisCodigo en su doc, junto a contacto (que sigue
+// siendo solo el número local, sin cambios). registrarse() valida que
+// si se elige "Otro" el código no quede vacío. No se tocó cargarPortal(),
+// cargarAbonos() ni el resto de campos/funciones de este archivo.
+// v1.5 (parte del punto "cerrar vaca" de vacas.html v1.10): init() ahora
+// revisa vacaData.estado antes de mostrar vistaRegistro — si la vaca
+// está 'cerrada' y no viene &p= en la URL (alguien nuevo abriendo el
+// link de invitación), se muestra un mensaje de "vaca cerrada" en vez
+// del formulario. El portal personal (cuando SÍ viene &p=) no se toca:
+// quien ya es participante sigue viendo su saldo igual, esté la vaca
+// abierta o cerrada. registrarse() ya tenía un chequeo de respaldo
+// (estado !== 'activa') que se deja intacto, sigue siendo la última
+// línea de defensa si alguien llega a ver el formulario por una carrera
+// de estados. No se tocó cargarPortal(), cargarAbonos() ni ninguna otra
+// función de este archivo.
+// v1.4: mismo cambio de acento que
+// vacas.html v1.8 — turquesa (#2dd4bf) en vez del azul genérico
+// (#4f8ef7), incluida la pill de cuota que antes tenía el rgba viejo
+// escrito a mano en vez de derivarlo de var(--accent). Estructura y
+// tamaño de esta página no se tocaron — ya estaba bien resuelta en
+// mobile (card centrada de 480px con su propio breakpoint a 480px). No
+// se tocó ninguna función, cálculo ni las Firestore Rules.
+// v1.3: CAMBIO DE MODELO (a pedido del usuario, mismo cambio aplicado en
+// vacas.html v1.7). Antes: cuota_fija era fija, la meta crecía con cada
+// participante. Ahora: meta_total es fija, cuota_fija se recalcula sola
+// = meta_total / numParticipantes en cada confirmación. Cambios:
+//   - Copy de vistaRegistro actualizado ("Confirmar mi participación",
+//     explica que la cuota puede bajar si entra más gente).
+//   - registrarse(): el batch ya no hace numParticipantes:
+//     increment(1) — ahora escribe numParticipantes y cuota_fija
+//     JUNTOS con valores explícitos (mismo patrón que
+//     crearParticipante() en vacas.html), para que ambos campos
+//     queden consistentes entre sí.
+//   - cuotaPill del header ahora dice "Cuota vigente" (ya no es fija).
+//   - Portal personal: si el abonado queda por encima de la cuota
+//     vigente (porque bajó tras un abono, al sumarse más gente), la
+//     caja "Pendiente" pasa a "A favor" en verde con el excedente —
+//     puramente informativo, no se ajusta nada retroactivo.
+// REQUIERE ajuste en las Firestore Rules: el update público sobre
+// /vacas/{vacaId} (numParticipantes + cuota_fija) no estaba permitido
+// antes (solo `get` público existía) — se le avisó al usuario aparte
+// con el bloque de Rules exacto a agregar. Sin ese ajuste,
+// registrarse() falla con "Missing or insufficient permissions". No se
+// tocó cargarPortal() más allá de lo descrito, ni cargarAbonos(), ni el
+// resto del archivo.
+// v1.2: fix — el progreso general se quedaba en $0 porque
+// cargarProgresoGlobal() hacía `list` sobre la subcolección
+// participantes, bloqueado sin login por las Rules (a propósito, para
+// no exponer nombres/contactos de terceros por enumeración). Ahora usa
+// los campos denormalizados totalRecaudado/numParticipantes del propio
+// doc de la vaca (ya cargado en vacaData desde init(), y actualizados
+// por vacas.html v1.4 en cada abono/registro) — solo un get() puntual,
+// permitido sin login. Se quitó el desglose "X de N al día" (requería
+// el detalle por persona); queda solo total recaudado vs meta. No se
+// tocó ninguna otra función.
+// v1.1: fix — faltaba firebase.initializeApp(firebaseConfig) antes de
+// firebase.firestore(). Mismo problema detectado y corregido en
+// vacas.html v1.1: firebase-config.js solo define el objeto
+// firebaseConfig, no inicializa la app por sí solo. Sin esa línea, la
+// carga del portal se quedaba colgada en "Cargando…" (la promesa nunca
+// resolvía / fallaba antes de llegar a los catch). Se agregó una sola
+// línea, nada más se tocó.
 // ============================================================
 
+firebase.initializeApp(firebaseConfig);
 const db   = firebase.firestore();
 const params = new URLSearchParams(window.location.search);
 const vacaId = params.get('id');
@@ -507,14 +829,20 @@ let linkGeneradoUrl = '';
     } else {
       descEl.style.display = 'none';
     }
-    document.getElementById('cuotaPill').textContent = '💳 Cuota: ' + formatCOP(vacaData.cuota_fija || 0);
+    document.getElementById('cuotaPill').textContent = '💳 Cuota vigente: ' + formatCOP(vacaData.cuota_fija || 0);
     document.getElementById('cardTop').style.display = '';
 
     // Decidir vista
+    // v1.5: si la vaca está cerrada y no viene &p= (o sea, alguien nuevo
+    // abriendo el link de invitación), se bloquea el registro. El portal
+    // personal (partId presente) NO se bloquea — quien ya está adentro
+    // sigue pudiendo consultar su saldo aunque la vaca haya cerrado.
     if (partId) {
       await cargarPortal();
+    } else if (vacaData.estado === 'cerrada') {
+      mostrarError('Esta vaca ya cerró. No se aceptan más confirmaciones de participación.');
     } else {
-      mostrarVista('vistaRegistro');
+      mostrarVista('vistaBienvenida');
     }
 
   } catch (err) {
@@ -522,45 +850,108 @@ let linkGeneradoUrl = '';
   }
 })();
 
+// ===== BIENVENIDA / CONFIRMAR ANTES DE REGISTRAR (v1.7) =====
+function pedirConfirmacionUnirse() {
+  const nombreVaca = (vacaData && vacaData.nombre) || 'esta vaca';
+  document.getElementById('confirmarUnirseTexto').textContent =
+    `¿Confirmas que quieres unirte a "${nombreVaca}"? La cuota se recalculará entre todos al confirmar.`;
+  document.getElementById('modalConfirmarUnirse').classList.add('show');
+}
+
+function cerrarModalConfirmarUnirse() {
+  document.getElementById('modalConfirmarUnirse').classList.remove('show');
+}
+
+function confirmarUnirse() {
+  cerrarModalConfirmarUnirse();
+  mostrarVista('vistaRegistro');
+}
+
 // ===== REGISTRO =====
 async function registrarse() {
   const nombre   = document.getElementById('regNombre').value.trim();
   const contacto = document.getElementById('regContacto').value.trim();
+  const paisSel  = document.getElementById('regPais').value;
+  const paisCodigo = paisSel === 'otro'
+    ? document.getElementById('regPaisOtro').value.trim().replace(/\D/g, '')
+    : paisSel;
 
   if (!nombre)   { mostrarToast('⚠️ Ingresa tu nombre'); return; }
   if (!contacto) { mostrarToast('⚠️ Ingresa tu contacto Nequi'); return; }
+  if (paisSel === 'otro' && !paisCodigo) { mostrarToast('⚠️ Ingresa el código de país'); return; }
   if (!vacaData || vacaData.estado !== 'activa') {
     mostrarToast('⚠️ Esta vaca ya no está activa');
     return;
   }
 
   const btn = document.getElementById('btnRegistrar');
+
+  // v1.10: aviso de posible duplicado — no bloquea. Una sola consulta
+  // por nombre exacto (case-sensitive, como se guarda) antes de tocar
+  // nada. Si hay coincidencia, se pregunta con confirm(); si el usuario
+  // cancela, se sale sin escribir nada. No reemplaza ninguna validación
+  // existente, solo se antepone.
+  try {
+    const vacaRefCheck = db.collection('vacas').doc(vacaId);
+    const dupSnap = await vacaRefCheck.collection('participantes')
+      .where('nombre', '==', nombre).limit(1).get();
+    if (!dupSnap.empty) {
+      const seguir = confirm(`Ya hay alguien registrado como "${nombre}" en esta vaca. ¿Confirmas que quieres registrarte también?`);
+      if (!seguir) return;
+    }
+  } catch (err) {
+    // Si la consulta de duplicado falla (ej. sin permisos), no bloquea
+    // el registro — sigue de largo como si no hubiera encontrado nada.
+  }
+
   btn.disabled = true;
   btn.textContent = 'Registrando…';
 
   try {
     const token = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-    const batch = db.batch();
-
-    const partRef = db.collection('vacas').doc(vacaId).collection('participantes').doc();
-    batch.set(partRef, {
-      nombre,
-      contacto,
-      fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-      totalAbonado: 0,
-      linkToken: token
-    });
-
     const vacaRef = db.collection('vacas').doc(vacaId);
-    batch.update(vacaRef, {
-      numParticipantes: firebase.firestore.FieldValue.increment(1)
-    });
+    let nuevoPartId = null;
 
-    await batch.commit();
+    // v1.9: se cambia de batch() a runTransaction(). Con batch(), nuevoNum
+    // se calculaba a partir de vacaData en memoria (leído al cargar la
+    // página) — si dos personas confirmaban casi al mismo tiempo, ambas
+    // leían el mismo numParticipantes viejo, ambas calculaban el mismo
+    // "nuevoNum" y la segunda escritura pisaba a la primera, dejando
+    // numParticipantes desincronizado del número real de documentos.
+    // La transacción lee numParticipantes FRESCO desde Firestore (no
+    // desde el caché del navegador) justo antes de escribir, así que
+    // Firestore reintenta automáticamente si detecta que otro cliente
+    // escribió de por medio — cada confirmación cuenta, sin pisarse.
+    await db.runTransaction(async (tx) => {
+      const vacaSnap = await tx.get(vacaRef);
+      if (!vacaSnap.exists) throw new Error('Esta vaca ya no existe.');
+      const freshData = vacaSnap.data();
+      if (freshData.estado !== 'activa') throw new Error('Esta vaca ya no está activa.');
+
+      const partRef = vacaRef.collection('participantes').doc();
+      nuevoPartId = partRef.id;
+
+      const nuevoNum = (freshData.numParticipantes || 0) + 1;
+      const meta = freshData.meta_total || 0;
+      const cuotaRecalc = nuevoNum > 0 ? meta / nuevoNum : meta;
+
+      tx.set(partRef, {
+        nombre,
+        contacto,
+        paisCodigo,
+        fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
+        totalAbonado: 0,
+        linkToken: token
+      });
+      tx.update(vacaRef, {
+        numParticipantes: nuevoNum,
+        cuota_fija: cuotaRecalc
+      });
+    });
 
     // Generar link personal
     const base = window.location.origin + window.location.pathname;
-    linkGeneradoUrl = `${base}?id=${vacaId}&p=${partRef.id}`;
+    linkGeneradoUrl = `${base}?id=${vacaId}&p=${nuevoPartId}`;
     document.getElementById('linkGenerado').textContent = linkGeneradoUrl;
     mostrarVista('vistaLinkGenerado');
 
@@ -575,6 +966,13 @@ function copiarLinkGenerado() {
   navigator.clipboard.writeText(linkGeneradoUrl)
     .then(() => mostrarToast('🔗 Link copiado — guárdalo en un lugar seguro'))
     .catch(() => mostrarToast('No se pudo copiar, cópialo manualmente'));
+}
+
+// v1.8: navega directo al portal personal en vez de solo copiar el
+// link. Se avisa antes por toast que conviene guardarlo, ya que al
+// navegar se pierde la posibilidad de copiarlo desde esta pantalla.
+function irAMiPortal() {
+  window.location.href = linkGeneradoUrl;
 }
 
 // ===== PORTAL PERSONAL =====
@@ -595,6 +993,7 @@ async function cargarPortal() {
     const cuota    = vacaData.cuota_fija || 0;
     const abonado  = p.totalAbonado || 0;
     const pendiente = Math.max(0, cuota - abonado);
+    const excedente = Math.max(0, abonado - cuota);
     const pct      = cuota > 0 ? Math.min(100, Math.round(abonado / cuota * 100)) : 0;
 
     // Label personalizado
@@ -602,7 +1001,9 @@ async function cargarPortal() {
 
     // Chip de estado
     const chipEl = document.getElementById('portalEstadoChip');
-    if (abonado >= cuota) {
+    if (excedente > 0) {
+      chipEl.innerHTML = `<span class="estado-chip chip-pagado">✓ Completa · ${formatCOP(excedente)} a favor</span>`;
+    } else if (abonado >= cuota && cuota > 0) {
       chipEl.innerHTML = `<span class="estado-chip chip-pagado">✓ Cuota completa</span>`;
     } else if (abonado > 0) {
       chipEl.innerHTML = `<span class="estado-chip chip-parcial">⏳ ${pct}% abonado</span>`;
@@ -610,11 +1011,28 @@ async function cargarPortal() {
       chipEl.innerHTML = `<span class="estado-chip chip-pendiente">⚠️ Sin abonos aún</span>`;
     }
 
+    // v1.3: si hay excedente (la cuota bajó tras un abono, porque se
+    // sumaron más participantes — ver registrarse()), la caja que antes
+    // decía "Pendiente" pasa a mostrar "A favor" en verde, con el monto
+    // que le sobra. No se ajusta nada retroactivo, es solo informativo.
+    const pendBox   = document.getElementById('portalPendienteBox');
+    const pendLabel = document.getElementById('portalPendienteLabel');
+    if (excedente > 0) {
+      pendBox.classList.remove('pendiente');
+      pendBox.classList.add('abonado');
+      pendLabel.textContent = 'A favor';
+      document.getElementById('portalPendiente').textContent = formatCOP(excedente);
+    } else {
+      pendBox.classList.remove('abonado');
+      pendBox.classList.add('pendiente');
+      pendLabel.textContent = 'Pendiente';
+      document.getElementById('portalPendiente').textContent = formatCOP(pendiente);
+    }
+
     document.getElementById('portalAbonado').textContent  = formatCOP(abonado);
-    document.getElementById('portalPendiente').textContent = formatCOP(pendiente);
 
     // Progreso global (anónimo)
-    await cargarProgresoGlobal(cuota);
+    await cargarProgresoGlobal();
 
     // Abonos propios
     await cargarAbonos();
@@ -624,34 +1042,58 @@ async function cargarPortal() {
   }
 }
 
-async function cargarProgresoGlobal(cuota) {
+async function cargarProgresoGlobal() {
   try {
-    const snap = await db.collection('vacas').doc(vacaId)
-      .collection('participantes').get();
-
-    let totalRecaudado = 0;
-    let alDia = 0;
-    const n = snap.size;
-
-    snap.forEach(doc => {
-      const d = doc.data();
-      totalRecaudado += d.totalAbonado || 0;
-      if ((d.totalAbonado || 0) >= cuota) alDia++;
-    });
-
-    const meta = cuota * n;
+    // v1.2: antes hacía `list` sobre participantes para sumar totalAbonado
+    // de cada uno — eso está bloqueado sin login (a propósito, para no
+    // exponer nombres/contactos de terceros vía enumeración) y por eso
+    // el progreso global se quedaba en $0. Ahora usa los campos
+    // denormalizados del propio doc de la vaca (totalRecaudado,
+    // numParticipantes — actualizados por vacas.html en cada abono/
+    // registro), leídos con un simple get() permitido sin login. Ya no
+    // se puede mostrar "X de N al día" (requeriría leer el detalle por
+    // persona), solo el total recaudado vs la meta.
+    // v1.3: meta ya no es cuota*n (modelo viejo) — ahora meta_total es
+    // el campo fijo real que el admin definió, cuota_fija es la que se
+    // recalcula. Se usa vacaData.meta_total directamente.
+    const totalRecaudado = vacaData.totalRecaudado || 0;
+    const n = vacaData.numParticipantes || 0;
+    const meta = vacaData.meta_total || 0;
     const pctGlobal = meta > 0 ? Math.min(100, Math.round(totalRecaudado / meta * 100)) : 0;
 
     document.getElementById('portalRecaudado').textContent = formatCOP(totalRecaudado);
     document.getElementById('portalMeta').textContent = `de ${formatCOP(meta)} · meta total`;
     document.getElementById('portalFill').style.width = pctGlobal + '%';
     document.getElementById('portalSub').textContent =
-      `${alDia} de ${n} participante${n !== 1 ? 's' : ''} al día`;
+      `${n} participante${n !== 1 ? 's' : ''} en la vaca`;
 
   } catch (_) {
     // Si falla el progreso global, no bloquea el resto
     document.getElementById('portalSub').textContent = '';
   }
+}
+
+// v1.11: miniatura + lightbox de comprobantes, mismo tratamiento que
+// vacas.html v1.16. cloudinaryThumb() no sube nada nuevo — solo inserta
+// parámetros de transformación en la URL ya guardada.
+function cloudinaryThumb(url, size) {
+  if (!url) return url;
+  const marcador = '/upload/';
+  const i = url.indexOf(marcador);
+  if (i === -1) return url;
+  const inicio = i + marcador.length;
+  return url.slice(0, inicio) + `w_${size},h_${size},c_fill,q_auto,f_auto/` + url.slice(inicio);
+}
+
+function abrirLightbox(url) {
+  if (!url) return;
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightboxComprobante').classList.add('show');
+}
+
+function cerrarLightbox() {
+  document.getElementById('lightboxComprobante').classList.remove('show');
+  document.getElementById('lightboxImg').src = '';
 }
 
 async function cargarAbonos() {
@@ -676,6 +1118,7 @@ async function cargarAbonos() {
         : '—';
       html += `
         <div class="abono-item">
+          ${a.comprobanteUrl ? `<img class="comprobante-thumb" src="${cloudinaryThumb(a.comprobanteUrl, 100)}" alt="Comprobante" onclick="abrirLightbox('${a.comprobanteUrl.replace(/'/g, '&#39;')}')" />` : ''}
           <div class="abono-left">
             <span class="abono-fecha">${fechaStr}</span>
             ${a.nota ? `<span class="abono-nota">${escapeHtml(a.nota)}</span>` : ''}
@@ -693,7 +1136,7 @@ async function cargarAbonos() {
 
 // ===== UTILIDADES =====
 function mostrarVista(id) {
-  ['vistaLoading','vistaError','vistaRegistro','vistaLinkGenerado','vistaPortal'].forEach(v => {
+  ['vistaLoading','vistaError','vistaBienvenida','vistaRegistro','vistaLinkGenerado','vistaPortal'].forEach(v => {
     document.getElementById(v).classList.remove('show');
   });
   document.getElementById(id).classList.add('show');

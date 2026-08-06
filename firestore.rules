@@ -270,6 +270,20 @@ rules_version = '2';
 // tocó ninguna otra regla, función, condición, match ni colección
 // existente — ni siquiera el match de /eventos/{eventoId} y su
 // subcolección /canales, que quedan exactamente igual.
+//
+// v2.18 (esta entrega — vaca.html v1.3): confirmación pública de
+// participación recalcula `numParticipantes` y `cuota_fija` en el doc
+// raíz de la vaca (antes numParticipantes solo se movía por increment()
+// interno; ahora vaca.html también necesita poder recalcular ambos
+// campos vía update público, sin login). Se agrega, dentro de
+// /vacas/{vacaId}, un `allow update` sin login pero ANGOSTO: SOLO puede
+// cambiar `numParticipantes` y `cuota_fija` — nunca meta_total, nombre,
+// estado, ni ningún otro campo del doc raíz. Mismo patrón exacto que las
+// demás excepciones de escritura angosta sin login del archivo (inputList
+// en sesiones, notas en temas, estado en cotizaciones). No se tocó
+// ninguna otra regla, colección, match ni condición existente — ni
+// siquiera el resto de /vacas/{vacaId} (el `allow get: if true` público y
+// el acceso de staff quedan exactamente igual).
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -639,7 +653,7 @@ service cloud.firestore {
     match /catalogoIconos/{claveId} {
       allow read, write: if esStaff();
     }
-    // ---------- VACAS (v2.17 — vacas.html v1.0 / vaca.html v1.0) ----------
+    // ---------- VACAS (v2.17 — vacas.html v1.0 / vaca.html v1.0, ampliada v2.18) ----------
     // Sistema de recolección grupal ("vaca") con cuota fija por participante.
     // Flujo: admin crea la vaca → comparte link público de registro → cada
     // participante se registra sin login → admin registra abonos → cada
@@ -662,6 +676,16 @@ service cloud.firestore {
       // numParticipantes, estado). list bloqueado — el vacaId está en el
       // link de registro y no es adivinable por terceros.
       allow get: if true;
+      // v2.18 (vaca.html v1.3): confirmación pública de participación
+      // recalcula numParticipantes + cuota_fija en el doc raíz. Update
+      // sin login pero ANGOSTO: SOLO esos 2 campos, nunca meta_total,
+      // nombre, estado ni ningún otro campo del doc. Mismo patrón exacto
+      // que las demás excepciones de escritura angosta sin login del
+      // archivo (inputList en sesiones, notas en temas, estado en
+      // cotizaciones).
+      allow update: if
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['numParticipantes', 'cuota_fija']);
 
       match /participantes/{participanteId} {
         // Staff: acceso total (leer lista completa, editar, borrar).

@@ -16,12 +16,28 @@
       --border:   #2a2f42;
       --text:     #e8eaf0;
       --text2:    #8b90a0;
-      --accent:   #4f8ef7;
+      --accent:   #2dd4bf; /* v1.8: turquesa — antes #4f8ef7 (azul genérico), decisión de marca a pedido del usuario para diferenciar "Vacas" del resto del ecosistema sin chocar con el verde/rojo semántico de estado */
       --green:    #3ecf8e;
       --red:      #f76f6f;
       --yellow:   #f5c842;
       --radius:   10px;
       --shadow:   0 2px 12px rgba(0,0,0,.4);
+      /* v1.5: variables que nav.css requiere para pintar el sidebar/topbar
+         compartido (ver cabecera de nav.css) — vacas.html nunca las
+         definía, así que el sidebar se veía sin estilo (colores/fuente
+         por defecto del navegador). Se copian tal cual de index.html
+         para mantener 100% consistencia visual con el resto del
+         ecosistema. No reemplazan ni se mezclan con --bg/--border/etc.
+         propias de este archivo — son un set aparte, con otro nombre. */
+      --surf:       #151517;
+      --surf-light: #1d1d20;
+      --brd:        #2a2a2e;
+      --gold:       #c9a24b;
+      --gold-bg:    rgba(201,162,75,0.12);
+      --txt:        #f0ede6;
+      --muted:      #9a978f;
+      --faint:      #5c5a55;
+      --T:          'Segoe UI', system-ui, -apple-system, sans-serif;
     }
     [data-tema="light"] {
       --bg:     #f0f2f7;
@@ -30,6 +46,16 @@
       --border: #cdd2df;
       --text:   #1a1d2e;
       --text2:  #5a6070;
+      /* v1.5: contraparte clara de las variables de nav.css, también
+         copiadas de index.html (:root[data-tema="light"]). */
+      --surf:       #ffffff;
+      --surf-light: #f3f0e8;
+      --brd:        #e2ddd0;
+      --gold:       #a8823a;
+      --gold-bg:    rgba(168,130,58,0.10);
+      --txt:        #2a2620;
+      --muted:      #7a756a;
+      --faint:      #a39d8f;
     }
 
     body {
@@ -38,11 +64,25 @@
       font-family: 'Inter', 'Segoe UI', sans-serif;
       font-size: 14px;
       min-height: 100vh;
-      display: flex;
+      /* v1.9: se quita display:flex — nav.css asume que el body es de
+         flujo normal (sidebar con position:fixed flotando encima,
+         contenido acomodado con margin-left). Ninguna otra página del
+         ecosistema pone display:flex acá; en vacas.html causaba que en
+         Safari de iPhone el sidebar y la barra inferior mobile se
+         mostraran los dos a la vez (bug conocido de Safari con
+         elementos position:fixed inyectados dinámicamente dentro de un
+         contenedor flex). No se tocó ninguna otra propiedad del body. */
     }
 
     #mainWrap {
-      flex: 1;
+      /* v1.9: ya no depende de flex:1 (el padre, body, dejó de ser
+         flex) — ahora es un bloque normal que ocupa el ancho disponible
+         y se corre con margin-left, igual que el resto del ecosistema.
+         display:flex/flex-direction:column se mantienen: siguen siendo
+         necesarios para acomodar verticalmente .main-content dentro de
+         ESTE contenedor, que es un asunto aparte de cómo se posiciona
+         #mainWrap respecto al body. */
+      width: auto;
       margin-left: 220px;
       transition: margin-left .25s;
       min-height: 100vh;
@@ -126,7 +166,10 @@
     /* ===== VACAS GRID ===== */
     .vacas-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      /* v1.8: mínimo bajado de 280px a 240px — con el padding mobile
+         (16px por lado) 280px quedaba muy justo en pantallas angostas
+         (~320px) y podía forzar scroll horizontal leve. */
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: 16px;
     }
 
@@ -163,6 +206,29 @@
     }
     .badge-activa  { background: rgba(62,207,142,.15); color: var(--green); }
     .badge-cerrada { background: rgba(139,144,160,.15); color: var(--text2); }
+
+    /* v1.3: acciones editar/eliminar en la card */
+    .vaca-card-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .vaca-card-actions button {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text2);
+      transition: background .15s, color .15s;
+    }
+    .vaca-card-actions button:hover { background: var(--bg3); color: var(--text); }
+    .vaca-card-actions button.danger:hover { color: var(--red); border-color: var(--red); }
 
     .vaca-desc {
       font-size: 12px;
@@ -221,8 +287,19 @@
     .detalle-header {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 12px;
       margin-bottom: 20px;
+    }
+    /* v1.8: en mobile, el grupo de botones (Link de invitación +
+       Participante) pasa a ocupar toda la línea de abajo en vez de
+       apretarse contra el título — mismo elemento, ya no necesita
+       margin-left:auto porque con flex-wrap ya baja de línea solo. */
+    @media (max-width: 560px) {
+      .detalle-header > div[style*="margin-left:auto"] {
+        margin-left: 0 !important;
+        width: 100%;
+      }
     }
     .detalle-header h3 {
       font-size: 1.2rem;
@@ -272,6 +349,19 @@
 
     .acciones-td { display: flex; gap: 6px; align-items: center; }
 
+    /* v1.10: historial de abonos (modal) */
+    .abonos-admin-lista { display: flex; flex-direction: column; gap: 8px; }
+    .abono-admin-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      gap: 10px;
+    }
+
     /* ===== MODALES ===== */
     .modal-backdrop {
       display: none;
@@ -283,6 +373,43 @@
       padding: 16px;
     }
     .modal-backdrop.show { display: flex; }
+
+    /* v1.16: miniatura de comprobante en el historial de abonos (admin) */
+    .comprobante-thumb {
+      width: 36px; height: 36px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: block;
+    }
+
+    /* v1.16: lightbox simple, reutiliza el z-index por encima de los modales */
+    .lightbox-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.85);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      cursor: zoom-out;
+    }
+    .lightbox-overlay.show { display: flex; }
+    .lightbox-overlay img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 16px; right: 20px;
+      color: #fff;
+      font-size: 28px;
+      cursor: pointer;
+      line-height: 1;
+    }
 
     .modal {
       background: var(--bg2);
@@ -332,7 +459,8 @@
       letter-spacing: .5px;
     }
     .form-group input,
-    .form-group textarea {
+    .form-group textarea,
+    .form-group select {
       width: 100%;
       background: var(--bg3);
       border: 1px solid var(--border);
@@ -346,7 +474,13 @@
       resize: vertical;
     }
     .form-group input:focus,
-    .form-group textarea:focus { border-color: var(--accent); }
+    .form-group textarea:focus,
+    .form-group select:focus { border-color: var(--accent); }
+
+    /* v1.11: fila país + número */
+    .form-group-contacto { display: flex; gap: 8px; }
+    .form-group-contacto select { flex: 0 0 84px; }
+    .form-group-contacto input { flex: 1; }
 
     /* toast */
     #toast {
@@ -392,6 +526,46 @@
       #mainWrap { margin-left: 0; padding-top: 56px; }
       .main-content { padding: 20px 16px 80px; }
       .acciones-td { flex-wrap: wrap; }
+
+      /* v1.8: tabla de participantes → lista de mini-cards apiladas.
+         Antes dependía solo de overflow-x:auto (scroll horizontal para
+         ver "Acciones"). Técnica estándar: la tabla se "desarma" a
+         bloques, cada <tr> se convierte en una card, y cada <td> muestra
+         su etiqueta (data-label, agregado en el JS) antes del valor. No
+         se tocó el HTML/JS fuera de agregar esos data-label — la misma
+         tabla sigue funcionando igual en desktop (≥769px). */
+      .table-wrap { overflow-x: visible; }
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tbody tr {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 4px 14px;
+        margin-bottom: 10px;
+      }
+      tbody tr:hover td { background: transparent; }
+      tbody td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border);
+        text-align: right;
+      }
+      tbody tr td:last-child { border-bottom: none; }
+      tbody td::before {
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        color: var(--text2);
+        text-align: left;
+        flex-shrink: 0;
+      }
+      .acciones-td { justify-content: flex-end; width: 100%; }
     }
   </style>
 </head>
@@ -427,7 +601,11 @@
           <h3 id="detalleNombre"></h3>
           <div class="detalle-meta" id="detalleMeta"></div>
         </div>
-        <button class="btn btn-green btn-sm" onclick="abrirModalNuevoParticipante()" style="margin-left:auto">+ Participante</button>
+        <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" id="btnEstadoVaca" onclick="toggleEstadoVaca()">🔒 Cerrar vaca</button>
+          <button class="btn btn-ghost btn-sm" id="btnLinkInvitacion" onclick="copiarLinkInvitacion()">🔗 Link de invitación</button>
+          <button class="btn btn-green btn-sm" id="btnNuevoParticipante" onclick="abrirModalNuevoParticipante()">+ Participante</button>
+        </div>
       </div>
 
       <div id="contenedorParticipantes">
@@ -442,10 +620,11 @@
 <div class="modal-backdrop" id="modalNuevaVaca">
   <div class="modal">
     <div class="modal-header">
-      <h4>🐄 Nueva Vaca</h4>
+      <h4 id="nvTitulo">🐄 Nueva Vaca</h4>
       <button class="modal-close" onclick="cerrarModal('modalNuevaVaca')">✕</button>
     </div>
     <div class="modal-body">
+      <input type="hidden" id="nvEditId" value="" />
       <div class="form-group">
         <label>Nombre</label>
         <input type="text" id="nvNombre" placeholder="Ej: Vaca paseo fin de año" />
@@ -455,13 +634,14 @@
         <textarea id="nvDescripcion" rows="3" placeholder="Opcional — para qué es esta vaca"></textarea>
       </div>
       <div class="form-group">
-        <label>Cuota fija por persona ($)</label>
-        <input type="number" id="nvCuota" placeholder="Ej: 50000" min="0" />
+        <label>Meta total de recaudo ($)</label>
+        <input type="number" id="nvCuota" placeholder="Ej: 500000" min="0" />
+        <p style="font-size:11px;color:var(--text2);margin-top:5px">La cuota por persona se calcula sola: meta ÷ participantes confirmados. Baja automáticamente si entra más gente.</p>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="cerrarModal('modalNuevaVaca')">Cancelar</button>
-      <button class="btn btn-primary" onclick="crearVaca()">Crear vaca</button>
+      <button class="btn btn-primary" id="nvBtnGuardar" onclick="guardarVaca()">Crear vaca</button>
     </div>
   </div>
 </div>
@@ -480,12 +660,26 @@
       </div>
       <div class="form-group">
         <label>Contacto (Nequi / WhatsApp)</label>
-        <input type="text" id="npContacto" placeholder="Ej: 300 123 4567" />
+        <div class="form-group-contacto">
+          <select id="npPais" onchange="document.getElementById('npPaisOtro').style.display = this.value === 'otro' ? '' : 'none'">
+            <option value="57" selected>🇨🇴 +57</option>
+            <option value="1">🇺🇸🇨🇦 +1</option>
+            <option value="34">🇪🇸 +34</option>
+            <option value="44">🇬🇧 +44</option>
+            <option value="33">🇫🇷 +33</option>
+            <option value="49">🇩🇪 +49</option>
+            <option value="39">🇮🇹 +39</option>
+            <option value="351">🇵🇹 +351</option>
+            <option value="otro">Otro…</option>
+          </select>
+          <input type="text" id="npContacto" placeholder="Ej: 300 123 4567" />
+        </div>
+        <input type="text" id="npPaisOtro" placeholder="Código de país (ej: 31)" style="display:none; margin-top:8px" />
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="cerrarModal('modalNuevoParticipante')">Cancelar</button>
-      <button class="btn btn-primary" onclick="crearParticipante()">Agregar</button>
+      <button class="btn btn-primary" id="btnAgregarParticipante" onclick="crearParticipante()">Agregar</button>
     </div>
   </div>
 </div>
@@ -511,12 +705,40 @@
         <label>Nota (opcional)</label>
         <input type="text" id="abonoNota" placeholder="Ej: Primera cuota" />
       </div>
+      <div class="form-group">
+        <label>Comprobante (opcional)</label>
+        <input type="file" id="abonoComprobante" accept="image/*" />
+        <div id="abonoComprobanteActual" style="font-size:12px;color:var(--text2);margin-top:6px"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="cerrarModal('modalAbono')">Cancelar</button>
-      <button class="btn btn-green" onclick="guardarAbono()">Guardar abono</button>
+      <button class="btn btn-green" id="abonoBtnGuardar" onclick="guardarAbono()">Guardar abono</button>
     </div>
   </div>
+</div>
+
+<!-- ===== MODAL HISTORIAL DE ABONOS (v1.10) ===== -->
+<div class="modal-backdrop" id="modalAbonosList">
+  <div class="modal">
+    <div class="modal-header">
+      <h4>📋 Historial de abonos</h4>
+      <button class="modal-close" onclick="cerrarModal('modalAbonosList')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="abonosListNombre" style="font-weight:700; margin-bottom:16px; color:var(--accent)"></p>
+      <div id="abonosListCont"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModal('modalAbonosList')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- v1.16: lightbox para ver comprobantes en grande -->
+<div class="lightbox-overlay" id="lightboxComprobante" onclick="cerrarLightbox()">
+  <span class="lightbox-close" onclick="cerrarLightbox()">✕</span>
+  <img id="lightboxImg" src="" alt="Comprobante" onclick="event.stopPropagation()" />
 </div>
 
 <div id="toast"></div>
@@ -535,8 +757,217 @@ window.NAV_CONFIG = { activo: 'vacas' };
 
 <script>
 // ============================================================
-// AUDIOLINK · vacas.html · v1.2
+// AUDIOLINK · vacas.html · v1.16
+//
+// v1.16 (a pedido del usuario — miniatura + lightbox de comprobante en
+// admin): en el historial de abonos, el botón "📎 Ver" se reemplaza por
+// una miniatura de 36px (cloudinaryThumb() inserta parámetros de
+// transformación en la URL ya guardada — no sube nada nuevo a
+// Cloudinary, ni gasta almacenamiento extra). Al hacer clic abre un
+// lightbox simple (overlay full-screen con la imagen en grande),
+// implementado sin librerías externas para no sumarle peso al archivo.
+// No se tocó guardarAbono(), editarAbono() más allá de lo ya hecho en
+// v1.15, ni ninguna otra función. Portal público (vaca.html) queda
+// pendiente para el próximo paso.
+//
+// AUDIOLINK · vacas.html · v1.15
+//
+// v1.15 (a pedido del usuario — comprobante de abono vía Cloudinary):
+// guardarAbono() ahora sube opcionalmente una imagen a Cloudinary
+// (unsigned upload preset "AUDIOLINK APP", cloud_name "dv7lelmoy") antes
+// de escribir en Firestore, y guarda la URL resultante como
+// `comprobanteUrl` en el documento del abono. Si el admin no elige
+// archivo, comprobanteUrl queda null (creación) o se conserva el que ya
+// había (edición, vía abonoEditComprobanteUrl). Si la subida falla, no
+// se escribe nada en Firestore y se muestra el error real de la API de
+// Cloudinary. En el historial de abonos aparece un botón "📎 Ver" si el
+// abono tiene comprobante. No se tocó eliminarAbono(), la lógica de
+// delta de edición, ni ninguna otra función.
+//
+// AUDIOLINK · vacas.html · v1.14
+//
+// v1.14 (a pedido del usuario — detección de duplicados, no bloqueante,
+// mismo cambio aplicado en vaca.html v1.10): crearParticipante() hace
+// una consulta por nombre exacto antes de la transacción de la v1.13.
+// Si ya existe alguien con ese nombre en la vaca, se avisa con confirm()
+// y el admin decide si continúa o cancela — no bloquea, solo advierte.
+// No se tocó eliminarParticipante() ni ninguna otra función.
+//
+// AUDIOLINK · vacas.html · v1.13
+//
+// v1.13 (a pedido del usuario — fix de condición de carrera, mismo cambio
+// aplicado en vaca.html v1.9): crearParticipante() y eliminarParticipante()
+// pasan de batch() a runTransaction() para el recálculo de numParticipantes
+// y cuota_fija — antes se calculaban desde vacaActualData en memoria (caché
+// del panel), así que dos escrituras casi simultáneas (dos admins, o un
+// admin agregando mientras alguien se autoconfirmaba desde vaca.html)
+// podían pisarse y dejar numParticipantes desincronizado del número real
+// de documentos en participantes. Ahora la transacción lee el valor
+// fresco directo de Firestore antes de escribir. También se agregan
+// estados de carga: el botón "Agregar" del modal (id="btnAgregarParticipante")
+// se deshabilita mientras espera la respuesta, y lo mismo con el botón
+// 🗑️ de cada fila (se pasa `this` como referencia). No se tocó
+// crearParticipante()/eliminarParticipante() en lo demás, ni ninguna otra
+// función.
 // Panel admin — gestión de vacas colectivas
+// v1.12 (a pedido del usuario): botón "🔗 Link" de cada fila de
+// participante se separa en dos: "🔗 Copiar" (igual que antes,
+// copiarLink() sin cambios) y "↗ Abrir" (nuevo, abrirLinkParticipante(),
+// abre el portal del participante en pestaña nueva con window.open) —
+// para que el admin pueda revisar el saldo de alguien directo, sin
+// copiar/pegar en otra pestaña. No se tocó ninguna otra función.
+// v1.11 (a pedido del usuario): notificarWhatsApp() adivinaba el código
+// de país por cantidad de dígitos (10 = Colombia), lo que fallaba con
+// números de 10 dígitos de otros países (EE.UU./Canadá, etc). Se agrega
+// selector de país en el modal "Nuevo Participante" (Colombia, EE.UU./
+// Canadá, España, Reino Unido, Francia, Alemania, Italia, Portugal, u
+// "Otro" con código manual) — mismo selector agregado en vaca.html v1.6
+// para el registro público. crearParticipante() ahora guarda paisCodigo
+// junto al participante. notificarWhatsApp() recibe ese paisCodigo como
+// parámetro (pasado desde el botón "📲 Avisar" de cada fila) y lo usa
+// directo; solo si un participante viejo no lo tiene guardado (creado
+// antes de este cambio) cae al fallback anterior (10 dígitos → asume
+// Colombia). No se tocó ninguna otra función ni el resto del archivo.
+// v1.10 (4 puntos de funcionalidad, a pedido del usuario):
+//   (a) Cerrar/Reabrir vaca — toggleEstadoVaca() cambia `estado` entre
+//       'activa'/'cerrada'. Con la vaca cerrada se ocultan (solo UI, no
+//       Rules) los botones +Participante, Link de invitación y 💰 Abono
+//       de cada fila (clase .btn-abono-row). vaca.html v1.5 respeta el
+//       mismo campo para bloquear el registro público.
+//   (b) Eliminar participante — eliminarParticipante(), mismo patrón
+//       cascada que eliminarVaca() (borra abonos del participante, luego
+//       el participante, en un solo batch) y recalcula numParticipantes
+//       + cuota_fija con valores explícitos, igual que crearParticipante().
+//       totalRecaudado se autocorrige solo vía la auto-sanación ya
+//       existente en cargarParticipantes() (v1.6), no se tocó esa lógica.
+//   (c) Editar/eliminar abono individual — nuevo modal "Historial de
+//       abonos" (abrirModalAbonosList) listando los abonos de un
+//       participante con ✏️/🗑️ por fila. Editar reutiliza el modal
+//       existente de registrar abono (guardarAbono() ahora detecta modo
+//       edición vía abonoEditId y ajusta totalAbonado/totalRecaudado por
+//       el DELTA, no por el monto completo). Eliminar hace
+//       increment(-monto) en ambos totales. No se tocó guardarAbono() en
+//       su modo de creación normal, solo se le agregó la rama de edición
+//       al inicio de la función.
+//   (d) Notificar por WhatsApp — notificarWhatsApp() abre wa.me con
+//       mensaje prellenado y el mismo link personal de copiarLink().
+//       Solo abre la ventana de WhatsApp del admin, no hay envío
+//       automático ni backend involucrado. Asume Colombia (antepone 57)
+//       si el contacto trae exactamente 10 dígitos.
+// No se tocaron Firestore Rules, nav.js, nav.css, ni ninguna función
+// existente más allá de lo descrito arriba.
+// v1.9 (fix, reportado por el usuario en celular real): el sidebar de
+// escritorio y la barra inferior mobile (mobile-bottomnav) se mostraban
+// AL MISMO TIEMPO en Safari de iPhone, a pesar de que nav.css los
+// controla dentro del mismo bloque @media (max-width:768px) — algo que
+// en teoría es imposible que ocurra por separado. Causa raíz: el body
+// de vacas.html tenía `display:flex` (ninguna otra página del
+// ecosistema lo tiene — nav.css asume body de flujo normal, sidebar con
+// position:fixed y contenido con margin-left). Safari de iPhone tiene
+// un bug conocido con elementos position:fixed inyectados dinámicamente
+// (nav.js usa outerHTML) dentro de un contenedor flex: a veces no se
+// remueven bien del layout aunque el CSS diga display:none. Se quita
+// display:flex del body; #mainWrap ya no depende de flex:1 de su padre
+// (pasa a ser un bloque normal con margin-left, igual que el resto del
+// ecosistema) — su propio display:flex/flex-direction:column interno
+// (para acomodar .main-content) se mantiene intacto. No se tocó
+// nav.css, nav.js, ni ninguna otra regla o función de este archivo.
+// v1.8: 3 ajustes de estética/
+// estructura, sin tocar Firestore ni Rules:
+//   (a) Acento de marca cambiado de #4f8ef7 (azul genérico) a #2dd4bf
+//       (turquesa) — decisión explícita de diferenciar "Vacas" del
+//       resto del ecosistema (paleta Oro Profundo) sin chocar con el
+//       verde/rojo/amarillo semántico de estado de pago, que queda
+//       igual.
+//   (b) .detalle-header ahora tiene flex-wrap — antes, en mobile, el
+//       grupo de botones (Link de invitación + Participante) se
+//       apretaba contra el título en una sola línea sin espacio para
+//       bajar de renglón. Ahora baja a su propia línea completa
+//       (≤560px).
+//   (c) .vacas-grid: mínimo de columna bajado de 280px a 240px — en
+//       pantallas muy angostas (~320px) con el padding mobile (16px)
+//       el mínimo anterior podía forzar scroll horizontal leve.
+//   (d) Tabla de participantes: en mobile (≤768px) se transforma en
+//       mini-cards apiladas (CSS + data-label agregado a cada <td> en
+//       cargarParticipantes()) en vez de depender solo de scroll
+//       horizontal para ver la columna "Acciones". En desktop la tabla
+//       sigue exactamente igual. No se tocó la lógica de cálculo
+//       (cuota, porcentaje, estado) ni ninguna función más allá de
+//       agregar esos atributos data-label.
+// v1.7: CAMBIO DE MODELO (a pedido del usuario). Antes: admin fijaba
+// cuota_fija (fija por persona) y la meta total crecía sola (cuota × n).
+// Ahora: admin fija meta_total (fija, campo "Meta total de recaudo" en
+// el modal Nueva/Editar Vaca) y cuota_fija se recalcula sola = meta_total
+// / numParticipantes, bajando a medida que se confirma gente nueva.
+// Cambios puntuales:
+//   - guardarVaca(): guarda meta_total; al crear, cuota_fija = meta_total
+//     (con 0 participantes); al editar, recalcula cuota_fija con el
+//     numParticipantes actual del caché.
+//   - crearParticipante() (alta manual desde el panel): ahora también
+//     recalcula cuota_fija al agregar, escribiendo numParticipantes y
+//     cuota_fija juntos (valor explícito, no increment, para que
+//     queden consistentes entre sí en la misma escritura).
+//   - Nuevo botón "🔗 Link de invitación" en el detalle (copiarLinkInvitacion)
+//     — genera el link general vaca.html?id=XXX (sin &p=) para mandar al
+//     grupo completo; cada quien confirma su propia participación desde
+//     vaca.html v1.3 (ver ese changelog), que hace el mismo recálculo de
+//     cuota_fija que crearParticipante() aquí.
+//   - Card y header de detalle muestran meta_total y cuota_fija (vigente)
+//     por separado, ya no cuota×n.
+// El alta manual desde el panel (+Participante) se mantiene como opción
+// del admin, en paralelo al link de invitación — no se quitó nada. No se
+// tocaron nav.js, nav.css, ni las Firestore Rules (siguen igual: staff
+// acceso total, campos nuevos cubiertos por el mismo allow write:
+// esStaff() sin restricción de nombre de campo).
+// v1.6: fix — autosanación de totalRecaudado. Vacas creadas antes de
+// v1.4 (como la de prueba) nunca tuvieron ese campo denormalizado, así
+// que el progreso global en vaca.html se quedaba en $0 aunque hubiera
+// abonos reales. En vez de editarlo a mano en la consola de Firebase,
+// cargarParticipantes() ahora suma totalAbonado de todos los
+// participantes cada vez que el admin abre el detalle de una vaca (ya
+// tenía lectura completa de ahí) y corrige el doc de la vaca con
+// update() SOLO si el valor guardado quedó desactualizado — silencioso,
+// no bloquea el uso normal del panel. No reemplaza el increment() de
+// guardarAbono() (v1.4), es una red de seguridad adicional que también
+// cubre el caso "sin participantes" (corrige a 0). No se tocó ninguna
+// otra función ni el render de la tabla.
+// v1.5: fix — el sidebar/topbar (inyectado por nav.js, pintado por
+// nav.css) se veía sin estilo del ecosistema. Causa: nav.css exige que
+// cada página defina en su :root las variables --surf, --surf-light,
+// --brd, --gold, --gold-bg, --txt, --muted, --faint, --T (ver su propio
+// comentario de cabecera) — vacas.html solo tenía sus propias variables
+// con otros nombres (--bg2, --border, --accent, --text, etc.), así que
+// esas quedaban undefined y el navegador caía a estilos por defecto. Se
+// agregó ese set de variables, con los valores EXACTOS de index.html
+// (dark y su contraparte [data-tema="light"]), para que el sidebar
+// combine 100% con el resto del ecosistema. No se tocó ni reemplazó
+// ninguna variable propia de vacas.html (--bg/--bg2/--border/--accent/
+// etc. siguen igual, las usa el resto del panel) — son dos sets
+// independientes que ahora conviven. No se tocó nav.js, nav.css, ni
+// ninguna otra regla o función existente de este archivo.
+// v1.4: fix — el progreso global de vaca.html (portal público) se
+// quedaba en $0 porque intentaba hacer `list` sobre la subcolección
+// participantes, y las Rules solo permiten `get` puntual sin login (a
+// propósito, para no exponer nombres/contactos de terceros sin auth).
+// Se agrega `totalRecaudado` (FieldValue.increment) al doc raíz de la
+// vaca en el mismo batch de guardarAbono() — mismo patrón que
+// numParticipantes — para que vaca.html pueda leerlo con un simple
+// get() del doc de la vaca, sin necesitar list(). No se tocó ninguna
+// otra función ni el resto del batch.
+// v1.3: se agrega editar y eliminar vaca desde la card (botones ✏️/🗑️,
+// con stopPropagation para no disparar abrirDetalle). Editar reutiliza
+// el modal "Nueva Vaca" (ahora con título/botón dinámicos y un campo
+// oculto nvEditId) precargado desde un caché en memoria (vacasCache,
+// poblado en cargarVacas) — se evitó incrustar JSON en el atributo
+// onclick por ser frágil con comillas/apóstrofes en nombre/descripción.
+// crearVaca() se renombra a guardarVaca(): crea si nvEditId está vacío,
+// actualiza si trae un id — solo toca nombre/descripcion/cuota_fija,
+// nunca estado ni numParticipantes. eliminarVaca() borra en cascada
+// participantes→abonos (Firestore no borra subcolecciones solo) leyendo
+// todo primero y confirmando con un batch final, con confirm() previo.
+// No se tocaron las Firestore Rules (esStaff() ya cubre write total,
+// incluido delete, sobre vacas/participantes/abonos). No se tocó nav.js
+// ni vaca.html ni ninguna otra función existente de este archivo.
 // v1.2: fix — faltaba const auth = firebase.auth(). El archivo ya usa
 // auth.onAuthStateChanged() (guard de sesión) y auth.currentUser.email
 // (creadoPor/registradoPor) en varios puntos, pero nunca declaraba la
@@ -561,8 +992,20 @@ const { FieldValue } = firebase.firestore;
 let tabActual = 'activas';
 let vacaActualId = null;
 let vacaActualData = null;
+let vacasCache = {}; // id -> data, para editar/eliminar sin reinyectar JSON en el HTML
 let participanteAbonoId = null;
 let unsubParticipantes = null;
+// v1.10: estado para edición de abono e historial (ver abrirModalAbonosList/editarAbono)
+let abonosListParticipanteId = null;
+let abonoEditId = null;
+let abonoEditParticipanteId = null;
+let abonoEditComprobanteUrl = null; // v1.15: URL ya subida del abono en edición, si tenía
+
+// v1.15: Cloudinary — subida de comprobante de abono (unsigned preset,
+// no requiere API key/secret en el HTML estático). No se llama en ningún
+// otro flujo, solo en guardarAbono().
+const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
+const CLOUDINARY_UPLOAD_PRESET = 'AUDIOLINK APP';
 
 // ===== AUTH GUARD =====
 auth.onAuthStateChanged(usuario => {
@@ -600,6 +1043,7 @@ function cargarVacas() {
       grid.className = 'vacas-grid';
       snap.forEach(doc => {
         const d = doc.data();
+        vacasCache[doc.id] = d;
         grid.appendChild(renderVacaCard(doc.id, d));
       });
       cont.innerHTML = '';
@@ -613,19 +1057,23 @@ function cargarVacas() {
 function renderVacaCard(id, d) {
   const cuota = d.cuota_fija || 0;
   const num   = d.numParticipantes || 0;
-  const total = cuota * num;
+  const meta  = d.meta_total || 0;
   const card  = document.createElement('div');
   card.className = 'vaca-card';
   card.onclick = () => abrirDetalle(id, d);
   card.innerHTML = `
     <div class="vaca-card-header">
       <div class="vaca-nombre">🐄 ${escapeHtml(d.nombre || '—')}</div>
-      <span class="badge ${d.estado === 'activa' ? 'badge-activa' : 'badge-cerrada'}">${d.estado || 'activa'}</span>
+      <div class="vaca-card-actions">
+        <span class="badge ${d.estado === 'activa' ? 'badge-activa' : 'badge-cerrada'}">${d.estado || 'activa'}</span>
+        <button title="Editar" onclick="event.stopPropagation(); abrirModalEditarVaca('${id}')">✏️</button>
+        <button title="Eliminar" class="danger" onclick="event.stopPropagation(); eliminarVaca('${id}')">🗑️</button>
+      </div>
     </div>
     ${d.descripcion ? `<p class="vaca-desc">${escapeHtml(d.descripcion)}</p>` : ''}
     <div class="vaca-stats">
       <div class="vaca-stat">
-        <label>Cuota</label>
+        <label>Cuota vigente</label>
         <span>${formatCOP(cuota)}</span>
       </div>
       <div class="vaca-stat">
@@ -634,7 +1082,7 @@ function renderVacaCard(id, d) {
       </div>
       <div class="vaca-stat">
         <label>Meta total</label>
-        <span>${formatCOP(total)}</span>
+        <span>${formatCOP(meta)}</span>
       </div>
     </div>
   `;
@@ -651,9 +1099,43 @@ function abrirDetalle(id, data) {
 
   document.getElementById('detalleNombre').textContent = '🐄 ' + (data.nombre || '—');
   document.getElementById('detalleMeta').textContent =
-    `Cuota: ${formatCOP(data.cuota_fija || 0)} · ${data.numParticipantes || 0} participante(s)`;
+    `Meta: ${formatCOP(data.meta_total || 0)} · Cuota vigente: ${formatCOP(data.cuota_fija || 0)} · ${data.numParticipantes || 0} participante(s)`;
 
+  actualizarUIEstadoDetalle();
   cargarParticipantes(id);
+}
+
+// ===== CERRAR / REABRIR VACA (v1.10) =====
+// Una vaca "cerrada" pasa a modo solo-lectura: se ocultan los botones de
+// agregar participante, link de invitación y registrar abono (tanto en
+// el header como en cada fila de la tabla). No borra ni bloquea nada a
+// nivel de Firestore Rules (el admin sigue teniendo acceso total si
+// necesita corregir algo puntual desde el historial de abonos) — es un
+// candado de UI + el campo `estado` que vaca.html v1.5 también respeta
+// para bloquear el registro público. No dispara ningún cálculo ni
+// resumen automático.
+function toggleEstadoVaca() {
+  if (!vacaActualId || !vacaActualData) return;
+  const nuevoEstado = vacaActualData.estado === 'cerrada' ? 'activa' : 'cerrada';
+  const accion = nuevoEstado === 'cerrada' ? 'cerrar' : 'reabrir';
+  if (!confirm(`¿Seguro que quieres ${accion} esta vaca?`)) return;
+
+  db.collection('vacas').doc(vacaActualId).update({ estado: nuevoEstado })
+    .then(() => {
+      vacaActualData.estado = nuevoEstado;
+      vacasCache[vacaActualId] = vacaActualData;
+      mostrarToast(nuevoEstado === 'cerrada' ? '🔒 Vaca cerrada' : '🔓 Vaca reabierta');
+      actualizarUIEstadoDetalle();
+    })
+    .catch(err => mostrarToast('Error: ' + err.message));
+}
+
+function actualizarUIEstadoDetalle() {
+  const cerrada = !!(vacaActualData && vacaActualData.estado === 'cerrada');
+  document.getElementById('btnEstadoVaca').textContent = cerrada ? '🔓 Reabrir vaca' : '🔒 Cerrar vaca';
+  document.getElementById('btnNuevoParticipante').style.display = cerrada ? 'none' : '';
+  document.getElementById('btnLinkInvitacion').style.display = cerrada ? 'none' : '';
+  document.querySelectorAll('.btn-abono-row').forEach(b => { b.style.display = cerrada ? 'none' : ''; });
 }
 
 function volverALista() {
@@ -676,17 +1158,24 @@ function cargarParticipantes(vacaId) {
     .onSnapshot(snap => {
       if (snap.empty) {
         cont.innerHTML = `<div class="empty-state"><div class="ico">👤</div><p>Sin participantes aún. Agrega el primero.</p></div>`;
+        if (vacaActualData && (vacaActualData.totalRecaudado || 0) !== 0) {
+          vacaActualData.totalRecaudado = 0;
+          db.collection('vacas').doc(vacaId).update({ totalRecaudado: 0 }).catch(() => {});
+        }
         return;
       }
       const cuota = (vacaActualData && vacaActualData.cuota_fija) || 0;
+      const cerrada = !!(vacaActualData && vacaActualData.estado === 'cerrada');
       let html = `<div class="table-wrap"><table>
         <thead><tr>
           <th>Nombre</th><th>Contacto</th><th>Abonado</th><th>Estado</th><th>Acciones</th>
         </tr></thead><tbody>`;
 
+      let sumaAbonado = 0;
       snap.forEach(doc => {
         const p = doc.data();
         const abonado = p.totalAbonado || 0;
+        sumaAbonado += abonado;
         const pct = cuota > 0 ? Math.min(100, Math.round(abonado / cuota * 100)) : 0;
         const estadoClass = abonado >= cuota ? 'chip-pagado'
                           : abonado > 0      ? 'chip-parcial'
@@ -695,14 +1184,18 @@ function cargarParticipantes(vacaId) {
                           : abonado > 0      ? `${pct}% abonado`
                           :                    'Pendiente';
         html += `<tr>
-          <td style="font-weight:600">${escapeHtml(p.nombre || '—')}</td>
-          <td style="color:var(--text2)">${escapeHtml(p.contacto || '—')}</td>
-          <td>${formatCOP(abonado)}${cuota > 0 ? ` <span style="color:var(--text2);font-size:11px">/ ${formatCOP(cuota)}</span>` : ''}</td>
-          <td><span class="estado-chip ${estadoClass}">${estadoLabel}</span></td>
-          <td>
+          <td data-label="Nombre" style="font-weight:600">${escapeHtml(p.nombre || '—')}</td>
+          <td data-label="Contacto" style="color:var(--text2)">${escapeHtml(p.contacto || '—')}</td>
+          <td data-label="Abonado">${formatCOP(abonado)}${cuota > 0 ? ` <span style="color:var(--text2);font-size:11px">/ ${formatCOP(cuota)}</span>` : ''}</td>
+          <td data-label="Estado"><span class="estado-chip ${estadoClass}">${estadoLabel}</span></td>
+          <td data-label="Acciones">
             <div class="acciones-td">
-              <button class="btn btn-ghost btn-sm" onclick='abrirModalAbono("${doc.id}", "${escapeHtml(p.nombre || '')}")'>💰 Abono</button>
-              <button class="btn btn-ghost btn-sm" onclick='copiarLink("${vacaActualId}", "${doc.id}")'>🔗 Link</button>
+              <button class="btn btn-ghost btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='abrirModalAbono("${doc.id}", "${escapeHtml(p.nombre || '')}")'>💰 Abono</button>
+              <button class="btn btn-ghost btn-sm" onclick='abrirModalAbonosList("${doc.id}", "${escapeHtml(p.nombre || '')}")'>📋 Historial</button>
+              <button class="btn btn-ghost btn-sm" onclick='copiarLink("${vacaActualId}", "${doc.id}")'>🔗 Copiar</button>
+              <button class="btn btn-ghost btn-sm" onclick='abrirLinkParticipante("${vacaActualId}", "${doc.id}")'>↗ Abrir</button>
+              <button class="btn btn-ghost btn-sm" onclick='notificarWhatsApp("${vacaActualId}", "${doc.id}", "${escapeHtml(p.nombre || '')}", "${escapeHtml(p.contacto || '')}", "${escapeHtml(p.paisCodigo || '')}")'>📲 Avisar</button>
+              <button class="btn btn-danger btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='eliminarParticipante("${doc.id}", "${escapeHtml(p.nombre || '')}", this)'>🗑️</button>
             </div>
           </td>
         </tr>`;
@@ -710,6 +1203,21 @@ function cargarParticipantes(vacaId) {
 
       html += '</tbody></table></div>';
       cont.innerHTML = html;
+
+      // v1.6: auto-sanación de totalRecaudado. Vacas creadas antes de
+      // v1.4 (o cualquiera que por lo que sea quede desincronizada) no
+      // tenían este campo denormalizado, y vaca.html v1.2 depende de él
+      // para mostrar el progreso global sin necesitar `list` (bloqueado
+      // sin login). Aquí, con el mismo listener que YA lee todos los
+      // participantes (staff, lectura total permitida), se recalcula la
+      // suma real y se corrige el doc de la vaca SOLO si quedó
+      // desactualizado — no reemplaza el increment() normal de
+      // guardarAbono(), es una red de seguridad adicional.
+      if (vacaActualData && sumaAbonado !== (vacaActualData.totalRecaudado || 0)) {
+        vacaActualData.totalRecaudado = sumaAbonado;
+        db.collection('vacas').doc(vacaId).update({ totalRecaudado: sumaAbonado })
+          .catch(() => {}); // silencioso: no bloquea el uso normal del panel
+      }
     }, err => {
       cont.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
     });
@@ -717,28 +1225,77 @@ function cargarParticipantes(vacaId) {
 
 // ===== NUEVA VACA =====
 function abrirModalNuevaVaca() {
+  document.getElementById('nvEditId').value = '';
+  document.getElementById('nvTitulo').textContent = '🐄 Nueva Vaca';
+  document.getElementById('nvBtnGuardar').textContent = 'Crear vaca';
   document.getElementById('nvNombre').value = '';
   document.getElementById('nvDescripcion').value = '';
   document.getElementById('nvCuota').value = '';
   abrirModal('modalNuevaVaca');
 }
 
-function crearVaca() {
+// ===== EDITAR VACA (v1.3) =====
+// Reutiliza el mismo modal de Nueva Vaca, precargado con los datos del
+// caché en memoria (vacasCache). No permite editar estado/numParticipantes
+// desde aquí — eso lo maneja el flujo normal (cerrar vaca / agregar
+// participante), este modal es solo nombre/descripción/cuota.
+function abrirModalEditarVaca(id) {
+  const d = vacasCache[id];
+  if (!d) { mostrarToast('No se encontró la vaca'); return; }
+  document.getElementById('nvEditId').value = id;
+  document.getElementById('nvTitulo').textContent = '✏️ Editar Vaca';
+  document.getElementById('nvBtnGuardar').textContent = 'Guardar cambios';
+  document.getElementById('nvNombre').value = d.nombre || '';
+  document.getElementById('nvDescripcion').value = d.descripcion || '';
+  document.getElementById('nvCuota').value = d.meta_total || '';
+  abrirModal('modalNuevaVaca');
+}
+
+// guardarVaca(): crea o edita según si nvEditId trae un id.
+// v1.7: cambio de modelo. Antes el admin fijaba `cuota_fija` (fija por
+// persona) y la meta crecía sola (cuota × n). Ahora el admin fija
+// `meta_total` (fija) y `cuota_fija` se recalcula sola = meta_total /
+// numParticipantes — baja a medida que se confirma gente nueva (ver
+// confirmarParticipacion() en vaca.html, que hace ese recálculo en cada
+// confirmación). Aquí, al crear o editar la meta, se recalcula la
+// cuota_fija vigente con el numParticipantes actual (0 al crear, el que
+// ya tenga si se edita) para que la card/detalle no muestren un valor
+// desactualizado hasta el próximo ingreso.
+function guardarVaca() {
+  const editId = document.getElementById('nvEditId').value;
   const nombre = document.getElementById('nvNombre').value.trim();
   const desc   = document.getElementById('nvDescripcion').value.trim();
-  const cuota  = parseFloat(document.getElementById('nvCuota').value) || 0;
+  const meta   = parseFloat(document.getElementById('nvCuota').value) || 0;
 
   if (!nombre) { mostrarToast('⚠️ El nombre es obligatorio'); return; }
-  if (cuota <= 0) { mostrarToast('⚠️ Ingresa una cuota válida'); return; }
+  if (meta <= 0) { mostrarToast('⚠️ Ingresa una meta válida'); return; }
+
+  if (editId) {
+    const numActual = (vacasCache[editId] && vacasCache[editId].numParticipantes) || 0;
+    const cuotaRecalc = numActual > 0 ? meta / numActual : meta;
+    db.collection('vacas').doc(editId).update({
+      nombre,
+      descripcion: desc,
+      meta_total: meta,
+      cuota_fija: cuotaRecalc
+    }).then(() => {
+      cerrarModal('modalNuevaVaca');
+      mostrarToast('✅ Vaca actualizada');
+      cargarVacas();
+    }).catch(err => mostrarToast('Error: ' + err.message));
+    return;
+  }
 
   db.collection('vacas').add({
     nombre,
     descripcion: desc,
-    cuota_fija: cuota,
+    meta_total: meta,
+    cuota_fija: meta, // con 0 participantes, la cuota vigente equivale a la meta completa
     creadoPor: auth.currentUser.email,
     fecha: firebase.firestore.FieldValue.serverTimestamp(),
     estado: 'activa',
-    numParticipantes: 0
+    numParticipantes: 0,
+    totalRecaudado: 0
   }).then(() => {
     cerrarModal('modalNuevaVaca');
     mostrarToast('🐄 Vaca creada');
@@ -746,69 +1303,335 @@ function crearVaca() {
   }).catch(err => mostrarToast('Error: ' + err.message));
 }
 
+// ===== ELIMINAR VACA (v1.3) =====
+// Borra la vaca y en cascada sus subcolecciones (participantes → abonos),
+// ya que Firestore NO borra subcolecciones automáticamente al borrar el
+// doc padre. Se lee la lista de participantes, por cada uno se leen y
+// borran sus abonos, y al final se borra el participante y la vaca — todo
+// en un solo batch final para minimizar el riesgo de quedar a medias.
+function eliminarVaca(id) {
+  const d = vacasCache[id];
+  const nombre = d ? (d.nombre || 'esta vaca') : 'esta vaca';
+  if (!confirm(`¿Eliminar "${nombre}"? Se borrarán también todos sus participantes y abonos. Esta acción no se puede deshacer.`)) return;
+
+  const vacaRef = db.collection('vacas').doc(id);
+  vacaRef.collection('participantes').get()
+    .then(partSnap => {
+      const abonosPromises = partSnap.docs.map(pDoc =>
+        pDoc.ref.collection('abonos').get().then(abonosSnap => ({ pDoc, abonosSnap }))
+      );
+      return Promise.all(abonosPromises);
+    })
+    .then(pares => {
+      const batch = db.batch();
+      pares.forEach(({ pDoc, abonosSnap }) => {
+        abonosSnap.forEach(aDoc => batch.delete(aDoc.ref));
+        batch.delete(pDoc.ref);
+      });
+      batch.delete(vacaRef);
+      return batch.commit();
+    })
+    .then(() => {
+      mostrarToast('🗑️ Vaca eliminada');
+      delete vacasCache[id];
+      cargarVacas();
+    })
+    .catch(err => mostrarToast('Error al eliminar: ' + err.message));
+}
+
 // ===== NUEVO PARTICIPANTE =====
 function abrirModalNuevoParticipante() {
+  const btn = document.getElementById('btnAgregarParticipante');
+  btn.disabled = false;
+  btn.textContent = 'Agregar';
   document.getElementById('npNombre').value = '';
   document.getElementById('npContacto').value = '';
+  document.getElementById('npPais').value = '57';
+  document.getElementById('npPaisOtro').value = '';
+  document.getElementById('npPaisOtro').style.display = 'none';
   abrirModal('modalNuevoParticipante');
 }
 
-function crearParticipante() {
+async function crearParticipante() {
   const nombre   = document.getElementById('npNombre').value.trim();
   const contacto = document.getElementById('npContacto').value.trim();
+  const paisSel  = document.getElementById('npPais').value;
+  const paisCodigo = paisSel === 'otro'
+    ? document.getElementById('npPaisOtro').value.trim().replace(/\D/g, '')
+    : paisSel;
   if (!nombre) { mostrarToast('⚠️ El nombre es obligatorio'); return; }
-  if (!vacaActualId) return;
+  if (paisSel === 'otro' && !paisCodigo) { mostrarToast('⚠️ Ingresa el código de país'); return; }
+  if (!vacaActualId || !vacaActualData) return;
+
+  const btn = document.getElementById('btnAgregarParticipante');
+  const vacaRef = db.collection('vacas').doc(vacaActualId);
+
+  // v1.14: mismo aviso de posible duplicado agregado en vaca.html v1.10
+  // (no bloqueante). Si ya existe alguien con ese nombre exacto en la
+  // vaca, se pregunta con confirm(); si el admin cancela, no se escribe
+  // nada. Si la consulta falla, no bloquea — sigue de largo.
+  try {
+    const dupSnap = await vacaRef.collection('participantes')
+      .where('nombre', '==', nombre).limit(1).get();
+    if (!dupSnap.empty) {
+      const seguir = confirm(`Ya hay alguien registrado como "${nombre}" en esta vaca. ¿Confirmas que quieres agregarlo también?`);
+      if (!seguir) return;
+    }
+  } catch (err) {
+    // silencioso: no bloquea el alta si la consulta de duplicado falla
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Agregando…';
 
   const token = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 
-  const batch = db.batch();
+  try {
+    // v1.13: se cambia de batch() a runTransaction() — mismo fix aplicado
+    // en vaca.html v1.9 a registrarse(). Con batch(), nuevoNum se calculaba
+    // a partir de vacaActualData en memoria (caché del panel); si dos
+    // admins agregaban participantes casi al mismo tiempo (o un admin
+    // agregaba mientras alguien se autoconfirmaba desde vaca.html), ambas
+    // escrituras podían pisarse y dejar numParticipantes desincronizado
+    // del número real de documentos. La transacción lee numParticipantes
+    // FRESCO desde Firestore justo antes de escribir, y Firestore reintenta
+    // solo si detecta que otro cliente escribió de por medio.
+    const resultado = await db.runTransaction(async (tx) => {
+      const vacaSnap = await tx.get(vacaRef);
+      if (!vacaSnap.exists) throw new Error('Esta vaca ya no existe.');
+      const freshData = vacaSnap.data();
 
-  const partRef = db.collection('vacas').doc(vacaActualId).collection('participantes').doc();
-  batch.set(partRef, {
-    nombre,
-    contacto,
-    fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-    totalAbonado: 0,
-    linkToken: token
-  });
+      const partRef = vacaRef.collection('participantes').doc();
+      const nuevoNum = (freshData.numParticipantes || 0) + 1;
+      const meta = freshData.meta_total || 0;
+      const cuotaRecalc = nuevoNum > 0 ? meta / nuevoNum : meta;
+
+      tx.set(partRef, {
+        nombre,
+        contacto,
+        paisCodigo,
+        fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
+        totalAbonado: 0,
+        linkToken: token
+      });
+      tx.update(vacaRef, {
+        numParticipantes: nuevoNum,
+        cuota_fija: cuotaRecalc
+      });
+
+      return { nuevoNum, cuotaRecalc };
+    });
+
+    cerrarModal('modalNuevoParticipante');
+    mostrarToast('✅ Participante agregado — cuota recalculada');
+    vacaActualData.numParticipantes = resultado.nuevoNum;
+    vacaActualData.cuota_fija = resultado.cuotaRecalc;
+    document.getElementById('detalleMeta').textContent =
+      `Meta: ${formatCOP(vacaActualData.meta_total || 0)} · Cuota vigente: ${formatCOP(resultado.cuotaRecalc)} · ${resultado.nuevoNum} participante(s)`;
+  } catch (err) {
+    mostrarToast('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Agregar';
+  }
+}
+
+// ===== ELIMINAR PARTICIPANTE (v1.10) =====
+// Mismo patrón cascada de eliminarVaca(): borra primero los abonos del
+// participante y luego el participante, en un solo batch. Recalcula
+// numParticipantes y cuota_fija (meta_total / nuevo num) igual que
+// crearParticipante(), con valores explícitos en la misma escritura.
+// totalRecaudado NO se ajusta aquí de forma explícita — la auto-sanación
+// que ya existe en cargarParticipantes() (onSnapshot) lo recalcula solo
+// apenas se refresque la lista, sumando lo que quede de los demás.
+// v1.13: el borrado de abonos se mantiene como get() previo (son
+// documentos hijos del participante que de todas formas va a
+// desaparecer, no hay condición de carrera posible ahí). Lo que sí pasa
+// a runTransaction() es el delete del participante + el recálculo de
+// numParticipantes/cuota_fija en el doc de la vaca, para que dos admins
+// eliminando participantes casi al mismo tiempo (o una eliminación
+// cruzándose con un alta desde crearParticipante()/registrarse()) no se
+// pisen entre sí — mismo motivo que el fix de crearParticipante() arriba.
+async function eliminarParticipante(participanteId, nombre, btnEl) {
+  if (!vacaActualId || !vacaActualData) return;
+  if (!confirm(`¿Eliminar a "${nombre}" de esta vaca? Se borrarán también sus abonos registrados. Esta acción no se puede deshacer.`)) return;
+
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
 
   const vacaRef = db.collection('vacas').doc(vacaActualId);
-  batch.update(vacaRef, {
-    numParticipantes: firebase.firestore.FieldValue.increment(1)
-  });
+  const partRef = vacaRef.collection('participantes').doc(participanteId);
 
-  batch.commit()
-    .then(() => {
-      cerrarModal('modalNuevoParticipante');
-      mostrarToast('✅ Participante agregado');
-      if (vacaActualData) vacaActualData.numParticipantes = (vacaActualData.numParticipantes || 0) + 1;
-      document.getElementById('detalleMeta').textContent =
-        `Cuota: ${formatCOP(vacaActualData.cuota_fija || 0)} · ${vacaActualData.numParticipantes} participante(s)`;
-    })
-    .catch(err => mostrarToast('Error: ' + err.message));
+  try {
+    const abonosSnap = await partRef.collection('abonos').get();
+
+    const resultado = await db.runTransaction(async (tx) => {
+      const vacaSnap = await tx.get(vacaRef);
+      if (!vacaSnap.exists) throw new Error('Esta vaca ya no existe.');
+      const freshData = vacaSnap.data();
+
+      const nuevoNum = Math.max(0, (freshData.numParticipantes || 0) - 1);
+      const meta = freshData.meta_total || 0;
+      const cuotaRecalc = nuevoNum > 0 ? meta / nuevoNum : meta;
+
+      abonosSnap.forEach(aDoc => tx.delete(aDoc.ref));
+      tx.delete(partRef);
+      tx.update(vacaRef, { numParticipantes: nuevoNum, cuota_fija: cuotaRecalc });
+
+      return { nuevoNum, cuotaRecalc };
+    });
+
+    vacaActualData.numParticipantes = resultado.nuevoNum;
+    vacaActualData.cuota_fija = resultado.cuotaRecalc;
+    document.getElementById('detalleMeta').textContent =
+      `Meta: ${formatCOP(vacaActualData.meta_total || 0)} · Cuota vigente: ${formatCOP(resultado.cuotaRecalc)} · ${resultado.nuevoNum} participante(s)`;
+    mostrarToast('🗑️ Participante eliminado — cuota recalculada');
+  } catch (err) {
+    mostrarToast('Error al eliminar: ' + err.message);
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🗑️'; }
+  }
 }
 
 // ===== ABONOS =====
 function abrirModalAbono(participanteId, nombre) {
   participanteAbonoId = participanteId;
+  abonoEditId = null;
+  abonoEditParticipanteId = null;
   document.getElementById('abonoParticipanteNombre').textContent = '👤 ' + nombre;
+  document.getElementById('abonoBtnGuardar').textContent = 'Guardar abono';
   document.getElementById('abonoMonto').value = '';
   document.getElementById('abonoFecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('abonoNota').value = '';
+  document.getElementById('abonoComprobante').value = '';
+  document.getElementById('abonoComprobanteActual').textContent = '';
+  abonoEditComprobanteUrl = null;
   abrirModal('modalAbono');
 }
 
-function guardarAbono() {
+// v1.15: sube un archivo a Cloudinary (unsigned) y devuelve la secure_url.
+// Si Cloudinary responde con error (ej. preset mal escrito, tipo de
+// archivo no permitido), se propaga el mensaje real de su API en vez de
+// uno genérico, para poder diagnosticar rápido si algo falla.
+// v1.16: miniatura + lightbox de comprobantes. cloudinaryThumb() no pide
+// nada nuevo a Cloudinary — solo inserta parámetros de transformación en
+// la misma URL que ya se guardó (Cloudinary la genera al vuelo, no
+// consume espacio de almacenamiento extra). Si por algo la URL no tiene
+// el patrón esperado (ej. viene de otro origen en el futuro), devuelve
+// la URL tal cual, sin miniatura.
+function cloudinaryThumb(url, size) {
+  if (!url) return url;
+  const marcador = '/upload/';
+  const i = url.indexOf(marcador);
+  if (i === -1) return url;
+  const inicio = i + marcador.length;
+  return url.slice(0, inicio) + `w_${size},h_${size},c_fill,q_auto,f_auto/` + url.slice(inicio);
+}
+
+function abrirLightbox(url) {
+  if (!url) return;
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightboxComprobante').classList.add('show');
+}
+
+function cerrarLightbox() {
+  document.getElementById('lightboxComprobante').classList.remove('show');
+  document.getElementById('lightboxImg').src = '';
+}
+
+async function subirComprobante(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    throw new Error(data?.error?.message || 'No se pudo subir el comprobante');
+  }
+  return data.secure_url;
+}
+
+async function guardarAbono() {
   const monto = parseFloat(document.getElementById('abonoMonto').value) || 0;
   const fecha = document.getElementById('abonoFecha').value;
   const nota  = document.getElementById('abonoNota').value.trim();
+  const archivo = document.getElementById('abonoComprobante').files[0] || null;
 
   if (monto <= 0) { mostrarToast('⚠️ Ingresa un monto válido'); return; }
   if (!fecha) { mostrarToast('⚠️ Selecciona la fecha'); return; }
-  if (!vacaActualId || !participanteAbonoId) return;
+  if (!vacaActualId) return;
+
+  const btn = document.getElementById('abonoBtnGuardar');
+  const textoOriginalBtn = btn.textContent;
+  btn.disabled = true;
+
+  // v1.15: si el admin eligió un archivo, se sube primero a Cloudinary
+  // (unsigned) y se usa esa URL. Si NO eligió archivo, comprobanteUrl
+  // conserva lo que ya había (abonoEditComprobanteUrl, seteado por
+  // editarAbono()) — en modo creación queda simplemente null. Si la
+  // subida falla, se corta acá y no se escribe nada en Firestore, para
+  // no dejar un abono guardado sin su comprobante sin que el admin se
+  // entere.
+  let comprobanteUrl = abonoEditComprobanteUrl;
+  if (archivo) {
+    btn.textContent = 'Subiendo comprobante…';
+    try {
+      comprobanteUrl = await subirComprobante(archivo);
+    } catch (err) {
+      mostrarToast('Error al subir comprobante: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = textoOriginalBtn;
+      return;
+    }
+  }
+  btn.textContent = 'Guardando…';
+
+  // v1.10: MODO EDICIÓN — el modal de abono se reutiliza también para
+  // editar un abono existente desde el historial (editarAbono() marca
+  // abonoEditId antes de abrir este mismo modal). Se ajusta totalAbonado
+  // y totalRecaudado por el DELTA (nuevo monto - monto anterior), no por
+  // el monto completo, para no duplicar el efecto del abono ya contado.
+  if (abonoEditId) {
+    if (!abonoEditParticipanteId) return;
+    const partRef = db.collection('vacas').doc(vacaActualId).collection('participantes').doc(abonoEditParticipanteId);
+    const abonoRef = partRef.collection('abonos').doc(abonoEditId);
+    const vacaRef  = db.collection('vacas').doc(vacaActualId);
+
+    abonoRef.get()
+      .then(snap => {
+        const anterior = snap.exists ? (snap.data().monto || 0) : 0;
+        const delta = monto - anterior;
+        const batch = db.batch();
+        batch.update(abonoRef, { monto, fecha, nota, comprobanteUrl: comprobanteUrl || null });
+        if (delta !== 0) {
+          batch.update(partRef, { totalAbonado: firebase.firestore.FieldValue.increment(delta) });
+          batch.update(vacaRef, { totalRecaudado: firebase.firestore.FieldValue.increment(delta) });
+        }
+        return batch.commit();
+      })
+      .then(() => {
+        cerrarModal('modalAbono');
+        mostrarToast('✅ Abono actualizado');
+        const partId = abonoEditParticipanteId;
+        const nombre = document.getElementById('abonosListNombre').textContent.replace('👤 ', '');
+        abonoEditId = null;
+        abonoEditParticipanteId = null;
+        abonoEditComprobanteUrl = null;
+        abrirModalAbonosList(partId, nombre);
+      })
+      .catch(err => mostrarToast('Error: ' + err.message))
+      .finally(() => { btn.disabled = false; btn.textContent = textoOriginalBtn; });
+    return;
+  }
+
+  // MODO CREACIÓN (igual que antes)
+  if (!participanteAbonoId) { btn.disabled = false; btn.textContent = textoOriginalBtn; return; }
 
   const partRef = db.collection('vacas').doc(vacaActualId)
                     .collection('participantes').doc(participanteAbonoId);
+  const vacaRef = db.collection('vacas').doc(vacaActualId);
 
   const batch = db.batch();
 
@@ -817,6 +1640,7 @@ function guardarAbono() {
     monto,
     fecha,
     nota,
+    comprobanteUrl: comprobanteUrl || null,
     registradoPor: auth.currentUser.email,
     creadoEn: firebase.firestore.FieldValue.serverTimestamp()
   });
@@ -825,13 +1649,133 @@ function guardarAbono() {
     totalAbonado: firebase.firestore.FieldValue.increment(monto)
   });
 
+  // v1.4: se denormaliza el total recaudado en el doc raíz de la vaca
+  // (mismo patrón que numParticipantes) para que vaca.html pueda mostrar
+  // el progreso global con un simple get() del doc de la vaca, sin
+  // necesitar `list` sobre participantes (que las Rules bloquean a
+  // propósito sin login, para no exponer nombres/contactos de terceros).
+  batch.update(vacaRef, {
+    totalRecaudado: firebase.firestore.FieldValue.increment(monto)
+  });
+
   batch.commit()
     .then(() => {
       cerrarModal('modalAbono');
       mostrarToast('💰 Abono registrado');
       participanteAbonoId = null;
     })
+    .catch(err => mostrarToast('Error: ' + err.message))
+    .finally(() => { btn.disabled = false; btn.textContent = textoOriginalBtn; });
+}
+
+// ===== HISTORIAL DE ABONOS / EDITAR / ELIMINAR (v1.10) =====
+function abrirModalAbonosList(participanteId, nombre) {
+  abonosListParticipanteId = participanteId;
+  document.getElementById('abonosListNombre').textContent = '👤 ' + nombre;
+  document.getElementById('abonosListCont').innerHTML = '<div class="loading"><div class="spinner"></div> Cargando…</div>';
+  abrirModal('modalAbonosList');
+
+  db.collection('vacas').doc(vacaActualId)
+    .collection('participantes').doc(participanteId)
+    .collection('abonos')
+    .orderBy('creadoEn', 'desc')
+    .get()
+    .then(snap => {
+      const cont = document.getElementById('abonosListCont');
+      if (snap.empty) {
+        cont.innerHTML = '<div class="empty-state"><p>Sin abonos registrados.</p></div>';
+        return;
+      }
+      let html = '<div class="abonos-admin-lista">';
+      snap.forEach(doc => {
+        const a = doc.data();
+        const notaAttr = escapeHtml((a.nota || '')).replace(/'/g, '&#39;');
+        const comprobanteAttr = (a.comprobanteUrl || '').replace(/'/g, '&#39;');
+        html += `<div class="abono-admin-item">
+          ${a.comprobanteUrl ? `<img class="comprobante-thumb" src="${cloudinaryThumb(a.comprobanteUrl, 100)}" alt="Comprobante" onclick="abrirLightbox('${comprobanteAttr}')" />` : ''}
+          <div>
+            <div style="font-weight:700">${formatCOP(a.monto)}</div>
+            <div style="font-size:11px;color:var(--text2)">${a.fecha || '—'}${a.nota ? ' · ' + escapeHtml(a.nota) : ''}</div>
+          </div>
+          <div class="acciones-td">
+            <button class="btn btn-ghost btn-sm" onclick='editarAbono("${doc.id}", ${a.monto || 0}, "${a.fecha || ''}", "${notaAttr}", "${comprobanteAttr}")'>✏️</button>
+            <button class="btn btn-danger btn-sm" onclick='eliminarAbono("${doc.id}", ${a.monto || 0})'>🗑️</button>
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+      cont.innerHTML = html;
+    })
+    .catch(err => {
+      document.getElementById('abonosListCont').innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
+    });
+}
+
+function editarAbono(abonoId, monto, fecha, nota, comprobanteUrl) {
+  abonoEditId = abonoId;
+  abonoEditParticipanteId = abonosListParticipanteId;
+  abonoEditComprobanteUrl = comprobanteUrl || null; // v1.15: se conserva si no se sube uno nuevo
+  document.getElementById('abonoParticipanteNombre').textContent = '✏️ Editar abono — ' + document.getElementById('abonosListNombre').textContent.replace('👤 ', '');
+  document.getElementById('abonoBtnGuardar').textContent = 'Guardar cambios';
+  document.getElementById('abonoMonto').value = monto;
+  document.getElementById('abonoFecha').value = fecha;
+  document.getElementById('abonoNota').value = nota;
+  document.getElementById('abonoComprobante').value = '';
+  document.getElementById('abonoComprobanteActual').innerHTML = comprobanteUrl
+    ? `📎 Ya tiene comprobante — <a href="${comprobanteUrl}" target="_blank" style="color:var(--accent)">verlo</a>. Sube uno nuevo solo si quieres reemplazarlo.`
+    : '';
+  abrirModal('modalAbono');
+}
+
+function eliminarAbono(abonoId, monto) {
+  if (!vacaActualId || !abonosListParticipanteId) return;
+  if (!confirm('¿Eliminar este abono? Esta acción no se puede deshacer.')) return;
+
+  const partRef  = db.collection('vacas').doc(vacaActualId).collection('participantes').doc(abonosListParticipanteId);
+  const abonoRef = partRef.collection('abonos').doc(abonoId);
+  const vacaRef  = db.collection('vacas').doc(vacaActualId);
+
+  const batch = db.batch();
+  batch.delete(abonoRef);
+  batch.update(partRef, { totalAbonado: firebase.firestore.FieldValue.increment(-monto) });
+  batch.update(vacaRef, { totalRecaudado: firebase.firestore.FieldValue.increment(-monto) });
+
+  batch.commit()
+    .then(() => {
+      mostrarToast('🗑️ Abono eliminado');
+      const nombre = document.getElementById('abonosListNombre').textContent.replace('👤 ', '');
+      abrirModalAbonosList(abonosListParticipanteId, nombre);
+    })
     .catch(err => mostrarToast('Error: ' + err.message));
+}
+
+// ===== NOTIFICAR POR WHATSAPP (v1.10, país explícito desde v1.11) =====
+// Abre WhatsApp Web/app con un mensaje prellenado que incluye el link
+// personal del participante (mismo link que genera copiarLink()). No
+// hay envío automático — el admin revisa el mensaje y lo manda desde su
+// propio WhatsApp.
+// v1.11: usa paisCodigo guardado en el doc del participante (elegido en
+// el registro público o en el modal Nuevo Participante) en vez de
+// adivinar por cantidad de dígitos — eso fallaba con números de 10
+// dígitos de países que no son Colombia (ej. EE.UU./Canadá). Para
+// participantes creados ANTES de este cambio (sin paisCodigo guardado)
+// se mantiene el fallback viejo: si el número tiene 10 dígitos exactos
+// se asume Colombia (+57); si no, se usa tal cual (se asume que ya
+// incluye código de país).
+function notificarWhatsApp(vacaId, participanteId, nombre, contacto, paisCodigo) {
+  const soloNumeros = (contacto || '').replace(/\D/g, '');
+  if (!soloNumeros) { mostrarToast('⚠️ Este participante no tiene contacto válido'); return; }
+
+  const base = window.location.origin + window.location.pathname.replace('vacas.html', '');
+  const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}`;
+  const nombreVaca = (vacaActualData && vacaActualData.nombre) || 'la vaca';
+  const msg = `Hola ${nombre}! Te comparto tu link personal para ver tu saldo en "${nombreVaca}": ${url}`;
+
+  const numeroWa = paisCodigo
+    ? paisCodigo + soloNumeros
+    : (soloNumeros.length === 10 ? '57' + soloNumeros : soloNumeros);
+
+  window.open(`https://wa.me/${numeroWa}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 // ===== COPIAR LINK =====
@@ -840,6 +1784,28 @@ function copiarLink(vacaId, participanteId) {
   const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}`;
   navigator.clipboard.writeText(url)
     .then(() => mostrarToast('🔗 Link copiado'))
+    .catch(() => mostrarToast('No se pudo copiar el link'));
+}
+
+// v1.12: abre directo el portal del participante en pestaña nueva, sin
+// pasar por copiar/pegar — útil para que el admin verifique cómo se ve
+// el saldo de alguien sin salir del panel. Mismo cálculo de URL que
+// copiarLink(), no se tocó esa función.
+function abrirLinkParticipante(vacaId, participanteId) {
+  const base = window.location.origin + window.location.pathname.replace('vacas.html', '');
+  const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}`;
+  window.open(url, '_blank');
+}
+
+// v1.7: link de invitación general (sin &p=) — se manda a todo el grupo
+// por WhatsApp/correo, cada quien lo abre y confirma si quiere unirse
+// desde vaca.html (ver confirmarParticipacion()).
+function copiarLinkInvitacion() {
+  if (!vacaActualId) return;
+  const base = window.location.origin + window.location.pathname.replace('vacas.html', '');
+  const url  = `${base}vaca.html?id=${vacaActualId}`;
+  navigator.clipboard.writeText(url)
+    .then(() => mostrarToast('🔗 Link de invitación copiado'))
     .catch(() => mostrarToast('No se pudo copiar el link'));
 }
 
