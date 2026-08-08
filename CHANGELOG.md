@@ -4,6 +4,62 @@ Historial de versiones del ecosistema. Antes vivía repartido en el comentario d
 
 ---
 
+## firestore.rules
+
+### v2.24
+se agrega lectura pública (get+list, filtrada a activo == true) a
+/avataresIconos — para que vaca.html (portal, sin login) pueda leer el
+catálogo del selector de avatar. En /vacas/{id}/integrantes: el esquema
+de create público ahora acepta avatarUrl opcional (antes solo aceptaba
+[nombre, tipo, aporto] exactos, así que el registro habría fallado con
+el campo nuevo); se agrega también un allow update público NUEVO,
+restringido a SOLO el campo avatarUrl (mismo criterio de "secreto por
+link" que ya usa /participantes para contacto/paisCodigo) — antes
+/integrantes no tenía ningún update público. No se tocó ninguna otra
+regla, función, condición, match ni colección existente.
+
+### v2.23
+se agrega el match /avataresIconos/{id} — sin esta regla, el panel
+avatares-iconos.html fallaba con "Missing or insufficient permissions"
+tanto al leer (onSnapshot) como al guardar. Mismo patrón exacto que
+estudios/musicos/clientes/equipoTecnico/backlineCatalogo/egresos/
+catalogoIconos: solo equipo interno lee y escribe. No confundir con
+/catalogoIconos (v2.16), colección distinta ya existente (tipos de
+ícono del Stageplot de eventos.html). No se tocó ninguna otra regla,
+función, condición, match ni colección existente.
+
+## avatares-iconos.html
+
+### v1.1
+se agrega "Subir en lote" — botón nuevo junto a "+ Nuevo", vista propia
+(no el modal individual). Tipo y Categoría se definen una vez para
+todo el lote; se eligen varios archivos, cada uno se lista con
+miniatura local + nombre editable (precargado con el nombre del
+archivo, sin extensión). Sube uno por uno a Cloudinary (mismo folder/
+preset ICONOS) y crea su documento en avataresIconos, con progreso y
+estado por archivo (pendiente/subiendo/listo/error). No se tocó el
+modal individual ni ninguna otra función existente.
+
+### v1.0
+modo quirófano — archivo nuevo. Panel CRUD de catálogo de avatars/
+iconos del ecosistema, entrada propia en el menú ("Avatar / Icono").
+Imágenes en Cloudinary (cloud_name dv7lelmoy, folder ICONOS, upload
+preset unsigned "ICONOS"), metadata en Firestore (colección
+avataresIconos), escuchado en tiempo real (onSnapshot) para que el
+resto del ecosistema pueda leer el catálogo actualizado. Genera
+miniatura vía transformación de URL de Cloudinary (no sube archivo
+duplicado). Usa firebase-config.js, utils.js (escapeHtml), nav.js/
+nav.css igual que el resto de páginas.
+
+## nav.js
+
+### v1.6
+se agrega el ítem "Avatar / Icono" (avatares-iconos.html) a ITEMS,
+después de "Vacas". Se suma también a idsFueraBottomnav para no
+saturar la barra inferior móvil (queda accesible por sidebar desktop
+y panel "···" móvil). No se tocó ninguna otra función, ítem existente
+ni la lógica de inyección/colapsar/tema.
+
 ## proyecto.html
 
 ### v4.22
@@ -1533,6 +1589,57 @@ lee el Cotizador simple de proyecto.html. No se tocó ninguna fórmula de
 cálculo, el borrador local, ni la exportación a PDF existentes.
 
 ---
+
+## vacas.html
+
+## vacas.html
+
+### v1.44
+FIX — el selector de avatar de v1.43 usaba d.url, pero el campo real en
+avataresIconos (definido en avatares-iconos.html) es d.urlCloudinary; por
+eso ninguna miniatura cargaba y solo se veía la opción "sin avatar" (🚫),
+como reportó el usuario con captura de pantalla. Corregido en
+cargarCatalogoAvataresParticipante(). Aprovechando el fix: la cuadrícula
+del selector y la miniatura de la tabla de participantes ahora usan la
+transformación liviana de Cloudinary (w_150/w_100,h_150/h_100,c_fill,
+f_auto,q_auto) en vez de la imagen completa — mismo patrón que
+urlMiniatura() en avatares-iconos.html. El valor guardado en avatarUrl
+sigue siendo la URL original sin transformar. No se tocó nada más.
+
+### v1.43
+selector de avatar (opcional) al agregar participante desde el panel
+admin — cuadrícula clickeable cargada del catálogo avataresIconos
+(compartido con avatares-iconos.html), filtrada a tipo='avatar' y
+activo==true, cargada bajo demanda (no tiempo real) al abrir el modal.
+Guarda avatarUrl en el doc del participante y en su espejo integrantes.
+La tabla de participantes ahora siempre muestra esa miniatura (o un
+ícono 👤 genérico si no tiene) en columna nueva al inicio de cada fila.
+No se tocó crearParticipante() en su lógica de cuotas/transacción —
+solo se agregó el campo avatarUrl a los tx.set() que ya existían.
+Requirió firestore.rules v2.24 (esquema de create en /integrantes
+ampliado con avatarUrl opcional) y ver también el patrón documentado en
+ARQUITECTURA.md sección 4 para reutilizarlo en catálogos futuros.
+
+## vaca.html
+
+### v1.59
+FIX — mismo bug de vacas.html v1.44 (d.url en vez de d.urlCloudinary),
+corregido en cargarCatalogoAvatares(). Las 2 cuadrículas del selector
+(registro y edición) y la miniatura de la lista pública de Integrantes
+ahora usan la transformación liviana de Cloudinary. No se tocó nada más.
+
+### v1.58
+mismo selector de avatar de vacas.html v1.43, en 2 lugares: el
+formulario de registro (registrarse(), guarda avatarUrl en el
+participante y su espejo integrantes) y el modal "✏️ Editar mis datos"
+(guardarEdicionDatos(), que antes no tocaba integrantes en absoluto y
+ahora sí, solo para el campo avatarUrl). La lista pública de
+Integrantes (v1.57) ahora pinta la miniatura de cada quien (o ícono 👤
+genérico). Requirió firestore.rules v2.24: lectura pública de
+avataresIconos (sin la cual el catálogo no cargaba para el visitante
+sin login) y un allow update público nuevo en /integrantes, angosto a
+solo el campo avatarUrl (necesario porque este modal edita el espejo
+público sin sesión).
 
 ## Nota — escapeHtml() NO migrado a propósito
 

@@ -3,12 +3,363 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vaca · AUDIOLINK</title>
+  <title>Vaca · AUDIOLINK · v1.67</title>
+  <!-- v1.67: a pedido del usuario — el paso 1 del tutorial (bienvenida)
+       ahora explica brevemente qué es "una vaca" (colecta grupal) y
+       menciona el nombre real de la vaca, en vez de asumir que quien
+       abre el link ya conoce el concepto. Pensado para participantes
+       agregados manualmente desde el admin (vacas.html), que nunca
+       pasaron por el flujo de auto-registro y pueden no saber qué es
+       esto. _TUT_PASOS[0].texto ahora trae el marcador __VACA__, que
+       iniciarTutorial() reemplaza por vacaData.nombre (o "esta vaca" si
+       no está disponible) al armar una copia de los pasos, justo antes
+       de mostrar el overlay. Los pasos 2 a 5 no se tocaron.
+  <!-- v1.66: a pedido del usuario — el avatar destacado del portal
+       (v1.64) pasa de círculo 64px a cuadrado redondeado (border-radius
+       14px) de 96px, tanto la imagen como el fallback genérico. Se sube
+       también la resolución pedida a Cloudinary de w_150,h_150 a
+       w_300,h_300 para que no se vea pixelado al tamaño más grande. No
+       se tocó el resto de renderPortal() ni ninguna otra función.
+  v1.65: a pedido del usuario — botón "📤 Compartir" junto a cada
+       comprobante en "Mis abonos" (compartirComprobante()). Web Share
+       API (menú nativo: WhatsApp, Drive, etc.) con fallback a abrir en
+       pestaña nueva si el navegador no la soporta. Solo comparte el
+       comprobante propio, en el propio portal — Actividad/Integrantes
+       (públicos) siguen sin exponer comprobanteUrl, sin cambios ahí. No
+       se tocó cloudinaryThumb(), abrirLightbox() ni la lógica de datos
+       de cargarAbonos().
+  v1.64: a pedido del usuario — avatar con más presencia en el portal
+       personal. Se agrega #portalAvatarWrap (círculo de 64px) justo
+       arriba del título "Mi saldo — nombre", pintado por renderPortal():
+       imagen (miniatura Cloudinary w_150,h_150,c_fill,f_auto,q_auto) si
+       p.avatarUrl existe, o el mismo ícono genérico 👤 de fallback que ya
+       usan cargarIntegrantes()/la tabla de vacas.html si no. No se leyó
+       nada nuevo de Firestore — p.avatarUrl ya llegaba en cada snapshot
+       del participante. No se tocó el chip de estado ni ninguna otra
+       parte de renderPortal().
+  v1.63: a pedido del usuario — 2 mejoras:
+    (a) Separador entre secciones del portal (Mis abonos / Integrantes /
+        Actividad de la vaca): .seccion-titulo no tenía margin-top, solo
+        margin-bottom, así que cada título quedaba pegado directo contra
+        la lista de la sección anterior. Se agrega margin-top:28px — sin
+        agregar ninguna línea/plástico divisorio nuevo, solo aire.
+    (b) Avatar con más presencia en el portal personal — ver plan
+        pendiente de confirmación con el usuario (círculo junto al nombre
+        + avatar destacado arriba). Se implementa en la próxima versión.
+  v1.62: a pedido del usuario — se ACTIVA la validación real de
+       linkToken en el portal personal (antes el campo se guardaba pero
+       nunca se comparaba contra nada). Se agrega `const tokenUrl =
+       params.get('t')`. cargarPortal() ahora exige que tokenUrl coincida
+       con el linkToken guardado en el doc del participante ANTES de
+       pintar el portal — si no coincide o falta, se corta con
+       mostrarError() (no se llama a renderPortal()/cargarAbonos()/etc.).
+       registrarse() (que genera el link personal tras autoregistro) ahora
+       agrega &t=token a linkGeneradoUrl. VALIDACIÓN ESTRICTA (a pedido
+       del usuario — no hay links personales compartidos aún, así que no
+       hace falta período de transición): un link viejo sin &t= quedará
+       bloqueado. vacas.html v1.47 se actualiza en paralelo para que
+       copiarLink()/abrirLinkParticipante()/notificarWhatsApp() (que arman
+       el link personal desde el panel admin) también incluyan &t=. No se
+       tocó el flujo de bienvenida/registro (no usa partId, no aplica).
+       v1.61: a pedido del usuario — avatares-iconos.html v1.3 cambió el
+       campo `tipo` de string único a ARREGLO (un ítem puede ser Avatar Y
+       Icono a la vez). Se actualiza cargarCatalogoAvatares() de
+       where('tipo','==','avatar') a where('tipo','array-contains',
+       'avatar') para que siga leyendo correctamente el catálogo. AVISADO
+       AL USUARIO: los ítems viejos que aún tengan tipo como string
+       (no migrados en avatares-iconos.html) no aparecerán en este
+       selector hasta que se editen y guarden de nuevo allá. No se tocó
+       nada más de la función ni del resto del archivo.
+       v1.60: dos cambios puntuales, a pedido del usuario tras reportar el
+       error "Missing or insufficient permissions" al guardar avatar desde
+       "✏️ Editar mis datos":
+       (a) FIX guardarEdicionDatos(): el .set({avatarUrl}, {merge:true})
+           sobre vacas/{id}/integrantes/{participanteId} solo mandaba
+           avatarUrl. Para participantes registrados ANTES de que existiera
+           el espejo integrantes (v1.42/v2.22), ese doc nunca se creó — así
+           que este set() lo trataba Firestore como un create(), no un
+           update(), y la regla de create() exige nombre/tipo (string) que
+           no venían en el payload → rechazado. Ahora se manda también
+           nombre/tipo/aporto (tomados de participanteActualData), así el
+           create() cumple el esquema completo si el doc no existía, y el
+           merge:true no cambia nada si ya existía. No se tocó
+           firestore.rules ni el resto de la función.
+       (b) cargarIntegrantes(): la lista pública ahora muestra siempre
+           🐄 Fijo / 🐠 Aporte voluntario junto al nombre de cada
+           integrante — independiente del toggle mostrarEstadoIntegrantes
+           (ese toggle sigue controlando solo ✅ Aportó / ⏳ Pendiente, no
+           el tipo). No se tocó ningún otro dato ni cálculo de la lista.
+       v1.59: FIX — el selector de avatar de v1.58 usaba d.url, pero el
+       campo real en avataresIconos (definido en avatares-iconos.html) es
+       d.urlCloudinary; por eso ninguna miniatura cargaba y solo se veía
+       la opción "sin avatar" (🚫), como reportó el usuario con captura de
+       pantalla del modal "✏️ Editar mis datos". Corregido en
+       cargarCatalogoAvatares(). Aprovechando el fix: tanto las 2
+       cuadrículas del selector (registro y edición) como la miniatura de
+       la lista pública de Integrantes ahora usan la transformación
+       liviana de Cloudinary (w_150/w_100,h_150/h_100,c_fill,f_auto,
+       q_auto) en vez de la imagen completa — mismo patrón que
+       urlMiniatura() en avatares-iconos.html. El valor guardado en
+       avatarUrl (participante e integrantes) sigue siendo la URL
+       ORIGINAL sin transformar — solo el atributo src de las miniaturas
+       cambia. Ver ARQUITECTURA.md sección 4 (patrón de selector de
+       catálogo compartido). No se tocó nada más.
+       v1.58: selector de avatar (opcional) — misma cuadrícula clickeable
+       agregada en vacas.html v1.43, catálogo avataresIconos filtrado a
+       tipo='avatar' y activo==true, cargado bajo demanda (no tiempo real).
+       Aparece en 2 lugares: el formulario de registro (registrarse()
+       ahora guarda avatarUrl en el participante y en su espejo
+       integrantes) y el modal "✏️ Editar mis datos" (guardarEdicionDatos()
+       ahora también actualiza avatarUrl en participantes E integrantes —
+       antes ese modal no tocaba integrantes). La lista pública de
+       Integrantes (cargarIntegrantes(), v1.57) ahora pinta la miniatura
+       de cada quien (o ícono 👤 genérico si no tiene). REQUIERE la regla
+       pública nueva en firestore.rules (get+list de avataresIconos,
+       filtrada a activo==true, pendiente de que el usuario suba el
+       archivo) — sin ella el catálogo no carga para el visitante público
+       (sí carga bien para consultas ya permitidas como participantes/
+       integrantes, que no cambian). No se tocó cuota_fija,
+       numParticipantes, totalAbonado ni ningún cálculo existente.
+  <!-- v1.57: sección pública "Integrantes" (sin montos), a pedido del
+       usuario. Lee vacas/{id}/integrantes — mirror liviano creado en
+       vacas.html v1.42 (mismo patrón que 'actividad' v1.56), con solo
+       {nombre, tipo, aporto}. Respeta 3 flags opcionales del doc de la
+       vaca (todas false por defecto = comportamiento actual, solo
+       nombres): mostrarEstadoIntegrantes, ordenarPorAporte,
+       ocultarLibresDeLista. registrarse() ahora también crea el doc
+       espejo al autoconfirmarse (mismo criterio que crearParticipante()
+       en vacas.html). Requiere Rules nuevas para leer
+       vacas/{id}/integrantes públicamente — ver nota junto a
+       cargarIntegrantes(). No se tocó cuota_fija, numParticipantes,
+       totalAbonado ni ningún cálculo existente.
+  <!-- v1.26: nombre bloqueado en el modal de edición apenas el participante
+       tiene un abono registrado (leyenda de advertencia visible); contacto
+       y país siguen editables siempre. Requiere firestore.rules v2.19.
+       v1.27: registrarse() ahora guarda motivoCuota junto a cuota_fija
+       (#3 del plan — rastro de por qué cambió la cuota). Requiere
+       firestore.rules v2.20.
+       v1.28: botón opcional "🔗 Ver producto" debajo de la descripción,
+       visible solo si vacaData.urlProducto existe (campo nuevo, se
+       configura desde vacas.html v1.28). No toca meta_total, cuota_fija
+       ni ninguna otra lógica.
+       v1.29: portal en vivo — los 3 .get() puntuales (doc de la vaca,
+       doc del participante, subcolección de abonos) pasan a
+       onSnapshot(). Ya no hace falta recargar la página para ver un
+       abono nuevo o un cambio de cuota; se repinta sola. Cada listener
+       apunta a UN documento o UNA subcolección de UN participante
+       puntual (nunca una colección abierta), para mantener el costo en
+       lecturas ligado a cambios reales, no a tráfico.
+       v1.30: logos de Nequi/Daviplata (Cloudinary) en cada tarjeta de
+       "Pagar mi saldo", junto al número. Solo visual — no toca
+       cuentaPago, formatCOP ni la lógica de pendiente/abonos.
+       v1.31: el logo de cada método ahora es configurable por vaca
+       (cuentaPago.nequiLogo/daviplataLogo, agregado en vacas.html
+       v1.30). Si el admin no lo configuró, cae al mismo logo genérico
+       de v1.30 — no rompe vacas existentes.
+       v1.32: cuentaPago ahora puede ser un ARREGLO de hasta 4 métodos
+       personalizables {label,numero,logo,activo} (vacas.html v1.31).
+       Se mantiene compatibilidad con el formato viejo {nequi,daviplata}
+       para vacas que no se han vuelto a editar. Método sin logo propio
+       muestra un círculo con su inicial en vez de romper la tarjeta.
+       v1.33: optimización — loading="lazy" en logos de método de pago y
+       miniaturas de comprobante (no cargan hasta que se ven); las URLs
+       de imagen ahora pasan por escapeHtml() antes de insertarse en
+       src="..." para evitar que una comilla doble rompa el atributo.
+       Puramente defensivo/de carga — no cambia ningún cálculo.
+       v1.38: a pedido del usuario — se quitan los 3 bloques
+       @media (prefers-reduced-motion: reduce) que apagaban .bg-wash,
+       .shimmer-dot y .neuron-node/.neuron-line/.neuron-spark. Decisión
+       consciente de unificar comportamiento con el resto del
+       ecosistema (index.html/Liro Miyuki), donde el fondo animado
+       corre siempre sin depender de la config de accesibilidad del
+       sistema/navegador. No se tocó ningún @keyframes, color, ni el
+       JS que genera los puntos/nodos (generarShimmer /
+       generarFondoDecorativo) — solo se eliminó la excepción que los
+       apagaba.
+       v1.39: se muestra el nombre del titular de la cuenta (nuevo
+       campo titular en cada método de cuentaPago, configurado en
+       vacas.html v1.37) debajo del número en "Pagar mi saldo".
+       normalizarMetodosPago() lo toma del arreglo nuevo; el formato
+       viejo {nequi,daviplata} no lo tiene y queda null — en ese caso
+       simplemente no se muestra la línea, no rompe vacas existentes.
+       No se tocó cuentaPago, formatCOP ni la lógica de pendiente/
+       abonos.
+       v1.40: a pedido del usuario — el botón "📋 Copiar número" (texto +
+       emoji) se reemplaza por un botón circular solo-ícono (SVG clásico
+       de copiar, 38×38px, pensado para toque en móvil). Queda en la
+       misma fila que el número (.pago-metodo-numero-row). Se elimina la
+       regla CSS .pago-metodo-info .btn, que quedó sin uso al retirar el
+       botón de texto. No se tocó copiarNumeroPago() ni el toast de
+       confirmación — mismo comportamiento, solo cambia el disparador
+       visual.
+       v1.41: dos cambios en la imagen de cabecera (#vacaImagen), a
+       pedido del usuario ("normalizar" las imágenes):
+       (a) RECORTE — nueva función cloudinaryHeaderThumb() pide el
+       rectángulo real que se muestra (960×320, @2x) con gravity:auto,
+       en vez del cuadrado 500×500 de cloudinaryThumb() que luego el
+       CSS reescalaba a un rectángulo, recortando distinto según cada
+       foto. cloudinaryThumb() no se tocó — sigue igual para
+       comprobantes.
+       (b) FILTRO — nuevo campo opcional imagenFiltro (configurado en
+       vacas.html v1.38): 'sutil' aplica leve oscurecido/contraste;
+       'duotono' aplica blanco y negro tintado en violeta #8b7fd6 (no
+       turquesa — ese color ya es --accent de toda la app, se eligió
+       uno aparte que no compite con ningún color de estado). 'ninguno'
+       o campo ausente (vacas viejas) no aplica nada — cero cambio
+       visual para ellas. No se tocó ningún otro campo, cálculo ni
+       lógica de vacaData.
+       v1.55: bloque de progreso (#progresoWrap) del portal rediseñado —
+       Recaudado y Meta ahora se muestran en 2 columnas con el mismo
+       peso visual (antes Meta era texto chico gris casi invisible),
+       mismo patrón que .saldo-grid. En mobile (≤480px) ambas grillas
+       (.progreso-nums y .saldo-grid) se apilan a 1 columna para que
+       montos grandes no se aprieten. Solo CSS/HTML + un textContent
+       en JS (se quitó el prefijo "Meta: " ya que ahora es un label
+       HTML separado) — no toca meta_total, totalRecaudado ni cálculos.
+       v1.54: botón "📄 Resumen" en el portal (junto a "✏️ Editar") que
+       abre un reporte descargable/imprimible en ventana nueva —
+       mismo patrón que cotizador.html (window.open + document.write,
+       sin jsPDF, botón 🖨️ Imprimir/Guardar como PDF). Header AUDIOLINK,
+       info-grid Vaca/Participante, tabla de abonos, total-box con
+       pendiente (o "a favor" si hay excedente), footer "Diseñado por:
+       Marto 🧠" — mismo estilo visual que los reportes de Sagrada
+       Delicia/Audiolink, con el acento turquesa #2dd4bf propio de
+       Vacas. Reutiliza vacaData, participanteActualData y el cálculo
+       de cuota/abonado/pendiente ya existente en renderPortal(); los
+       abonos se cachean en la nueva variable ultimosAbonos dentro del
+       onSnapshot que ya vive en cargarAbonos() — no se crea ningún
+       listener ni lectura nueva de Firestore. No se tocó ningún
+       cálculo ni la lógica de pendiente/abonos/excedente.
+       v1.53: dos ajustes.
+       (a) FIX — arranque del tema (iniciarTema()) movido al final del
+       <body>. Antes vivía arriba, y btnTema (definido más abajo en el
+       HTML) todavía no existía en el DOM cuando se ejecutaba, por lo
+       que getElementById devolvía null y la función moría antes de
+       llamar a generarShimmer()/generarFondoDecorativo(). El fondo
+       solo se activaba al usar el toggle porque toggleTema() sí corre
+       después de que todo ya cargó.
+       (b) TUTORIAL — paso 2 ("La vaca y su cuota") ahora aclara que
+       el aporte libre no tiene cuota fija; paso 5 ("¡Listo!") ahora
+       indica que si se pierde el link personal hay que pedirlo de
+       nuevo a quien organiza la vaca. No se tocó ningún otro paso,
+       ni la lógica de _TUT_LLAVE/localStorage.
+       v1.52: tutorial interactivo tipo spotlight (mismo patrón que
+       index.html v1.9.26). 5 pasos: bienvenida, card de la vaca,
+       saldo personal, cómo pagar+comprobante, cierre. Se activa
+       automáticamente la primera vez que carga vistaPortal; botón 🎓
+       en el topbar para relanzarlo. localStorage key: vaca_tutorial_v1.
+       No toca ninguna lógica de Firestore ni cálculos.
+       v1.51: formatCOP() redondea al peso más cercano con Math.round()
+       antes de formatear — cubre cuota vigente, pendiente, abonado,
+       excedente, progreso y cualquier monto futuro. El Math.round()
+       de v1.50 solo aplicaba al momento del registro; valores ya
+       guardados con decimales en Firestore seguían mostrándose con
+       coma. Ahora todo el ecosistema muestra enteros sin excepción.
+       v1.50: cuotaRecalc redondeada al peso más cercano con Math.round()
+       — evita decimales (ej. $33.333,33) en la cuota visible. Solo
+       toca esa línea en la transacción de registrarse(); ningún otro
+       cálculo de pendiente/excedente/progreso se modifica.
+       v1.49: dos ajustes visuales:
+       (a) accent tema día — --accent: #0e7c70 en body.tema-dia,
+       versión oscura del turquesa de marca ya validada en el ecosistema
+       (vacas.html v1.8). No chilla sobre fondo claro, mismo tono.
+       (b) topbar — se quita el label "AUDIOLINK · vaca colectiva",
+       quedando solo el botón de tema. La card ya da todo el contexto;
+       el topbar lo repetía y confundía. Solo cambia el HTML del topbar.
+       v1.48: red decorativa más orgánica — <line> reemplazado por
+       <path> con curvas cúbicas bezier (punto de control aleatorio
+       perpendicular al segmento, como ramas o raíces). Vecinos bajan
+       de 3 a 2 y se filtra distancia máxima para evitar conexiones
+       cruzadas largas. Nodos con radio más variable (0.8–3.2px).
+       Solo toca generarFondoDecorativo() — shimmer, toggle y lógica
+       intactos.
+       v1.47: dos ajustes de tema:
+       (a) tema día — variables completas del ecosistema claro de
+       AUDIOLINK (#f0f2f7/#ffffff/#e4e8f0 + text/border claros), ya no
+       es dark sino día real, coherente con vacas.html/index.html.
+       (b) tema noche — --bg2/--bg3 más cálidos y traslúcidos.
+       --accent/--green/--red/--yellow intocados.
+       v1.46: tema día en el prado ahora es visualmente distinto —
+       body.tema-dia sobreescribe --bg/--bg2/--bg3/--border con tonos
+       verde bosque oscuro. Todo lo que usa esas variables (cards,
+       inputs, bordes, cajas) se tiñe automáticamente sin tocar reglas
+       individuales. --text/--text2/--accent/--green/--red/--yellow
+       intocados — legibilidad y mobile sin cambios.
+       v1.45: toggle de tema de fondo 🌙/🌿 en el topbar. Noche en el
+       campo (base): wash tierra/musgo/luna, dots musgo+ocre+plata, red
+       verde musgo+ocre. Día en el prado (alternativo): wash pasto/miel/
+       celeste, dots verde+ocre+crema, red pasto+dorado. generarShimmer()
+       y generarFondoDecorativo() reciben paleta como parámetro y se
+       regeneran al cambiar tema. Preferencia guardada en localStorage.
+       No se tocó --accent, --green, --yellow ni ninguna lógica de UI.
+       v1.44: botón "🔗 Ver producto" simplificado a "🧐 Ver" — más
+       neutro y discreto, sin anclar el concepto a "producto". Solo
+       cambia el texto del enlace; no se tocó href, visibilidad ni
+       lógica de urlProducto.
+       v1.43: se añade mención al aporte voluntario en la nota de
+       bienvenida (vistaBienvenida) — el participante ya sabe desde el
+       primer pantallazo que puede entrar sin cuota fija. Solo cambia
+       el texto del párrafo .registro-intro; no se tocó ninguna lógica.
+       v1.42: a pedido del usuario ("el violeta está feíto") — se quita
+       el duotono violeta y se reemplaza por dos opciones nuevas en
+       imagenFiltro: 'sepia' (tono cálido clásico) y 'bn-retro' (blanco y
+       negro con más contraste + una pizca de sepia, look de foto vieja
+       revelada, no un B&N plano). Requiere vacas.html v1.40 para elegir
+       estas opciones desde el modal. Vacas que ya tenían 'duotono'
+       guardado quedan sin filtro aplicado (la clase ya no existe) hasta
+       que el admin re-elija una opción válida — no rompe nada, solo
+       deja de verse el violeta. -->
   <style>
-    /* ===== AUDIOLINK · vaca.html · v1.0
+    /* ===== AUDIOLINK · vaca.html · v1.25
        Vista pública sin auth. Dos estados según URL:
        ?id=XXX        → formulario de registro
        ?id=XXX&p=YYY  → portal personal (saldo, abonos, progreso global)
+
+       v1.25: fix — la barra de progreso personal (abonado vs. cuota_fija)
+       se había agregado en v1.20 pero quedó solo en HTML/CSS, sin el JS
+       que la llenara (siempre en 0%, nunca se detectó hasta ahora). Se
+       completa en cargarPortal() con el mismo `pct` que ya usaba el chip
+       de estado. Para tipo 'libre' se oculta (no tiene cuota_fija contra
+       la cual medirse), igual que la caja de "Pendiente".
+
+       v1.21: dos features nuevas.
+       (a) sección de pago directo: se completa renderPagoSeccion(),
+       que en el intento anterior había quedado solo en HTML/CSS sin
+       función. Muestra número de Nequi/Daviplata (cuentaPago, guardado
+       por vacas1.html v1.23+) + botón "Copiar número", si hay saldo
+       pendiente. Se descartó el QR a propósito: ni Nequi ni Daviplata
+       tienen un esquema de deep-link/QR público confiable, así que se
+       retiró también la librería qrcode.js (CDN) sin uso.
+       (b) tipo de participación 'libre': un amigo puede aportar lo que
+       pueda sin entrar al reparto de cuota_fija. Toggle nuevo en el
+       formulario de registro (regTipo). registrarse() ramifica la
+       transacción — 'libre' NO incrementa numParticipantes ni recalcula
+       la cuota de los demás, solo crea su doc de participante con
+       tipo:'libre'. cargarPortal() detecta p.tipo y, si es libre, oculta
+       la caja de "Pendiente" y la sección de pago (no aplica saldo por
+       cobrar), mostrando en su lugar un chip de agradecimiento. Sus
+       abonos se registran igual que siempre desde el admin (misma
+       subcolección, mismo totalRecaudado incremental) — no se tocó
+       cargarAbonos() ni la lógica de comprobantes.
+       No se tocó cargarAbonos() ni ninguna otra lógica preexistente.
+
+       v1.20: barra de progreso PERSONAL (abonado vs. cuota_fija) —
+       clases nuevas .progreso-personal* para no chocar con
+       .progreso-wrap/.progreso-bar/.progreso-fill que ya usa la barra
+       GLOBAL del header (misma vaca, dato distinto).
+       No se tocó cargarAbonos(), registrarse() ni ninguna otra lógica.
+
+       v1.19: (a) fix — el botón "✏️ Editar" de "Mis datos" no respondía
+       porque llamaba a abrirModal()/cerrarModal(), funciones que nunca
+       existieron en este archivo; ahora usa el mismo patrón classList
+       'show' que el resto de los modales. (b) se elimina
+       cargarProgresoGlobal(), código muerto desde que cargarVaca() pobló
+       la barra consolidada (v1.18) — nadie la llamaba. (c) se reduce el
+       uso repetido de verde: el monto "recaudado" y la barra de progreso
+       del header pasan a turquesa (--accent, color de marca/informativo),
+       dejando el verde reservado solo para señales de estado positivo
+       (badge de meta alcanzada, chip "✓ Completa", caja "A favor" y cada
+       abono +monto en la lista).
     ===== */
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -118,6 +469,46 @@
       color: var(--accent);
     }
 
+    /* v1.16: barra de progreso global (meta vs. recaudado) y badge de
+       meta alcanzada, mismos tokens de color que el resto de la app. */
+    .progreso-global {
+      margin-top: 14px;
+    }
+    .progreso-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 20px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .progreso-fill {
+      height: 100%;
+      border-radius: 20px;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      transition: width .4s ease;
+    }
+    .progreso-texto {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 6px;
+    }
+    .badge-meta-lograda {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      background: rgba(74,222,128,.12);
+      border: 1px solid rgba(74,222,128,.3);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--green);
+    }
+
     /* v1.8: nota chiquita, siempre visible bajo el pill de cuota */
     .cuota-nota {
       margin-top: 8px;
@@ -136,25 +527,39 @@
       text-transform: uppercase;
       letter-spacing: .6px;
       color: var(--text2);
+      margin-top: 28px; /* v1.63: separador — antes no tenía margin-top y quedaba pegado a la lista de arriba (ej. Integrantes vs Actividad) */
       margin-bottom: 14px;
     }
 
     .progreso-wrap { margin-bottom: 24px; }
+    /* v1.55: .progreso-nums pasa de flex (Recaudado grande + Meta chica)
+       a grid de 2 columnas iguales, mismo peso visual para ambos montos
+       — mismo patrón que .saldo-grid más abajo en el portal. */
     .progreso-nums {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
       margin-bottom: 8px;
+    }
+    .progreso-col-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text2);
+      margin-bottom: 2px;
     }
     .progreso-monto {
       font-size: 1.5rem;
       font-weight: 700;
-      color: var(--green);
+      color: var(--accent);
       line-height: 1;
     }
     .progreso-meta {
-      font-size: 12px;
-      color: var(--text2);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
     }
     .progreso-bar {
       height: 6px;
@@ -164,7 +569,7 @@
     }
     .progreso-fill {
       height: 100%;
-      background: var(--green);
+      background: var(--accent);
       border-radius: 99px;
       transition: width .6s ease;
     }
@@ -202,6 +607,117 @@
     }
     .saldo-box.abonado span { color: var(--green); }
     .saldo-box.pendiente span { color: var(--yellow); }
+
+    /* v1.20: barra de progreso PERSONAL (abonado vs. cuota_fija propia).
+       Nombres de clase distintos a .progreso-wrap/.progreso-bar/
+       .progreso-fill (esas son del header, meta global) para que no
+       choquen — mismo look, dato distinto. */
+    .progreso-personal { margin-bottom: 24px; }
+    .progreso-personal-track {
+      height: 6px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progreso-personal-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width .5s ease;
+    }
+    .progreso-personal-texto {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 6px;
+    }
+
+    /* v1.21: sección de pago directo (Nequi/Daviplata, sin QR — ver
+       comentario de cabecera). Solo se muestra si el admin configuró
+       cuentaPago en vacas.html Y el participante tiene saldo pendiente
+       > 0 (ver renderPagoSeccion). */
+    .pago-metodos { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+    .pago-metodo {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .pago-metodo-numero {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+    /* v1.40: fila número + botón de copiar (ícono clásico, sin texto).
+       38px de lado — cumple el mínimo recomendado de área táctil para
+       móvil (~36-44px). Reemplaza el botón de texto "📋 Copiar número". */
+    .pago-metodo-numero-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-copiar-icono {
+      flex-shrink: 0;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text2);
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .btn-copiar-icono svg { width: 17px; height: 17px; pointer-events: none; }
+    .btn-copiar-icono:hover { color: var(--accent); border-color: var(--accent); }
+    .btn-copiar-icono:active { background: var(--accent); color: #06110f; border-color: var(--accent); }
+    /* v1.39: nombre del titular de la cuenta, debajo del número — solo
+       se renderiza si el admin lo configuró (vacas.html v1.37). */
+    .pago-metodo-titular {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 2px;
+    }
+    /* v1.30: logo del método de pago (Nequi/Daviplata), a la izquierda
+       del bloque de info. El contenedor .pago-metodo ya es flex, así
+       que solo se agrega el tamaño fijo del logo. */
+    .pago-metodo-logo {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      flex-shrink: 0;
+      border-radius: 8px;
+      background: #fff;
+      padding: 4px;
+    }
+    /* v1.32: placeholder cuando el método no tiene logo configurado
+       (métodos personalizados sin URL de imagen) */
+    .pago-metodo-logo-generico {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      color: #06110f;
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: 0;
+    }
+    .pago-metodo-info { flex: 1; min-width: 0; }
+    .pago-metodo-info strong { font-size: 13px; }
+    .pago-metodo-info .pago-metodo-sub {
+      font-size: 11px;
+      color: var(--text2);
+      margin: 4px 0 8px;
+    }
 
     /* chip estado */
     .estado-chip {
@@ -245,6 +761,26 @@
       flex-shrink: 0;
     }
 
+    /* v1.42: filtros opcionales de la imagen de cabecera de la vaca
+       (#vacaImagen), elegidos por el admin en vacas.html v1.40
+       (imagenFiltro: 'ninguno' | 'sutil' | 'sepia' | 'bn-retro').
+       'ninguno' no aplica ninguna clase — la imagen queda igual que
+       antes. Se reemplaza el duotono violeta (v1.41) por dos clásicos
+       que "nunca fallan": sepia y blanco y negro retro. */
+    .vaca-imagen-sutil {
+      filter: brightness(.92) contrast(1.08) saturate(.95);
+    }
+    /* Sepia clásico — tono cálido de foto antigua. */
+    .vaca-imagen-sepia {
+      filter: sepia(.75) saturate(1.15) contrast(1.08) brightness(.95);
+    }
+    /* Blanco y negro retro — grises con más punch que un grayscale
+       plano, más una pizca de sepia (no un B&N frío/clínico, sino con
+       carácter de foto vieja revelada). */
+    .vaca-imagen-bn-retro {
+      filter: grayscale(1) sepia(.2) contrast(1.25) brightness(.92);
+    }
+
     /* v1.11: lightbox simple, mismo markup/estilos que vacas.html v1.16 */
     .lightbox-overlay {
       display: none;
@@ -282,36 +818,170 @@
       padding: 24px 16px 16px;
     }
 
-    /* v1.12: "rueditas" de fondo — círculos difuminados flotando muy
-       lento, opacidad baja, en los colores de acento de la app. Puro
-       CSS, sin JS ni imágenes, para no sumar peso. position:fixed +
-       pointer-events:none para que nunca interfieran con el contenido
-       ni con clics/scroll. */
-    .bg-decor {
-      position: fixed;
-      inset: 0;
-      overflow: hidden;
-      z-index: -1;
+    /* v1.13: fondo "red de nodos" — mismo patrón exacto que
+       .login-bg-shimmer / .neuron-node / .neuron-line / .neuron-spark
+       de index.html (Psico Gestión), solo que aquí corre en TODA la
+       página (no solo detrás de un login-card) y usa los colores de
+       este proyecto (--accent/--green) en vez de los de Psico Gestión.
+       El SVG lo genera generarFondoDecorativo() con JS al cargar,
+       reutilizando el mismo algoritmo (nodos con líneas a sus 3
+       vecinos más cercanos, glow con drop-shadow, sin librerías).
+       position:fixed + z-index:-1 + pointer-events:none, igual que
+       antes: nunca interfiere con contenido, clics o scroll. */
+    /* v1.17 (a pedido del usuario — "le falta movimiento" + "la
+       paleta se siente fría/hospitalaria, falta aire"): 2 ajustes
+       sobre el wash v1.16, sin tocar --bg (cambiar la base global es
+       riesgoso, se sentiría en toda la app). Se suma una 3ra mancha
+       radial con --yellow (dorado, ya existe en la paleta y no se
+       usaba en el fondo) arriba-centro, simulando luz entrando por
+       una ventana. El drift baja de 18s a 12s para que se note más.
+       z-index pasa de -2 a -3 para dejar espacio a .bg-shimmer (-2),
+       la nueva capa de movimiento de abajo. */
+    /* v1.45: tema base = noche en el campo. .tema-dia = día en el prado.
+       v1.47: noche más cálida/traslúcida; día wash más luminoso. */
+    .bg-wash {
+      position: fixed; inset: 0; z-index: -3;
       pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 50% at 18% 12%, rgba(34,80,34,.15) 0%, transparent 60%),
+        radial-gradient(ellipse 55% 55% at 86% 88%, rgba(80,50,20,.13) 0%, transparent 65%),
+        radial-gradient(ellipse 70% 45% at 50% -5%, rgba(180,190,210,.08) 0%, transparent 65%);
+      background-size: 160% 160%, 160% 160%, 160% 160%;
+      background-position: 0% 0%, 100% 100%, 50% 0%;
+      animation: washDrift 12s ease-in-out infinite alternate;
+      transition: background 1.2s ease;
     }
-    .bg-decor span {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(2px);
-      opacity: .12;
-      animation: bgFloat linear infinite;
+    body.tema-dia .bg-wash {
+      background:
+        radial-gradient(ellipse 60% 50% at 18% 12%, rgba(74,153,74,.25) 0%, transparent 60%),
+        radial-gradient(ellipse 55% 55% at 86% 88%, rgba(180,130,50,.22) 0%, transparent 65%),
+        radial-gradient(ellipse 70% 45% at 50% -5%, rgba(100,180,210,.14) 0%, transparent 65%);
     }
-    .bg-decor span:nth-child(1) { width: 140px; height: 140px; left: 8%;  top: 70%; background: var(--accent); animation-duration: 34s; }
-    .bg-decor span:nth-child(2) { width: 90px;  height: 90px;  left: 80%; top: 15%; background: var(--green);  animation-duration: 26s; animation-delay: -6s; }
-    .bg-decor span:nth-child(3) { width: 60px;  height: 60px;  left: 60%; top: 85%; background: var(--accent); animation-duration: 20s; animation-delay: -3s; }
-    .bg-decor span:nth-child(4) { width: 110px; height: 110px; left: 20%; top: 5%;  background: var(--green);  animation-duration: 30s; animation-delay: -12s; }
-    @keyframes bgFloat {
-      0%   { transform: translate(0, 0) scale(1); }
-      50%  { transform: translate(24px, -32px) scale(1.08); }
-      100% { transform: translate(0, 0) scale(1); }
+    @keyframes washDrift {
+      0%   { background-position: 0% 0%, 100% 100%, 45% 0%; }
+      100% { background-position: 12% 8%, 88% 92%, 55% 4%; }
     }
-    @media (prefers-reduced-motion: reduce) {
-      .bg-decor span { animation: none; }
+
+    /* v1.45: botón toggle tema */
+    .btn-tema {
+      background: none; border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 10px;
+      font-size: 13px; cursor: pointer; color: var(--text2);
+      transition: border-color .2s, color .2s;
+      line-height: 1;
+    }
+    .btn-tema:hover { border-color: var(--accent); color: var(--text); }
+
+    /* v1.45: botón tutorial */
+    .btn-tutorial {
+      background: none; border: none;
+      font-size: 15px; cursor: pointer;
+      color: var(--text2); padding: 4px 6px;
+      transition: color .2s; line-height: 1;
+    }
+    .btn-tutorial:hover { color: var(--accent); }
+
+    /* v1.52: tutorial spotlight — mismo patrón que index.html v1.9.26 */
+    #tutorial-overlay { position:fixed; inset:0; z-index:9990; background:rgba(10,14,20,.72); pointer-events:all; transition:opacity .3s; }
+    #tutorial-overlay.oculto { display:none !important; }
+    #tutorial-spotlight-ring { position:fixed; z-index:9995; border-radius:12px; box-shadow:0 0 0 3px var(--accent),0 0 0 7px rgba(45,212,191,.18),0 0 28px rgba(45,212,191,.16); pointer-events:none; transition:top .35s cubic-bezier(.4,0,.2,1),left .35s cubic-bezier(.4,0,.2,1),width .35s cubic-bezier(.4,0,.2,1),height .35s cubic-bezier(.4,0,.2,1); }
+    #tutorial-card { position:fixed; z-index:10000; background:var(--bg2); border:1px solid var(--accent); border-radius:14px; padding:22px 22px 16px; width:316px; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+    #tutorial-card.animando { animation:tut-fade .26s ease; }
+    @keyframes tut-fade { from{opacity:0;transform:translateY(7px);} to{opacity:1;transform:translateY(0);} }
+    .tut-progress-bar { display:flex; gap:3px; margin-bottom:16px; }
+    .tut-pip { flex:1; height:3px; border-radius:3px; background:var(--border); transition:background .3s; }
+    .tut-pip.activo { background:var(--accent); }
+    .tut-pip.hecho  { background:rgba(45,212,191,.35); }
+    #tutorial-emoji  { font-size:1.55rem; margin-bottom:8px; line-height:1; }
+    #tutorial-titulo { color:var(--text); font-size:.98rem; font-weight:700; margin-bottom:9px; }
+    #tutorial-texto  { color:var(--text); opacity:.85; font-size:.81rem; line-height:1.65; margin-bottom:16px; }
+    .tut-nav-row { display:flex; gap:6px; align-items:center; justify-content:space-between; }
+    .tut-step-label { font-size:.67rem; color:var(--text2); font-weight:600; white-space:nowrap; }
+    .btn-tut-ant { background:none; border:1px solid var(--border); color:var(--text2); padding:7px 11px; border-radius:8px; font-size:.76rem; cursor:pointer; transition:all .18s; }
+    .btn-tut-ant:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-tut-sig { background:var(--accent); color:#fff; border:none; padding:7px 14px; border-radius:8px; font-size:.76rem; font-weight:700; cursor:pointer; transition:all .18s; white-space:nowrap; }
+    .btn-tut-sig:hover { filter:brightness(1.1); transform:translateY(-1px); }
+    .btn-tut-saltar { background:none; border:none; color:var(--text2); font-size:.7rem; cursor:pointer; padding:4px 5px; transition:color .18s; }
+    .btn-tut-saltar:hover { color:var(--red); }
+    @media (max-width:520px) { #tutorial-card { width:88vw; max-width:316px; } }
+
+    /* v1.46: tema día — sobreescribe solo las variables de fondo/borde.
+       v1.47: variables completas del ecosistema claro de AUDIOLINK.
+       Todo el resto de la UI hereda automáticamente. */
+    body.tema-dia {
+      --bg:     #f0f2f7;
+      --bg2:    #ffffff;
+      --bg3:    #e4e8f0;
+      --border: #cdd2df;
+      --text:   #1a1d2e;
+      --text2:  #5a6070;
+      --accent: #0e7c70; /* v1.49: turquesa oscuro — legible sobre fondo claro, mismo tono de marca */
+    }
+
+    /* v1.17: capa de movimiento real — puntitos sueltos flotando y
+       titilando, mismo espíritu que el bead-grid-bg de Liro Miyuki
+       (semilla propia: no son cuentas en grilla fija, son puntos
+       random con tamaño/tiempo/color variables, generados por JS —
+       ver bg-shimmer en el <script>). z-index -2, entre el wash (-3)
+       y la red de nodos (-1). */
+    .bg-shimmer {
+      position: fixed; inset: 0; z-index: -2;
+      pointer-events: none; overflow: hidden;
+    }
+    .shimmer-dot {
+      position: absolute; border-radius: 50%;
+      animation: shimmerPulse var(--d, 3s) ease-in-out infinite;
+      animation-delay: var(--delay, 0s);
+    }
+    /* v1.18 (a pedido del usuario — "¿seguro que hay movimiento?"):
+       la v1.17 SÍ animaba, pero arrancaba en opacidad .12 y sin
+       desplazamiento, así que a simple vista se veía estático. Ahora
+       suma traslado vertical (flota ±10px) además del pulso de
+       opacidad/escala, con piso de opacidad más alto (.28) para que
+       el movimiento se note incluso en el punto más "apagado" del
+       ciclo. Mismo mecanismo, solo más perceptible. */
+    @keyframes shimmerPulse {
+      0%   { opacity: .28; transform: translateY(0) scale(.75); }
+      50%  { opacity: 1;   transform: translateY(-10px) scale(1.3); }
+      100% { opacity: .28; transform: translateY(0) scale(.75); }
+    }
+
+    .bg-decor {
+      position: fixed; inset: 0; z-index: -1;
+      opacity: .42; pointer-events: none; overflow: hidden;
+    }
+    .bg-decor svg { width: 100%; height: 100%; display: block; }
+    .neuron-node {
+      animation: neuronPulse var(--d, 3s) ease-in-out infinite;
+      animation-delay: var(--delay, 0s); transform-origin: center;
+      transform-box: fill-box; filter: drop-shadow(0 0 3px currentColor);
+    }
+    .neuron-line {
+      stroke-dasharray: var(--len) var(--len); stroke-dashoffset: var(--len);
+      animation: neuronFire var(--fd, 4s) ease-in-out infinite;
+      animation-delay: var(--fdelay, 0s);
+      filter: drop-shadow(0 0 2px currentColor);
+    }
+    @keyframes neuronPulse {
+      0%,100% { opacity: .3; transform: scale(.7); }
+      50%     { opacity: 1;  transform: scale(1.35); }
+    }
+    .neuron-spark {
+      fill: #fff; transform-origin: center; transform-box: fill-box;
+      animation: sparkFlash var(--sd, 3.5s) cubic-bezier(.16,1,.3,1) infinite;
+      animation-delay: var(--sdelay, 0s);
+    }
+    @keyframes sparkFlash {
+      0%,86%,100% { opacity: 0; transform: scale(.2); }
+      90% { opacity: 1;  transform: scale(2.4); }
+      94% { opacity: .5; transform: scale(1.5); }
+      97% { opacity: 0; transform: scale(.6); }
+    }
+    @keyframes neuronFire {
+      0%   { stroke-dashoffset: var(--len); opacity: 0; }
+      30%  { opacity: 1; }
+      70%  { opacity: 1; }
+      100% { stroke-dashoffset: 0; opacity: 0; }
     }
 
     .divider {
@@ -483,25 +1153,168 @@
       .topbar { margin-bottom: 20px; }
       .card-top, .card-body { padding: 18px 16px; }
       .progreso-monto { font-size: 1.3rem; }
+      /* v1.55: en mobile, Recaudado/Meta y Abonado/Pendiente pasan de
+         2 columnas a 1 columna apilada — evita que montos grandes
+         (7 dígitos) se aprieten o corten. */
+      .progreso-nums, .saldo-grid {
+        grid-template-columns: 1fr;
+      }
+      .progreso-meta { font-size: 1.3rem; }
     }
   </style>
 </head>
 <body>
 <!-- v1.12: rueditas de fondo — puramente decorativo, no interactivo -->
-<div class="bg-decor" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+<div class="bg-wash" aria-hidden="true"></div>
+<div class="bg-shimmer" id="bg-shimmer" aria-hidden="true"></div>
+<div class="bg-decor" id="bg-decor" aria-hidden="true"></div>
+
+<!-- v1.19: fondo animado en su propio script, ANTES de cargar
+     Firebase — así se pinta siempre, sin depender de que la red/CDN
+     de Firebase responda bien. Ver comentario largo más abajo (donde
+     antes vivían estas 2 funciones) para el detalle del bug. -->
+<script>
+// v1.45: paletas de tema para el fondo animado.
+// 'noche' = noche en el campo (base). 'dia' = día en el prado.
+const PALETAS_FONDO = {
+  noche: { shimmer: ['#3a6b3a','#8c6a2a','#c8cdd8'], decor: ['#3a6b3a','#7a5a28'] },
+  dia:   { shimmer: ['#5db85d','#c89040','#e8f0c0'], decor: ['#5db85d','#c89040'] }
+};
+
+function generarShimmer(paleta) {
+  const cont = document.getElementById('bg-shimmer');
+  if (!cont) return;
+  const colores = paleta.shimmer;
+  let html = '';
+  for (let i = 0; i < 70; i++) {
+    const x = (Math.random() * 100).toFixed(2);
+    const y = (Math.random() * 100).toFixed(2);
+    const size = (3 + Math.random() * 4).toFixed(1);
+    const color = colores[Math.floor(Math.random() * colores.length)];
+    const d = (1.6 + Math.random() * 1.8).toFixed(2);
+    const delay = (Math.random() * 4).toFixed(2);
+    html += `<span class="shimmer-dot" style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;background:${color};box-shadow:0 0 6px ${color},0 0 12px ${color};--d:${d}s;--delay:${delay}s;"></span>`;
+  }
+  cont.innerHTML = html;
+}
+
+function generarFondoDecorativo(paleta) {
+  const cont = document.getElementById('bg-decor');
+  if (!cont) return;
+  const W = Math.max(window.innerWidth, 100), H = Math.max(window.innerHeight, 100);
+  const N = 38;
+  const DIST_MAX = Math.min(W, H) * 0.38; // v1.48: sin conexiones cruzadas largas
+  const pts = Array.from({length:N}, () => ({x:Math.random()*W, y:Math.random()*H}));
+  const colores = paleta.decor;
+  let ramas = '', nodos = '';
+
+  pts.forEach((p, i) => {
+    // v1.48: 2 vecinos más cercanos dentro de DIST_MAX
+    const vecinos = pts
+      .map((q, j) => ({ j, d: j === i ? Infinity : Math.hypot(p.x-q.x, p.y-q.y) }))
+      .filter(v => v.d <= DIST_MAX)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 2);
+
+    vecinos.forEach(({ j, d }) => {
+      if (j <= i) return;
+      const q = pts[j];
+      const fd = (3 + Math.random() * 4).toFixed(2);
+      const fdelay = (Math.random() * 5).toFixed(2);
+      const color = colores[Math.floor(Math.random() * colores.length)];
+
+      // v1.48: punto de control perpendicular al segmento — curva orgánica
+      const mx = (p.x + q.x) / 2;
+      const my = (p.y + q.y) / 2;
+      const dx = q.x - p.x, dy = q.y - p.y;
+      const perp = Math.hypot(dx, dy);
+      const desvio = (Math.random() - 0.5) * d * 0.45;
+      const cx = (mx - (dy / perp) * desvio).toFixed(1);
+      const cy = (my + (dx / perp) * desvio).toFixed(1);
+
+      // pathLen aproximado para dasharray
+      const pathLen = (d * 1.15).toFixed(1);
+      ramas += `<path d="M${p.x.toFixed(1)},${p.y.toFixed(1)} Q${cx},${cy} ${q.x.toFixed(1)},${q.y.toFixed(1)}" class="neuron-line" fill="none" stroke="${color}" stroke-width="0.8" style="--len:${pathLen};--fd:${fd}s;--fdelay:${fdelay}s;color:${color};"/>`;
+    });
+  });
+
+  pts.forEach(p => {
+    const d = (2 + Math.random() * 3).toFixed(2);
+    const delay = (Math.random() * 3).toFixed(2);
+    // v1.48: radio más variable — nudos de madera, no puntos uniformes
+    const r = (0.8 + Math.random() * 2.4).toFixed(2);
+    const color = colores[Math.floor(Math.random() * colores.length)];
+    nodos += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${color}" class="neuron-node" style="--d:${d}s;--delay:${delay}s;color:${color};"/>`;
+    const sd = (2.5 + Math.random() * 3.5).toFixed(2);
+    const sdelay = (Math.random() * 5).toFixed(2);
+    const rSpark = (Number(r) * 0.55).toFixed(2);
+    nodos += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rSpark}" class="neuron-spark" style="--sd:${sd}s;--sdelay:${sdelay}s;filter:drop-shadow(0 0 4px ${color}) drop-shadow(0 0 9px ${color});"/>`;
+  });
+
+  cont.innerHTML = `<svg viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}">${ramas}${nodos}</svg>`;
+}
+
+// v1.45: toggle tema — cambia clase en body, regenera fondos, persiste en localStorage.
+function toggleTema() {
+  const esDia = document.body.classList.toggle('tema-dia');
+  const tema = esDia ? 'dia' : 'noche';
+  document.getElementById('btnTema').textContent = esDia ? '🌿' : '🌙';
+  generarShimmer(PALETAS_FONDO[tema]);
+  generarFondoDecorativo(PALETAS_FONDO[tema]);
+  try { localStorage.setItem('vaca-tema', tema); } catch(e) {}
+}
+</script>
+
+  <!-- v1.52: tutorial overlay — mismo patrón que index.html v1.9.26 -->
+  <div id="tutorial-overlay" class="oculto">
+    <div id="tutorial-spotlight-ring" style="display:none;"></div>
+    <div id="tutorial-card">
+      <div class="tut-progress-bar" id="tut-progress-bar"></div>
+      <div id="tutorial-emoji"></div>
+      <div id="tutorial-titulo"></div>
+      <p id="tutorial-texto"></p>
+      <div class="tut-nav-row">
+        <button class="btn-tut-ant" id="btn-tut-ant" onclick="tutorialAnterior()">← Ant.</button>
+        <span class="tut-step-label" id="tut-step-label"></span>
+        <button class="btn-tut-saltar" onclick="tutorialSaltar()">✕ Saltar</button>
+        <button class="btn-tut-sig" id="btn-tut-sig" onclick="tutorialSiguiente()">Siguiente →</button>
+      </div>
+    </div>
+  </div>
 
   <div class="topbar">
-    <span class="topbar-brand">AUDIOLINK <span>· vaca colectiva</span></span>
+    <button class="btn-tutorial" onclick="iniciarTutorial(true)" title="Relanzar guía">🎓</button>
+    <button class="btn-tema" id="btnTema" onclick="toggleTema()" title="Cambiar tema de fondo">🌙</button>
   </div>
 
   <div class="card">
     <!-- Header de la vaca (siempre visible una vez cargada) -->
     <div class="card-top" id="cardTop" style="display:none">
+      <img id="vacaImagen" class="comprobante-thumb" style="display:none;width:100%;height:160px;border-radius:10px;margin-bottom:12px" alt="" />
       <div class="vaca-label">🐄 Vaca colectiva</div>
       <div class="vaca-nombre" id="vacaNombre">—</div>
       <div class="vaca-desc" id="vacaDesc"></div>
+      <!-- v1.28: link opcional al producto/objetivo de la vaca (ej: la
+           silla que se va a comprar), configurado por el admin en
+           vacas.html (campo urlProducto). Oculto si no existe. -->
+      <a class="btn btn-ghost" id="linkProducto" href="#" target="_blank" rel="noopener" style="display:none;margin-top:12px">🧐 Ver</a>
       <div class="cuota-pill" id="cuotaPill">💳 Cuota: —</div>
       <div class="cuota-nota">💡 La cuota baja sola a medida que se suma más gente — nadie queda pagando el total.</div>
+      <div class="progreso-wrap" id="progresoWrap" style="display:none;margin-top:14px;margin-bottom:0">
+        <div class="progreso-nums">
+          <div>
+            <div class="progreso-col-label">Recaudado</div>
+            <div class="progreso-monto" id="portalRecaudado">$0</div>
+          </div>
+          <div>
+            <div class="progreso-col-label">Meta</div>
+            <div class="progreso-meta" id="portalMeta">$0</div>
+          </div>
+        </div>
+        <div class="progreso-bar"><div class="progreso-fill" id="portalFill" style="width:0%"></div></div>
+        <div class="progreso-sub" id="portalSub"></div>
+        <div class="badge-meta-lograda" id="badgeMetaLograda" style="display:none">🎉 ¡Meta alcanzada!</div>
+      </div>
     </div>
 
     <div class="card-body">
@@ -522,7 +1335,7 @@
       <!-- BIENVENIDA (v1.7) -->
       <div id="vistaBienvenida" class="vista">
         <p class="registro-intro">
-          Te están invitando a una vaca colectiva. La cuota se reparte entre todos los que confirmen su participación — mientras más gente entre, menos te toca a ti. Al confirmar, recibirás un link personal para consultar tu saldo en cualquier momento.
+          Te están invitando a una vaca colectiva. La cuota se reparte entre todos los que confirmen su participación — mientras más gente entre, menos te toca a ti. Si prefieres, también puedes hacer un aporte voluntario sin cuota fija. Al confirmar, recibirás un link personal para consultar tu saldo en cualquier momento.
         </p>
         <button class="btn btn-primary" onclick="pedirConfirmacionUnirse()">Quiero unirme 🐄</button>
       </div>
@@ -532,6 +1345,20 @@
         <p class="registro-intro">
           Confirma tu participación en esta vaca. La cuota se reparte entre todos los confirmados — si entra más gente, tu parte puede bajar. Al confirmar recibirás un link personal para consultar tu estado de pagos.
         </p>
+        <!-- v1.21: toggle de tipo de participación. 'fijo' = flujo de
+             siempre (entra al reparto de cuota_fija). 'libre' = solo
+             quiere aportar lo que pueda, sin comprometerse a una cuota
+             ni afectar la de los demás (ver registrarse()). -->
+        <div class="form-group">
+          <label>Tipo de participación</label>
+          <div class="form-group-contacto">
+            <select id="regTipo" onchange="document.getElementById('regTipoNota').textContent = this.value === 'libre' ? 'Aportas lo que puedas, sin cuota fija ni presión de pendiente.' : 'La cuota se reparte en partes iguales entre todos los confirmados.'">
+              <option value="fijo" selected>🐄 Cuota fija repartida</option>
+              <option value="libre">🐠 Aporte libre (lo que pueda)</option>
+            </select>
+          </div>
+          <p class="cuota-nota" id="regTipoNota">La cuota se reparte en partes iguales entre todos los confirmados.</p>
+        </div>
         <div class="form-group">
           <label>Nombre completo</label>
           <input type="text" id="regNombre" placeholder="Tu nombre" autocomplete="name" />
@@ -554,6 +1381,13 @@
           </div>
           <input type="text" id="regPaisOtro" placeholder="Código de país (ej: 31)" style="display:none; margin-top:8px" />
         </div>
+        <!-- v1.58: selector de avatar opcional -->
+        <div class="form-group">
+          <label>Avatar (opcional)</label>
+          <div id="regAvatarGrid" style="display:flex;flex-wrap:wrap;gap:8px;max-height:180px;overflow-y:auto;padding:4px 0">
+            <div style="color:var(--text2);font-size:13px">Cargando catálogo…</div>
+          </div>
+        </div>
         <button class="btn btn-primary" id="btnRegistrar" onclick="registrarse()">Confirmar mi participación 🐄</button>
       </div>
 
@@ -575,21 +1409,23 @@
       <!-- PORTAL PERSONAL -->
       <div id="vistaPortal" class="vista">
 
-        <div class="seccion-titulo">Progreso general</div>
-        <div class="progreso-wrap">
-          <div class="progreso-nums">
-            <div>
-              <div class="progreso-monto" id="portalRecaudado">$0</div>
-              <div class="progreso-meta" id="portalMeta">de $0 · meta estimada</div>
-            </div>
-          </div>
-          <div class="progreso-bar"><div class="progreso-fill" id="portalFill" style="width:0%"></div></div>
-          <div class="progreso-sub" id="portalSub"></div>
+        <!-- v1.64: avatar destacado del participante, justo arriba del
+             título "Mi saldo — nombre". Oculto por defecto (display:none)
+             hasta que renderPortal() decida si hay avatarUrl o no —
+             mismo criterio de fallback (ícono genérico) que ya usan
+             cargarIntegrantes() y la tabla de vacas.html. -->
+        <div id="portalAvatarWrap" style="display:none;text-align:center;margin-bottom:12px">
+          <img id="portalAvatarImg" src="" alt="" style="display:none;width:96px;height:96px;border-radius:14px;object-fit:cover;border:2px solid var(--accent)" />
+          <span id="portalAvatarFallback" style="display:none;width:96px;height:96px;border-radius:14px;background:var(--bg3);align-items:center;justify-content:center;font-size:40px;margin:0 auto">👤</span>
         </div>
 
-        <div class="divider"></div>
-
-        <div class="seccion-titulo" id="portalNombreLabel">Mi saldo</div>
+        <div class="seccion-titulo" id="portalNombreLabel" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span id="portalNombreLabelTexto">Mi saldo</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;width:auto" onclick="generarResumenPDF()" title="Descargar resumen">📄 Resumen</button>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;width:auto" onclick="abrirModalEditarDatos()">✏️ Editar</button>
+          </div>
+        </div>
         <div id="portalEstadoChip"></div>
 
         <div class="saldo-grid">
@@ -603,9 +1439,41 @@
           </div>
         </div>
 
+        <!-- v1.20: barra de progreso personal (abonado vs. cuota_fija) -->
+        <div class="progreso-personal">
+          <div class="progreso-personal-track"><div class="progreso-personal-fill" id="personalProgresoFill" style="width:0%"></div></div>
+          <div class="progreso-personal-texto" id="personalProgresoTexto"></div>
+        </div>
+
+        <!-- v1.21: sección de pago directo — solo visible si hay saldo
+             pendiente y el admin configuró Nequi y/o Daviplata (ver
+             renderPagoSeccion() en el script). Oculta por defecto. -->
+        <div class="seccion-titulo" id="pagoTitulo" style="display:none">Pagar mi saldo</div>
+        <div id="pagoMetodos" class="pago-metodos"></div>
+
         <div class="seccion-titulo">Mis abonos</div>
         <div id="portalAbonos">
           <div class="loading"><div class="spinner"></div> Cargando abonos…</div>
+        </div>
+
+        <!-- v1.57: lista pública de integrantes (solo nombres, sin montos
+             — flags opcionales controlan el resto). Lee de
+             vacas/{vacaId}/integrantes, nunca de participantes
+             directamente. Ver cargarIntegrantes(). Oculta por defecto
+             hasta que haya al menos un integrante que mostrar. -->
+        <div class="seccion-titulo">Integrantes</div>
+        <div id="portalIntegrantes">
+          <div class="loading"><div class="spinner"></div> Cargando integrantes…</div>
+        </div>
+
+        <!-- v1.56: feed público de actividad de TODOS los participantes de
+             la vaca. Lee de vacas/{vacaId}/actividad — una colección
+             liviana espejo (solo nombreParticipante+monto+tipo+fecha),
+             nunca de abonos directamente, para no exponer nota,
+             comprobanteUrl ni registradoPor de terceros. Ver cargarActividad(). -->
+        <div class="seccion-titulo">Actividad de la vaca</div>
+        <div id="portalActividad">
+          <div class="loading"><div class="spinner"></div> Cargando actividad…</div>
         </div>
 
       </div>
@@ -614,6 +1482,51 @@
   </div><!-- /card -->
 
   <div class="footer">AUDIOLINK · panel interno</div>
+  <!-- v1.17: modal para que el participante edite sus propios datos
+       (nombre/contacto/país). Reutiliza .modal-backdrop/.modal-confirm y
+       .form-group ya existentes — nunca toca totalAbonado ni abonos. -->
+  <div class="modal-backdrop" id="modalEditarDatos">
+    <div class="modal-confirm" style="text-align:left">
+      <div style="font-size:1.4rem;margin-bottom:10px">✏️ Editar mis datos</div>
+      <div class="form-group">
+        <label>Nombre completo</label>
+        <input type="text" id="editNombre" placeholder="Tu nombre" />
+        <div id="editNombreAviso" style="display:none; font-size:11px; color:var(--text2); margin-top:6px; line-height:1.4">
+          🔒 Ya tienes un abono registrado, así que el nombre queda bloqueado para que el admin no pierda el rastro de quién pagó qué. Si necesitas corregirlo, escríbele directamente.
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Número Nequi / WhatsApp</label>
+        <div class="form-group-contacto">
+          <select id="editPais" onchange="document.getElementById('editPaisOtro').style.display = this.value === 'otro' ? '' : 'none'">
+            <option value="57">🇨🇴 +57</option>
+            <option value="1">🇺🇸🇨🇦 +1</option>
+            <option value="34">🇪🇸 +34</option>
+            <option value="44">🇬🇧 +44</option>
+            <option value="33">🇫🇷 +33</option>
+            <option value="49">🇩🇪 +49</option>
+            <option value="39">🇮🇹 +39</option>
+            <option value="351">🇵🇹 +351</option>
+            <option value="otro">Otro…</option>
+          </select>
+          <input type="tel" id="editContacto" placeholder="300 123 4567" />
+        </div>
+        <input type="text" id="editPaisOtro" placeholder="Código de país (ej: 31)" style="display:none; margin-top:8px" />
+      </div>
+      <!-- v1.58: selector de avatar opcional -->
+      <div class="form-group">
+        <label>Avatar (opcional)</label>
+        <div id="editAvatarGrid" style="display:flex;flex-wrap:wrap;gap:8px;max-height:180px;overflow-y:auto;padding:4px 0">
+          <div style="color:var(--text2);font-size:13px">Cargando catálogo…</div>
+        </div>
+      </div>
+      <div class="modal-confirm-acciones">
+        <button class="btn btn-ghost" onclick="cerrarModalEditarDatos()">Cancelar</button>
+        <button class="btn btn-primary" id="btnGuardarEdicionDatos" onclick="guardarEdicionDatos()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modalConfirmarUnirse">
     <div class="modal-confirm">
       <div style="font-size:2rem;margin-bottom:6px">🐄</div>
@@ -644,6 +1557,175 @@
 
 <script>
 // ============================================================
+// AUDIOLINK · vaca.html · v1.29
+//
+// v1.29 (a pedido del usuario — "toca recargar para ver los cambios"):
+// los 3 puntos que hacían .get() puntual pasan a onSnapshot():
+//   - doc de la vaca (init()) → renderHeaderVaca(), nueva función que
+//     pinta nombre/imagen/descripcion/link producto/cuota/progreso
+//     global. La decisión de qué vista mostrar (bienvenida/portal/
+//     cerrada) sigue ocurriendo solo UNA vez (flag vistaDecidida), para
+//     no saltarle la pantalla a alguien llenando el formulario si la
+//     vaca cambia de estado mientras tanto.
+//   - doc del participante (cargarPortal()) → renderPortal(p), misma
+//     lógica de siempre, ahora repintada en cada cambio de totalAbonado,
+//     nombre, etc.
+//   - subcolección de abonos (cargarAbonos()) → se repinta sola si el
+//     admin agrega/edita/borra un abono.
+// Cada listener escucha UN documento o UNA subcolección de UN
+// participante puntual — nunca una colección abierta sin filtro — así
+// que el costo en lecturas de Firestore queda ligado a cambios reales
+// sobre esa vaca/participante, no a cuánta gente tenga el portal
+// abierto sin que pase nada. No se tocó registrarse(), la transacción
+// de cuota, ni ninguna otra función de escritura.
+//
+// AUDIOLINK · vaca.html · v1.28
+//
+// v1.28 (a pedido del usuario — link al producto/objetivo de la vaca,
+// ej: la silla que se va a adquirir): se agrega #linkProducto, un botón
+// btn-ghost debajo de la descripción (no sobre la imagen, que ya tiene
+// su propio click para el lightbox). init() lo muestra solo si
+// vacaData.urlProducto existe (campo configurado por el admin en
+// vacas.html v1.28); si no existe, queda oculto. No se tocó
+// registrarse(), cargarPortal(), cargarAbonos() ni ninguna otra función.
+//
+// AUDIOLINK · vaca.html · v1.21
+//
+// v1.17 (a pedido del usuario — "conveniencia": el participante puede
+// editar sus propios datos desde su portal):
+//   - Botón "✏️ Editar" en la fila de "Mi saldo", que abre modalEditarDatos
+//     (reutiliza .modal-backdrop/.modal-confirm/.form-group existentes).
+//   - abrirModalEditarDatos() precarga desde participanteActualData (cache
+//     seteada en cargarPortal(), no se agregó ninguna lectura nueva).
+//   - guardarEdicionDatos() hace update() puntual de nombre/contacto/
+//     paisCodigo únicamente — nunca toca totalAbonado ni la colección
+//     abonos, para no interferir con el historial de pagos.
+//   - portalNombreLabel se dividió en un <span id="portalNombreLabelTexto">
+//     + el botón, porque antes cargarPortal() pisaba el div entero con
+//     textContent (lo que habría borrado el botón). Se actualizó esa
+//     línea para apuntar al span en vez del contenedor.
+//
+// AUDIOLINK · vaca.html · v1.16
+//
+// v1.16 (a pedido del usuario — puntos 3 y 4 del plan de revisión del
+// ecosistema, parte portal del punto 3 + punto 4 completo):
+//   - Barra de progreso global (meta vs. totalRecaudado), con % de
+//     ancho animado por CSS. Usa campos que ya se leían del doc raíz de
+//     la vaca (meta_total, totalRecaudado, denormalizados desde v1.4 de
+//     este archivo) — no se agregó ninguna lectura nueva a Firestore.
+//   - Badge "🎉 ¡Meta alcanzada!" cuando totalRecaudado >= meta_total.
+// Ambos ocultos por defecto (display:none) y solo se muestran si
+// meta_total > 0, para no romper vacas mal configuradas con meta 0. No
+// se tocó registrarse(), cargarAbonos() ni ninguna otra función — solo
+// se agregó código dentro de init(), en el bloque que ya llenaba el
+// header con los datos de la vaca.
+//
+// AUDIOLINK · vaca.html · v1.37 (título HTML) / v1.19 (este bloque JS)
+//
+// v1.19 (fix REAL, no cosmético — "nada se mueve"): probé en un
+// navegador de verdad (no supuse) y encontré la causa: generarShimmer()
+// y generarFondoDecorativo() vivían después de
+// firebase.initializeApp(). Si Firebase fallaba en cargar (red, CDN,
+// bloqueador), el script se detenía en esa línea y el fondo NUNCA se
+// pintaba — cero puntos, cero red de nodos, cero movimiento. No era
+// un problema de opacidad/velocidad como se pensó en v1.18. Se movió
+// TODO el bloque de fondo (ambas funciones, sin tocar su lógica
+// interna) a su propio <script>, pegado a los divs bg-wash/
+// bg-shimmer/bg-decor justo después de <body>, ANTES de los <script>
+// de Firebase. Así el fondo se pinta siempre, pase lo que pase con
+// Firebase. Verificado con Playwright: los 70 puntos se generan y el
+// currentTime de la animación avanza con el tiempo real. Mismo fix en
+// vacas.html v1.40.
+//
+// AUDIOLINK · vaca.html · v1.36 (título HTML) / v1.18 (este bloque JS)
+//
+// v1.18 (a pedido del usuario — "¿seguro que hay movimiento?"): la
+// v1.17 sí animaba (shimmerPulse corría), pero arrancaba en opacidad
+// .12, sin desplazamiento y con puntos de 2-5px — a simple vista se
+// veía estático. Se corrige SOLO la percepción, no la mecánica:
+//   - shimmerPulse ahora suma traslado vertical (flota ±10px) además
+//     del pulso de opacidad/escala, con piso de opacidad .28 (antes
+//     .12) para que se note incluso en el punto más "apagado".
+//   - Puntos más grandes (3-7px, antes 2-5px) y con glow real
+//     (box-shadow difuminado del mismo color, antes plano).
+//   - Ciclo más corto (1.6-3.4s, antes 2-5.5s).
+// No se tocó .bg-wash, .bg-decor ni ninguna función de lógica.
+//
+// AUDIOLINK · vaca.html · v1.35 (título HTML) / v1.17 (este bloque JS)
+//
+// v1.17 (a pedido del usuario — "le falta movimiento" y "la paleta se
+// siente fría/hospitalaria, falta aire"): 2 ajustes sobre el wash
+// v1.16, sin tocar --bg (arriesgado, afecta toda la app):
+//   (a) 3ra mancha radial en el wash usando --yellow (dorado, ya
+//       existía en la paleta, no se usaba en el fondo) arriba-centro,
+//       simulando luz entrando por una ventana. Drift 18s → 12s.
+//   (b) .bg-shimmer, capa NUEVA: 70 puntitos random (tamaño/color/
+//       tiempo variables, colores accent/green/yellow) titilando —
+//       esto es lo que realmente le da "vida" al fondo, semilla
+//       propia inspirada en el bead-grid-bg de Liro Miyuki pero
+//       generado distinto (position random, no grilla fija).
+// z-index: bg-wash -3, bg-shimmer -2, bg-decor -1 (sin cambios de
+// orden real, solo se corrió el wash un nivel para hacer espacio).
+// No se tocó registrarse(), cargarPortal(), cargarAbonos() ni
+// ninguna otra función de lógica.
+//
+// AUDIOLINK · vaca.html · v1.34 (título HTML) / v1.16 (este bloque JS)
+//
+// v1.16 (a pedido del usuario — "al CSS del background le falta
+// trabajito", inspirado en Liro Miyuki index.html pero con semilla
+// propia, no copy/paste): se agrega .bg-wash, una capa nueva DETRÁS
+// de la red de nodos existente (.bg-decor, sin tocar) — 2 manchas
+// radiales muy tenues en --accent/--green con una deriva lenta de
+// posición (@keyframes washDrift, 18s, respeta prefers-reduced-motion).
+// Es puro CSS, sin JS ni imágenes nuevas, z-index -2 así que nunca
+// tapa la red de nodos (-1) ni el contenido. Mismo tratamiento
+// aplicado en vacas.html v1.37 (que además suma la red de nodos, que
+// antes no tenía). No se tocó registrarse(), cargarPortal(),
+// cargarAbonos() ni ninguna otra función de lógica.
+//
+// AUDIOLINK · vaca.html · v1.15
+//
+// v1.15 (a pedido del usuario — imagen del objetivo de la vaca, misma
+// función agregada en vacas.html v1.17): si la vaca tiene `imagenUrl`
+// (campo que el admin sube opcionalmente desde vacas.html), se muestra
+// en el header del portal (#vacaImagen), arriba del nombre, usando
+// cloudinaryThumb() ya existente (v1.11). Clic abre el mismo lightbox
+// que ya se usa para los comprobantes. Si la vaca no tiene imagen, el
+// elemento queda oculto — no rompe nada de las vacas ya creadas antes
+// de este campo. No se tocó registrarse(), cargarAbonos() ni ninguna
+// otra función.
+//
+// AUDIOLINK · vaca.html · v1.14
+//
+// v1.14 (a pedido del usuario — "lo dejaste sin movimiento"): se sube
+// la opacidad del fondo de red de nodos de .42 (la misma que usa el
+// original de Psico Gestión) en vez de .28 — la animación (pulso de
+// nodos, líneas "disparando", chispas) ya estaba corriendo igual que en
+// index.html, pero con .28 de opacidad contra el fondo oscuro casi no
+// se percibía. No se tocó el algoritmo de generarFondoDecorativo() ni
+// los @keyframes, solo ese valor. Nada más se tocó.
+//
+// AUDIOLINK · vaca.html · v1.13
+//
+// v1.13 (a pedido del usuario — "me gusta del estilo de Psico Gestión"):
+// se reemplaza el fondo de la v1.12 (4 círculos difuminados con
+// @keyframes bgFloat) por el patrón de "red de nodos" que el usuario
+// compartió de index.html (Psico Gestión) — MISMO algoritmo exacto
+// (generarFondoLogin → acá generarFondoDecorativo): puntos random
+// conectados a sus 3 vecinos más cercanos, con pulso/glow animado por
+// CSS (@keyframes neuronPulse/neuronFire/sparkFlash, todo copiado tal
+// cual del archivo compartido). Cambios reales sobre el original:
+//   - corre en TODA la página (window.innerWidth/innerHeight), no solo
+//     detrás de un login-card como en Psico Gestión.
+//   - colores: var(--accent)/var(--green) de este proyecto, no los de
+//     Psico Gestión.
+//   - N=40 nodos en vez de 55 (la página es más simple, menos densidad).
+// Sigue siendo SVG generado por JS al cargar (sin librerías), con el
+// mismo contenedor position:fixed + z-index:-1 + pointer-events:none de
+// antes, y respeta prefers-reduced-motion. El footer de créditos (v1.12)
+// no se tocó. No se tocó registrarse(), cargarPortal(), cargarAbonos()
+// ni ninguna otra función de lógica.
+//
 // AUDIOLINK · vaca.html · v1.12
 //
 // v1.12 (a pedido del usuario — 2 ajustes de estética, portal público
@@ -799,56 +1881,154 @@
 
 firebase.initializeApp(firebaseConfig);
 const db   = firebase.firestore();
+
+// v1.13: fondo "red de nodos" — MISMO algoritmo exacto que
+// generarFondoLogin() en index.html (Psico Gestión): nodos random,
+// líneas a los 3 vecinos más cercanos, con pulso/glow animado por CSS.
+// Única diferencia real: corre sobre toda la página (no un login-card)
+// y usa los colores de este proyecto en vez de los de Psico Gestión.
+// v1.19 (fix real, no cosmético — "nada se mueve"): generarShimmer()
+// y generarFondoDecorativo() vivían aquí, DESPUÉS de
+// firebase.initializeApp(). Si Firebase fallaba en cargar por
+// cualquier motivo (red, CDN, bloqueador), el script se detenía en
+// esa línea y el fondo NUNCA se pintaba — de ahí el "nada se mueve",
+// no era un problema de percepción como se pensó en v1.18. Ambas
+// funciones se movieron a su propio <script> independiente, pegado a
+// los divs bg-wash/bg-shimmer/bg-decor en el <body> (ver más abajo),
+// así el fondo se pinta siempre, sin depender de que Firebase cargue
+// bien. No se tocó su lógica interna, solo la ubicación.
+//
+// v1.20: FIX urgente — v1.19 borró por accidente la línea
+// `const params = new URLSearchParams(window.location.search);` al
+// mover las funciones de fondo (quedó solo el comentario, sin la
+// declaración real). Eso rompía TODO el resto del script con
+// "params is not defined" justo antes de vacaId/partId, y la página
+// se quedaba colgada en "Cargando…" para siempre. Se repone la línea,
+// nada más se tocó.
 const params = new URLSearchParams(window.location.search);
 const vacaId = params.get('id');
 const partId = params.get('p');
+const tokenUrl = params.get('t'); // v1.62: token del link personal, validado en cargarPortal()
 
 let vacaData = null;
 let linkGeneradoUrl = '';
+let participanteActualData = null; // v1.17: cache del doc del participante, para precargar el modal de edición
+let vistaDecidida = false; // v1.29: para no re-decidir la vista en cada snapshot de la vaca
+let ultimosAbonos = []; // v1.54: cache de los abonos del último snapshot, para el resumen PDF (no crea listener nuevo)
 
-// ===== INICIO =====
-(async function init() {
-  if (!vacaId) {
-    mostrarError('URL inválida. Falta el identificador de la vaca.');
-    return;
+// v1.29: pinta el header (#cardTop) a partir de vacaData. Se llama una
+// vez al cargar y de nuevo cada vez que el listener de la vaca reciba
+// un cambio (ej: cambia cuota_fija, totalRecaudado, o el admin edita
+// nombre/descripcion/urlProducto). Es exactamente el mismo bloque que
+// antes vivía inline en init(), solo que ahora es reutilizable.
+function renderHeaderVaca() {
+  document.getElementById('vacaNombre').textContent = vacaData.nombre || '—';
+  const imgEl = document.getElementById('vacaImagen');
+  if (vacaData.imagenUrl) {
+    imgEl.src = cloudinaryHeaderThumb(vacaData.imagenUrl);
+    imgEl.style.display = '';
+    imgEl.onclick = () => abrirLightbox(vacaData.imagenUrl);
+    imgEl.style.cursor = 'pointer';
+    // v1.41: filtro opcional elegido por el admin (vacas.html v1.38).
+    // Se limpia primero por si el listener repinta con un valor distinto.
+    imgEl.classList.remove('vaca-imagen-sutil', 'vaca-imagen-sepia', 'vaca-imagen-bn-retro');
+    if (vacaData.imagenFiltro === 'sutil') imgEl.classList.add('vaca-imagen-sutil');
+    else if (vacaData.imagenFiltro === 'sepia') imgEl.classList.add('vaca-imagen-sepia');
+    else if (vacaData.imagenFiltro === 'bn-retro') imgEl.classList.add('vaca-imagen-bn-retro');
+  } else {
+    imgEl.style.display = 'none';
+  }
+  const descEl = document.getElementById('vacaDesc');
+  if (vacaData.descripcion) {
+    descEl.textContent = vacaData.descripcion;
+    descEl.style.display = '';
+  } else {
+    descEl.style.display = 'none';
   }
 
-  try {
-    const snap = await db.collection('vacas').doc(vacaId).get();
+  // v1.28: botón "🔗 Ver producto" — solo visible si el admin configuró
+  // urlProducto en vacas.html. No afecta meta_total ni cuota_fija.
+  const linkProductoEl = document.getElementById('linkProducto');
+  if (vacaData.urlProducto) {
+    linkProductoEl.href = vacaData.urlProducto;
+    linkProductoEl.style.display = '';
+  } else {
+    linkProductoEl.style.display = 'none';
+  }
+
+  document.getElementById('cuotaPill').textContent = '💳 Cuota vigente: ' + formatCOP(vacaData.cuota_fija || 0);
+
+  // v1.18: barra de progreso consolidada — antes había dos (una chica
+  // en el header, otra grande solo dentro del portal, mostrando lo
+  // mismo). Se deja una sola, en el header (visible en registro y
+  // portal), con el monto grande + etiquetas Recaudado/Meta + badge
+  // de meta alcanzada. Usa los mismos campos denormalizados de siempre
+  // (meta_total, totalRecaudado, numParticipantes), sin lecturas nuevas.
+  const metaTotal = vacaData.meta_total || 0;
+  const recaudado = vacaData.totalRecaudado || 0;
+  if (metaTotal > 0) {
+    const pct = Math.min(100, Math.round((recaudado / metaTotal) * 100));
+    const n = vacaData.numParticipantes || 0;
+    document.getElementById('portalRecaudado').textContent = formatCOP(recaudado);
+    document.getElementById('portalMeta').textContent = formatCOP(metaTotal); // v1.55: sin prefijo "Meta: ", la etiqueta ahora vive en el HTML (.progreso-col-label)
+    document.getElementById('portalFill').style.width = pct + '%';
+    document.getElementById('portalSub').textContent =
+      `${n} participante${n !== 1 ? 's' : ''} en la vaca`;
+    document.getElementById('progresoWrap').style.display = '';
+    document.getElementById('badgeMetaLograda').style.display = (recaudado >= metaTotal) ? '' : 'none';
+  }
+
+  document.getElementById('cardTop').style.display = '';
+
+  // v1.29: si el portal personal ya está abierto y cambia cuota_fija
+  // (ej. se suma un participante nuevo), el portal debe re-pintarse con
+  // la cuota nueva. renderPortal() usa vacaData.cuota_fija, así que si
+  // ya tenemos datos del participante en caché, se vuelve a pintar.
+  if (partId && participanteActualData) {
+    renderPortal(participanteActualData);
+  }
+}
+
+// ===== INICIO =====
+// v1.29: antes esta función hacía un solo .get() puntual — ahora usa
+// onSnapshot() para que el header (cuota, progreso, etc.) se actualice
+// solo en vivo, sin recargar la página. No se agregó ninguna lectura
+// nueva a otras colecciones; sigue siendo un único doc escuchado.
+if (!vacaId) {
+  mostrarError('URL inválida. Falta el identificador de la vaca.');
+} else {
+  db.collection('vacas').doc(vacaId).onSnapshot(snap => {
     if (!snap.exists) {
       mostrarError('Esta vaca no existe o el link es incorrecto.');
       return;
     }
     vacaData = snap.data();
+    renderHeaderVaca();
 
-    // Mostrar header
-    document.getElementById('vacaNombre').textContent = vacaData.nombre || '—';
-    const descEl = document.getElementById('vacaDesc');
-    if (vacaData.descripcion) {
-      descEl.textContent = vacaData.descripcion;
-    } else {
-      descEl.style.display = 'none';
+    // Decidir vista — v1.29: solo la PRIMERA vez que llega el snapshot.
+    // Si se decide en cada actualización, a alguien llenando el
+    // formulario de registro se le podría "saltar" la vista si la vaca
+    // cambia de estado mientras escribe. El portal personal (partId) se
+    // sigue actualizando solo vía renderHeaderVaca()/renderPortal() de
+    // arriba, sin necesidad de re-decidir la vista.
+    if (!vistaDecidida) {
+      vistaDecidida = true;
+      // v1.5: si la vaca está cerrada y no viene &p= (o sea, alguien
+      // nuevo abriendo el link de invitación), se bloquea el registro.
+      // El portal personal (partId presente) NO se bloquea — quien ya
+      // es participante sigue viendo su saldo aunque la vaca cierre.
+      if (partId) {
+        cargarPortal();
+      } else if (vacaData.estado === 'cerrada') {
+        mostrarError('Esta vaca ya cerró. No se aceptan más confirmaciones de participación.');
+      } else {
+        mostrarVista('vistaBienvenida');
+      }
     }
-    document.getElementById('cuotaPill').textContent = '💳 Cuota vigente: ' + formatCOP(vacaData.cuota_fija || 0);
-    document.getElementById('cardTop').style.display = '';
-
-    // Decidir vista
-    // v1.5: si la vaca está cerrada y no viene &p= (o sea, alguien nuevo
-    // abriendo el link de invitación), se bloquea el registro. El portal
-    // personal (partId presente) NO se bloquea — quien ya está adentro
-    // sigue pudiendo consultar su saldo aunque la vaca haya cerrado.
-    if (partId) {
-      await cargarPortal();
-    } else if (vacaData.estado === 'cerrada') {
-      mostrarError('Esta vaca ya cerró. No se aceptan más confirmaciones de participación.');
-    } else {
-      mostrarVista('vistaBienvenida');
-    }
-
-  } catch (err) {
+  }, err => {
     mostrarError('Error al cargar: ' + err.message);
-  }
-})();
+  });
+}
 
 // ===== BIENVENIDA / CONFIRMAR ANTES DE REGISTRAR (v1.7) =====
 function pedirConfirmacionUnirse() {
@@ -864,7 +2044,165 @@ function cerrarModalConfirmarUnirse() {
 
 function confirmarUnirse() {
   cerrarModalConfirmarUnirse();
+  regAvatarSeleccionado = null; // v1.58
+  cargarCatalogoAvatares('regAvatarGrid', null);
   mostrarVista('vistaRegistro');
+}
+
+// ===== AVATAR (v1.58) =====
+// Carga bajo demanda (no tiempo real) del catálogo avataresIconos,
+// filtrado a tipo='avatar' y activo==true — mismo criterio y misma
+// función replicada en vacas.html v1.43. gridId identifica en cuál de
+// los 2 selectores pintar (registro o editar mis datos), y seleccionActual
+// permite dejar pre-marcado el avatar ya guardado al editar.
+function cargarCatalogoAvatares(gridId, seleccionActual) {
+  const cont = document.getElementById(gridId);
+  cont.innerHTML = '<div style="color:var(--text2);font-size:13px">Cargando catálogo…</div>';
+  db.collection('avataresIconos')
+    .where('tipo', 'array-contains', 'avatar') // v1.61: tipo ahora es arreglo en avataresIconos
+    .where('activo', '==', true)
+    .get()
+    .then(snap => {
+      if (snap.empty) {
+        cont.innerHTML = '<div style="color:var(--text2);font-size:13px">No hay avatares disponibles.</div>';
+        return;
+      }
+      const seleccionar = gridId === 'regAvatarGrid' ? 'seleccionarAvatarRegistro' : 'seleccionarAvatarEdicion';
+      let html = `<div class="avatar-opt-${gridId}" data-url="" onclick="${seleccionar}(null, this)" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:2px solid ${seleccionActual ? 'transparent' : 'var(--accent)'}" title="Sin avatar">🚫</div>`;
+      snap.forEach(doc => {
+        const d = doc.data();
+        if (!d.urlCloudinary) return;
+        const activo = seleccionActual === d.urlCloudinary;
+        // v1.59: miniatura vía transformación de Cloudinary (w_150,h_150,
+        // c_fill,f_auto,q_auto) — mismo patrón que urlMiniatura() en
+        // avatares-iconos.html. avatarUrl guardado sigue siendo la URL
+        // original (d.urlCloudinary), solo el <img src> es liviano.
+        const miniatura = d.urlCloudinary.replace('/upload/', '/upload/w_150,h_150,c_fill,f_auto,q_auto/');
+        html += `<img class="avatar-opt-${gridId}" src="${escapeHtml(miniatura)}" data-url="${escapeHtml(d.urlCloudinary)}" onclick="${seleccionar}('${escapeHtml(d.urlCloudinary)}', this)" loading="lazy" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid ${activo ? 'var(--accent)' : 'transparent'}" title="${escapeHtml(d.nombre || '')}" />`;
+      });
+      cont.innerHTML = html;
+    })
+    .catch(err => {
+      cont.innerHTML = `<div style="color:var(--text2);font-size:13px">No se pudo cargar el catálogo: ${escapeHtml(err.message)}</div>`;
+    });
+}
+
+let regAvatarSeleccionado = null;
+function seleccionarAvatarRegistro(url, el) {
+  regAvatarSeleccionado = url;
+  document.querySelectorAll('.avatar-opt-regAvatarGrid').forEach(n => n.style.borderColor = 'transparent');
+  el.style.borderColor = 'var(--accent)';
+}
+
+let editAvatarSeleccionado = null;
+function seleccionarAvatarEdicion(url, el) {
+  editAvatarSeleccionado = url;
+  document.querySelectorAll('.avatar-opt-editAvatarGrid').forEach(n => n.style.borderColor = 'transparent');
+  el.style.borderColor = 'var(--accent)';
+}
+
+// ===== EDITAR MIS DATOS (v1.17) =====
+// El participante puede corregir su propio nombre/contacto/país desde su
+// portal, por conveniencia (ej. si se equivocó al registrarse o cambió
+// de número). Update() directo y puntual sobre esos 3 campos — nunca
+// toca totalAbonado, abonos ni ningún otro campo del doc.
+function abrirModalEditarDatos() {
+  if (!participanteActualData) return;
+  document.getElementById('editNombre').value = participanteActualData.nombre || '';
+  document.getElementById('editContacto').value = participanteActualData.contacto || '';
+  const paisGuardado = participanteActualData.paisCodigo || '57';
+  const selectPais = document.getElementById('editPais');
+  const existeOpcion = Array.from(selectPais.options).some(o => o.value === paisGuardado);
+  selectPais.value = existeOpcion ? paisGuardado : 'otro';
+  document.getElementById('editPaisOtro').style.display = existeOpcion ? 'none' : '';
+  if (!existeOpcion) document.getElementById('editPaisOtro').value = paisGuardado;
+
+  // v1.26: si el participante ya tiene un abono registrado, el nombre se
+  // bloquea (mismo criterio que la Rule de Firestore v2.19 — si se edita
+  // aquí sin bloquear el input, Firestore rechazaría igual el update, pero
+  // sin este bloqueo visual el usuario vería un error genérico confuso en
+  // vez de entender por qué). Contacto y país siguen editables siempre.
+  const tieneAbonos = (participanteActualData.totalAbonado || 0) > 0;
+  const inputNombre = document.getElementById('editNombre');
+  inputNombre.disabled = tieneAbonos;
+  document.getElementById('editNombreAviso').style.display = tieneAbonos ? '' : 'none';
+
+  editAvatarSeleccionado = participanteActualData.avatarUrl || null; // v1.58
+  cargarCatalogoAvatares('editAvatarGrid', editAvatarSeleccionado);
+
+  document.getElementById('modalEditarDatos').classList.add('show');
+}
+
+function cerrarModalEditarDatos() {
+  document.getElementById('modalEditarDatos').classList.remove('show');
+}
+
+async function guardarEdicionDatos() {
+  const inputNombre = document.getElementById('editNombre');
+  const nombreBloqueado = inputNombre.disabled;
+  const nombre = inputNombre.value.trim();
+  const contacto = document.getElementById('editContacto').value.trim();
+  const paisSel = document.getElementById('editPais').value;
+  const paisCodigo = paisSel === 'otro'
+    ? document.getElementById('editPaisOtro').value.trim().replace(/\D/g, '')
+    : paisSel;
+
+  if (!nombreBloqueado && !nombre) { mostrarToast('⚠️ Ingresa tu nombre'); return; }
+  if (!contacto) { mostrarToast('⚠️ Ingresa tu contacto'); return; }
+  if (paisSel === 'otro' && !paisCodigo) { mostrarToast('⚠️ Ingresa el código de país'); return; }
+
+  const btn = document.getElementById('btnGuardarEdicionDatos');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  // v1.26: si el nombre está bloqueado (ya tiene abonos), se omite del
+  // payload — la Rule v2.19 solo acepta ['contacto','paisCodigo'] o
+  // ['nombre','contacto','paisCodigo'] exactos; mandar 'nombre' sin
+  // cambios igual dispararía esa segunda rama y la Rule la rechazaría
+  // porque totalAbonado ya no es 0. Así evitamos el error innecesario.
+  const payload = nombreBloqueado
+    ? { contacto, paisCodigo, avatarUrl: editAvatarSeleccionado || null } // v1.58
+    : { nombre, contacto, paisCodigo, avatarUrl: editAvatarSeleccionado || null }; // v1.58
+
+  try {
+    await db.collection('vacas').doc(vacaId)
+      .collection('participantes').doc(partId)
+      .update(payload);
+
+    // v1.58: este modal no tocaba antes el espejo integrantes — se agrega
+    // SOLO para reflejar el avatar ahí (nombre/tipo/aporto de integrantes
+    // no cambian en esta función, siguen su propio flujo en otras partes).
+    // v1.60 FIX: se agregan nombre/tipo/aporto al mismo set() — participantes
+    // registrados antes de v1.42/v2.22 nunca tuvieron este doc espejo, así
+    // que Firestore trataba este set() como create() (no update()), y la
+    // regla de create() exige nombre/tipo tipo string, que faltaban en el
+    // payload de solo avatarUrl → rechazado. Con merge:true, si el doc ya
+    // existe esto no cambia nada real (mismos valores); si no existía, ahora
+    // cumple el esquema completo y se crea sin error.
+    await db.collection('vacas').doc(vacaId)
+      .collection('integrantes').doc(partId)
+      .set({
+        nombre: participanteActualData.nombre || '',
+        tipo: participanteActualData.tipo === 'libre' ? 'libre' : 'fijo',
+        aporto: (participanteActualData.totalAbonado || 0) > 0,
+        avatarUrl: editAvatarSeleccionado || null
+      }, { merge: true });
+
+    if (!nombreBloqueado) participanteActualData.nombre = nombre;
+    participanteActualData.contacto = contacto;
+    participanteActualData.paisCodigo = paisCodigo;
+    participanteActualData.avatarUrl = editAvatarSeleccionado || null;
+    document.getElementById('portalNombreLabelTexto').textContent = 'Mi saldo — ' + participanteActualData.nombre;
+
+    cerrarModalEditarDatos();
+    mostrarToast('✅ Datos actualizados');
+  } catch (err) {
+    mostrarToast('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
 }
 
 // ===== REGISTRO =====
@@ -875,6 +2213,9 @@ async function registrarse() {
   const paisCodigo = paisSel === 'otro'
     ? document.getElementById('regPaisOtro').value.trim().replace(/\D/g, '')
     : paisSel;
+  // v1.21: 'fijo' entra al reparto de cuota_fija (flujo de siempre);
+  // 'libre' solo aporta lo que pueda, sin afectar la cuota de nadie.
+  const tipo = document.getElementById('regTipo').value === 'libre' ? 'libre' : 'fijo';
 
   if (!nombre)   { mostrarToast('⚠️ Ingresa tu nombre'); return; }
   if (!contacto) { mostrarToast('⚠️ Ingresa tu contacto Nequi'); return; }
@@ -930,28 +2271,49 @@ async function registrarse() {
 
       const partRef = vacaRef.collection('participantes').doc();
       nuevoPartId = partRef.id;
+      // v1.57: doc liviano espejo en integrantes, mismo id que el
+      // participante — mismo patrón que crearParticipante() en
+      // vacas.html v1.42.
+      const integranteRef = vacaRef.collection('integrantes').doc(partRef.id);
 
-      const nuevoNum = (freshData.numParticipantes || 0) + 1;
-      const meta = freshData.meta_total || 0;
-      const cuotaRecalc = nuevoNum > 0 ? meta / nuevoNum : meta;
-
-      tx.set(partRef, {
+      // v1.21: 'libre' no entra al reparto — no incrementa numParticipantes
+      // ni recalcula cuota_fija de los demás (ese campo vive en el doc
+      // de la vaca, es global). cargarPortal() decide qué mostrar según
+      // p.tipo, sin necesidad de un cuota_fija por participante.
+      const partData = {
         nombre,
         contacto,
         paisCodigo,
+        tipo,
+        avatarUrl: regAvatarSeleccionado || null, // v1.58
         fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
         totalAbonado: 0,
         linkToken: token
-      });
-      tx.update(vacaRef, {
-        numParticipantes: nuevoNum,
-        cuota_fija: cuotaRecalc
-      });
+      };
+
+      if (tipo === 'libre') {
+        tx.set(partRef, partData);
+        tx.set(integranteRef, { nombre, tipo, aporto: false, avatarUrl: partData.avatarUrl }); // v1.57 / v1.58
+      } else {
+        const nuevoNum = (freshData.numParticipantes || 0) + 1;
+        const meta = freshData.meta_total || 0;
+        const cuotaRecalc = Math.round(nuevoNum > 0 ? meta / nuevoNum : meta); // v1.50: redondeo al peso más cercano
+
+        tx.set(partRef, partData);
+        tx.set(integranteRef, { nombre, tipo, aporto: false, avatarUrl: partData.avatarUrl }); // v1.57 / v1.58
+        tx.update(vacaRef, {
+          numParticipantes: nuevoNum,
+          cuota_fija: cuotaRecalc,
+          // v1.27 / rules v2.20: rastro de por qué cambió la cuota —
+          // visible en el panel admin (vacas.html) junto a "Cuota vigente".
+          motivoCuota: `Nuevo participante: ${nombre}`
+        });
+      }
     });
 
     // Generar link personal
     const base = window.location.origin + window.location.pathname;
-    linkGeneradoUrl = `${base}?id=${vacaId}&p=${nuevoPartId}`;
+    linkGeneradoUrl = `${base}?id=${vacaId}&p=${nuevoPartId}&t=${token}`; // v1.62: &t= para validación de linkToken
     document.getElementById('linkGenerado').textContent = linkGeneradoUrl;
     mostrarVista('vistaLinkGenerado');
 
@@ -976,101 +2338,149 @@ function irAMiPortal() {
 }
 
 // ===== PORTAL PERSONAL =====
-async function cargarPortal() {
-  mostrarVista('vistaPortal');
+// v1.29: renderPortal(p) — mismo cuerpo que antes vivía inline en
+// cargarPortal(), extraído a función para poder repintarse cada vez que
+// llegue un snapshot nuevo del doc del participante (o cuando cambie
+// vacaData.cuota_fija, vía renderHeaderVaca()).
+function renderPortal(p) {
+  const tipo     = p.tipo === 'libre' ? 'libre' : 'fijo';
+  const cuota    = vacaData.cuota_fija || 0;
+  const abonado  = p.totalAbonado || 0;
+  const pendiente = Math.max(0, cuota - abonado);
+  const excedente = Math.max(0, abonado - cuota);
+  const pct      = cuota > 0 ? Math.min(100, Math.round(abonado / cuota * 100)) : 0;
 
-  try {
-    // Cargar datos del participante
-    const partSnap = await db.collection('vacas').doc(vacaId)
-      .collection('participantes').doc(partId).get();
-
-    if (!partSnap.exists) {
-      mostrarError('Participante no encontrado. Verifica tu link.');
-      return;
-    }
-
-    const p = partSnap.data();
-    const cuota    = vacaData.cuota_fija || 0;
-    const abonado  = p.totalAbonado || 0;
-    const pendiente = Math.max(0, cuota - abonado);
-    const excedente = Math.max(0, abonado - cuota);
-    const pct      = cuota > 0 ? Math.min(100, Math.round(abonado / cuota * 100)) : 0;
-
-    // Label personalizado
-    document.getElementById('portalNombreLabel').textContent = 'Mi saldo — ' + (p.nombre || '');
-
-    // Chip de estado
-    const chipEl = document.getElementById('portalEstadoChip');
-    if (excedente > 0) {
-      chipEl.innerHTML = `<span class="estado-chip chip-pagado">✓ Completa · ${formatCOP(excedente)} a favor</span>`;
-    } else if (abonado >= cuota && cuota > 0) {
-      chipEl.innerHTML = `<span class="estado-chip chip-pagado">✓ Cuota completa</span>`;
-    } else if (abonado > 0) {
-      chipEl.innerHTML = `<span class="estado-chip chip-parcial">⏳ ${pct}% abonado</span>`;
-    } else {
-      chipEl.innerHTML = `<span class="estado-chip chip-pendiente">⚠️ Sin abonos aún</span>`;
-    }
-
-    // v1.3: si hay excedente (la cuota bajó tras un abono, porque se
-    // sumaron más participantes — ver registrarse()), la caja que antes
-    // decía "Pendiente" pasa a mostrar "A favor" en verde, con el monto
-    // que le sobra. No se ajusta nada retroactivo, es solo informativo.
-    const pendBox   = document.getElementById('portalPendienteBox');
-    const pendLabel = document.getElementById('portalPendienteLabel');
-    if (excedente > 0) {
-      pendBox.classList.remove('pendiente');
-      pendBox.classList.add('abonado');
-      pendLabel.textContent = 'A favor';
-      document.getElementById('portalPendiente').textContent = formatCOP(excedente);
-    } else {
-      pendBox.classList.remove('abonado');
-      pendBox.classList.add('pendiente');
-      pendLabel.textContent = 'Pendiente';
-      document.getElementById('portalPendiente').textContent = formatCOP(pendiente);
-    }
-
-    document.getElementById('portalAbonado').textContent  = formatCOP(abonado);
-
-    // Progreso global (anónimo)
-    await cargarProgresoGlobal();
-
-    // Abonos propios
-    await cargarAbonos();
-
-  } catch (err) {
-    mostrarError('Error al cargar tu portal: ' + err.message);
+  // Label personalizado
+  document.getElementById('portalNombreLabelTexto').textContent = 'Mi saldo — ' + (p.nombre || '');
+  // v1.64: avatar destacado — reutiliza p.avatarUrl (mismo dato que ya
+  // llega en cada snapshot del participante, sin lecturas nuevas a
+  // Firestore) y la misma transformación liviana de Cloudinary que usan
+  // cargarIntegrantes()/la tabla de vacas.html.
+  const avatarWrap = document.getElementById('portalAvatarWrap');
+  const avatarImg = document.getElementById('portalAvatarImg');
+  const avatarFallback = document.getElementById('portalAvatarFallback');
+  avatarWrap.style.display = '';
+  if (p.avatarUrl) {
+    avatarImg.src = p.avatarUrl.replace('/upload/', '/upload/w_300,h_300,c_fill,f_auto,q_auto/'); // v1.66: resolución subida acorde al tamaño más grande del avatar
+    avatarImg.style.display = 'inline-block';
+    avatarFallback.style.display = 'none';
+  } else {
+    avatarImg.style.display = 'none';
+    avatarFallback.style.display = 'inline-flex';
   }
+  // v1.17: se guarda copia local de nombre/contacto/paisCodigo para
+  // precargar el modal de edición sin volver a pedirlos a Firestore.
+  participanteActualData = p;
+
+  const chipEl    = document.getElementById('portalEstadoChip');
+  const pendBox   = document.getElementById('portalPendienteBox');
+  const progWrap  = document.querySelector('.progreso-personal');
+
+  // v1.21: colaborador 'libre' no tiene cuota_fija ni pendiente — no
+  // aplica el reparto (ver registrarse()). Se oculta la caja de
+  // pendiente, la barra de progreso personal (mide contra cuota) y la
+  // sección de pago directo (no hay "saldo" que pagar, solo aportes
+  // voluntarios que el admin registra igual que siempre).
+  if (tipo === 'libre') {
+    pendBox.style.display = 'none';
+    if (progWrap) progWrap.style.display = 'none';
+    chipEl.innerHTML = abonado > 0
+      ? `<span class="estado-chip chip-pagado">🐠 Aporte libre · gracias por tu apoyo</span>`
+      : `<span class="estado-chip chip-pendiente">🐠 Aporte libre · aún sin abonos</span>`;
+    document.getElementById('portalAbonado').textContent = formatCOP(abonado);
+    renderPagoSeccion(0);
+    return;
+  }
+  pendBox.style.display = '';
+  if (progWrap) progWrap.style.display = '';
+
+  // v1.25: fix — la barra de progreso personal (abonado vs. cuota_fija)
+  // se agregó en v1.20 pero nunca se llegó a llenar (quedó el HTML/CSS
+  // sin el JS correspondiente, siempre en 0%). pct ya viene calculado
+  // arriba con el mismo Math.min(100, ...) que usa el chip de estado.
+  const progFill  = document.getElementById('personalProgresoFill');
+  const progTexto = document.getElementById('personalProgresoTexto');
+  if (progFill)  progFill.style.width = pct + '%';
+  if (progTexto) progTexto.textContent = cuota > 0
+    ? `${formatCOP(abonado)} de ${formatCOP(cuota)} (${pct}%)`
+    : 'Cuota aún no definida';
+
+  // Chip de estado
+  if (excedente > 0) {
+    chipEl.innerHTML = `<span class="estado-chip chip-pagado">✓ Completa · ${formatCOP(excedente)} a favor</span>`;
+  } else if (abonado >= cuota && cuota > 0) {
+    chipEl.innerHTML = `<span class="estado-chip chip-pagado">✓ Cuota completa</span>`;
+  } else if (abonado > 0) {
+    chipEl.innerHTML = `<span class="estado-chip chip-parcial">⏳ ${pct}% abonado</span>`;
+  } else {
+    chipEl.innerHTML = `<span class="estado-chip chip-pendiente">⚠️ Sin abonos aún</span>`;
+  }
+
+  // v1.3: si hay excedente (la cuota bajó tras un abono, porque se
+  // sumaron más participantes — ver registrarse()), la caja que antes
+  // decía "Pendiente" pasa a mostrar "A favor" en verde, con el monto
+  // que le sobra. No se ajusta nada retroactivo, es solo informativo.
+  const pendLabel = document.getElementById('portalPendienteLabel');
+  if (excedente > 0) {
+    pendBox.classList.remove('pendiente');
+    pendBox.classList.add('abonado');
+    pendLabel.textContent = 'A favor';
+    document.getElementById('portalPendiente').textContent = formatCOP(excedente);
+  } else {
+    pendBox.classList.remove('abonado');
+    pendBox.classList.add('pendiente');
+    pendLabel.textContent = 'Pendiente';
+    document.getElementById('portalPendiente').textContent = formatCOP(pendiente);
+  }
+
+  document.getElementById('portalAbonado').textContent  = formatCOP(abonado);
+
+  // v1.21: sección de pago directo (Nequi/Daviplata), si el admin
+  // configuró cuentaPago en vacas.html y todavía hay saldo pendiente.
+  renderPagoSeccion(pendiente);
 }
 
-async function cargarProgresoGlobal() {
-  try {
-    // v1.2: antes hacía `list` sobre participantes para sumar totalAbonado
-    // de cada uno — eso está bloqueado sin login (a propósito, para no
-    // exponer nombres/contactos de terceros vía enumeración) y por eso
-    // el progreso global se quedaba en $0. Ahora usa los campos
-    // denormalizados del propio doc de la vaca (totalRecaudado,
-    // numParticipantes — actualizados por vacas.html en cada abono/
-    // registro), leídos con un simple get() permitido sin login. Ya no
-    // se puede mostrar "X de N al día" (requeriría leer el detalle por
-    // persona), solo el total recaudado vs la meta.
-    // v1.3: meta ya no es cuota*n (modelo viejo) — ahora meta_total es
-    // el campo fijo real que el admin definió, cuota_fija es la que se
-    // recalcula. Se usa vacaData.meta_total directamente.
-    const totalRecaudado = vacaData.totalRecaudado || 0;
-    const n = vacaData.numParticipantes || 0;
-    const meta = vacaData.meta_total || 0;
-    const pctGlobal = meta > 0 ? Math.min(100, Math.round(totalRecaudado / meta * 100)) : 0;
+// v1.29: cargarPortal() ahora abre DOS listeners en vivo (antes eran
+// dos .get() puntuales, había que recargar para ver cambios):
+//   1) onSnapshot sobre el doc del participante → renderPortal(p) cada
+//      vez que cambie totalAbonado, nombre, contacto, etc.
+//   2) cargarAbonos() (ver abajo) → su propio onSnapshot sobre la
+//      subcolección de abonos.
+// Cada listener escucha UN documento o UNA subcolección puntual de UN
+// participante — no una colección abierta — así que el costo en lecturas
+// solo crece con cambios reales sobre ESE participante, no con tráfico.
+function cargarPortal() {
+  mostrarVista('vistaPortal');
+  setTimeout(() => iniciarTutorial(), 800); // v1.52: tutorial automático primera vez
 
-    document.getElementById('portalRecaudado').textContent = formatCOP(totalRecaudado);
-    document.getElementById('portalMeta').textContent = `de ${formatCOP(meta)} · meta total`;
-    document.getElementById('portalFill').style.width = pctGlobal + '%';
-    document.getElementById('portalSub').textContent =
-      `${n} participante${n !== 1 ? 's' : ''} en la vaca`;
+  let tokenValidado = false; // v1.62: evita disparar los listeners de abajo más de una vez
 
-  } catch (_) {
-    // Si falla el progreso global, no bloquea el resto
-    document.getElementById('portalSub').textContent = '';
-  }
+  db.collection('vacas').doc(vacaId)
+    .collection('participantes').doc(partId)
+    .onSnapshot(partSnap => {
+      if (!partSnap.exists) {
+        mostrarError('Participante no encontrado. Verifica tu link.');
+        return;
+      }
+      // v1.62: validación real de linkToken — antes el campo se guardaba
+      // pero nunca se comparaba contra nada. Si falta &t= en la URL o no
+      // coincide con el linkToken guardado, se corta acá: no se pinta el
+      // portal ni se activan los demás listeners de esta función
+      // (abonos/actividad/integrantes).
+      if (!tokenUrl || partSnap.data().linkToken !== tokenUrl) {
+        mostrarError('Link inválido o incompleto. Pide que te reenvíen tu link personal desde el panel.');
+        return;
+      }
+      renderPortal(partSnap.data());
+      if (!tokenValidado) {
+        tokenValidado = true;
+        cargarAbonos();
+        cargarActividad(); // v1.56: listener aparte, feed público de todos los participantes
+        cargarIntegrantes(); // v1.57: listener aparte, lista pública de integrantes
+      }
+    }, err => {
+      mostrarError('Error al cargar tu portal: ' + err.message);
+    });
 }
 
 // v1.11: miniatura + lightbox de comprobantes, mismo tratamiento que
@@ -1085,6 +2495,25 @@ function cloudinaryThumb(url, size) {
   return url.slice(0, inicio) + `w_${size},h_${size},c_fill,q_auto,f_auto/` + url.slice(inicio);
 }
 
+// v1.41: recorte para la imagen de cabecera de la vaca (#vacaImagen).
+// Antes usaba cloudinaryThumb(url, 500) — un cuadrado 500×500 — que
+// luego el CSS reescalaba a un rectángulo ancho de 160px de alto,
+// recortando distinto según la proporción original de cada foto. Acá
+// se le pide a Cloudinary directamente el rectángulo real que se
+// muestra (960×320, proporción 3:1, @2x para pantallas retina) con
+// gravity:auto (recorte inteligente al punto de interés de la foto),
+// así el resultado es consistente sin importar la foto que suba el
+// admin. No se tocó cloudinaryThumb() — comprobantes y demás
+// miniaturas siguen exactamente igual.
+function cloudinaryHeaderThumb(url) {
+  if (!url) return url;
+  const marcador = '/upload/';
+  const i = url.indexOf(marcador);
+  if (i === -1) return url;
+  const inicio = i + marcador.length;
+  return url.slice(0, inicio) + `w_960,h_320,c_fill,g_auto,q_auto,f_auto/` + url.slice(inicio);
+}
+
 function abrirLightbox(url) {
   if (!url) return;
   document.getElementById('lightboxImg').src = url;
@@ -1096,42 +2525,310 @@ function cerrarLightbox() {
   document.getElementById('lightboxImg').src = '';
 }
 
-async function cargarAbonos() {
-  const cont = document.getElementById('portalAbonos');
-  try {
-    const snap = await db.collection('vacas').doc(vacaId)
-      .collection('participantes').doc(partId)
-      .collection('abonos')
-      .orderBy('creadoEn', 'desc')
-      .get();
+// v1.21: arma la sección "Pagar mi saldo" con los métodos que el admin
+// haya configurado en cuentaPago (vacas.html v1.23+). Sin QR — solo
+// número + botón de copiar (ver comentario de cabecera para el porqué).
+// No hace ninguna llamada nueva a Firestore: vacaData ya viene cargado
+// desde cargarVaca().
+// v1.32: cuentaPago ahora puede ser un ARREGLO de hasta 4 métodos
+// personalizables {label,numero,logo,activo} (vacas.html v1.31). Se
+// mantiene compatibilidad con el formato viejo {nequi,daviplata,...}
+// de vacas.html v1.23-v1.30, por si alguna vaca no se ha vuelto a
+// editar desde el admin.
+const LOGO_NEQUI_DEFAULT     = 'https://res.cloudinary.com/dv7lelmoy/image/upload/v1786053718/vectorseek.com-Nequi-Logo-Vector_k3v7ek.png';
+const LOGO_DAVIPLATA_DEFAULT = 'https://res.cloudinary.com/dv7lelmoy/image/upload/v1786053932/Daviplata-Logo-PNG-SVG-Vector-01_lkilay.png';
 
-    if (snap.empty) {
-      cont.innerHTML = `<div class="empty-abonos">Sin abonos registrados aún.</div>`;
-      return;
-    }
-
-    let html = '<div class="abono-lista">';
-    snap.forEach(doc => {
-      const a = doc.data();
-      const fechaStr = a.fecha
-        ? new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' })
-        : '—';
-      html += `
-        <div class="abono-item">
-          ${a.comprobanteUrl ? `<img class="comprobante-thumb" src="${cloudinaryThumb(a.comprobanteUrl, 100)}" alt="Comprobante" onclick="abrirLightbox('${a.comprobanteUrl.replace(/'/g, '&#39;')}')" />` : ''}
-          <div class="abono-left">
-            <span class="abono-fecha">${fechaStr}</span>
-            ${a.nota ? `<span class="abono-nota">${escapeHtml(a.nota)}</span>` : ''}
-          </div>
-          <span class="abono-monto">+${formatCOP(a.monto)}</span>
-        </div>`;
-    });
-    html += '</div>';
-    cont.innerHTML = html;
-
-  } catch (err) {
-    cont.innerHTML = `<div class="empty-abonos">Error al cargar abonos.</div>`;
+function normalizarMetodosPago(cuentaPago) {
+  if (!cuentaPago) return [];
+  if (Array.isArray(cuentaPago)) {
+    return cuentaPago
+      .filter(m => m && m.numero && m.activo !== false)
+      .map(m => ({ label: m.label || 'Pago', numero: m.numero, titular: m.titular || null, logo: m.logo || null }));
   }
+  // Formato viejo (vacas.html v1.23-v1.30)
+  const out = [];
+  if (cuentaPago.nequi) out.push({ label: 'Nequi', numero: cuentaPago.nequi, logo: cuentaPago.nequiLogo || LOGO_NEQUI_DEFAULT });
+  if (cuentaPago.daviplata) out.push({ label: 'Daviplata', numero: cuentaPago.daviplata, logo: cuentaPago.daviplataLogo || LOGO_DAVIPLATA_DEFAULT });
+  return out;
+}
+
+function renderPagoSeccion(pendiente) {
+  const tituloEl = document.getElementById('pagoTitulo');
+  const contEl   = document.getElementById('pagoMetodos');
+
+  const metodos = normalizarMetodosPago(vacaData && vacaData.cuentaPago);
+
+  if (pendiente <= 0 || metodos.length === 0) {
+    tituloEl.style.display = 'none';
+    contEl.innerHTML = '';
+    return;
+  }
+
+  tituloEl.style.display = '';
+  contEl.innerHTML = metodos.map(m => `
+    <div class="pago-metodo">
+      ${m.logo
+        ? `<img class="pago-metodo-logo" src="${escapeHtml(m.logo)}" alt="${escapeHtml(m.label)}" loading="lazy">`
+        : `<div class="pago-metodo-logo pago-metodo-logo-generico">${escapeHtml((m.label || '?').charAt(0).toUpperCase())}</div>`}
+      <div class="pago-metodo-info">
+        <strong>${escapeHtml(m.label)}</strong>
+        <div class="pago-metodo-sub">Pendiente: ${formatCOP(pendiente)}</div>
+        <div class="pago-metodo-numero-row">
+          <div class="pago-metodo-numero">${escapeHtml(m.numero)}</div>
+          <button class="btn-copiar-icono" type="button" aria-label="Copiar número" title="Copiar número" onclick="copiarNumeroPago('${m.numero.replace(/'/g, "\\'")}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+        ${m.titular ? `<div class="pago-metodo-titular">${escapeHtml(m.titular)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function copiarNumeroPago(numero) {
+  navigator.clipboard.writeText(numero)
+    .then(() => mostrarToast('🔗 Número copiado — pégalo en tu app'))
+    .catch(() => mostrarToast('No se pudo copiar, cópialo manualmente'));
+}
+
+// v1.29: onSnapshot sobre la subcolección de abonos de ESTE participante
+// (no una colección abierta) — se repinta sola si el admin agrega,
+// edita o borra un abono, sin que el usuario tenga que recargar.
+function cargarAbonos() {
+  const cont = document.getElementById('portalAbonos');
+  db.collection('vacas').doc(vacaId)
+    .collection('participantes').doc(partId)
+    .collection('abonos')
+    .orderBy('creadoEn', 'desc')
+    .onSnapshot(snap => {
+      ultimosAbonos = snap.docs.map(doc => doc.data()); // v1.54: cache para el resumen PDF
+
+      if (snap.empty) {
+        cont.innerHTML = `<div class="empty-abonos">Sin abonos registrados aún.</div>`;
+        return;
+      }
+
+      let html = '<div class="abono-lista">';
+      snap.forEach(doc => {
+        const a = doc.data();
+        const fechaStr = a.fecha
+          ? new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' })
+          : '—';
+        // v1.65: botón "Compartir" junto al comprobante propio — Web Share
+        // API (abre el menú nativo del celular: WhatsApp, Drive, etc.)
+        // con fallback a abrir en pestaña nueva si el navegador no lo
+        // soporta. Comparte solo el comprobante de ESTE participante, en
+        // SU propio portal — no cambia nada de lo que ven los demás.
+        const montoStr = formatCOP(a.monto);
+        html += `
+          <div class="abono-item">
+            ${a.comprobanteUrl ? `<img class="comprobante-thumb" src="${escapeHtml(cloudinaryThumb(a.comprobanteUrl, 100))}" alt="Comprobante" loading="lazy" onclick="abrirLightbox('${a.comprobanteUrl.replace(/'/g, '&#39;')}')" />` : ''}
+            <div class="abono-left">
+              <span class="abono-fecha">${fechaStr}</span>
+              ${a.nota ? `<span class="abono-nota">${escapeHtml(a.nota)}</span>` : ''}
+            </div>
+            <span class="abono-monto">+${montoStr}</span>
+            ${a.comprobanteUrl ? `<button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 8px;width:auto;margin-left:6px" onclick="compartirComprobante('${a.comprobanteUrl.replace(/'/g, '&#39;')}', '${montoStr.replace(/'/g, '&#39;')}', '${fechaStr.replace(/'/g, '&#39;')}')" title="Compartir comprobante">📤</button>` : ''}
+          </div>`;
+      });
+      html += '</div>';
+      cont.innerHTML = html;
+
+    }, err => {
+      cont.innerHTML = `<div class="empty-abonos">Error al cargar abonos.</div>`;
+    });
+}
+
+// v1.65: comparte el comprobante propio de un abono (solo visible en el
+// portal del propio participante, nunca en Actividad/Integrantes que son
+// públicos). Usa Web Share API si el navegador la soporta — abre el menú
+// nativo (WhatsApp, Drive, Guardar imagen, etc.). Si no está disponible
+// (algunos navegadores de escritorio), cae a abrir el comprobante en una
+// pestaña nueva, mismo comportamiento que ya tenía el lightbox.
+function compartirComprobante(url, monto, fechaStr) {
+  if (navigator.share) {
+    navigator.share({
+      title: 'Comprobante de abono',
+      text: `Mi comprobante de abono de ${monto} (${fechaStr})`,
+      url
+    }).catch(() => {}); // el usuario cancela el share sheet — no es un error real
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+// v1.56: onSnapshot sobre vacas/{vacaId}/actividad — feed liviano de
+// TODOS los participantes (no solo el dueño del link). Es un listener
+// aparte de cargarAbonos(), no lo reemplaza ni lo toca. Solo lee campos
+// no sensibles (nombreParticipante, monto, tipo, fecha) — la nota, el
+// comprobante y quién registró siguen viviendo solo en abonos, sin
+// exponerse aquí. No requiere collectionGroup ni índice compuesto: al
+// vivir dentro de vacas/{vacaId}, el filtro por vaca ya lo da la ruta.
+function cargarActividad() {
+  const cont = document.getElementById('portalActividad');
+  db.collection('vacas').doc(vacaId)
+    .collection('actividad')
+    .orderBy('creadoEn', 'desc')
+    .onSnapshot(snap => {
+      if (snap.empty) {
+        cont.innerHTML = `<div class="empty-abonos">Sin actividad registrada aún.</div>`;
+        return;
+      }
+
+      let html = '<div class="abono-lista">';
+      snap.forEach(doc => {
+        const a = doc.data();
+        const fechaStr = a.fecha
+          ? new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' })
+          : '—';
+        html += `
+          <div class="abono-item">
+            <div class="abono-left">
+              <span class="abono-fecha">${escapeHtml(a.nombreParticipante || 'Participante')} · ${fechaStr}</span>
+            </div>
+            <span class="abono-monto">+${formatCOP(a.monto)}</span>
+          </div>`;
+      });
+      html += '</div>';
+      cont.innerHTML = html;
+
+    }, err => {
+      cont.innerHTML = `<div class="empty-abonos">Error al cargar actividad.</div>`;
+    });
+}
+
+// v1.57: onSnapshot sobre vacas/{vacaId}/integrantes — lista pública de
+// TODOS los participantes (solo nombre/tipo/aporto, sin montos ni datos
+// de contacto). Mismo patrón que cargarActividad() (v1.56): listener
+// aparte, no reemplaza cargarPortal() ni cargarAbonos(). Requiere Rules
+// nuevas para permitir lectura pública de esta subcolección (igual que
+// ya existe para 'actividad') — sin eso, este onSnapshot solo mostrará
+// el mensaje de error de abajo.
+// Respeta 3 flags opcionales del doc de la vaca (todas false por
+// defecto → comportamiento mínimo: solo nombres, orden de siempre,
+// libres incluidos):
+//   mostrarEstadoIntegrantes → agrega ✅ Aportó / ⏳ Pendiente por cada
+//     fijo, y "🤝 Colaboración libre" (sin connotación de deuda) por
+//     cada 'libre'.
+//   ordenarPorAporte → pendientes primero (los libres, al no tener
+//     estado de deuda, quedan siempre al final del todo).
+//   ocultarLibresDeLista → los 'libre' no aparecen en absoluto.
+function cargarIntegrantes() {
+  const cont = document.getElementById('portalIntegrantes');
+  db.collection('vacas').doc(vacaId)
+    .collection('integrantes')
+    .onSnapshot(snap => {
+      if (snap.empty) {
+        cont.innerHTML = `<div class="empty-abonos">Sin integrantes registrados aún.</div>`;
+        return;
+      }
+
+      const mostrarEstado = !!(vacaData && vacaData.mostrarEstadoIntegrantes);
+      const ordenarPorAporte = !!(vacaData && vacaData.ordenarPorAporte);
+      const ocultarLibres = !!(vacaData && vacaData.ocultarLibresDeLista);
+
+      let integrantes = [];
+      snap.forEach(doc => integrantes.push(doc.data()));
+
+      if (ocultarLibres) integrantes = integrantes.filter(p => p.tipo !== 'libre');
+
+      if (ordenarPorAporte) {
+        // pendientes (fijo, sin aportar) primero; luego fijo que ya
+        // aportó; los 'libre' quedan siempre al final (no tienen estado
+        // de deuda que priorizar).
+        integrantes.sort((a, b) => {
+          const rango = p => p.tipo === 'libre' ? 2 : (p.aporto ? 1 : 0);
+          return rango(a) - rango(b);
+        });
+      }
+
+      if (integrantes.length === 0) {
+        cont.innerHTML = `<div class="empty-abonos">Sin integrantes para mostrar.</div>`;
+        return;
+      }
+
+      let html = '<div class="abono-lista">';
+      integrantes.forEach(p => {
+        // v1.60: etiqueta de tipo, SIEMPRE visible (no depende del toggle
+        // mostrarEstadoIntegrantes — ese sigue controlando solo el estado
+        // de aporte de abajo, no el tipo de participación).
+        const tipoStr = p.tipo === 'libre' ? ' · 🐠 Aporte voluntario' : ' · 🐄 Fijo';
+        let estadoStr = '';
+        if (mostrarEstado) {
+          estadoStr = p.tipo === 'libre'
+            ? ' · 🤝 Colaboración libre'
+            : (p.aporto ? ' · ✅ Aportó' : ' · ⏳ Pendiente');
+        }
+        const avatarHtml = p.avatarUrl
+          ? `<img src="${escapeHtml(p.avatarUrl.replace('/upload/', '/upload/w_100,h_100,c_fill,f_auto,q_auto/'))}" alt="" loading="lazy" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0" />`
+          : `<span style="width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👤</span>`;
+        html += `
+          <div class="abono-item">
+            <div class="abono-left" style="display:flex;align-items:center;gap:8px">
+              ${avatarHtml}
+              <span class="abono-fecha">${escapeHtml(p.nombre || 'Participante')}${tipoStr}${estadoStr}</span>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+      cont.innerHTML = html;
+
+    }, err => {
+      cont.innerHTML = `<div class="empty-abonos">Error al cargar integrantes.</div>`;
+    });
+}
+
+// v1.54: resumen descargable del portal, mismo patrón que cotizador.html
+// (ventana nueva con window.open + document.write, sin jsPDF). No lee
+// nada nuevo de Firestore — reutiliza vacaData, participanteActualData
+// y el cálculo de cuota/abonado/pendiente que ya vive en renderPortal(),
+// más el cache ultimosAbonos que llena cargarAbonos() en cada snapshot.
+function generarResumenPDF() {
+  const p = participanteActualData || {};
+  const tipo = p.tipo === 'libre' ? 'libre' : 'fijo';
+  const cuota = vacaData.cuota_fija || 0;
+  const abonado = p.totalAbonado || 0;
+  const pendiente = Math.max(0, cuota - abonado);
+  const excedente = Math.max(0, abonado - cuota);
+  const colorAcento = '#2dd4bf';
+  const tipoLabel = tipo === 'libre' ? 'Aporte libre (sin cuota fija)' : 'Cuota fija repartida';
+  const fechaHoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  let filasAbonos = '';
+  if (ultimosAbonos.length === 0) {
+    filasAbonos = `<tr><td colspan="3" style="padding:14px;text-align:center;color:#94a3b8;">Sin abonos registrados aún.</td></tr>`;
+  } else {
+    ultimosAbonos.forEach(a => {
+      const fechaStr = a.fecha
+        ? new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+        : '—';
+      filasAbonos += `<tr><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${fechaStr}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#475569;">${a.nota ? escapeHtml(a.nota) : '—'}</td><td style="padding:10px;text-align:right;border-bottom:1px solid #e2e8f0;font-weight:bold;">${formatCOP(a.monto)}</td></tr>`;
+    });
+  }
+
+  const saldoBoxHtml = excedente > 0
+    ? `<span style="font-size:0.85rem;font-weight:600;opacity:0.7;">A favor</span><span style="font-size:1.9rem;font-weight:800;">${formatCOP(excedente)}</span>`
+    : `<span style="font-size:0.85rem;font-weight:600;opacity:0.7;">Pendiente</span><span style="font-size:1.9rem;font-weight:800;">${formatCOP(pendiente)}</span>`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resumen de aporte — ${escapeHtml(vacaData.nombre || 'Vaca')}</title>
+  <style>body{font-family:sans-serif;padding:40px;max-width:850px;margin:0 auto;color:#0f172a;}@media print{.no-print{display:none!important}}.header{display:flex;justify-content:space-between;border-bottom:4px solid ${colorAcento};padding-bottom:20px;}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;background:#f8fafc;padding:20px;border-radius:8px;margin:20px 0;border:1px solid #e2e8f0;}table{width:100%;border-collapse:collapse;}th{background:${colorAcento};color:#fff;padding:12px;text-align:left;}.total-box{display:flex;justify-content:flex-end;gap:30px;background:#0f172a;color:#fff;padding:20px;border-radius:8px;margin-top:20px;align-items:center;}</style></head><body>
+  <button class="no-print" onclick="window.print()" style="padding:12px;background:${colorAcento};color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-bottom:20px;width:100%;">🖨️ Imprimir / Guardar como PDF</button>
+  <div class="header"><div><h1 style="margin:0;letter-spacing:1px;">AUDIOLINK</h1><div style="color:${colorAcento};font-weight:bold;letter-spacing:1px;margin-top:4px;">RESUMEN DE APORTE — VACA COLECTIVA</div></div>
+  <div style="text-align:right;font-size:0.9rem;"><div><strong>Fecha:</strong> ${fechaHoy}</div></div></div>
+  <div class="info-grid">
+    <div><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">Vaca</span><br><strong style="font-size:1.05rem;">${escapeHtml(vacaData.nombre || '—')}</strong></div>
+    <div><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">Participante</span><br><strong style="font-size:1.05rem;">${escapeHtml(p.nombre || '—')}</strong><br><small style="color:${colorAcento};">${tipoLabel}</small></div>
+  </div>
+  <table><thead><tr><th>Fecha</th><th>Nota</th><th style="text-align:right;">Monto</th></tr></thead><tbody>${filasAbonos}</tbody></table>
+  <div class="total-box">${saldoBoxHtml}</div>
+  <p style="text-align:center;margin-top:40px;font-size:0.75rem;color:#94a3b8;">Diseñado por: Marto 🧠</p></body></html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=800');
+  win.document.write(html);
+  win.document.close();
 }
 
 // ===== UTILIDADES =====
@@ -1148,7 +2845,7 @@ function mostrarError(msg) {
 }
 
 function formatCOP(n) {
-  return '$' + Number(n || 0).toLocaleString('es-CO');
+  return '$' + Math.round(Number(n || 0)).toLocaleString('es-CO');
 }
 
 function escapeHtml(s) {
@@ -1164,12 +2861,179 @@ function mostrarToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
 }
 
+// ===== TUTORIAL INTERACTIVO (v1.52) =====
+// Mismo patrón spotlight que index.html v1.9.26.
+// Solo se activa en vistaPortal (partId presente) — no en registro ni bienvenida.
+const _TUT_LLAVE = 'vaca_tutorial_v1';
+let _tutPaso = 0;
+let _tutPasosActivos = [];
+
+const _TUT_PASOS = [
+  {
+    target: null,
+    emoji: '🐄',
+    titulo: '¡Bienvenido!',
+    // v1.67: texto base — se completa en iniciarTutorial() con el nombre
+    // real de la vaca (vacaData.nombre), a pedido del usuario: quien
+    // llega por un link agregado desde el admin (sin haber pasado por
+    // el auto-registro) puede no saber qué es "una vaca". Se agrega una
+    // explicación breve del concepto antes de entrar al resto de la guía.
+    texto: 'Una "vaca" es una colecta grupal — todos aportan para una meta común. Este es tu espacio personal en __VACA__. Aquí ves tu saldo, lo que llevas abonado y lo que falta. Solo tú tienes este link — guárdalo bien, sin él no podrás volver.'
+  },
+  {
+    target: '#cardTop',
+    emoji: '💳',
+    titulo: 'La vaca y su cuota',
+    texto: 'Aquí ves el nombre de la vaca, la cuota vigente y cuánto se ha recaudado en total. La cuota baja sola si entra más gente al reparto. Si tu participación es de aporte libre, no tienes cuota fija — aportas lo que puedas, cuando puedas.'
+  },
+  {
+    target: '.saldo-grid',
+    emoji: '💰',
+    titulo: 'Tu saldo personal',
+    texto: 'Abonado es lo que ya pagaste. Pendiente es lo que falta. Si la cuota bajó después de tu abono, puede aparecer "A favor" — ese excedente es tuyo.'
+  },
+  {
+    target: '#pagoMetodos',
+    emoji: '📲',
+    titulo: 'Cómo pagar',
+    texto: 'Si hay saldo pendiente, aquí aparecen los números de pago. Cópialos con el botón y transfiere desde tu app. Luego envía el comprobante por WhatsApp al mismo número del titular. El admin registra el abono cuando lo confirma.'
+  },
+  {
+    target: null,
+    emoji: '✅',
+    titulo: '¡Listo!',
+    texto: 'Ya sabes cómo funciona tu portal. Puedes relanzar esta guía cuando quieras con el botón 🎓 arriba. Si pierdes tu link personal, pídeselo de nuevo a quien organiza la vaca. ¡Gracias por participar!'
+  }
+];
+
+function iniciarTutorial(forzar = false) {
+  const visto = localStorage.getItem(_TUT_LLAVE);
+  if (visto && !forzar) return;
+  // v1.67: se arma una copia superficial de _TUT_PASOS, reemplazando el
+  // marcador __VACA__ del primer paso por el nombre real de la vaca
+  // (vacaData ya está poblado en este punto — el tutorial se dispara
+  // después de renderPortal()). Si por algún motivo vacaData.nombre no
+  // existe todavía, cae a "esta vaca" — nunca queda el marcador crudo.
+  const nombreVaca = (vacaData && vacaData.nombre) || 'esta vaca';
+  _tutPasosActivos = _TUT_PASOS.map(p => ({
+    ...p,
+    texto: p.texto.replace('__VACA__', nombreVaca)
+  }));
+  _tutPaso = 0;
+  document.getElementById('tutorial-overlay').classList.remove('oculto');
+  _renderTutPaso();
+}
+
+function _renderTutPaso() {
+  const paso  = _tutPasosActivos[_tutPaso];
+  const total = _tutPasosActivos.length;
+  const ring  = document.getElementById('tutorial-spotlight-ring');
+  const card  = document.getElementById('tutorial-card');
+
+  card.classList.remove('animando');
+  void card.offsetWidth;
+  card.classList.add('animando');
+
+  document.getElementById('tut-progress-bar').innerHTML =
+    _tutPasosActivos.map((_, i) =>
+      `<div class="tut-pip ${i < _tutPaso ? 'hecho' : i === _tutPaso ? 'activo' : ''}"></div>`
+    ).join('');
+
+  document.getElementById('tutorial-emoji').textContent  = paso.emoji;
+  document.getElementById('tutorial-titulo').textContent = paso.titulo;
+  document.getElementById('tutorial-texto').textContent  = paso.texto;
+  document.getElementById('tut-step-label').textContent  = `${_tutPaso + 1} / ${total}`;
+
+  document.getElementById('btn-tut-ant').style.visibility = _tutPaso === 0 ? 'hidden' : 'visible';
+  document.getElementById('btn-tut-sig').textContent = _tutPaso === total - 1 ? '✅ Finalizar' : 'Siguiente →';
+
+  if (paso.target) {
+    const el = document.querySelector(paso.target);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => _posicionarTutorial(el, card, ring), 400);
+    } else {
+      ring.style.display = 'none';
+      _centrarCard(card);
+    }
+  } else {
+    ring.style.display = 'none';
+    _centrarCard(card);
+  }
+}
+
+function _posicionarTutorial(el, card, ring) {
+  const rect  = el.getBoundingClientRect();
+  const pad   = 8;
+  const vp    = { w: window.innerWidth, h: window.innerHeight };
+  const cardW = card.offsetWidth  || 316;
+  const cardH = card.offsetHeight || 260;
+
+  ring.style.display = 'block';
+  ring.style.top     = (rect.top    - pad) + 'px';
+  ring.style.left    = (rect.left   - pad) + 'px';
+  ring.style.width   = (rect.width  + pad * 2) + 'px';
+  ring.style.height  = (rect.height + pad * 2) + 'px';
+
+  let top;
+  if (rect.bottom + cardH + 20 < vp.h)  top = rect.bottom + 16;
+  else if (rect.top - cardH - 16 > 0)   top = rect.top - cardH - 16;
+  else                                   top = Math.max(12, (vp.h - cardH) / 2);
+
+  let left = rect.left + (rect.width / 2) - (cardW / 2);
+  left = Math.max(12, Math.min(left, vp.w - cardW - 12));
+
+  card.style.top       = top  + 'px';
+  card.style.left      = left + 'px';
+  card.style.transform = 'none';
+}
+
+function _centrarCard(card) {
+  card.style.top       = '50%';
+  card.style.left      = '50%';
+  card.style.transform = 'translate(-50%, -50%)';
+}
+
+function tutorialSiguiente() {
+  if (_tutPaso >= _tutPasosActivos.length - 1) { terminarTutorial(); return; }
+  _tutPaso++;
+  _renderTutPaso();
+}
+
+function tutorialAnterior() {
+  if (_tutPaso > 0) { _tutPaso--; _renderTutPaso(); }
+}
+
+function tutorialSaltar() { terminarTutorial(); }
+
+function terminarTutorial() {
+  try { localStorage.setItem(_TUT_LLAVE, '1'); } catch(e) {}
+  document.getElementById('tutorial-overlay').classList.add('oculto');
+  document.getElementById('tutorial-spotlight-ring').style.display = 'none';
+  mostrarToast('🎓 Guía disponible en el botón de arriba');
+}
+
 // Enter en inputs de registro
 ['regNombre','regContacto'].forEach(id => {
   document.getElementById(id).addEventListener('keydown', e => {
     if (e.key === 'Enter') registrarse();
   });
 });
+
+// v1.53 fix: arranque del tema movido al final del <body> — antes vivía
+// arriba en el <head>/mitad del documento y btnTema (definido más abajo
+// en el HTML) todavía no existía en el DOM, por lo que getElementById
+// devolvía null y la función moría antes de llamar a generarShimmer()/
+// generarFondoDecorativo(). El fondo solo se activaba al usar el toggle
+// porque toggleTema() sí se ejecuta después de que todo ya cargó.
+(function iniciarTema() {
+  let tema = 'noche';
+  try { tema = localStorage.getItem('vaca-tema') || 'noche'; } catch(e) {}
+  if (tema === 'dia') document.body.classList.add('tema-dia');
+  document.getElementById('btnTema').textContent = tema === 'dia' ? '🌿' : '🌙';
+  generarShimmer(PALETAS_FONDO[tema]);
+  generarFondoDecorativo(PALETAS_FONDO[tema]);
+})();
 </script>
 </body>
 </html>

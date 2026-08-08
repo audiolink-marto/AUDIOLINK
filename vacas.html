@@ -3,7 +3,240 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK</title>
+  <title>Vacas · AUDIOLINK · v1.50</title>
+  <!-- v1.50: a pedido del usuario — botón nuevo "🗑️ Reiniciar actividad"
+       en la vista de detalle, junto a Link de invitación. Llama a
+       reiniciarActividad() (ver junto a eliminarAbono()): borra en
+       lotes de 400 TODOS los docs de vacas/{id}/actividad (el feed
+       público que ve el participante en vaca.html), con doble
+       confirmación por ser irreversible. NO toca abonos, participantes,
+       totalAbonado, totalRecaudado ni cuota_fija — es solo el feed
+       público, la contabilidad real queda intacta. Los abonos nuevos
+       vuelven a poblar el feed normalmente después de reiniciar. No
+       requiere cambios en vaca.html — su onSnapshot ya maneja el caso
+       vacío ("Sin actividad registrada aún.").
+  <!-- v1.49: a pedido del usuario — nuevo checkbox opcional "Ocultar
+       montos en el feed de actividad" en el modal Nueva/Editar Vaca,
+       mismo patrón que los 3 flags de v1.42 (mostrarEstadoIntegrantes,
+       ordenarPorAporte, ocultarLibresDeLista): campo nvOcultarMontosActividad
+       en el form, guardado como ocultarMontosActividad en el doc de la
+       vaca, default false (vacas viejas siguen mostrando el monto exacto,
+       comportamiento idéntico al de antes). Cuando está en true,
+       vaca.html v1.58 muestra "Fulano aportó" sin la cifra en el feed
+       público. Además, en pareja con este cambio, vaca.html v1.58 agrega
+       .limit(20) al query de cargarActividad() — decisión tomada con el
+       usuario para controlar lecturas de Firestore en vacas con mucha
+       actividad; el feed público solo muestra los últimos 20
+       movimientos (sin "ver más"), el histórico completo sigue intacto
+       en la colección 'abonos' y exportable por CSV/PDF desde el admin.
+       No se tocó cargarVacas(), cargarParticipantes() ni ningún cálculo
+       de cuota/saldo.
+  <!-- v1.48: a pedido del usuario — campo "Organizador" simple en el front,
+       para personalizar el mensaje de WhatsApp que se manda a participantes
+       agregados manualmente desde el panel admin (antes el mensaje era
+       genérico y podía sentirse como spam para alguien que nunca pasó por
+       el auto-registro). Input de texto nuevo en el header de la vista
+       lista (#orgNombre), se guarda solo en localStorage (audiolink_
+       organizador) al perder foco (oninput con debounce simple vía
+       onblur) — NO se guarda en Firestore, es por navegador/dispositivo,
+       no por cuenta. Se precarga con el valor guardado la próxima vez que
+       se abre el panel (ver cargarOrganizador(), llamada junto al guard de sesión).
+       notificarWhatsApp() ahora arma el mensaje incluyendo el organizador
+       si está seteado ("Soy {organizador} y te agregué a..."); si el campo
+       está vacío, cae al texto genérico que ya existía (v1.10/v1.11), sin
+       romper nada. No se tocó copiarLink(), abrirLinkParticipante(),
+       copiarLinkInvitacion() ni la lógica de linkToken/URL de ninguna
+       función.
+  <!-- v1.47: a pedido del usuario — se ACTIVA la validación real de
+       linkToken (ver vaca.html v1.62, mismo cambio en pareja). El link
+       personal armado desde el panel admin ahora incluye &t=linkToken en
+       las 3 funciones que lo generan: copiarLink(), abrirLinkParticipante()
+       y notificarWhatsApp() — todas reciben un nuevo parámetro linkToken,
+       tomado de p.linkToken (ya disponible en el snap.forEach donde se
+       pintan los botones de cada fila, no se agregó ninguna lectura
+       nueva a Firestore). No se tocó copiarLinkInvitacion() (el link
+       general de la vaca no lleva &p= ni &t=, no aplica). No se tocó
+       ninguna otra función.
+  v1.46: a pedido del usuario — se agrega EDITAR PARTICIPANTE, que no
+       existía (solo había crear/eliminar). Reutiliza el modal
+       #modalNuevoParticipante en modo edición (título y botón cambian
+       dinámicamente) en vez de duplicar HTML. Botón "✏️ Editar" nuevo en
+       cada fila de la tabla de participantes, oculto si la vaca está
+       cerrada (mismo criterio que Abono/Eliminar). Al guardar
+       (guardarParticipante(), reemplaza a crearParticipante() como
+       handler del botón del modal): mismo aviso de nombre duplicado
+       (excluyendo al propio participante); si el Tipo cambia entre
+       fijo↔libre se recalculan numParticipantes/cuota_fija con
+       runTransaction() (mismo patrón que crear/eliminar); si el Tipo no
+       cambia, solo se actualiza el doc del participante (nombre,
+       contacto, paisCodigo, avatarUrl) sin tocar numParticipantes ni
+       cuota_fija. También se actualiza el doc espejo en integrantes. No
+       se tocó eliminarParticipante() ni ninguna otra función.
+       v1.45: a pedido del usuario — avatares-iconos.html v1.3 cambió el
+       campo `tipo` de string único a ARREGLO (un ítem puede ser Avatar Y
+       Icono a la vez). Se actualiza cargarCatalogoAvataresParticipante()
+       de where('tipo','==','avatar') a where('tipo','array-contains',
+       'avatar') para que siga leyendo correctamente el catálogo. AVISADO
+       AL USUARIO: los ítems viejos que aún tengan tipo como string
+       (no migrados en avatares-iconos.html) no aparecerán en este
+       selector hasta que se editen y guarden de nuevo allá — no se tocó
+       ningún dato existente desde aquí. No se tocó nada más de la
+       función ni del resto del archivo.
+       v1.44: FIX — el selector de avatar de v1.43 usaba d.url, pero el
+       campo real en avataresIconos (definido en avatares-iconos.html) es
+       d.urlCloudinary; por eso ninguna miniatura cargaba y solo se veía
+       la opción "sin avatar" (🚫). Corregido en cargarCatalogoAvataresParticipante().
+       Aprovechando el fix: tanto la cuadrícula del selector como la
+       miniatura de la tabla de participantes ahora usan la transformación
+       liviana de Cloudinary (w_150/w_100,h_150/h_100,c_fill,f_auto,
+       q_auto) en vez de la imagen completa — mismo patrón que
+       urlMiniatura() en avatares-iconos.html. El valor guardado en
+       avatarUrl (participante e integrantes) sigue siendo la URL
+       ORIGINAL sin transformar — solo el atributo src de las miniaturas
+       cambia. Ver ARQUITECTURA.md sección 4 (patrón de selector de
+       catálogo compartido). No se tocó nada más.
+       v1.43: selector de avatar (opcional) al agregar participante desde el
+       panel admin — cuadrícula de miniaturas tomada del catálogo
+       avataresIconos (Cloudinary/Firestore, colección compartida con
+       avatares-iconos.html), filtrada a tipo='avatar' y activo==true, se
+       carga solo al abrir el modal (no tiempo real). La URL elegida se
+       guarda como avatarUrl en el doc del participante y en su espejo
+       integrantes (mismo patrón que nombre/tipo/aporto de v1.42) — null si
+       no se elige ninguno. La tabla de participantes ahora muestra esa
+       miniatura (o un ícono 👤 genérico si no tiene) en una columna nueva
+       al inicio de cada fila. No se tocó crearParticipante() en su lógica
+       de cuotas/transacción — solo se agregó el campo avatarUrl a los
+       tx.set() que ya existían. Requiere regla nueva en firestore.rules
+       (lectura pública get+list de avataresIconos, filtrada a
+       activo==true) para que vaca.html (portal) pueda leer el catálogo
+       más adelante — pendiente, se agrega cuando el usuario suba el
+       archivo de reglas.
+       v1.42: lista pública de integrantes en vaca.html (sin montos), a
+       pedido del usuario. Como las Rules bloquean a propósito la lectura
+       abierta de 'participantes', se crea un mirror nuevo y liviano
+       vacas/{id}/integrantes/{participanteId} — mismo patrón que
+       'actividad' (v1.41) — con solo {nombre, tipo, aporto}. Se escribe/
+       borra en los mismos puntos donde ya se tocaba el participante o su
+       totalAbonado, sin lógica de cálculo nueva:
+         - crearParticipante(): crea el doc espejo (aporto:false).
+         - eliminarParticipante(): borra el doc espejo junto al participante.
+         - guardarAbono() (modo creación): aporto:true (merge).
+         - eliminarAbono(): relee totalAbonado actual antes del batch para
+           saber si el nuevo total queda en $0 (aporto:false) o sigue >0.
+         - guardarAbono() (modo edición): NO se toca — el monto editado
+           nunca puede ser ≤0 (validado arriba), así que un abono existente
+           nunca puede hacer bajar aporto a false por sí solo.
+       Además, 3 checkboxes nuevos en el modal Nueva/Editar Vaca —
+       mostrarEstadoIntegrantes, ordenarPorAporte, ocultarLibresDeLista —
+       guardados como campos del doc de la vaca (mismo patrón que
+       urlProducto), todos con default false/comportamiento actual si no
+       existen (vacas viejas quedan igual que antes). Requiere Rules
+       nuevas para vacas/{id}/integrantes (lectura pública, sin exponer
+       contacto/paisCodigo/linkToken — mismo criterio que 'actividad') y
+       vaca.html v1.57 para pintarla. No se tocó cuota_fija,
+       numParticipantes, totalAbonado ni totalRecaudado en ningún punto.
+       v1.40: a pedido del usuario ("el violeta está feíto") — se quita
+       la opción "Duotono violeta" del selector "Estilo de imagen" y se
+       agregan "Sepia" y "Blanco y negro retro" en su lugar. Mismos 3
+       lugares actualizados: las opciones del <select>, las clases CSS
+       duplicadas del preview, y actualizarPreviewImagen(). Requiere
+       vaca.html v1.42 (mismos nombres de filtro). Vacas que ya tenían
+       'duotono' guardado quedan sin filtro aplicado hasta que el admin
+       elija una opción nueva desde este modal — no rompe nada.
+       v1.39: preview en vivo dentro del modal Nueva/Editar Vaca — muestra
+       la imagen (recorte 3:1 + filtro elegido) con el nombre de la vaca
+       superpuesto, para verla como quedará en vaca.html y para
+       identificar de un vistazo qué vaca se está editando. Se actualiza
+       sola al escribir el nombre, elegir/cambiar imagen o cambiar el
+       filtro (actualizarPreviewImagen()). Si hay un archivo nuevo
+       seleccionado usa una vista previa local (FileReader) — no sube
+       nada a Cloudinary hasta guardar. No se tocó guardarVaca() ni
+       ningún otro campo o cálculo del modal.
+       v1.38: se agrega selector "Estilo de imagen" (Ninguno/Sutil/
+       Duotono violeta) al modal Nueva/Editar Vaca — nuevo campo
+       nvImagenFiltro, guardado como imagenFiltro en el doc de la vaca.
+       Default 'ninguno' si no se elige nada; vacas viejas sin el campo
+       se comportan igual que antes en vaca.html. Requiere vaca.html
+       v1.41 para aplicar el filtro en el portal público. No se tocó
+       cuentaPago, urlProducto, ni ninguna otra lógica del modal.
+       v1.37: se agrega campo "Titular de la cuenta" (opcional) a cada
+       método de pago en el modal Nueva/Editar Vaca — nuevo input
+       nvMetodoTitular{i}, guardado como titular en el objeto de cada
+       método dentro de cuentaPago. No se tocó label/numero/logo/activo
+       ni migrarCuentaPagoALista(); vacas viejas quedan con titular:null
+       hasta que se edite y complete. Requiere vaca.html v1.39 para
+       mostrarlo en el portal público.
+       v1.25: cuota_fija ahora considera los aportes de colaboradores 'libre'
+       (auto-sanada en cargarParticipantes(), mismo patrón que totalRecaudado)
+       v1.26: mensaje de chip cuando la cuota queda en $0 por aportes libres
+       + notas de documentación sobre cuál función es dueña final de cuota_fija
+       v1.27: #3 del plan — motivoCuota (rastro de por qué cambió la cuota),
+       visible bajo el header de detalle. Requiere firestore.rules v2.20 y
+       vaca1.27.html para el motivo desde el registro público.
+       v1.28: campo opcional urlProducto (link al producto/objetivo de la
+       vaca, ej: la silla que se va a comprar). Se guarda tal cual en el
+       doc de la vaca junto a nombre/descripcion/cuentaPago — no afecta
+       meta_total, cuota_fija ni ningún cálculo existente. vaca.html v1.28
+       lo muestra como botón "🔗 Ver producto" si el campo existe.
+       v1.29: versionado visible — <span class="modal-version">v1.29</span>
+       junto al título del modal Nueva/Editar Vaca (texto fijo en HTML,
+       sin JS ni peso extra). Se actualiza a mano en cada versión nueva,
+       junto con este mismo comentario de cabecera.
+       v1.29 (fix adicional): los modales se desbordaban abajo — el
+       footer (botones Cancelar/Guardar) quedaba fuera de pantalla en
+       formularios largos (ej. Nueva/Editar Vaca, tras sumar el campo
+       urlProducto en v1.28). .modal ahora limita su alto a 90vh y solo
+       .modal-body hace scroll interno; header/footer quedan siempre
+       fijos y visibles. En mobile (≤560px, mismo breakpoint que ya usa
+       el archivo) se reduce el padding del backdrop y de header/footer
+       para ganar espacio vertical extra. Afecta a TODOS los modales por
+       igual (comparten la clase .modal).
+       v1.30: logo opcional por método de pago (URL de imagen), campo
+       nuevo nequiLogo/daviplataLogo dentro de cuentaPago. Si se deja
+       vacío, vaca.html usa el logo genérico por defecto — no rompe
+       vacas ya creadas sin este campo.
+       v1.31: cuentaPago pasa de {nequi,daviplata,...} a un ARREGLO de
+       hasta 4 métodos personalizables {label,numero,logo,activo}. El
+       admin puede nombrar cada método (ya no fijo a Nequi/Daviplata),
+       darle su propio logo, y ocultarlo del portal con un checkbox sin
+       borrar sus datos. Vacas viejas se migran solas al editarlas
+       (migrarCuentaPagoALista) — no se pierde nada, y las que no se
+       editen siguen funcionando porque vaca.html v1.32 lee ambos
+       formatos.
+       v1.32: fix — el PDF/impresión de "Exportar PDF" (exportarAbonosPDF)
+       salía todo en negro. Causa: el body tiene fondo oscuro para la
+       vista en pantalla, y la regla @media print solo ocultaba a sus
+       HIJOS (body *), no al body mismo, así que ese fondo oscuro se
+       imprimía detrás del reporte blanco. Se agrega `body { background:
+       #fff !important }` dentro de @media print. No afecta la vista
+       normal en pantalla.
+       v1.33: fix — quedaba un segundo problema tras v1.32: la regla
+       mobile @media (max-width:768px) (sin "screen", ver comentario en
+       el propio bloque print) convertía la tabla del reporte en
+       tarjetas apiladas oscuras cuando la ventana de impresión era
+       angosta. Se agregan overrides con !important dentro de @media
+       print para forzar tabla real + texto oscuro sobre fondo claro,
+       sin tocar la regla mobile (sigue igual en pantalla).
+       v1.34: a pedido del usuario, el reporte deja de verse en puro
+       blanco/negro — el título, los valores del resumen (Meta,
+       Recaudado, etc.) y el encabezado de las tablas usan el turquesa
+       de marca (#0e7c70, versión más oscura de --accent para buen
+       contraste impreso sobre fondo claro). El resto del reporte
+       (bordes, texto de las filas) se mantiene neutro para que siga
+       siendo legible e imprimible sin gastar mucha tinta.
+       v1.35: FIX — eliminarParticipante() restaba numParticipantes y
+       recalculaba cuota_fija de todos SIEMPRE, sin fijarse si el
+       participante eliminado era tipo 'libre'. Un colaborador libre
+       nunca suma a numParticipantes al crearse, así que borrarlo no
+       debía restar tampoco — el bug le subía la cuota a todos los
+       demás sin motivo real. Ahora la transacción revisa el tipo del
+       participante antes de decidir si recalcula.
+       v1.36: optimización — loading="lazy" en imágenes de tarjetas de
+       vaca y miniaturas de comprobante (no cargan hasta que se ven);
+       las URLs de imagen (logo/comprobante) ahora pasan por
+       escapeHtml() antes de insertarse en src="..." para evitar que
+       una comilla doble rompa el atributo. Puramente defensivo/de
+       carga — no cambia ningún cálculo. -->
   <link rel="stylesheet" href="nav.css" />
   <style>
     /* ===== RESET / BASE ===== */
@@ -111,6 +344,30 @@
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+    /* v1.48: campo "Organizador" — mismo look que los demás inputs del
+       ecosistema, tamaño reducido para caber junto al título sin invadir
+       el botón "+ Nueva Vaca". */
+    .organizador-field {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--text2, #9a978f);
+    }
+    .organizador-field input {
+      background: var(--surf-light, #1d1d20);
+      border: 1px solid var(--border, #2a2a2e);
+      color: var(--text, #f0ede6);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      width: 160px;
+    }
+    .organizador-field input:focus {
+      outline: none;
+      border-color: var(--accent, #c9a24b);
     }
 
     /* ===== BOTONES ===== */
@@ -419,6 +676,16 @@
       max-width: 440px;
       box-shadow: 0 8px 40px rgba(0,0,0,.5);
       animation: modalIn .18s ease;
+      /* v1.29: el modal se estaba desbordando abajo (footer con los
+         botones "Cancelar"/"Guardar" quedaba fuera de pantalla) en
+         formularios largos, ej. Nueva/Editar Vaca con el campo
+         urlProducto agregado en v1.28. Se limita la altura total del
+         modal al 90% del viewport y se vuelve columna flex, para que
+         solo el body (el formulario) tenga scroll interno — header y
+         footer quedan siempre fijos y visibles. */
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
     }
     @keyframes modalIn {
       from { opacity: 0; transform: translateY(-12px) scale(.97); }
@@ -430,21 +697,44 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0; /* v1.29: nunca se comprime, siempre visible */
     }
     .modal-header h4 { font-size: 1rem; font-weight: 700; }
+    /* v1.29: versión del archivo, chiquita y discreta, junto al título
+       del modal — para saber de un vistazo qué versión de vacas.html
+       está corriendo, sin abrir el código. Texto fijo, cero JS, cero
+       peso extra. */
+    .modal-version { font-size: 10px; font-weight: 400; color: var(--text2); opacity: .7; margin-left: 6px; }
     .modal-close {
       background: none; border: none;
       color: var(--text2); font-size: 1.2rem;
       cursor: pointer; line-height: 1;
     }
     .modal-close:hover { color: var(--text); }
-    .modal-body { padding: 20px; }
+    /* v1.29: el body es la única zona que hace scroll dentro del modal
+       (ver .modal arriba) — así el formulario puede crecer sin empujar
+       los botones de abajo fuera de pantalla. */
+    .modal-body { padding: 20px; overflow-y: auto; }
     .modal-footer {
       padding: 14px 20px;
       border-top: 1px solid var(--border);
       display: flex;
       justify-content: flex-end;
       gap: 8px;
+      flex-shrink: 0; /* v1.29: nunca se comprime, siempre visible */
+    }
+
+    /* v1.29: en mobile, la barra de direcciones dinámica del navegador
+       hace que 100vh mida más de lo que realmente se ve — el 90vh de
+       .modal ya cubre eso, pero acá se gana espacio vertical extra
+       reduciendo el padding del backdrop y de header/footer, para que
+       el formulario tenga más aire antes de necesitar scroll. Mismo
+       breakpoint (560px) que ya usa el resto del archivo, sin crear uno
+       nuevo. No afecta desktop. */
+    @media (max-width: 560px) {
+      .modal-backdrop { padding: 10px; }
+      .modal-header { padding: 14px 16px 12px; }
+      .modal-footer { padding: 12px 16px; }
     }
 
     /* form */
@@ -481,6 +771,50 @@
     .form-group-contacto { display: flex; gap: 8px; }
     .form-group-contacto select { flex: 0 0 84px; }
     .form-group-contacto input { flex: 1; }
+
+    /* v1.39: preview en vivo de la imagen de cabecera (dentro del modal
+       Nueva/Editar Vaca). Misma proporción 3:1 que #vacaImagen en
+       vaca.html v1.41, para que el admin vea el recorte real antes de
+       guardar. */
+    .nv-imagen-preview-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 1;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      margin-top: 10px;
+    }
+    .nv-imagen-preview-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .nv-imagen-preview-nombre {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      padding: 10px 12px 8px;
+      background: linear-gradient(transparent, rgba(0,0,0,.78));
+      color: #fff;
+      font-weight: 700;
+      font-size: .95rem;
+      line-height: 1.2;
+    }
+    /* Mismos filtros que #vacaImagen en vaca.html v1.42 — se duplican
+       acá a propósito (vacas.html no comparte hoja de estilos con
+       vaca.html) para que el preview coincida exactamente con lo que
+       verá el participante. Si se ajusta uno, ajustar el otro. */
+    .nv-imagen-preview-wrap img.vaca-imagen-sutil {
+      filter: brightness(.92) contrast(1.08) saturate(.95);
+    }
+    .nv-imagen-preview-wrap img.vaca-imagen-sepia {
+      filter: sepia(.75) saturate(1.15) contrast(1.08) brightness(.95);
+    }
+    .nv-imagen-preview-wrap img.vaca-imagen-bn-retro {
+      filter: grayscale(1) sepia(.2) contrast(1.25) brightness(.92);
+    }
 
     /* toast */
     #toast {
@@ -567,11 +901,108 @@
       }
       .acciones-td { justify-content: flex-end; width: 100%; }
     }
+
+    /* v1.22: chip de excedente ("a favor") — mismo verde de chip-pagado
+       pero con ícono distinto, para diferenciar "pagó justo" de "pagó
+       de más y hay que devolverle" sin crear una paleta nueva. */
+    .chip-favor { background: rgba(62,207,142,.15); color: var(--green); }
+    /* v1.24: chip de colaborador libre (aporte voluntario, sin cuota_fija
+       — ver vaca.html v1.21). Turquesa (--accent) para no chocar con los
+       tres estados de cuota fija (verde/amarillo/rojo). */
+    .chip-libre { background: rgba(45,212,191,.15); color: var(--accent); }
+    .tag-libre {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-left: 6px;
+    }
+
+    /* v1.22: caja de resumen "Total a devolver", solo se inserta si
+       algún participante quedó con excedente (ver cargarParticipantes). */
+    .resumen-devolver {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(62,207,142,.1);
+      border: 1px solid rgba(62,207,142,.3);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .resumen-devolver strong { color: var(--green); font-size: 1.05rem; }
+
+    /* ===== v1.21: reporte imprimible (Exportar PDF) =====
+       Mismo método que el cotizador: sin librerías, se arma un bloque
+       oculto (#reportePrint) con resumen + tabla y se dispara
+       window.print(). @media print oculta todo lo demás (sidebar,
+       botones, cards) y muestra solo el reporte, en blanco/negro para
+       ahorrar tinta. No se toca ningún estilo de pantalla existente. */
+    #reportePrint { display: none; }
+    @media print {
+      /* v1.32: el body tiene fondo oscuro (var(--bg)) para la vista en
+         pantalla; la regla de abajo (body *) solo oculta a los HIJOS
+         del body, no al body mismo, así que su fondo oscuro quedaba
+         pintado detrás del reporte blanco — esto era lo que se veía
+         "todo en negro" al exportar/imprimir. Se fuerza blanco acá,
+         sin tocar el fondo oscuro de la vista normal en pantalla. */
+      body { background: #fff !important; }
+      body * { visibility: hidden; }
+      #reportePrint, #reportePrint * { visibility: visible; }
+      #reportePrint {
+        display: block;
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        padding: 24px;
+        background: #fff;
+        color: #111;
+      }
+      #reportePrint h2 { font-size: 1.3rem; margin-bottom: 4px; color: #0e7c70; }
+      #reportePrint .rp-sub { font-size: 12px; color: #555; margin-bottom: 18px; }
+      #reportePrint .rp-resumen { display: flex; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+      #reportePrint .rp-resumen div { font-size: 12px; }
+      #reportePrint .rp-resumen strong { display: block; font-size: 1rem; color: #0e7c70; }
+      #reportePrint h3 { color: #0e7c70; }
+      #reportePrint table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      #reportePrint th, #reportePrint td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+      #reportePrint th { background: #e6f7f5; color: #0e7c70; }
+      /* v1.33: la regla mobile de arriba (@media max-width:768px, sin
+         "screen") también se activaba en la vista de impresión cuando
+         la página quedaba angosta, convirtiendo la tabla en "tarjetas"
+         apiladas oscuras (pensadas solo para el celular) y tapando el
+         reporte. Se fuerza acá la estructura de tabla real + colores
+         claros, con !important porque esa regla mobile ya usa !important
+         implícito por especificidad de :not/anidamiento. No se tocó la
+         regla mobile — sigue igual para la vista normal en pantalla. */
+      #reportePrint table, #reportePrint thead, #reportePrint tbody,
+      #reportePrint tr, #reportePrint th, #reportePrint td {
+        background: none !important;
+        color: #111 !important;
+        text-align: left !important;
+      }
+      #reportePrint table { display: table !important; }
+      #reportePrint thead { display: table-header-group !important; }
+      #reportePrint tbody { display: table-row-group !important; }
+      #reportePrint tr { display: table-row !important; border: none !important; padding: 0 !important; margin: 0 !important; }
+      #reportePrint th, #reportePrint td {
+        display: table-cell !important;
+        border: 1px solid #ccc !important;
+        padding: 6px 8px !important;
+      }
+      #reportePrint th { background: #e6f7f5 !important; color: #0e7c70 !important; }
+      #reportePrint td::before { content: none !important; }
+    }
   </style>
 </head>
 <body>
 
 <div id="nav-mount"></div>
+
+<!-- v1.21: contenedor del reporte imprimible, oculto en pantalla, llenado
+     por exportarAbonosPDF() antes de window.print() -->
+<div id="reportePrint"></div>
 
 <div id="mainWrap">
   <div class="main-content">
@@ -580,7 +1011,14 @@
     <div id="vistaLista">
       <div class="page-header">
         <h2>🐄 Vacas</h2>
-        <button class="btn btn-primary" onclick="abrirModalNuevaVaca()">+ Nueva Vaca</button>
+        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          <!-- v1.48: campo Organizador — solo localStorage, no Firestore -->
+          <label class="organizador-field">
+            Organizador:
+            <input type="text" id="orgNombre" placeholder="Tu nombre" onblur="guardarOrganizador()">
+          </label>
+          <button class="btn btn-primary" onclick="abrirModalNuevaVaca()">+ Nueva Vaca</button>
+        </div>
       </div>
 
       <div class="tabs">
@@ -600,10 +1038,17 @@
         <div>
           <h3 id="detalleNombre"></h3>
           <div class="detalle-meta" id="detalleMeta"></div>
+          <div id="detalleMotivoCuota" style="font-size:11px; color:var(--text2); margin-top:2px; display:none"></div>
         </div>
         <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" id="btnEstadoVaca" onclick="toggleEstadoVaca()">🔒 Cerrar vaca</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportarAbonosCSV()">📥 Exportar CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportarAbonosPDF()">🖨️ Exportar PDF</button>
           <button class="btn btn-ghost btn-sm" id="btnLinkInvitacion" onclick="copiarLinkInvitacion()">🔗 Link de invitación</button>
+          <!-- v1.50: a pedido del usuario — vacía solo el feed público
+               vacas/{id}/actividad, sin tocar abonos/saldos/cuota. Ver
+               reiniciarActividad(). -->
+          <button class="btn btn-ghost btn-sm" onclick="reiniciarActividad()">🗑️ Reiniciar actividad</button>
           <button class="btn btn-green btn-sm" id="btnNuevoParticipante" onclick="abrirModalNuevoParticipante()">+ Participante</button>
         </div>
       </div>
@@ -620,14 +1065,14 @@
 <div class="modal-backdrop" id="modalNuevaVaca">
   <div class="modal">
     <div class="modal-header">
-      <h4 id="nvTitulo">🐄 Nueva Vaca</h4>
+      <h4><span id="nvTitulo">🐄 Nueva Vaca</span><span class="modal-version">v1.36</span></h4>
       <button class="modal-close" onclick="cerrarModal('modalNuevaVaca')">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="nvEditId" value="" />
       <div class="form-group">
         <label>Nombre</label>
-        <input type="text" id="nvNombre" placeholder="Ej: Vaca paseo fin de año" />
+        <input type="text" id="nvNombre" placeholder="Ej: Vaca paseo fin de año" oninput="actualizarPreviewImagen()" />
       </div>
       <div class="form-group">
         <label>Descripción</label>
@@ -638,6 +1083,81 @@
         <input type="number" id="nvCuota" placeholder="Ej: 500000" min="0" />
         <p style="font-size:11px;color:var(--text2);margin-top:5px">La cuota por persona se calcula sola: meta ÷ participantes confirmados. Baja automáticamente si entra más gente.</p>
       </div>
+      <div class="form-group">
+        <label>Imagen (opcional) — lo que van a comprar/lograr</label>
+        <input type="file" id="nvImagen" accept="image/*" onchange="actualizarPreviewImagen()" />
+        <div id="nvImagenActual" style="font-size:12px;color:var(--text2);margin-top:6px"></div>
+      </div>
+      <!-- v1.38: estilo visual opcional para la imagen de cabecera del
+           portal público (vaca.html). Se guarda como imagenFiltro; si
+           queda en 'ninguno' (o no se elige nada), vaca.html no aplica
+           ningún filtro — comportamiento idéntico al de antes. -->
+      <div class="form-group">
+        <label>Estilo de imagen (opcional)</label>
+        <select id="nvImagenFiltro" onchange="actualizarPreviewImagen()">
+          <option value="ninguno" selected>Ninguno — imagen tal cual</option>
+          <option value="sutil">Sutil — leve oscurecido, combina con el fondo</option>
+          <option value="sepia">Sepia — tono cálido clásico</option>
+          <option value="bn-retro">Blanco y negro retro — foto vieja revelada</option>
+        </select>
+        <!-- v1.39: preview en vivo — misma proporción 3:1 que el header
+             real de vaca.html, con el nombre de la vaca superpuesto para
+             identificarla de un vistazo. Se actualiza sola al cambiar
+             filtro/imagen/nombre (ver actualizarPreviewImagen()). No sube
+             nada a Cloudinary — si se eligió un archivo nuevo, usa una
+             vista previa local (FileReader) hasta que se guarde. -->
+        <div class="nv-imagen-preview-wrap" id="nvImagenPreviewWrap" style="display:none">
+          <img id="nvImagenPreviewImg" alt="" />
+          <div class="nv-imagen-preview-nombre" id="nvImagenPreviewNombre"></div>
+        </div>
+      </div>
+      <!-- v1.23: cuentas de pago opcionales — si se llenan, vaca.html
+           muestra al participante botones de pago directo + QR con el
+           pendiente exacto precargado.
+           v1.31: se reemplazan los 2 campos fijos (Nequi/Daviplata) por
+           4 métodos personalizables (nombre + número + logo opcional +
+           checkbox mostrar/ocultar). Cada uno es independiente y puede
+           quedar vacío. El checkbox permite ocultar un método del
+           portal sin borrar sus datos (ej: método de temporada).
+           Vacas viejas con el formato anterior {nequi,daviplata} se
+           migran solas al abrir "Editar" (ver abrirModalEditarVaca). -->
+      <div class="form-group">
+        <label>Métodos de pago (opcional, hasta 4)</label>
+        <p style="font-size:11px;color:var(--text2);margin:2px 0 10px">Si activas al menos uno con número, el participante verá sus botones de pago directo en el portal con el saldo pendiente precargado.</p>
+        <div id="nvMetodosPago" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <!-- v1.28: link opcional al producto/objetivo de la vaca (ej: la
+           silla que se va a comprar). Si se llena, vaca.html muestra un
+           botón "🔗 Ver producto" que abre esta URL en pestaña nueva. -->
+      <div class="form-group">
+        <label>URL del producto (opcional)</label>
+        <input type="url" id="nvUrlProducto" placeholder="https://..." />
+        <p style="font-size:11px;color:var(--text2);margin-top:5px">Si la llenas, el participante verá un botón "🔗 Ver producto" en la vista pública de la vaca.</p>
+      </div>
+      <!-- v1.42: lista de integrantes en vaca.html — 3 flags opcionales,
+           todas apagadas por defecto (comportamiento actual si no se
+           tocan). Ver cabecera del archivo para el detalle completo. -->
+      <div class="form-group">
+        <label>Lista de integrantes (opcional, en vaca.html)</label>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label style="font-weight:400;font-size:13px;display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="nvMostrarEstadoIntegrantes" /> Mostrar quién ya aportó (sin montos)
+          </label>
+          <label style="font-weight:400;font-size:13px;display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="nvOrdenarPorAporte" /> Ordenar pendientes primero
+          </label>
+          <label style="font-weight:400;font-size:13px;display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="nvOcultarLibresDeLista" /> Ocultar colaboradores libres de la lista
+          </label>
+          <!-- v1.49: a pedido del usuario — oculta el monto exacto en el
+               feed de "Actividad de la vaca" (portal público), quedando
+               solo "Fulano aportó" sin cifra. Mismo patrón que los otros
+               3 flags de esta sección. -->
+          <label style="font-weight:400;font-size:13px;display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="nvOcultarMontosActividad" /> Ocultar montos en el feed de actividad
+          </label>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="cerrarModal('modalNuevaVaca')">Cancelar</button>
@@ -646,14 +1166,24 @@
   </div>
 </div>
 
-<!-- ===== MODAL NUEVO PARTICIPANTE ===== -->
+<!-- ===== MODAL NUEVO / EDITAR PARTICIPANTE (v1.46: mismo modal, modo dinámico) ===== -->
 <div class="modal-backdrop" id="modalNuevoParticipante">
   <div class="modal">
     <div class="modal-header">
-      <h4>➕ Agregar participante</h4>
+      <h4 id="npModalTitulo">➕ Agregar participante</h4>
       <button class="modal-close" onclick="cerrarModal('modalNuevoParticipante')">✕</button>
     </div>
     <div class="modal-body">
+      <!-- v1.24: mismo toggle de tipo agregado en vaca.html v1.21, para
+           que el admin también pueda dar de alta un colaborador libre
+           manualmente (sin pasar por el link público). -->
+      <div class="form-group">
+        <label>Tipo de participación</label>
+        <select id="npTipo">
+          <option value="fijo" selected>🐄 Cuota fija repartida</option>
+          <option value="libre">🐠 Aporte libre (lo que pueda)</option>
+        </select>
+      </div>
       <div class="form-group">
         <label>Nombre</label>
         <input type="text" id="npNombre" placeholder="Nombre del participante" />
@@ -676,10 +1206,17 @@
         </div>
         <input type="text" id="npPaisOtro" placeholder="Código de país (ej: 31)" style="display:none; margin-top:8px" />
       </div>
+      <!-- v1.43: selector de avatar opcional, catálogo cargado bajo demanda -->
+      <div class="form-group">
+        <label>Avatar (opcional)</label>
+        <div id="npAvatarGrid" style="display:flex;flex-wrap:wrap;gap:8px;max-height:180px;overflow-y:auto;padding:4px 0">
+          <div style="color:var(--text2);font-size:13px">Cargando catálogo…</div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="cerrarModal('modalNuevoParticipante')">Cancelar</button>
-      <button class="btn btn-primary" id="btnAgregarParticipante" onclick="crearParticipante()">Agregar</button>
+      <button class="btn btn-primary" id="btnAgregarParticipante" onclick="guardarParticipante()">Agregar</button>
     </div>
   </div>
 </div>
@@ -757,6 +1294,152 @@ window.NAV_CONFIG = { activo: 'vacas' };
 
 <script>
 // ============================================================
+// AUDIOLINK · vacas.html · v1.29
+//
+// v1.29 (a pedido del usuario — versionado visible): se agrega un
+// <span class="modal-version">v1.29</span> junto al título del modal
+// Nueva/Editar Vaca (#nvTitulo pasó a ser un <span> interno dentro del
+// <h4>, para que abrirModalNuevaVaca()/abrirModalEditarVaca() puedan
+// seguir pisando SOLO el texto del título con .textContent sin borrar
+// la versión, que queda como hermano fijo en el HTML). Es texto
+// estático, sin JS ni llamadas nuevas — cero impacto de rendimiento.
+// Se actualiza a mano en cada versión nueva del archivo. No se tocó
+// ninguna función de datos.
+//
+// v1.29 (fix adicional, a pedido del usuario — "los modales se están
+// desbordando abajo"): puramente CSS, .modal + .modal-body + ajustes
+// mobile en el breakpoint 560px ya existente. Ver comentario junto a
+// .modal en el <style> para el detalle. No se tocó ningún <div> nuevo
+// ni ninguna función JS — es 100% ajuste visual.
+//
+// AUDIOLINK · vacas.html · v1.28
+//
+// v1.28 (a pedido del usuario — link al producto/objetivo de la vaca,
+// ej: la silla que se va a adquirir): nuevo campo opcional "URL del
+// producto" en el modal Nueva/Editar Vaca (#nvUrlProducto). Se guarda
+// como urlProducto en el doc de la vaca (Firestore), junto a los demás
+// campos del modal — mismo patrón que cuentaPago/imagenUrl. Si queda
+// vacío, se guarda null y vaca.html simplemente no muestra el botón.
+// No se tocó meta_total, cuota_fija, ni ninguna función de participantes
+// o abonos.
+//
+// AUDIOLINK · vacas.html · v1.24
+//
+// v1.24: soporte admin para el tipo de participación 'libre', agregado
+// en vaca.html v1.21 (colaborador que aporta lo que pueda, sin entrar
+// al reparto de cuota_fija). Cambios:
+//   - Tabla de participantes (cargarParticipantes): fila con etiqueta
+//     "🐠 Libre" junto al nombre; chip de estado propio (.chip-libre,
+//     turquesa) en vez de pagado/parcial/pendiente, que no le aplica;
+//     columna Abonado sin el "/cuota" de referencia. totalDevolver
+//     (excedente) excluye a los libres del cálculo.
+//   - Modal "Agregar participante": mismo toggle de tipo que el
+//     formulario público, para que el admin pueda dar de alta un
+//     colaborador libre directamente. crearParticipante() ramifica su
+//     transacción con el mismo criterio que registrarse() en vaca.html
+//     — 'libre' no incrementa numParticipantes ni recalcula cuota_fija.
+// No se tocó cargarAbonos, comprobantes, ni el flujo de participantes
+// 'fijo', que sigue idéntico.
+//
+// AUDIOLINK · vacas.html · v1.23
+//
+// v1.23: cuentas de pago Nequi/Daviplata. El modal Nueva/Editar Vaca
+// suma dos inputs opcionales (nvNequi/nvDaviplata) que guardarVaca()
+// persiste como cuentaPago:{nequi,daviplata} en el doc de la vaca
+// (ambos null si quedan vacíos). No se creó ninguna UI de consumo acá
+// — vaca.html v1.20 lee este mismo campo para mostrarle al participante
+// botones de pago directo + QR con su saldo pendiente. No se tocó
+// ninguna otra lógica de cálculo (cuota_fija, totalRecaudado, etc).
+//
+// v1.22 (a pedido del usuario — alertas de reembolso por bajada de cuota):
+// el modelo recalcula cuota_fija = meta_total / numParticipantes cada vez
+// que entra alguien nuevo (ver crearParticipante/registrarse), así que
+// quien ya pagó la cuota vieja puede quedar con excedente. El portal
+// (vaca.html) ya lo mostraba por persona; ahora el admin también:
+//   1) Tabla de participantes: nuevo estado "💚 $X a favor" (chip-favor)
+//      cuando abonado > cuota, en vez de solo "✓ Pagado".
+//   2) Caja de resumen "Total a devolver" arriba de la tabla, sumando
+//      todos los excedentes — solo aparece si hay al menos uno.
+//   3) PDF (exportarAbonosPDF): la tabla de detalle ahora es por
+//      participante (no por abono suelto) con columna "Saldo"
+//      (Pendiente/A favor), más el total a devolver en el resumen
+//      ejecutivo — sirve como soporte físico de a quién devolverle qué.
+// No se tocó el cálculo de cuota_fija/excedente en sí (vive en
+// registrarse()/crearParticipante(), sin cambios), solo cómo se muestra.
+//
+// AUDIOLINK · vacas.html · v1.21
+//
+// v1.21 (a pedido del usuario — paridad con el resto del ecosistema):
+// botón "🖨️ Exportar PDF" junto al de CSV. exportarAbonosPDF() reutiliza
+// la misma lectura participantes→abonos de exportarAbonosCSV() (sin
+// tocarla), arma un resumen ejecutivo (meta/recaudado/%/participantes)
+// + tabla detallada dentro de #reportePrint (oculto en pantalla,
+// display:none) y llama a window.print() — mismo método sin librerías
+// que usa el cotizador. @media print oculta todo lo demás (sidebar,
+// botones, cards) para que solo se imprima el reporte. Es solo lectura
+// de Firestore, no escribe nada.
+//
+// AUDIOLINK · vacas.html · v1.20
+//
+// v1.20 (a pedido del usuario — punto 9 del plan de revisión del
+// ecosistema): botón "📥 Exportar CSV" en el header de detalle.
+// exportarAbonosCSV() recorre TODOS los participantes de la vaca y sus
+// abonos (Promise.all, una sola tanda de lecturas), arma un CSV a mano
+// (Participante, Contacto, Fecha, Monto, Nota) y dispara la descarga
+// con Blob + <a download> — sin librerías externas. Incluye BOM UTF-8
+// para que Excel abra bien las tildes/ñ. Es solo lectura de Firestore,
+// no escribe nada ni toca ninguna otra función existente.
+//
+// AUDIOLINK · vacas.html · v1.19
+//
+// v1.19 (a pedido del usuario — puntos 3 y 4 del plan de revisión del
+// ecosistema, parte admin del punto 3):
+//   - Se agrega metaAlcanzadaPrefijo(data): "🎉 ¡Meta alcanzada! · " si
+//     totalRecaudado >= meta_total (y meta_total > 0). Se usa como
+//     prefijo en las 3 llamadas existentes a detalleMeta.textContent
+//     (abrirDetalle, crearParticipante, eliminarParticipante) — no se
+//     tocó la lógica de cálculo de cuota en ninguna de esas 3 funciones.
+//   - En la card del listado (renderVacaCard), badge "🎉 Meta alcanzada"
+//     junto al badge de estado, mismo estilo (.badge-activa) reutilizado.
+// LIMITACIÓN CONOCIDA: el badge del header de detalle no se actualiza en
+// vivo si registras un abono que hace cruzar la meta mientras estás
+// viendo el detalle — se refresca al volver a abrir esa vaca (no hay
+// onSnapshot sobre el doc raíz de la vaca en esta vista, solo sobre
+// participantes). Si quieres que sea en vivo, es un cambio aparte.
+// Punto 4 (barra de progreso global) es solo para el portal público
+// (vaca.html) según lo acordado — no se tocó nada de layout/stats acá.
+//
+// AUDIOLINK · vacas.html · v1.18
+//
+// v1.18 (a pedido del usuario — punto 1 del plan de revisión del
+// ecosistema): guardarAbono() en modo EDICIÓN pasa de get()+batch() a
+// runTransaction() — mismo fix aplicado en crearParticipante()/
+// eliminarParticipante() (v1.13). Antes se leía el monto anterior con
+// un get() suelto, fuera de la escritura; como totalAbonado/
+// totalRecaudado se ajustan por DELTA, dos admins editando el MISMO
+// abono casi al mismo tiempo podían leer el mismo "anterior" y aplicar
+// dos deltas sobre esos totales, desincronizándolos del monto real del
+// abono (aunque el monto en sí quedara bien, por ser la última
+// escritura). La transacción lee el monto anterior fresco justo antes
+// de escribir. No se tocó el modo creación de guardarAbono() (ya sin
+// este problema, usa increment() directo sin lectura previa), ni
+// ninguna otra función.
+//
+// AUDIOLINK · vacas.html · v1.17
+//
+// v1.17 (a pedido del usuario — imagen del objetivo de la vaca): se
+// agrega un campo opcional "Imagen" al modal Nueva/Editar Vaca. Mismo
+// patrón que el comprobante de abono (v1.15): se sube a Cloudinary
+// (reutiliza subirComprobante(), no se duplicó la función porque el
+// mecanismo es idéntico), la URL queda en `imagenUrl` del documento de
+// la vaca. Si no se sube ninguna, el campo queda null (creación) o
+// conserva la que ya había (edición, vía nvImagenUrlActual). En la card
+// del listado se muestra como banner de 120px con la miniatura de
+// Cloudinary (cloudinaryThumb(), reutilizada de v1.16); clic abre el
+// mismo lightbox ya existente. Campo totalmente opcional — no rompe
+// vacas que no tengan imagen. No se tocó guardarAbono(), la lógica de
+// transacciones ni ninguna otra función.
+//
 // AUDIOLINK · vacas.html · v1.16
 //
 // v1.16 (a pedido del usuario — miniatura + lightbox de comprobante en
@@ -994,12 +1677,14 @@ let vacaActualId = null;
 let vacaActualData = null;
 let vacasCache = {}; // id -> data, para editar/eliminar sin reinyectar JSON en el HTML
 let participanteAbonoId = null;
+let participanteAbonoNombre = null; // v1.41: nombre del participante activo en el modal de abono, para replicar en vacas/{id}/actividad
 let unsubParticipantes = null;
 // v1.10: estado para edición de abono e historial (ver abrirModalAbonosList/editarAbono)
 let abonosListParticipanteId = null;
 let abonoEditId = null;
 let abonoEditParticipanteId = null;
 let abonoEditComprobanteUrl = null; // v1.15: URL ya subida del abono en edición, si tenía
+let nvImagenUrlActual = null; // v1.17: URL ya subida de la imagen de la vaca en edición, si tenía
 
 // v1.15: Cloudinary — subida de comprobante de abono (unsigned preset,
 // no requiere API key/secret en el HTML estático). No se llama en ningún
@@ -1012,8 +1697,22 @@ auth.onAuthStateChanged(usuario => {
   if (!usuario) { window.location.href = 'login.html'; return; }
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
   document.documentElement.setAttribute('data-tema', tema);
+  cargarOrganizador(); // v1.48
   cargarVacas();
 });
+
+// ===== ORGANIZADOR (v1.48) =====
+// Campo simple, solo por navegador/dispositivo (localStorage) — no se
+// guarda en Firestore ni se liga a la cuenta. Se usa únicamente para
+// personalizar el mensaje de notificarWhatsApp().
+function cargarOrganizador() {
+  const guardado = localStorage.getItem('audiolink_organizador') || '';
+  document.getElementById('orgNombre').value = guardado;
+}
+function guardarOrganizador() {
+  const val = document.getElementById('orgNombre').value.trim();
+  localStorage.setItem('audiolink_organizador', val);
+}
 
 // ===== TABS =====
 function cambiarTab(tab) {
@@ -1066,11 +1765,13 @@ function renderVacaCard(id, d) {
       <div class="vaca-nombre">🐄 ${escapeHtml(d.nombre || '—')}</div>
       <div class="vaca-card-actions">
         <span class="badge ${d.estado === 'activa' ? 'badge-activa' : 'badge-cerrada'}">${d.estado || 'activa'}</span>
+        ${(meta > 0 && (d.totalRecaudado || 0) >= meta) ? '<span class="badge badge-activa">🎉 Meta alcanzada</span>' : ''}
         <button title="Editar" onclick="event.stopPropagation(); abrirModalEditarVaca('${id}')">✏️</button>
         <button title="Eliminar" class="danger" onclick="event.stopPropagation(); eliminarVaca('${id}')">🗑️</button>
       </div>
     </div>
     ${d.descripcion ? `<p class="vaca-desc">${escapeHtml(d.descripcion)}</p>` : ''}
+    ${d.imagenUrl ? `<img class="comprobante-thumb" style="width:100%;height:120px;border-radius:8px;margin-bottom:10px" src="${escapeHtml(cloudinaryThumb(d.imagenUrl, 400))}" alt="${escapeHtml(d.nombre || '')}" loading="lazy" onclick="event.stopPropagation(); abrirLightbox('${d.imagenUrl.replace(/'/g, '&#39;')}')" />` : ''}
     <div class="vaca-stats">
       <div class="vaca-stat">
         <label>Cuota vigente</label>
@@ -1090,6 +1791,29 @@ function renderVacaCard(id, d) {
 }
 
 // ===== DETALLE =====
+// v1.19: helper reutilizable — prefijo "🎉 ¡Meta alcanzada!" cuando
+// totalRecaudado >= meta_total (y meta_total > 0, para no disparar en
+// vacas mal configuradas con meta 0). Se usa en los 3 puntos donde se
+// actualiza #detalleMeta, en vez de repetir la misma condición 3 veces.
+function metaAlcanzadaPrefijo(data) {
+  const meta = data.meta_total || 0;
+  const recaudado = data.totalRecaudado || 0;
+  return (meta > 0 && recaudado >= meta) ? '🎉 ¡Meta alcanzada! · ' : '';
+}
+
+// v1.27 (#3 del plan — rastro de por qué cambió la cuota): pinta
+// data.motivoCuota (si existe) bajo el header de detalle. Se llama junto
+// a cada actualización de #detalleMeta, en los mismos 3 puntos.
+function pintarMotivoCuota(data) {
+  const el = document.getElementById('detalleMotivoCuota');
+  if (data.motivoCuota) {
+    el.textContent = 'Último cambio de cuota: ' + data.motivoCuota;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function abrirDetalle(id, data) {
   vacaActualId  = id;
   vacaActualData = data;
@@ -1099,7 +1823,8 @@ function abrirDetalle(id, data) {
 
   document.getElementById('detalleNombre').textContent = '🐄 ' + (data.nombre || '—');
   document.getElementById('detalleMeta').textContent =
-    `Meta: ${formatCOP(data.meta_total || 0)} · Cuota vigente: ${formatCOP(data.cuota_fija || 0)} · ${data.numParticipantes || 0} participante(s)`;
+    metaAlcanzadaPrefijo(data) + `Meta: ${formatCOP(data.meta_total || 0)} · Cuota vigente: ${formatCOP(data.cuota_fija || 0)} · ${data.numParticipantes || 0} participante(s)`;
+  pintarMotivoCuota(data);
 
   actualizarUIEstadoDetalle();
   cargarParticipantes(id);
@@ -1147,6 +1872,155 @@ function volverALista() {
   cargarVacas();
 }
 
+// v1.20: exporta el historial completo de abonos de la vaca (todos los
+// participantes) a un CSV descargable. Recorre participantes → abonos
+// con Promise.all (una sola tanda de lecturas, no encadenadas), arma el
+// CSV a mano (sin librerías — el formato es simple, no vale la pena
+// sumar peso) y dispara la descarga con un Blob + <a download>, sin
+// tocar Firestore para nada de esto (es solo lectura + generación local).
+async function exportarAbonosCSV() {
+  if (!vacaActualId || !vacaActualData) return;
+  mostrarToast('Generando CSV…');
+
+  try {
+    const partSnap = await db.collection('vacas').doc(vacaActualId).collection('participantes').get();
+    const filas = [['Participante', 'Contacto', 'Fecha', 'Monto', 'Nota']];
+
+    await Promise.all(partSnap.docs.map(async (pDoc) => {
+      const p = pDoc.data();
+      const abonosSnap = await pDoc.ref.collection('abonos').orderBy('fecha', 'asc').get();
+      abonosSnap.forEach(aDoc => {
+        const a = aDoc.data();
+        filas.push([p.nombre || '', p.contacto || '', a.fecha || '', a.monto || 0, a.nota || '']);
+      });
+    }));
+
+    if (filas.length === 1) { mostrarToast('⚠️ No hay abonos registrados todavía'); return; }
+
+    // Escape básico de CSV: comillas dobles alrededor de cada campo,
+    // duplicando comillas internas — suficiente para nombres/notas con
+    // comas o comillas sin necesitar una librería de CSV.
+    const csv = filas.map(fila =>
+      fila.map(campo => `"${String(campo).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM para que Excel abra bien los tildes
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `abonos_${(vacaActualData.nombre || 'vaca').replace(/[^a-z0-9]+/gi, '_')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    mostrarToast('Error al exportar: ' + err.message);
+  }
+}
+
+// v1.21: exporta el mismo estado de la vaca a PDF, con el método del
+// cotizador (window.print() + @media print, sin librerías). Reutiliza
+// la misma lectura participantes→abonos que exportarAbonosCSV() (sin
+// tocarla), arma un resumen ejecutivo + tabla detallada dentro de
+// #reportePrint y dispara la impresión del navegador (el usuario elige
+// "Guardar como PDF" desde ahí, igual que en el resto del ecosistema).
+async function exportarAbonosPDF() {
+  if (!vacaActualId || !vacaActualData) return;
+  mostrarToast('Generando reporte…');
+
+  try {
+    const partSnap = await db.collection('vacas').doc(vacaActualId).collection('participantes').get();
+    const filasAbonos = [];
+    const filasSaldo = []; // v1.22: una fila por participante, con su saldo (pendiente/a favor)
+
+    const cuota = vacaActualData.cuota_fija || 0;
+    let totalDevolver = 0;
+
+    await Promise.all(partSnap.docs.map(async (pDoc) => {
+      const p = pDoc.data();
+      const abonado = p.totalAbonado || 0;
+      const excedente = abonado - cuota;
+      if (excedente > 0) totalDevolver += excedente;
+      filasSaldo.push({ nombre: p.nombre || '', contacto: p.contacto || '', abonado, excedente });
+
+      const abonosSnap = await pDoc.ref.collection('abonos').orderBy('fecha', 'asc').get();
+      abonosSnap.forEach(aDoc => {
+        const a = aDoc.data();
+        filasAbonos.push({ nombre: p.nombre || '', contacto: p.contacto || '', fecha: a.fecha || '', monto: a.monto || 0, nota: a.nota || '' });
+      });
+    }));
+
+    const meta = vacaActualData.meta_total || 0;
+    const recaudado = vacaActualData.totalRecaudado || 0;
+    const numParticipantes = vacaActualData.numParticipantes || 0;
+    const pct = meta > 0 ? Math.min(100, Math.round(recaudado / meta * 100)) : 0;
+    const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // v1.22: fila extra en el resumen ejecutivo solo si hay algo que
+    // devolver — no se agrega vacía para no confundir en vacas sin excedente.
+    const filaDevolverHtml = totalDevolver > 0
+      ? `<div>Total a devolver<strong style="color:var(--green)">${formatCOP(totalDevolver)}</strong></div>`
+      : '';
+
+    // v1.22: tabla resumen por participante con columna Saldo — sirve
+    // como soporte de a quién devolverle qué, sin tener que cruzar la
+    // tabla de abonos sueltos.
+    filasSaldo.sort((a, b) => b.excedente - a.excedente);
+    const filasSaldoHtml = filasSaldo.map(f => {
+      const saldoTxt = f.excedente > 0
+        ? `<span style="color:var(--green)">${formatCOP(f.excedente)} a favor</span>`
+        : f.excedente < 0
+          ? `${formatCOP(-f.excedente)} pendiente`
+          : 'Al día';
+      return `<tr>
+        <td>${escapeHtml(f.nombre)}</td>
+        <td>${escapeHtml(f.contacto)}</td>
+        <td>${formatCOP(f.abonado)}</td>
+        <td>${saldoTxt}</td>
+      </tr>`;
+    }).join('');
+
+    let filasHtml = '';
+    if (filasAbonos.length === 0) {
+      filasHtml = '<tr><td colspan="5">Sin abonos registrados todavía.</td></tr>';
+    } else {
+      filasHtml = filasAbonos.map(f => `
+        <tr>
+          <td>${escapeHtml(f.nombre)}</td>
+          <td>${escapeHtml(f.contacto)}</td>
+          <td>${f.fecha}</td>
+          <td>${formatCOP(f.monto)}</td>
+          <td>${escapeHtml(f.nota)}</td>
+        </tr>`).join('');
+    }
+
+    document.getElementById('reportePrint').innerHTML = `
+      <h2>🐄 ${escapeHtml(vacaActualData.nombre || 'Vaca')}</h2>
+      <div class="rp-sub">Reporte generado el ${fechaHoy} · AUDIOLINK</div>
+      <div class="rp-resumen">
+        <div>Meta<strong>${formatCOP(meta)}</strong></div>
+        <div>Recaudado<strong>${formatCOP(recaudado)}</strong></div>
+        <div>% completado<strong>${pct}%</strong></div>
+        <div>Participantes<strong>${numParticipantes}</strong></div>
+        ${filaDevolverHtml}
+      </div>
+      <h3 style="margin:18px 0 8px;font-size:13px;">Saldo por participante</h3>
+      <table>
+        <thead><tr><th>Participante</th><th>Contacto</th><th>Abonado</th><th>Saldo</th></tr></thead>
+        <tbody>${filasSaldoHtml}</tbody>
+      </table>
+      <h3 style="margin:18px 0 8px;font-size:13px;">Detalle de abonos</h3>
+      <table>
+        <thead><tr><th>Participante</th><th>Contacto</th><th>Fecha</th><th>Monto</th><th>Nota</th></tr></thead>
+        <tbody>${filasHtml}</tbody>
+      </table>`;
+
+    window.print();
+  } catch (err) {
+    mostrarToast('Error al generar PDF: ' + err.message);
+  }
+}
+
 function cargarParticipantes(vacaId) {
   const cont = document.getElementById('contenedorParticipantes');
   cont.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando participantes…</div>';
@@ -1157,6 +2031,7 @@ function cargarParticipantes(vacaId) {
     .orderBy('fechaRegistro', 'asc')
     .onSnapshot(snap => {
       if (snap.empty) {
+        participantesCache = {}; // v1.46
         cont.innerHTML = `<div class="empty-state"><div class="ico">👤</div><p>Sin participantes aún. Agrega el primero.</p></div>`;
         if (vacaActualData && (vacaActualData.totalRecaudado || 0) !== 0) {
           vacaActualData.totalRecaudado = 0;
@@ -1166,35 +2041,80 @@ function cargarParticipantes(vacaId) {
       }
       const cuota = (vacaActualData && vacaActualData.cuota_fija) || 0;
       const cerrada = !!(vacaActualData && vacaActualData.estado === 'cerrada');
-      let html = `<div class="table-wrap"><table>
+
+      // v1.22: si la cuota bajó porque entraron más participantes (ver
+      // registrarse() en vaca.html), quien ya había pagado la cuota vieja
+      // queda con excedente. Se detecta por persona (abonado > cuota) y
+      // se acumula totalDevolver para la caja de resumen — mismo cálculo
+      // que "excedente" en el portal (vaca.html cargarPortal()).
+      let totalDevolver = 0;
+      snap.forEach(doc => {
+        const p = doc.data();
+        if (p.tipo === 'libre') return; // v1.24: sin cuota, no aplica excedente
+        const abonado = p.totalAbonado || 0;
+        if (abonado > cuota) totalDevolver += (abonado - cuota);
+      });
+
+      let html = '';
+      if (totalDevolver > 0) {
+        html += `<div class="resumen-devolver">💚 Total a devolver: <strong>${formatCOP(totalDevolver)}</strong> — hay participantes con saldo a favor porque la cuota bajó tras nuevos ingresos.</div>`;
+      }
+      html += `<div class="table-wrap"><table>
         <thead><tr>
-          <th>Nombre</th><th>Contacto</th><th>Abonado</th><th>Estado</th><th>Acciones</th>
+          <th></th><th>Nombre</th><th>Contacto</th><th>Abonado</th><th>Estado</th><th>Acciones</th>
         </tr></thead><tbody>`;
 
       let sumaAbonado = 0;
+      let sumaLibre = 0; // v1.25: suma de aportes de colaboradores 'libre'
+      participantesCache = {}; // v1.46: se reconstruye en cada snapshot
       snap.forEach(doc => {
         const p = doc.data();
+        participantesCache[doc.id] = p; // v1.46
+        const esLibre = p.tipo === 'libre';
         const abonado = p.totalAbonado || 0;
         sumaAbonado += abonado;
-        const pct = cuota > 0 ? Math.min(100, Math.round(abonado / cuota * 100)) : 0;
-        const estadoClass = abonado >= cuota ? 'chip-pagado'
-                          : abonado > 0      ? 'chip-parcial'
-                          :                    'chip-pendiente';
-        const estadoLabel = abonado >= cuota ? '✓ Pagado'
-                          : abonado > 0      ? `${pct}% abonado`
-                          :                    'Pendiente';
+        if (esLibre) sumaLibre += abonado;
+
+        // v1.24: colaborador libre no tiene cuota_fija — chip y columna
+        // de abonado se muestran distinto, sin comparar contra `cuota`.
+        let estadoClass, estadoLabel;
+        if (esLibre) {
+          estadoClass = 'chip-libre';
+          estadoLabel = abonado > 0 ? '🐠 Aporte libre' : '🐠 Sin abonos aún';
+        } else if (cuota === 0 && abonado === 0) {
+          // v1.26: cuota_fija llegó a $0 porque los aportes libres ya
+          // cubrieron la meta (ver auto-sanación v1.25). Sin este caso,
+          // "abonado >= cuota" (0 >= 0) caía en el branch de '✓ Pagado'
+          // más abajo, dando a entender que el fijo sí pagó algo cuando
+          // en realidad no ha abonado nada — la meta se cubrió sin él.
+          estadoClass = 'chip-pagado';
+          estadoLabel = '🎉 Cubierto por aportes libres';
+        } else {
+          const excedente = abonado - cuota;
+          const pct = cuota > 0 ? Math.min(100, Math.round(abonado / cuota * 100)) : 0;
+          estadoClass = excedente > 0   ? 'chip-favor'
+                      : abonado >= cuota ? 'chip-pagado'
+                      : abonado > 0      ? 'chip-parcial'
+                      :                    'chip-pendiente';
+          estadoLabel = excedente > 0   ? `💚 ${formatCOP(excedente)} a favor`
+                      : abonado >= cuota ? '✓ Pagado'
+                      : abonado > 0      ? `${pct}% abonado`
+                      :                    'Pendiente';
+        }
         html += `<tr>
-          <td data-label="Nombre" style="font-weight:600">${escapeHtml(p.nombre || '—')}</td>
+          <td data-label="" style="width:36px">${p.avatarUrl ? `<img src="${escapeHtml(p.avatarUrl.replace('/upload/', '/upload/w_100,h_100,c_fill,f_auto,q_auto/'))}" alt="" loading="lazy" style="width:32px;height:32px;border-radius:50%;object-fit:cover;display:block" />` : `<span style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px">👤</span>`}</td>
+          <td data-label="Nombre" style="font-weight:600">${escapeHtml(p.nombre || '—')}${esLibre ? ' <span class="tag-libre">🐠 Libre</span>' : ''}</td>
           <td data-label="Contacto" style="color:var(--text2)">${escapeHtml(p.contacto || '—')}</td>
-          <td data-label="Abonado">${formatCOP(abonado)}${cuota > 0 ? ` <span style="color:var(--text2);font-size:11px">/ ${formatCOP(cuota)}</span>` : ''}</td>
+          <td data-label="Abonado">${formatCOP(abonado)}${(!esLibre && cuota > 0) ? ` <span style="color:var(--text2);font-size:11px">/ ${formatCOP(cuota)}</span>` : ''}</td>
           <td data-label="Estado"><span class="estado-chip ${estadoClass}">${estadoLabel}</span></td>
           <td data-label="Acciones">
             <div class="acciones-td">
               <button class="btn btn-ghost btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='abrirModalAbono("${doc.id}", "${escapeHtml(p.nombre || '')}")'>💰 Abono</button>
               <button class="btn btn-ghost btn-sm" onclick='abrirModalAbonosList("${doc.id}", "${escapeHtml(p.nombre || '')}")'>📋 Historial</button>
-              <button class="btn btn-ghost btn-sm" onclick='copiarLink("${vacaActualId}", "${doc.id}")'>🔗 Copiar</button>
-              <button class="btn btn-ghost btn-sm" onclick='abrirLinkParticipante("${vacaActualId}", "${doc.id}")'>↗ Abrir</button>
-              <button class="btn btn-ghost btn-sm" onclick='notificarWhatsApp("${vacaActualId}", "${doc.id}", "${escapeHtml(p.nombre || '')}", "${escapeHtml(p.contacto || '')}", "${escapeHtml(p.paisCodigo || '')}")'>📲 Avisar</button>
+              <button class="btn btn-ghost btn-sm" onclick='copiarLink("${vacaActualId}", "${doc.id}", "${escapeHtml(p.linkToken || '')}")'>🔗 Copiar</button>
+              <button class="btn btn-ghost btn-sm" onclick='abrirLinkParticipante("${vacaActualId}", "${doc.id}", "${escapeHtml(p.linkToken || '')}")'>↗ Abrir</button>
+              <button class="btn btn-ghost btn-sm" onclick='notificarWhatsApp("${vacaActualId}", "${doc.id}", "${escapeHtml(p.nombre || '')}", "${escapeHtml(p.contacto || '')}", "${escapeHtml(p.paisCodigo || '')}", "${escapeHtml(p.linkToken || '')}")'>📲 Avisar</button>
+              <button class="btn btn-ghost btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='abrirModalEditarParticipante("${doc.id}")'>✏️ Editar</button>
               <button class="btn btn-danger btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='eliminarParticipante("${doc.id}", "${escapeHtml(p.nombre || '')}", this)'>🗑️</button>
             </div>
           </td>
@@ -1218,12 +2138,131 @@ function cargarParticipantes(vacaId) {
         db.collection('vacas').doc(vacaId).update({ totalRecaudado: sumaAbonado })
           .catch(() => {}); // silencioso: no bloquea el uso normal del panel
       }
+
+      // v1.25: auto-sanación de cuota_fija — igual patrón que totalRecaudado
+      // arriba. Los aportes de colaboradores 'libre' bajan la cuota de los
+      // fijos: cuota_fija = max(0, (meta_total - sumaLibre) / numParticipantes).
+      // Se recalcula sola con cada cambio en los abonos (crear/editar/eliminar),
+      // sin depender de que cada función que toca abonos la actualice a mano.
+      // Math.max(0, ...) evita que quede negativa si los libres superan la meta.
+      if (vacaActualData) {
+        const metaTotal = vacaActualData.meta_total || 0;
+        const numPart = vacaActualData.numParticipantes || 0;
+        const cuotaCorrecta = numPart > 0
+          ? Math.max(0, (metaTotal - sumaLibre) / numPart)
+          : Math.max(0, metaTotal - sumaLibre);
+        if (cuotaCorrecta !== (vacaActualData.cuota_fija || 0)) {
+          vacaActualData.cuota_fija = cuotaCorrecta;
+          // v1.27 (#3 del plan): se guarda el motivo junto con la cuota.
+          // Esta función no distingue la causa exacta (podría ser un
+          // abono/retiro de un libre, o datos que llegaron desatrasados),
+          // así que el motivo queda genérico mas útil como pista.
+          const motivo = 'Ajuste automático por aportes libres';
+          vacaActualData.motivoCuota = motivo;
+          db.collection('vacas').doc(vacaId).update({ cuota_fija: cuotaCorrecta, motivoCuota: motivo })
+            .catch(() => {}); // silencioso: no bloquea el uso normal del panel
+          document.getElementById('detalleMeta').textContent =
+            metaAlcanzadaPrefijo(vacaActualData) + `Meta: ${formatCOP(metaTotal)} · Cuota vigente: ${formatCOP(cuotaCorrecta)} · ${numPart} participante(s)`;
+          pintarMotivoCuota(vacaActualData);
+        }
+      }
     }, err => {
       cont.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
     });
 }
 
 // ===== NUEVA VACA =====
+// v1.39: preview en vivo de la imagen de cabecera (imagen + filtro +
+// nombre superpuesto) dentro del modal Nueva/Editar Vaca. Se llama al
+// abrir el modal y desde los 3 inputs que la afectan (oninput/onchange
+// inline en el HTML): nvNombre, nvImagen, nvImagenFiltro. Si el admin
+// eligió un archivo nuevo, usa una vista previa LOCAL vía FileReader
+// (no sube nada a Cloudinary hasta guardarVaca()) — por eso el recorte
+// acá es aproximado (object-fit:cover simple), no el gravity:auto real
+// que aplica vaca.html sobre la URL ya subida; es solo para ubicarse.
+function actualizarPreviewImagen() {
+  const wrap   = document.getElementById('nvImagenPreviewWrap');
+  const img    = document.getElementById('nvImagenPreviewImg');
+  const nombreEl = document.getElementById('nvImagenPreviewNombre');
+  const archivo = document.getElementById('nvImagen').files[0] || null;
+  const filtro  = document.getElementById('nvImagenFiltro').value || 'ninguno';
+  const nombre  = document.getElementById('nvNombre').value.trim();
+
+  nombreEl.textContent = nombre || 'Sin nombre aún';
+  img.classList.remove('vaca-imagen-sutil', 'vaca-imagen-sepia', 'vaca-imagen-bn-retro');
+  if (filtro === 'sutil') img.classList.add('vaca-imagen-sutil');
+  else if (filtro === 'sepia') img.classList.add('vaca-imagen-sepia');
+  else if (filtro === 'bn-retro') img.classList.add('vaca-imagen-bn-retro');
+
+  if (archivo) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      img.src = e.target.result;
+      wrap.style.display = '';
+    };
+    reader.readAsDataURL(archivo);
+    return;
+  }
+
+  if (nvImagenUrlActual) {
+    img.src = nvImagenUrlActual;
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+// v1.31: métodos de pago personalizables (hasta 4). Reemplaza los
+// campos fijos nvNequi/nvDaviplata de v1.23-v1.30. cuentaPago pasa a
+// ser un ARREGLO: [{label, numero, logo, activo}, ...] — máximo 4
+// entradas, cada una independiente. El checkbox "activo" oculta el
+// método del portal sin borrar sus datos.
+const CUENTAPAGO_MAX_METODOS = 4;
+
+function renderMetodosPagoInputs(metodos) {
+  const cont = document.getElementById('nvMetodosPago');
+  const arr = (metodos || []).slice(0, CUENTAPAGO_MAX_METODOS);
+  while (arr.length < CUENTAPAGO_MAX_METODOS) arr.push({ label: '', numero: '', logo: '', activo: true });
+  cont.innerHTML = arr.map((m, i) => `
+    <div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="nvMetodoLabel${i}" placeholder="Nombre (ej: Nequi)" value="${(m.label || '').replace(/"/g, '&quot;')}" style="flex:1" />
+        <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;white-space:nowrap">
+          <input type="checkbox" id="nvMetodoActivo${i}" ${m.activo !== false ? 'checked' : ''} /> Mostrar
+        </label>
+      </div>
+      <input type="text" id="nvMetodoNumero${i}" placeholder="Número (opcional)" value="${(m.numero || '').replace(/"/g, '&quot;')}" />
+      <input type="text" id="nvMetodoTitular${i}" placeholder="Titular de la cuenta (opcional)" value="${(m.titular || '').replace(/"/g, '&quot;')}" />
+      <input type="url" id="nvMetodoLogo${i}" placeholder="URL logo (opcional, usa uno genérico si se deja vacío)" value="${(m.logo || '').replace(/"/g, '&quot;')}" />
+    </div>
+  `).join('');
+}
+
+function leerMetodosPagoInputs() {
+  const out = [];
+  for (let i = 0; i < CUENTAPAGO_MAX_METODOS; i++) {
+    const label   = (document.getElementById(`nvMetodoLabel${i}`).value || '').trim();
+    const numero  = (document.getElementById(`nvMetodoNumero${i}`).value || '').trim();
+    const titular = (document.getElementById(`nvMetodoTitular${i}`).value || '').trim();
+    const logo    = (document.getElementById(`nvMetodoLogo${i}`).value || '').trim();
+    const activo  = document.getElementById(`nvMetodoActivo${i}`).checked;
+    if (!label && !numero && !logo) continue; // slot vacío, no se guarda
+    out.push({ label: label || null, numero: numero || null, titular: titular || null, logo: logo || null, activo });
+  }
+  return out;
+}
+
+// Migra el formato viejo {nequi,daviplata,nequiLogo,daviplataLogo} (v1.23-v1.30)
+// a la lista nueva, para que al editar una vaca antigua no se pierda nada.
+function migrarCuentaPagoALista(cuentaPago) {
+  if (!cuentaPago) return [];
+  if (Array.isArray(cuentaPago)) return cuentaPago;
+  const out = [];
+  if (cuentaPago.nequi) out.push({ label: 'Nequi', numero: cuentaPago.nequi, logo: cuentaPago.nequiLogo || null, activo: true });
+  if (cuentaPago.daviplata) out.push({ label: 'Daviplata', numero: cuentaPago.daviplata, logo: cuentaPago.daviplataLogo || null, activo: true });
+  return out;
+}
+
 function abrirModalNuevaVaca() {
   document.getElementById('nvEditId').value = '';
   document.getElementById('nvTitulo').textContent = '🐄 Nueva Vaca';
@@ -1231,6 +2270,17 @@ function abrirModalNuevaVaca() {
   document.getElementById('nvNombre').value = '';
   document.getElementById('nvDescripcion').value = '';
   document.getElementById('nvCuota').value = '';
+  document.getElementById('nvImagen').value = '';
+  document.getElementById('nvImagenActual').innerHTML = '';
+  nvImagenUrlActual = null;
+  document.getElementById('nvImagenFiltro').value = 'ninguno'; // v1.38
+  renderMetodosPagoInputs([]); // v1.31: 4 slots vacíos
+  document.getElementById('nvUrlProducto').value = ''; // v1.28
+  document.getElementById('nvMostrarEstadoIntegrantes').checked = false; // v1.42
+  document.getElementById('nvOrdenarPorAporte').checked = false; // v1.42
+  document.getElementById('nvOcultarLibresDeLista').checked = false; // v1.42
+  document.getElementById('nvOcultarMontosActividad').checked = false; // v1.49
+  actualizarPreviewImagen(); // v1.39
   abrirModal('modalNuevaVaca');
 }
 
@@ -1248,6 +2298,19 @@ function abrirModalEditarVaca(id) {
   document.getElementById('nvNombre').value = d.nombre || '';
   document.getElementById('nvDescripcion').value = d.descripcion || '';
   document.getElementById('nvCuota').value = d.meta_total || '';
+  document.getElementById('nvImagen').value = '';
+  nvImagenUrlActual = d.imagenUrl || null;
+  document.getElementById('nvImagenActual').innerHTML = nvImagenUrlActual
+    ? `📎 Ya tiene imagen — <a href="${nvImagenUrlActual}" target="_blank" style="color:var(--accent)">verla</a>. Sube una nueva solo si quieres reemplazarla.`
+    : '';
+  document.getElementById('nvImagenFiltro').value = d.imagenFiltro || 'ninguno'; // v1.38
+  renderMetodosPagoInputs(migrarCuentaPagoALista(d.cuentaPago)); // v1.31
+  document.getElementById('nvUrlProducto').value = d.urlProducto || ''; // v1.28
+  document.getElementById('nvMostrarEstadoIntegrantes').checked = !!d.mostrarEstadoIntegrantes; // v1.42
+  document.getElementById('nvOrdenarPorAporte').checked = !!d.ordenarPorAporte; // v1.42
+  document.getElementById('nvOcultarLibresDeLista').checked = !!d.ocultarLibresDeLista; // v1.42
+  document.getElementById('nvOcultarMontosActividad').checked = !!d.ocultarMontosActividad; // v1.49
+  actualizarPreviewImagen(); // v1.39
   abrirModal('modalNuevaVaca');
 }
 
@@ -1261,28 +2324,77 @@ function abrirModalEditarVaca(id) {
 // cuota_fija vigente con el numParticipantes actual (0 al crear, el que
 // ya tenga si se edita) para que la card/detalle no muestren un valor
 // desactualizado hasta el próximo ingreso.
-function guardarVaca() {
+async function guardarVaca() {
   const editId = document.getElementById('nvEditId').value;
   const nombre = document.getElementById('nvNombre').value.trim();
   const desc   = document.getElementById('nvDescripcion').value.trim();
   const meta   = parseFloat(document.getElementById('nvCuota').value) || 0;
+  const archivo = document.getElementById('nvImagen').files[0] || null;
+  // v1.31: hasta 4 métodos de pago personalizables (label, número, logo,
+  // activo). Sustituye el par fijo nequi/daviplata de v1.23-v1.30.
+  const cuentaPago = leerMetodosPagoInputs();
+  const urlProducto = document.getElementById('nvUrlProducto').value.trim() || null; // v1.28
+  const imagenFiltro = document.getElementById('nvImagenFiltro').value || 'ninguno'; // v1.38
+  const mostrarEstadoIntegrantes = document.getElementById('nvMostrarEstadoIntegrantes').checked; // v1.42
+  const ordenarPorAporte = document.getElementById('nvOrdenarPorAporte').checked; // v1.42
+  const ocultarLibresDeLista = document.getElementById('nvOcultarLibresDeLista').checked; // v1.42
+  const ocultarMontosActividad = document.getElementById('nvOcultarMontosActividad').checked; // v1.49
 
   if (!nombre) { mostrarToast('⚠️ El nombre es obligatorio'); return; }
   if (meta <= 0) { mostrarToast('⚠️ Ingresa una meta válida'); return; }
 
+  const btn = document.getElementById('nvBtnGuardar');
+  const textoOriginalBtn = btn.textContent;
+  btn.disabled = true;
+
+  // v1.17: mismo patrón que guardarAbono() v1.15 — si el admin eligió
+  // una imagen, se sube primero a Cloudinary; si no, se conserva la que
+  // ya había (nvImagenUrlActual, seteado por abrirModalEditarVaca()) o
+  // queda null si es una vaca nueva sin imagen (campo opcional).
+  let imagenUrl = nvImagenUrlActual;
+  if (archivo) {
+    btn.textContent = 'Subiendo imagen…';
+    try {
+      imagenUrl = await subirComprobante(archivo);
+    } catch (err) {
+      mostrarToast('Error al subir imagen: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = textoOriginalBtn;
+      return;
+    }
+  }
+  btn.textContent = 'Guardando…';
+
   if (editId) {
     const numActual = (vacasCache[editId] && vacasCache[editId].numParticipantes) || 0;
     const cuotaRecalc = numActual > 0 ? meta / numActual : meta;
+    // v1.26 NOTA (no se modifica comportamiento): este cuotaRecalc NO resta
+    // sumaLibre — a diferencia de crearParticipante()/eliminarParticipante(),
+    // este flujo no dispara el onSnapshot de participantes (edita el doc de
+    // la vaca, no la colección de participantes), así que cargarParticipantes()
+    // (v1.25) NO lo corrige automáticamente hasta el próximo alta/baja/abono.
+    // Si se edita meta_total en una vaca que ya tiene aportes libres, la
+    // cuota mostrada puede quedar desactualizada hasta ese próximo evento.
+    // Pendiente si se quiere cerrar del todo: leer sumaLibre real aquí antes
+    // de escribir (requiere un query a la subcolección de participantes).
     db.collection('vacas').doc(editId).update({
       nombre,
       descripcion: desc,
       meta_total: meta,
-      cuota_fija: cuotaRecalc
+      cuota_fija: cuotaRecalc,
+      motivoCuota: `Meta actualizada por admin a ${formatCOP(meta)}`, // v1.27, #3 del plan
+      imagenUrl: imagenUrl || null,
+      imagenFiltro, // v1.38
+      cuentaPago,
+      urlProducto, // v1.28
+      mostrarEstadoIntegrantes, ordenarPorAporte, ocultarLibresDeLista, // v1.42
+      ocultarMontosActividad // v1.49
     }).then(() => {
       cerrarModal('modalNuevaVaca');
       mostrarToast('✅ Vaca actualizada');
       cargarVacas();
-    }).catch(err => mostrarToast('Error: ' + err.message));
+    }).catch(err => mostrarToast('Error: ' + err.message))
+      .finally(() => { btn.disabled = false; btn.textContent = textoOriginalBtn; });
     return;
   }
 
@@ -1291,6 +2403,12 @@ function guardarVaca() {
     descripcion: desc,
     meta_total: meta,
     cuota_fija: meta, // con 0 participantes, la cuota vigente equivale a la meta completa
+    imagenUrl: imagenUrl || null,
+    imagenFiltro, // v1.38
+    cuentaPago,
+    urlProducto, // v1.28
+    mostrarEstadoIntegrantes, ordenarPorAporte, ocultarLibresDeLista, // v1.42
+    ocultarMontosActividad, // v1.49
     creadoPor: auth.currentUser.email,
     fecha: firebase.firestore.FieldValue.serverTimestamp(),
     estado: 'activa',
@@ -1300,7 +2418,8 @@ function guardarVaca() {
     cerrarModal('modalNuevaVaca');
     mostrarToast('🐄 Vaca creada');
     cargarVacas();
-  }).catch(err => mostrarToast('Error: ' + err.message));
+  }).catch(err => mostrarToast('Error: ' + err.message))
+    .finally(() => { btn.disabled = false; btn.textContent = textoOriginalBtn; });
 }
 
 // ===== ELIMINAR VACA (v1.3) =====
@@ -1339,26 +2458,121 @@ function eliminarVaca(id) {
     .catch(err => mostrarToast('Error al eliminar: ' + err.message));
 }
 
-// ===== NUEVO PARTICIPANTE =====
+// ===== NUEVO / EDITAR PARTICIPANTE =====
+// v1.43: URL del avatar elegido en el modal Nuevo/Editar Participante (null = sin avatar)
+let npAvatarSeleccionado = null;
+// v1.46: null = modal en modo "crear"; string (id del doc) = modo "editar"
+let npEditParticipanteId = null;
+// v1.46: caché en memoria de los participantes de la vaca abierta, poblada
+// por el onSnapshot de cargarParticipantes() — evita una lectura extra a
+// Firestore solo para precargar el modal de edición.
+let participantesCache = {};
+
 function abrirModalNuevoParticipante() {
+  npEditParticipanteId = null; // v1.46: modo "crear"
+  document.getElementById('npModalTitulo').textContent = '➕ Agregar participante'; // v1.46
   const btn = document.getElementById('btnAgregarParticipante');
   btn.disabled = false;
   btn.textContent = 'Agregar';
   document.getElementById('npNombre').value = '';
+  document.getElementById('npTipo').value = 'fijo';
   document.getElementById('npContacto').value = '';
   document.getElementById('npPais').value = '57';
   document.getElementById('npPaisOtro').value = '';
   document.getElementById('npPaisOtro').style.display = 'none';
+  npAvatarSeleccionado = null;
+  cargarCatalogoAvataresParticipante();
   abrirModal('modalNuevoParticipante');
 }
 
-async function crearParticipante() {
+// v1.46: abre el mismo modal que abrirModalNuevoParticipante() pero
+// precargado con los datos del participante existente (tomados de
+// participantesCache, poblada por el onSnapshot de cargarParticipantes()).
+// npEditParticipanteId marca el modo "editar" para que guardarParticipante()
+// sepa que debe actualizar en vez de crear.
+function abrirModalEditarParticipante(participanteId) {
+  const p = participantesCache[participanteId];
+  if (!p) { mostrarToast('No se encontró el participante — refresca e intenta de nuevo.'); return; }
+  npEditParticipanteId = participanteId;
+  document.getElementById('npModalTitulo').textContent = '✏️ Editar participante';
+  const btn = document.getElementById('btnAgregarParticipante');
+  btn.disabled = false;
+  btn.textContent = 'Guardar cambios';
+  document.getElementById('npNombre').value = p.nombre || '';
+  document.getElementById('npTipo').value = p.tipo === 'libre' ? 'libre' : 'fijo';
+  document.getElementById('npContacto').value = p.contacto || '';
+  const paisConocido = ['57','1','34','44','33','49','39','351'].includes(p.paisCodigo);
+  document.getElementById('npPais').value = paisConocido ? p.paisCodigo : (p.paisCodigo ? 'otro' : '57');
+  document.getElementById('npPaisOtro').value = paisConocido ? '' : (p.paisCodigo || '');
+  document.getElementById('npPaisOtro').style.display = paisConocido ? 'none' : '';
+  npAvatarSeleccionado = p.avatarUrl || null;
+  cargarCatalogoAvataresParticipante(npAvatarSeleccionado); // v1.46: precarga selección visual
+  abrirModal('modalNuevoParticipante');
+}
+
+// v1.43: carga bajo demanda (no tiempo real) del catálogo avataresIconos,
+// filtrado a tipo='avatar' y activo==true — mismo criterio de visibilidad
+// que se pedirá para la regla pública de firestore.rules. Pinta una
+// cuadrícula clickeable en #npAvatarGrid; clic marca la selección con
+// borde de acento y guarda la URL en npAvatarSeleccionado.
+// v1.46: acepta un parámetro opcional urlPreseleccionada — cuando se abre
+// el modal en modo "editar" con un avatar ya guardado, se pinta ese chip
+// con el borde de seleccionado desde el primer render (antes solo se
+// marcaba con clic, útil para "crear" pero insuficiente para "editar").
+function cargarCatalogoAvataresParticipante(urlPreseleccionada) {
+  const cont = document.getElementById('npAvatarGrid');
+  cont.innerHTML = '<div style="color:var(--text2);font-size:13px">Cargando catálogo…</div>';
+  db.collection('avataresIconos')
+    .where('tipo', 'array-contains', 'avatar') // v1.45: tipo ahora es arreglo en avataresIconos
+    .where('activo', '==', true)
+    .get()
+    .then(snap => {
+      if (snap.empty) {
+        cont.innerHTML = '<div style="color:var(--text2);font-size:13px">No hay avatares disponibles en el catálogo.</div>';
+        return;
+      }
+      const sinSeleccion = !urlPreseleccionada;
+      let html = `<div class="np-avatar-opt" data-url="" onclick="seleccionarAvatarParticipante(null, this)" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:2px solid ${sinSeleccion ? 'var(--accent)' : 'transparent'}" title="Sin avatar">🚫</div>`;
+      snap.forEach(doc => {
+        const d = doc.data();
+        if (!d.urlCloudinary) return;
+        // v1.44: miniatura vía transformación de Cloudinary (w_150,h_150,
+        // c_fill,f_auto,q_auto) en vez de la imagen completa — mismo
+        // patrón que urlMiniatura() en avatares-iconos.html. La URL
+        // guardada en avatarUrl sigue siendo la ORIGINAL (d.urlCloudinary),
+        // solo el <img src> de la cuadrícula usa la versión liviana.
+        const miniatura = d.urlCloudinary.replace('/upload/', '/upload/w_150,h_150,c_fill,f_auto,q_auto/');
+        const marcado = urlPreseleccionada === d.urlCloudinary; // v1.46
+        html += `<img class="np-avatar-opt" src="${escapeHtml(miniatura)}" data-url="${escapeHtml(d.urlCloudinary)}" onclick="seleccionarAvatarParticipante('${escapeHtml(d.urlCloudinary)}', this)" loading="lazy" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid ${marcado ? 'var(--accent)' : 'transparent'}" title="${escapeHtml(d.nombre || '')}" />`;
+      });
+      cont.innerHTML = html;
+    })
+    .catch(err => {
+      cont.innerHTML = `<div style="color:var(--text2);font-size:13px">No se pudo cargar el catálogo: ${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function seleccionarAvatarParticipante(url, el) {
+  npAvatarSeleccionado = url;
+  document.querySelectorAll('#npAvatarGrid .np-avatar-opt').forEach(n => n.style.borderColor = 'transparent');
+  el.style.borderColor = 'var(--accent)';
+}
+
+// v1.46: guardarParticipante() reemplaza a crearParticipante() como handler
+// del botón del modal — ahora sirve tanto para crear (npEditParticipanteId
+// === null) como para editar (npEditParticipanteId = id del doc). La rama
+// "crear" es exactamente la lógica que ya tenía crearParticipante(), sin
+// cambios. La rama "editar" es nueva: ver editarParticipanteExistente() más
+// abajo.
+async function guardarParticipante() {
   const nombre   = document.getElementById('npNombre').value.trim();
   const contacto = document.getElementById('npContacto').value.trim();
   const paisSel  = document.getElementById('npPais').value;
   const paisCodigo = paisSel === 'otro'
     ? document.getElementById('npPaisOtro').value.trim().replace(/\D/g, '')
     : paisSel;
+  // v1.24: mismo criterio de vaca.html v1.21 — 'libre' no entra al reparto.
+  const tipo = document.getElementById('npTipo').value === 'libre' ? 'libre' : 'fijo';
   if (!nombre) { mostrarToast('⚠️ El nombre es obligatorio'); return; }
   if (paisSel === 'otro' && !paisCodigo) { mostrarToast('⚠️ Ingresa el código de país'); return; }
   if (!vacaActualId || !vacaActualData) return;
@@ -1366,19 +2580,24 @@ async function crearParticipante() {
   const btn = document.getElementById('btnAgregarParticipante');
   const vacaRef = db.collection('vacas').doc(vacaActualId);
 
-  // v1.14: mismo aviso de posible duplicado agregado en vaca.html v1.10
-  // (no bloqueante). Si ya existe alguien con ese nombre exacto en la
-  // vaca, se pregunta con confirm(); si el admin cancela, no se escribe
-  // nada. Si la consulta falla, no bloquea — sigue de largo.
+  // v1.14 / v1.46: mismo aviso de posible duplicado agregado en vaca.html
+  // v1.10 (no bloqueante), ahora excluyendo al propio doc cuando se está
+  // editando (si no, avisaría siempre que se guarde sin cambiar el nombre).
+  // Si la consulta falla, no bloquea — sigue de largo.
   try {
     const dupSnap = await vacaRef.collection('participantes')
-      .where('nombre', '==', nombre).limit(1).get();
-    if (!dupSnap.empty) {
-      const seguir = confirm(`Ya hay alguien registrado como "${nombre}" en esta vaca. ¿Confirmas que quieres agregarlo también?`);
+      .where('nombre', '==', nombre).limit(2).get();
+    const hayDuplicado = dupSnap.docs.some(d => d.id !== npEditParticipanteId);
+    if (hayDuplicado) {
+      const seguir = confirm(`Ya hay alguien registrado como "${nombre}" en esta vaca. ¿Confirmas que quieres guardarlo igual?`);
       if (!seguir) return;
     }
   } catch (err) {
-    // silencioso: no bloquea el alta si la consulta de duplicado falla
+    // silencioso: no bloquea el guardado si la consulta de duplicado falla
+  }
+
+  if (npEditParticipanteId) {
+    return editarParticipanteExistente(npEditParticipanteId, { nombre, contacto, paisCodigo, tipo, btn });
   }
 
   btn.disabled = true;
@@ -1402,37 +2621,146 @@ async function crearParticipante() {
       const freshData = vacaSnap.data();
 
       const partRef = vacaRef.collection('participantes').doc();
+      // v1.42: doc liviano espejo en integrantes, mismo id que el
+      // participante — para que vaca.html pueda listar nombres sin poder
+      // leer 'participantes' (bloqueada a propósito por las Rules).
+      const integranteRef = vacaRef.collection('integrantes').doc(partRef.id);
+
+      const partData = {
+        nombre,
+        contacto,
+        paisCodigo,
+        tipo,
+        avatarUrl: npAvatarSeleccionado || null, // v1.43
+        fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
+        totalAbonado: 0,
+        linkToken: token
+      };
+
+      // v1.24: 'libre' no incrementa numParticipantes ni recalcula la
+      // cuota_fija de los demás — mismo criterio que registrarse() en
+      // vaca.html v1.21.
+      if (tipo === 'libre') {
+        tx.set(partRef, partData);
+        tx.set(integranteRef, { nombre, tipo, aporto: false, avatarUrl: partData.avatarUrl }); // v1.42 / v1.43
+        return { nuevoNum: freshData.numParticipantes || 0, cuotaRecalc: freshData.cuota_fija || 0 };
+      }
+
+      // v1.26: este cuota_fija es PROVISIONAL — no resta sumaLibre (no la
+      // tiene disponible aquí). Sirve solo para feedback instantáneo en el
+      // toast/header de este mismo admin. La fuente de verdad final es
+      // cargarParticipantes() (v1.25), que corrige el valor apenas el
+      // onSnapshot de participantes se dispare por este mismo alta (casi
+      // inmediato). No mover este cálculo sin revisar también v1.25.
       const nuevoNum = (freshData.numParticipantes || 0) + 1;
       const meta = freshData.meta_total || 0;
       const cuotaRecalc = nuevoNum > 0 ? meta / nuevoNum : meta;
 
-      tx.set(partRef, {
-        nombre,
-        contacto,
-        paisCodigo,
-        fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-        totalAbonado: 0,
-        linkToken: token
-      });
+      tx.set(partRef, partData);
+      tx.set(integranteRef, { nombre, tipo, aporto: false, avatarUrl: partData.avatarUrl }); // v1.42 / v1.43
       tx.update(vacaRef, {
         numParticipantes: nuevoNum,
-        cuota_fija: cuotaRecalc
+        cuota_fija: cuotaRecalc,
+        motivoCuota: `Nuevo participante: ${nombre}` // v1.27, #3 del plan
       });
 
       return { nuevoNum, cuotaRecalc };
     });
 
     cerrarModal('modalNuevoParticipante');
-    mostrarToast('✅ Participante agregado — cuota recalculada');
+    mostrarToast(tipo === 'libre' ? '✅ Colaborador libre agregado' : '✅ Participante agregado — cuota recalculada');
     vacaActualData.numParticipantes = resultado.nuevoNum;
     vacaActualData.cuota_fija = resultado.cuotaRecalc;
+    if (tipo !== 'libre') vacaActualData.motivoCuota = `Nuevo participante: ${nombre}`;
     document.getElementById('detalleMeta').textContent =
-      `Meta: ${formatCOP(vacaActualData.meta_total || 0)} · Cuota vigente: ${formatCOP(resultado.cuotaRecalc)} · ${resultado.nuevoNum} participante(s)`;
+      metaAlcanzadaPrefijo(vacaActualData) + `Meta: ${formatCOP(vacaActualData.meta_total || 0)} · Cuota vigente: ${formatCOP(resultado.cuotaRecalc)} · ${resultado.nuevoNum} participante(s)`;
+    pintarMotivoCuota(vacaActualData);
   } catch (err) {
     mostrarToast('Error: ' + err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Agregar';
+  }
+}
+
+// v1.46: rama "editar" de guardarParticipante(). Recibe los valores ya
+// validados (nombre/contacto/paisCodigo/tipo) más el botón del modal.
+// Si el Tipo NO cambió respecto al valor guardado (participantesCache),
+// solo actualiza el doc del participante + su espejo en integrantes — no
+// toca numParticipantes ni cuota_fija. Si el Tipo SÍ cambió (fijo↔libre),
+// recalcula ambos con runTransaction() (mismo patrón anti-condición-de-
+// carrera de crearParticipante()/eliminarParticipante()), sumando o
+// restando 1 a numParticipantes según la dirección del cambio.
+async function editarParticipanteExistente(participanteId, { nombre, contacto, paisCodigo, tipo, btn }) {
+  const vacaRef = db.collection('vacas').doc(vacaActualId);
+  const partRef = vacaRef.collection('participantes').doc(participanteId);
+  const integranteRef = vacaRef.collection('integrantes').doc(participanteId);
+  const anterior = participantesCache[participanteId] || {};
+  const tipoAnterior = anterior.tipo === 'libre' ? 'libre' : 'fijo';
+  const tipoCambio = tipoAnterior !== tipo;
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  const datosParticipante = {
+    nombre, contacto, paisCodigo, tipo,
+    avatarUrl: npAvatarSeleccionado || null
+  };
+  const datosIntegrante = { nombre, tipo, avatarUrl: datosParticipante.avatarUrl };
+
+  try {
+    if (!tipoCambio) {
+      // Sin cambio de tipo: actualización simple, sin tocar cuota_fija ni
+      // numParticipantes (no hay nada que recalcular).
+      const batch = db.batch();
+      batch.update(partRef, datosParticipante);
+      batch.set(integranteRef, datosIntegrante, { merge: true });
+      await batch.commit();
+
+      cerrarModal('modalNuevoParticipante');
+      mostrarToast('✅ Participante actualizado');
+    } else {
+      // Cambio de tipo: mismo patrón de runTransaction() que
+      // crearParticipante(), leyendo numParticipantes/meta_total FRESCOS
+      // justo antes de escribir.
+      const resultado = await db.runTransaction(async (tx) => {
+        const vacaSnap = await tx.get(vacaRef);
+        if (!vacaSnap.exists) throw new Error('Esta vaca ya no existe.');
+        const freshData = vacaSnap.data();
+
+        // fijo -> libre: sale del reparto, resta 1. libre -> fijo: entra
+        // al reparto, suma 1. Mismo criterio que 'libre' no incrementa
+        // numParticipantes en crearParticipante()/registrarse().
+        const delta = tipo === 'libre' ? -1 : 1;
+        const nuevoNum = Math.max(0, (freshData.numParticipantes || 0) + delta);
+        const meta = freshData.meta_total || 0;
+        const cuotaRecalc = nuevoNum > 0 ? meta / nuevoNum : meta;
+
+        tx.update(partRef, datosParticipante);
+        tx.set(integranteRef, datosIntegrante, { merge: true });
+        tx.update(vacaRef, {
+          numParticipantes: nuevoNum,
+          cuota_fija: cuotaRecalc,
+          motivoCuota: `Cambio de tipo: ${nombre} → ${tipo === 'libre' ? 'aporte libre' : 'cuota fija'}`
+        });
+
+        return { nuevoNum, cuotaRecalc };
+      });
+
+      cerrarModal('modalNuevoParticipante');
+      mostrarToast('✅ Participante actualizado — cuota recalculada');
+      vacaActualData.numParticipantes = resultado.nuevoNum;
+      vacaActualData.cuota_fija = resultado.cuotaRecalc;
+      vacaActualData.motivoCuota = `Cambio de tipo: ${nombre} → ${tipo === 'libre' ? 'aporte libre' : 'cuota fija'}`;
+      document.getElementById('detalleMeta').textContent =
+        metaAlcanzadaPrefijo(vacaActualData) + `Meta: ${formatCOP(vacaActualData.meta_total || 0)} · Cuota vigente: ${formatCOP(resultado.cuotaRecalc)} · ${resultado.nuevoNum} participante(s)`;
+      pintarMotivoCuota(vacaActualData);
+    }
+  } catch (err) {
+    mostrarToast('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar cambios';
   }
 }
 
@@ -1469,21 +2797,52 @@ async function eliminarParticipante(participanteId, nombre, btnEl) {
       if (!vacaSnap.exists) throw new Error('Esta vaca ya no existe.');
       const freshData = vacaSnap.data();
 
-      const nuevoNum = Math.max(0, (freshData.numParticipantes || 0) - 1);
+      // v1.35 FIX: se necesita saber si el participante eliminado era
+      // 'libre' — ver bug de abajo. tx.get() del participante debe ir
+      // ANTES de cualquier tx.set/update/delete en esta transacción
+      // (regla de Firestore: todas las lecturas antes que las escrituras).
+      const partSnap = await tx.get(partRef);
+      const eraLibre = partSnap.exists && partSnap.data().tipo === 'libre';
+
+      // v1.35 FIX: antes se restaba numParticipantes y se recalculaba
+      // cuota_fija SIEMPRE, sin importar el tipo del participante
+      // eliminado. Un colaborador 'libre' nunca suma a numParticipantes
+      // al crearse (ver registrarse()/crearParticipante()), así que
+      // borrarlo NO debe restar tampoco — si no, la cuota de todos los
+      // demás subía por error (un participante de menos en el reparto
+      // que en realidad nunca estuvo en el reparto).
+      const nuevoNum = eraLibre
+        ? (freshData.numParticipantes || 0)
+        : Math.max(0, (freshData.numParticipantes || 0) - 1);
       const meta = freshData.meta_total || 0;
-      const cuotaRecalc = nuevoNum > 0 ? meta / nuevoNum : meta;
+      const cuotaRecalc = eraLibre
+        ? (freshData.cuota_fija || 0)
+        : (nuevoNum > 0 ? meta / nuevoNum : meta);
 
       abonosSnap.forEach(aDoc => tx.delete(aDoc.ref));
       tx.delete(partRef);
-      tx.update(vacaRef, { numParticipantes: nuevoNum, cuota_fija: cuotaRecalc });
+      tx.delete(vacaRef.collection('integrantes').doc(participanteId)); // v1.42
+      if (eraLibre) {
+        // No se toca numParticipantes ni cuota_fija — solo se registra el
+        // motivo para que quede rastro en el panel.
+        tx.update(vacaRef, { motivoCuota: `Colaborador libre eliminado: ${nombre}` });
+      } else {
+        tx.update(vacaRef, {
+          numParticipantes: nuevoNum,
+          cuota_fija: cuotaRecalc,
+          motivoCuota: `Participante eliminado: ${nombre}` // v1.27, #3 del plan
+        });
+      }
 
       return { nuevoNum, cuotaRecalc };
     });
 
     vacaActualData.numParticipantes = resultado.nuevoNum;
     vacaActualData.cuota_fija = resultado.cuotaRecalc;
+    vacaActualData.motivoCuota = `Participante eliminado: ${nombre}`;
     document.getElementById('detalleMeta').textContent =
-      `Meta: ${formatCOP(vacaActualData.meta_total || 0)} · Cuota vigente: ${formatCOP(resultado.cuotaRecalc)} · ${resultado.nuevoNum} participante(s)`;
+      metaAlcanzadaPrefijo(vacaActualData) + `Meta: ${formatCOP(vacaActualData.meta_total || 0)} · Cuota vigente: ${formatCOP(resultado.cuotaRecalc)} · ${resultado.nuevoNum} participante(s)`;
+    pintarMotivoCuota(vacaActualData);
     mostrarToast('🗑️ Participante eliminado — cuota recalculada');
   } catch (err) {
     mostrarToast('Error al eliminar: ' + err.message);
@@ -1494,6 +2853,7 @@ async function eliminarParticipante(participanteId, nombre, btnEl) {
 // ===== ABONOS =====
 function abrirModalAbono(participanteId, nombre) {
   participanteAbonoId = participanteId;
+  participanteAbonoNombre = nombre; // v1.41: para replicar en vacas/{id}/actividad al guardar
   abonoEditId = null;
   abonoEditParticipanteId = null;
   document.getElementById('abonoParticipanteNombre').textContent = '👤 ' + nombre;
@@ -1598,19 +2958,33 @@ async function guardarAbono() {
     const partRef = db.collection('vacas').doc(vacaActualId).collection('participantes').doc(abonoEditParticipanteId);
     const abonoRef = partRef.collection('abonos').doc(abonoEditId);
     const vacaRef  = db.collection('vacas').doc(vacaActualId);
+    // v1.41: doc liviano espejo en actividad, mismo id que el abono real
+    const actividadRef = vacaRef.collection('actividad').doc(abonoEditId);
 
-    abonoRef.get()
-      .then(snap => {
-        const anterior = snap.exists ? (snap.data().monto || 0) : 0;
-        const delta = monto - anterior;
-        const batch = db.batch();
-        batch.update(abonoRef, { monto, fecha, nota, comprobanteUrl: comprobanteUrl || null });
-        if (delta !== 0) {
-          batch.update(partRef, { totalAbonado: firebase.firestore.FieldValue.increment(delta) });
-          batch.update(vacaRef, { totalRecaudado: firebase.firestore.FieldValue.increment(delta) });
-        }
-        return batch.commit();
-      })
+    // v1.18: mismo fix de condición de carrera que crearParticipante()/
+    // eliminarParticipante() (v1.13) — antes se leía el monto anterior
+    // con abonoRef.get() SUELTO, fuera de la escritura, y como
+    // totalAbonado/totalRecaudado se ajustan por DELTA (no por el monto
+    // completo), dos admins editando el MISMO abono casi al mismo tiempo
+    // podían leer el mismo "anterior" y aplicar dos deltas distintos
+    // sobre esos totales — el monto final del abono queda bien (gana la
+    // última escritura), pero totalAbonado/totalRecaudado terminan
+    // desincronizados del monto real. La transacción lee el monto
+    // anterior FRESCO justo antes de escribir y Firestore reintenta si
+    // detecta que otro cliente escribió de por medio.
+    db.runTransaction(async (tx) => {
+      const snap = await tx.get(abonoRef);
+      const anterior = snap.exists ? (snap.data().monto || 0) : 0;
+      const delta = monto - anterior;
+      tx.update(abonoRef, { monto, fecha, nota, comprobanteUrl: comprobanteUrl || null });
+      // v1.41: se refleja el cambio en el doc liviano público (solo monto/fecha,
+      // nunca nota ni comprobanteUrl — esos siguen sin exponerse en actividad)
+      tx.update(actividadRef, { monto, fecha });
+      if (delta !== 0) {
+        tx.update(partRef, { totalAbonado: firebase.firestore.FieldValue.increment(delta) });
+        tx.update(vacaRef, { totalRecaudado: firebase.firestore.FieldValue.increment(delta) });
+      }
+    })
       .then(() => {
         cerrarModal('modalAbono');
         mostrarToast('✅ Abono actualizado');
@@ -1658,11 +3032,32 @@ async function guardarAbono() {
     totalRecaudado: firebase.firestore.FieldValue.increment(monto)
   });
 
+  // v1.41: doc liviano espejo en vacas/{id}/actividad, mismo id que el
+  // abono real (abonoRef.id) para poder editarlo/eliminarlo después sin
+  // guardar referencia cruzada. Solo campos no sensibles — pensado para
+  // que vaca.html lo lea públicamente sin exponer nota/comprobante/quién
+  // registró (eso sigue viviendo solo en abonos, protegido por Rules).
+  const actividadRef = vacaRef.collection('actividad').doc(abonoRef.id);
+  batch.set(actividadRef, {
+    nombreParticipante: participanteAbonoNombre || '',
+    monto,
+    tipo: 'abono',
+    fecha,
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  // v1.42: primer abono (o cualquier abono) de este participante — marca
+  // aporto:true en el doc espejo de integrantes. merge:true porque el
+  // doc ya existe desde crearParticipante()/registrarse().
+  batch.set(vacaRef.collection('integrantes').doc(participanteAbonoId),
+    { aporto: true }, { merge: true });
+
   batch.commit()
     .then(() => {
       cerrarModal('modalAbono');
       mostrarToast('💰 Abono registrado');
       participanteAbonoId = null;
+      participanteAbonoNombre = null;
     })
     .catch(err => mostrarToast('Error: ' + err.message))
     .finally(() => { btn.disabled = false; btn.textContent = textoOriginalBtn; });
@@ -1692,7 +3087,7 @@ function abrirModalAbonosList(participanteId, nombre) {
         const notaAttr = escapeHtml((a.nota || '')).replace(/'/g, '&#39;');
         const comprobanteAttr = (a.comprobanteUrl || '').replace(/'/g, '&#39;');
         html += `<div class="abono-admin-item">
-          ${a.comprobanteUrl ? `<img class="comprobante-thumb" src="${cloudinaryThumb(a.comprobanteUrl, 100)}" alt="Comprobante" onclick="abrirLightbox('${comprobanteAttr}')" />` : ''}
+          ${a.comprobanteUrl ? `<img class="comprobante-thumb" src="${escapeHtml(cloudinaryThumb(a.comprobanteUrl, 100))}" alt="Comprobante" loading="lazy" onclick="abrirLightbox('${comprobanteAttr}')" />` : ''}
           <div>
             <div style="font-weight:700">${formatCOP(a.monto)}</div>
             <div style="font-size:11px;color:var(--text2)">${a.fecha || '—'}${a.nota ? ' · ' + escapeHtml(a.nota) : ''}</div>
@@ -1727,7 +3122,7 @@ function editarAbono(abonoId, monto, fecha, nota, comprobanteUrl) {
   abrirModal('modalAbono');
 }
 
-function eliminarAbono(abonoId, monto) {
+async function eliminarAbono(abonoId, monto) {
   if (!vacaActualId || !abonosListParticipanteId) return;
   if (!confirm('¿Eliminar este abono? Esta acción no se puede deshacer.')) return;
 
@@ -1735,10 +3130,30 @@ function eliminarAbono(abonoId, monto) {
   const abonoRef = partRef.collection('abonos').doc(abonoId);
   const vacaRef  = db.collection('vacas').doc(vacaActualId);
 
+  // v1.42: se relee totalAbonado FRESCO antes del batch, solo para saber
+  // si el nuevo total (tras restar este abono) queda en $0 o sigue >0 —
+  // eso decide el flag aporto del doc espejo en integrantes. No cambia
+  // el resto de la lógica: totalAbonado/totalRecaudado se siguen
+  // ajustando por increment(-monto) como antes.
+  let nuevoAporto = true;
+  try {
+    const partSnap = await partRef.get();
+    const totalActual = partSnap.exists ? (partSnap.data().totalAbonado || 0) : 0;
+    nuevoAporto = (totalActual - monto) > 0;
+  } catch (err) {
+    // si falla la lectura, no se toca el flag aporto (se deja como estaba)
+    nuevoAporto = null;
+  }
+
   const batch = db.batch();
   batch.delete(abonoRef);
+  batch.delete(vacaRef.collection('actividad').doc(abonoId)); // v1.41: borra el espejo en actividad (mismo id)
   batch.update(partRef, { totalAbonado: firebase.firestore.FieldValue.increment(-monto) });
   batch.update(vacaRef, { totalRecaudado: firebase.firestore.FieldValue.increment(-monto) });
+  if (nuevoAporto !== null) {
+    batch.set(vacaRef.collection('integrantes').doc(abonosListParticipanteId),
+      { aporto: nuevoAporto }, { merge: true }); // v1.42
+  }
 
   batch.commit()
     .then(() => {
@@ -1749,7 +3164,39 @@ function eliminarAbono(abonoId, monto) {
     .catch(err => mostrarToast('Error: ' + err.message));
 }
 
-// ===== NOTIFICAR POR WHATSAPP (v1.10, país explícito desde v1.11) =====
+// ===== REINICIAR ACTIVIDAD (v1.50) =====
+// A pedido del usuario: vacía SOLO el feed público vacas/{id}/actividad
+// (el que se ve en vaca.html bajo "Actividad de la vaca"). NO toca
+// abonos, participantes, totalAbonado, totalRecaudado ni cuota_fija —
+// es puramente cosmético/de privacidad del portal, no de contabilidad.
+// Los abonos futuros vuelven a poblar el feed normalmente (guardarAbono()
+// sigue creando su espejo en actividad como siempre, sin cambios ahí).
+// Doble confirmación por ser una acción destructiva e irreversible.
+// Se borra en lotes de 400 (margen bajo el límite de 500 escrituras por
+// batch de Firestore) por si la vaca acumuló mucha actividad.
+async function reiniciarActividad() {
+  if (!vacaActualId) return;
+  if (!confirm('¿Vaciar el feed de "Actividad de la vaca" en el portal público? Esto NO borra abonos, saldos ni cuotas — solo limpia lo que ven los participantes en esa sección. No se puede deshacer.')) return;
+  if (!confirm('Confirma de nuevo: se van a borrar TODOS los movimientos del feed público de esta vaca. ¿Continuar?')) return;
+
+  const actividadRef = db.collection('vacas').doc(vacaActualId).collection('actividad');
+  try {
+    let borrados = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const snap = await actividadRef.limit(400).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      borrados += snap.size;
+      if (snap.size < 400) break;
+    }
+    mostrarToast(borrados > 0 ? `🗑️ Actividad reiniciada (${borrados} movimientos)` : 'El feed ya estaba vacío');
+  } catch (err) {
+    mostrarToast('Error: ' + err.message);
+  }
+}
 // Abre WhatsApp Web/app con un mensaje prellenado que incluye el link
 // personal del participante (mismo link que genera copiarLink()). No
 // hay envío automático — el admin revisa el mensaje y lo manda desde su
@@ -1762,14 +3209,21 @@ function eliminarAbono(abonoId, monto) {
 // se mantiene el fallback viejo: si el número tiene 10 dígitos exactos
 // se asume Colombia (+57); si no, se usa tal cual (se asume que ya
 // incluye código de país).
-function notificarWhatsApp(vacaId, participanteId, nombre, contacto, paisCodigo) {
+function notificarWhatsApp(vacaId, participanteId, nombre, contacto, paisCodigo, linkToken) {
   const soloNumeros = (contacto || '').replace(/\D/g, '');
   if (!soloNumeros) { mostrarToast('⚠️ Este participante no tiene contacto válido'); return; }
 
   const base = window.location.origin + window.location.pathname.replace('vacas.html', '');
-  const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}`;
+  const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}&t=${linkToken || ''}`; // v1.47: &t= para validación de linkToken
   const nombreVaca = (vacaActualData && vacaActualData.nombre) || 'la vaca';
-  const msg = `Hola ${nombre}! Te comparto tu link personal para ver tu saldo en "${nombreVaca}": ${url}`;
+  // v1.48: si hay organizador guardado, el mensaje da contexto de quién
+  // envía y por qué — pensado para participantes agregados manualmente
+  // que nunca pasaron por el auto-registro. Si no hay organizador seteado,
+  // cae al texto genérico que ya existía (sin romper nada).
+  const organizador = (localStorage.getItem('audiolink_organizador') || '').trim();
+  const msg = organizador
+    ? `Hola ${nombre}! Soy ${organizador} y te agregué a "${nombreVaca}" en AUDIOLINK. Este es tu link personal para ver tu saldo: ${url}`
+    : `Hola ${nombre}! Te comparto tu link personal para ver tu saldo en "${nombreVaca}": ${url}`;
 
   const numeroWa = paisCodigo
     ? paisCodigo + soloNumeros
@@ -1779,9 +3233,9 @@ function notificarWhatsApp(vacaId, participanteId, nombre, contacto, paisCodigo)
 }
 
 // ===== COPIAR LINK =====
-function copiarLink(vacaId, participanteId) {
+function copiarLink(vacaId, participanteId, linkToken) {
   const base = window.location.origin + window.location.pathname.replace('vacas.html', '');
-  const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}`;
+  const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}&t=${linkToken || ''}`; // v1.47: &t= para validación de linkToken
   navigator.clipboard.writeText(url)
     .then(() => mostrarToast('🔗 Link copiado'))
     .catch(() => mostrarToast('No se pudo copiar el link'));
@@ -1791,9 +3245,9 @@ function copiarLink(vacaId, participanteId) {
 // pasar por copiar/pegar — útil para que el admin verifique cómo se ve
 // el saldo de alguien sin salir del panel. Mismo cálculo de URL que
 // copiarLink(), no se tocó esa función.
-function abrirLinkParticipante(vacaId, participanteId) {
+function abrirLinkParticipante(vacaId, participanteId, linkToken) {
   const base = window.location.origin + window.location.pathname.replace('vacas.html', '');
-  const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}`;
+  const url  = `${base}vaca.html?id=${vacaId}&p=${participanteId}&t=${linkToken || ''}`; // v1.47: &t= para validación de linkToken
   window.open(url, '_blank');
 }
 

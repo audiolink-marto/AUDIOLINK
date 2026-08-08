@@ -823,10 +823,21 @@ service cloud.firestore {
         //     (vaca.html v1.26 muestra la leyenda de advertencia
         //     correspondiente en el modal). tipo/totalAbonado/linkToken/
         //     fechaRegistro nunca son editables desde el público.
+        // v2.25 (FIX — vaca.html v1.58 agregó avatarUrl al mismo payload
+        // de guardarEdicionDatos() pero esta regla no se actualizó en su
+        // momento: como el payload SIEMPRE manda avatarUrl junto con
+        // contacto/paisCodigo, quedaba como affectedKey extra y el update
+        // completo era rechazado — "no me deja guardarlo" reportado por
+        // el usuario. Se agrega avatarUrl como campo opcional adicional
+        // en AMBAS variantes (con y sin nombre), con el mismo criterio de
+        // tipo que ya usa /integrantes: string o null.
         allow update: if
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['contacto', 'paisCodigo']) ||
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre', 'contacto', 'paisCodigo']) &&
-           (resource.data.totalAbonado == null || resource.data.totalAbonado == 0));
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['contacto', 'paisCodigo', 'avatarUrl']) &&
+          (!('avatarUrl' in request.resource.data.diff(resource.data).affectedKeys()) ||
+           request.resource.data.avatarUrl is string || request.resource.data.avatarUrl == null) ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre', 'contacto', 'paisCodigo', 'avatarUrl']) &&
+           (resource.data.totalAbonado == null || resource.data.totalAbonado == 0) &&
+           (request.resource.data.avatarUrl is string || request.resource.data.avatarUrl == null));
 
         match /abonos/{abonoId} {
           // Staff: acceso total (registrar y corregir abonos).

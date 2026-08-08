@@ -4,7 +4,70 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Eventos</title>
-<!-- AUDIOLINK · eventos.html · v1.60
+<!-- AUDIOLINK · eventos.html · v1.66
+     v1.66: Fix de las líneas conectoras de etiqueta/número en el PDF —
+     nacían siempre del CENTRO del ícono, mientras que en pantalla nacen
+     del BORDE (donde el rayo centro→etiqueta sale de la caja del ícono,
+     cálculo que ya existía en actualizarConectorNumero()). Se agregó el
+     helper puntoSalidaBorde() dentro de capturarStageCanvasComoImagen(),
+     con el mismo cálculo, y se usa tanto para canales numerados como para
+     elementos sin canal. Nada más cambió — mismo criterio de medición del
+     DOM real (v1.61/v1.64/v1.65), solo el punto donde arranca la línea.
+     v1.65: Fix del tamaño incorrecto en íconos ROTADOS del PDF (ej. el HH
+     se veía más grande de lo real). Causa: getBoundingClientRect() de un
+     elemento con transform:rotate() devuelve la caja YA ROTADA (más grande
+     que el ícono real, porque una forma girada ocupa más espacio en un
+     rectángulo alineado a los ejes) — ese tamaño inflado se usaba como
+     iw/ih, y encima se le volvía a aplicar la rotación en el SVG del PDF
+     (doble rotación sobre un tamaño ya incorrecto). Ahora iw/ih vienen de
+     offsetWidth/offsetHeight (tamaño real sin rotar — el transform no
+     afecta el layout, solo el pintado), tanto para canales numerados como
+     para elementos sin canal. El centro (cx,cy) sigue viniendo de
+     getBoundingClientRect, sin cambios — al rotar sobre su propio centro,
+     el centro no se mueve, solo el tamaño estaba mal.
+     v1.64: Fix de la escala inconsistente en el PDF del Stageplot vs el
+     canvas. El diagnóstico de v1.63 confirmó que los canales numerados
+     nunca fallaban (siempre medían del DOM real, v1.61) — el problema
+     eran los "elementos sin canal" (agregados vía "+ Zona"), que SIEMPRE
+     usaban la fórmula vieja pct2x/pct2y porque nunca tuvieron un
+     identificador único en el DOM para poder ubicarlos y medirlos.
+     Cambios: (1) cada .stage-zona ahora lleva data-zona-id (mismo patrón
+     que data-canal-id de v1.60); (2) capturarStageCanvasComoImagen() mide
+     PRIMERO la forma y la etiqueta reales del DOM (getBoundingClientRect,
+     mismo criterio que los canales) y solo cae a la fórmula si el elemento
+     no está en el DOM, avisando en consola si eso pasa. No se tocó nada
+     de los canales numerados, del modal CRUD, ni de Firestore.
+     v1.63: DIAGNÓSTICO temporal para la escala inconsistente del PDF vs
+     canvas. Se detectaron dos rutas de cálculo distintas en
+     capturarStageCanvasComoImagen(): (a) canales numerados miden del DOM
+     real (v1.61) — exactos; (b) "elementos sin canal" (agregados vía
+     "+ Zona") SIEMPRE usan la fórmula vieja pct2x/pct2y, nunca miden DOM —
+     candidatos principales a desalinearse. Se agregaron dos console.warn
+     (sin tocar ningún cálculo): uno quando un canal numerado cae al
+     respaldo por fórmula (no se encontró en el DOM), y otro en cada
+     elemento sin canal (siempre, porque siempre usan fórmula). Generar un
+     PDF y revisar la consola del navegador dirá exactamente cuáles íconos
+     están fuera del camino "medido del DOM" — con eso se decide el
+     siguiente paso (unificar elementos sin canal al criterio v1.61, y/o
+     esperar a que el canvas termine de pintar antes de medir).
+     v1.62: El catálogo de íconos (CATALOGO_ICONOS_DEFAULT, GRUPOS_ICONO_LABEL,
+     etiquetaGrupo, COLORES_POR_TIPO, hexARgba, svgIcono) se extrajo a un
+     archivo aparte: catalogo-iconos.js, cargado con <script src> justo antes
+     del script principal. Cambio puramente estructural — no se tocó ninguna
+     lógica: el canvas, el modal CRUD, Firestore y la función del PDF (que
+     mide del DOM real, v1.60/v1.61) siguen usando las mismas funciones
+     globales, con el mismo comportamiento de siempre. Motivo: catalogo-iconos.js
+     queda como pieza portátil para reutilizar en otros proyectos, y
+     eventos.html deja de crecer cada vez que se agrega un ícono nuevo.
+     v1.61: Stageplot PDF — v1.60 medía solo la posición del número, pero
+     el ÍCONO seguía dibujándose con la fórmula algebraica de siempre
+     (pct2x/pct2y); cualquier mínima diferencia entre ese cálculo y el
+     render real desalineaba ícono vs número entre sí (el usuario reportó
+     "mejora la precisión pero sigue al centro"). Ahora se mide TODO
+     (posición y tamaño del ícono, y posición del número) del mismo DOM
+     real, en el mismo momento — ícono y número quedan perfectamente
+     consistentes entre sí porque vienen de la misma fuente. Fórmulas
+     algebraicas solo quedan como respaldo si el ícono no está en el DOM.
      v1.60: Stageplot PDF — nueva estrategia para la posición del número:
      en vez de recalcular por fórmula (v1.57/v1.58, ambos fallidos), ahora
      se MIDE la posición real del ícono/número en el DOM visible
@@ -1567,6 +1630,12 @@ window.NAV_CONFIG = { activo: 'eventos' };
   </div>
 </div>
 
+<!-- v1.62: catálogo de íconos extraído a catalogo-iconos.js (portátil, reutilizable
+     en otros proyectos). Debe cargar ANTES del script principal: define
+     CATALOGO_ICONOS_DEFAULT, GRUPOS_ICONO_LABEL, etiquetaGrupo, COLORES_POR_TIPO,
+     hexARgba y svgIcono como globales que el script principal usa tal cual. -->
+<script src="catalogo-iconos.js"></script>
+
 <script>
 // ============ FIREBASE CONFIG ============
 firebase.initializeApp(firebaseConfig);
@@ -2174,39 +2243,8 @@ function renderMonitoreo(){
 // 'catalogoIconos', ver combinarCatalogoIconos()). 'formaBase' = una de las
 // formas que ya dibuja svgIcono(); no se inventan formas nuevas, solo se
 // vuelven reconfigurables en color/tamaño/nombre/patrón de detección.
-const CATALOGO_ICONOS_DEFAULT = [
-  { clave:'bombo',      nombre:'Bombo/Kick',        patron:'bombo|kick',                     formaBase:'bombo',            anchoCM:56, altoCM:66, abrev:'BO',  grupo:'bateria' },
-  { clave:'caja',       nombre:'Caja/Redoblante',   patron:'redoblante|snare|caja',           formaBase:'caja',             anchoCM:36, altoCM:36, abrev:'CJ',  grupo:'bateria' },
-  { clave:'tom-floor',  nombre:'Floor Tom/Goliat',  patron:'goliat|floor.?tom|tom.*16|16.*tom', formaBase:'tom-floor',      anchoCM:41, altoCM:41, abrev:'FT',  grupo:'bateria' },
-  { clave:'tom-12',     nombre:'Tom 12"',           patron:'tom.*12|12.*tom',                 formaBase:'tom',              anchoCM:30, altoCM:30, abrev:'T12', grupo:'bateria' },
-  { clave:'tom-10',     nombre:'Tom 10"',           patron:'tom.*10|10.*tom',                 formaBase:'tom',              anchoCM:25, altoCM:25, abrev:'T10', grupo:'bateria' },
-  { clave:'tom',        nombre:'Tom (genérico)',    patron:'tom',                             formaBase:'tom',              anchoCM:30, altoCM:30, abrev:'TM',  grupo:'bateria' },
-  { clave:'hihat',      nombre:'Hi-Hat',            patron:'hi.?hat|charles',                 formaBase:'platillo-hihat',   anchoCM:36, altoCM:36, abrev:'HH',  grupo:'bateria' },
-  { clave:'overhead',   nombre:'Overhead',          patron:'overhead|over.?head|\\boh\\b',    formaBase:'overhead',         anchoCM:50, altoCM:50, abrev:'OH',  grupo:'bateria' },
-  { clave:'crash',      nombre:'Crash',             patron:'crash',                           formaBase:'platillo',         anchoCM:46, altoCM:46, abrev:'CR',  grupo:'bateria' },
-  { clave:'ride',       nombre:'Ride',              patron:'ride',                            formaBase:'platillo',         anchoCM:51, altoCM:51, abrev:'RD',  grupo:'bateria' },
-  { clave:'sillin',     nombre:'Sillín/Throne',     patron:'sillin|throne|banco',             formaBase:'sillin',           anchoCM:36, altoCM:36, abrev:'SI',  grupo:'bateria' },
-  { clave:'platillo',   nombre:'Platillo (genérico)', patron:'platillo',                      formaBase:'platillo',         anchoCM:41, altoCM:41, abrev:'PL',  grupo:'bateria' },
-  { clave:'caja-di',    nombre:'DI Box',            patron:'\\bdi\\b|direct\\s?box',          formaBase:'caja-di',          anchoCM:10, altoCM:8,  abrev:'DI',  grupo:'linea' },
-  { clave:'wireless',   nombre:'Inalámbrico',       patron:'inalambric|wireless',             formaBase:'caja-wireless',    anchoCM:8,  altoCM:8,  abrev:'RF',  grupo:'linea' },
-  { clave:'inear',      nombre:'In-Ear',            patron:'in.?ear',                         formaBase:'caja-inear',       anchoCM:8,  altoCM:6,  abrev:'IE',  grupo:'linea' },
-  { clave:'snake',      nombre:'Snake/Multicore',   patron:'snake|multicore',                 formaBase:'caja-snake',       anchoCM:22, altoCM:14, abrev:'SN',  grupo:'linea' },
-  { clave:'consola',    nombre:'Consola FOH',       patron:'consola|mixer|foh',               formaBase:'caja-consola',     anchoCM:45, altoCM:30, abrev:'FOH', grupo:'linea' },
-  { clave:'stand',      nombre:'Base de mic vacía', patron:'base.*mic|mic.*vacia|stand.?vacio', formaBase:'stand-vacio',    anchoCM:20, altoCM:20, abrev:'BM',  grupo:'linea' },
-  { clave:'microfono',  nombre:'Micrófono (voz)',   patron:'voz|vocal|coro',                  formaBase:'microfono',        anchoCM:12, altoCM:12, abrev:'MC',  grupo:'voces' },
-  { clave:'generico',   nombre:'Genérico',          patron:'',                                formaBase:'generico',         anchoCM:12, altoCM:12, abrev:'',    grupo:'otros' }
-];
-// Etiqueta + emoji por grupo, para el modal y el desplegable de autocompletar
-// (v1.27). Un grupo que no esté en este mapa (ej. 'cuerdas' recién creado
-// desde el modal) igual funciona — se muestra con su propio nombre y un
-// emoji genérico 🎼, sin necesidad de tocar este mapa.
-const GRUPOS_ICONO_LABEL = {
-  bateria: { nombre:'Batería',    emoji:'🥁' },
-  linea:   { nombre:'Línea/DI',   emoji:'🔌' },
-  voces:   { nombre:'Voces',      emoji:'🎤' },
-  otros:   { nombre:'Otros',      emoji:'🎼' }
-};
-function etiquetaGrupo(grupo){ return (GRUPOS_ICONO_LABEL[grupo] || { nombre: grupo || 'Otros', emoji:'🎼' }); }
+// v1.62: CATALOGO_ICONOS_DEFAULT, GRUPOS_ICONO_LABEL y etiquetaGrupo se
+// movieron a catalogo-iconos.js (cargado antes que este script).
 let catalogoIconosCache = []; // combinado (default + overrides/agregados de Firestore), ver suscribirCatalogoIconos()
 
 // Combina el respaldo fijo con lo que haya en Firestore: si una clave ya
@@ -2343,177 +2381,8 @@ async function eliminarTipoIcono(clave){
 // mismo dorado, sin distinción visual entre piezas. El color de selección
 // ahora se resuelve con un glow en CSS (.stage-icono.sel), no cambiando el
 // color base, así cada pieza se identifica de un vistazo esté o no seleccionada.
-const COLORES_POR_TIPO = {
-  bombo: '#e2574c', caja: '#4f9dde', tom: '#6fbf73', 'tom-floor': '#3fae9e',
-  sillin: '#9a978f', platillo: '#c9a24b', 'platillo-hihat': '#c9a24b',
-  'caja-di': '#b98fd1', 'caja-wireless': '#e0a63f', 'caja-inear': '#e0a63f',
-  'caja-snake': '#8a8f99', 'caja-consola': '#8a8f99', microfono: '#d8d5cb',
-  'stand-vacio': '#5f5c54'
-};
-function hexARgba(hex, alpha){
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
-}
-// v1.30: svgCustom (opcional) — SVG pegado a mano desde el modal ⚙️ Tipos de
-// ícono, para piezas que no encajan en ninguna formaBase de fábrica. Se usa
-// tal cual, sin recolorear (el glow dorado de selección sigue funcionando
-// igual porque es un filtro CSS sobre el <svg>, no algo que dependa de su
-// contenido). Si el usuario quiere que su SVG respete el tema, puede usar
-// "currentColor" en sus fill/stroke — el contenedor .stage-forma hereda
-// color del tema automáticamente.
-function svgIcono(tipo, seleccionado, colorOverride, svgCustom){
-  if(svgCustom) return svgCustom;
-  const colorBase = colorOverride || COLORES_POR_TIPO[tipo] || null;
-  const trazo = colorBase || 'var(--gold)';
-  const relleno = colorBase ? hexARgba(colorBase, seleccionado ? 0.55 : 0.22) : (seleccionado ? 'var(--gold)' : 'var(--surf)');
-  switch(tipo){
-    case 'bombo':
-      // Cuerpo rectangular (vista en planta real, no el perfil circular del cuerpo)
-      // + patas estabilizadoras + pedal, basado en tu librería de piezas
-      return `<svg viewBox="0 0 100 100">
-        <line x1="14" y1="86" x2="26" y2="70" stroke="${trazo}" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="86" y1="86" x2="74" y2="70" stroke="${trazo}" stroke-width="2.5" stroke-linecap="round"/>
-        <circle cx="14" cy="86" r="2.5" fill="${trazo}"/><circle cx="86" cy="86" r="2.5" fill="${trazo}"/>
-        <rect x="7" y="16" width="86" height="72" rx="4" fill="${relleno}" stroke="${trazo}" stroke-width="5"/>
-        <rect x="42" y="2" width="16" height="16" rx="3" fill="none" stroke="${trazo}" stroke-width="2.5"/>
-      </svg>`;
-    case 'caja':
-      // Snare: cuerpo + mecanismo bordonero a los lados (basado en tu librería de piezas)
-      return `<svg viewBox="0 0 100 100">
-        <rect x="2" y="44" width="9" height="12" rx="2" fill="${trazo}"/>
-        <rect x="89" y="44" width="9" height="12" rx="2" fill="${trazo}"/>
-        <circle cx="50" cy="50" r="45" fill="${relleno}" stroke="${trazo}" stroke-width="5"/>
-        <circle cx="50" cy="50" r="36" fill="none" stroke="${trazo}" stroke-width="1.5" opacity="0.5"/>
-      </svg>`;
-    case 'tom':
-      // Tom de rack: cuerpo + clip de montaje al aro (rim mount), floor tom usa patas propias, no clip.
-      // El clip va DESPUÉS del círculo (SVG pinta en orden de aparición) para que no quede tapado.
-      return `<svg viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="45" fill="${relleno}" stroke="${trazo}" stroke-width="6"/>
-        <circle cx="50" cy="50" r="37" fill="none" stroke="${trazo}" stroke-width="1.5" opacity="0.5"/>
-        <rect x="41" y="0" width="18" height="11" rx="2" fill="${trazo}"/>
-      </svg>`;
-    case 'tom-floor':
-      // Floor tom / Goliat: mismo cuerpo que un tom, + 3 anclajes de patas (basado en tu librería de piezas)
-      return `<svg viewBox="0 0 100 100">
-        <rect x="9" y="14" width="9" height="9" rx="1.5" fill="${trazo}"/>
-        <rect x="82" y="14" width="9" height="9" rx="1.5" fill="${trazo}"/>
-        <rect x="45" y="89" width="9" height="9" rx="1.5" fill="${trazo}"/>
-        <circle cx="50" cy="50" r="44" fill="${relleno}" stroke="${trazo}" stroke-width="6"/>
-        <circle cx="50" cy="50" r="36" fill="none" stroke="${trazo}" stroke-width="1.5" opacity="0.5"/>
-      </svg>`;
-    case 'sillin':
-      // Sillín/throne: asiento circular, forma simple sin detalle innecesario
-      return `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="43" fill="${relleno}" stroke="${trazo}" stroke-width="5"/><circle cx="50" cy="50" r="33" fill="none" stroke="${trazo}" stroke-width="2" opacity="0.6"/></svg>`;
-    case 'platillo': {
-      // v1.52: antes eran 12 líneas radiales tipo "rayos de sombrilla".
-      // Ahora anillos concéntricos (más fiel a las marcas reales de un
-      // platillo visto desde arriba), delgados, con la campana central
-      // (r=12) con trazo más grueso para que resalte.
-      return `<svg viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="45" fill="${relleno}" stroke="${trazo}" stroke-width="1.4"/>
-        <circle cx="50" cy="50" r="34" fill="none" stroke="${trazo}" stroke-width="0.9" opacity="0.75"/>
-        <circle cx="50" cy="50" r="23" fill="none" stroke="${trazo}" stroke-width="0.9" opacity="0.6"/>
-        <circle cx="50" cy="50" r="12" fill="none" stroke="${trazo}" stroke-width="3"/>
-      </svg>`;
-    }
-    case 'platillo-hihat':
-      // v1.52: antes eran dos elipses superpuestas (vista de lado). Ahora
-      // vista superior — mismos anillos concéntricos que 'platillo' — más
-      // el trípode del pedal: 3 patas a 120° exactas (un poco más largas
-      // que el radio del plato, como en la vida real) y la vara + placa
-      // de pedal hacia abajo. El trípode y el pedal van en gris fijo
-      // (hardware/soporte), independiente del color del plato (que sigue
-      // ${trazo}/${relleno}, respeta override y selección).
-      return `<svg viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="45" fill="${relleno}" stroke="${trazo}" stroke-width="1.4"/>
-        <circle cx="50" cy="50" r="34" fill="none" stroke="${trazo}" stroke-width="0.9" opacity="0.75"/>
-        <circle cx="50" cy="50" r="23" fill="none" stroke="${trazo}" stroke-width="0.9" opacity="0.6"/>
-        <circle cx="50" cy="50" r="12" fill="none" stroke="${trazo}" stroke-width="3"/>
-        <line x1="50" y1="50" x2="50" y2="0" stroke="#9a978f" stroke-width="1.6" stroke-linecap="round"/>
-        <line x1="50" y1="50" x2="93.3" y2="75" stroke="#9a978f" stroke-width="1.6" stroke-linecap="round"/>
-        <line x1="50" y1="50" x2="6.7" y2="75" stroke="#9a978f" stroke-width="1.6" stroke-linecap="round"/>
-        <line x1="50" y1="50" x2="50" y2="72" stroke="#9a978f" stroke-width="1.6" stroke-linecap="round"/>
-        <rect x="44" y="72" width="12" height="22" rx="3" fill="#9a978f"/>
-      </svg>`;
-    case 'caja-di':
-      // DI box: cuerpo + dos conectores (entrada/salida XLR) a los lados
-      return `<svg viewBox="0 0 100 100">
-        <rect x="6" y="20" width="88" height="60" rx="6" fill="${relleno}" stroke="${trazo}" stroke-width="5"/>
-        <circle cx="18" cy="50" r="7" fill="none" stroke="${trazo}" stroke-width="3"/>
-        <circle cx="82" cy="50" r="7" fill="none" stroke="${trazo}" stroke-width="3"/>
-        <text x="50" y="58" font-size="22" text-anchor="middle" fill="${trazo}" font-family="inherit">DI</text>
-      </svg>`;
-    case 'caja-wireless':
-      // Receptor inalámbrico: cuerpo + doble antena (diversity), típico de racks de RF
-      return `<svg viewBox="0 0 100 100">
-        <rect x="10" y="34" width="80" height="52" rx="6" fill="${relleno}" stroke="${trazo}" stroke-width="5"/>
-        <line x1="35" y1="34" x2="30" y2="8" stroke="${trazo}" stroke-width="4" stroke-linecap="round"/>
-        <line x1="65" y1="34" x2="70" y2="8" stroke="${trazo}" stroke-width="4" stroke-linecap="round"/>
-        <circle cx="30" cy="8" r="4" fill="${trazo}"/><circle cx="70" cy="8" r="4" fill="${trazo}"/>
-      </svg>`;
-    case 'caja-inear':
-      // Bodypack de in-ear: cuerpo + clip de cinturón + antena corta
-      return `<svg viewBox="0 0 100 100">
-        <rect x="12" y="15" width="76" height="60" rx="7" fill="${relleno}" stroke="${trazo}" stroke-width="5"/>
-        <line x1="50" y1="15" x2="50" y2="4" stroke="${trazo}" stroke-width="3" stroke-linecap="round"/>
-        <circle cx="35" cy="42" r="7" fill="${trazo}"/><circle cx="65" cy="42" r="7" fill="${trazo}"/>
-        <rect x="30" y="75" width="40" height="10" rx="2" fill="${trazo}" opacity="0.55"/>
-      </svg>`;
-    case 'caja-snake': {
-      // Stage box: fila de conectores XLR numerados
-      const puntos = [18, 34, 50, 66, 82].map(x => `<circle cx="${x}" cy="52" r="5" fill="none" stroke="${trazo}" stroke-width="2.5"/>`).join('');
-      return `<svg viewBox="0 0 100 100"><rect x="6" y="28" width="88" height="48" rx="4" fill="${relleno}" stroke="${trazo}" stroke-width="5"/>${puntos}</svg>`;
-    }
-    case 'caja-consola': {
-      // Consola: faders (línea) + perilla (círculo) por canal, vista en planta
-      const canales = [20, 38, 56, 74].map(x => `<line x1="${x}" y1="32" x2="${x}" y2="78" stroke="${trazo}" stroke-width="4" opacity="0.6"/><circle cx="${x}" cy="22" r="4.5" fill="none" stroke="${trazo}" stroke-width="2.5"/>`).join('');
-      return `<svg viewBox="0 0 100 100"><rect x="4" y="12" width="92" height="76" rx="5" fill="${relleno}" stroke="${trazo}" stroke-width="5"/>${canales}</svg>`;
-    }
-    case 'overhead':
-      // v1.52: antes el Overhead compartía dibujo con el mic de voz
-      // (cápsula redonda + trípode largo, formaBase 'microfono'). Ahora
-      // tiene su propio dibujo: cápsula delgada tipo lápiz (con punto de
-      // diafragma y dos rayitas de rejilla, para que se lea como
-      // micrófono) centrada exactamente en el punto donde convergen 3
-      // patas cortas de trípode, vista superior — sin clip. Colores fijos
-      // por diseño (dorado en las patas, gris en la cápsula) para
-      // contrastar los dos elementos aunque sean el mismo ícono; no usa
-      // ${trazo}/${relleno} porque el criterio acá fue visual, no de
-      // override por canal.
-      return `<svg viewBox="0 0 100 100">
-        <line x1="50" y1="50" x2="50" y2="22" stroke="#c9a24b" stroke-width="1.6" stroke-linecap="round"/>
-        <line x1="50" y1="50" x2="30" y2="74" stroke="#c9a24b" stroke-width="1.6" stroke-linecap="round"/>
-        <line x1="50" y1="50" x2="70" y2="74" stroke="#c9a24b" stroke-width="1.6" stroke-linecap="round"/>
-        <rect x="44" y="28" width="12" height="44" rx="6" fill="#d8d5cb33" stroke="#d8d5cb" stroke-width="1.6"/>
-        <circle cx="50" cy="34" r="3" fill="#d8d5cb"/>
-        <line x1="46" y1="46" x2="54" y2="46" stroke="#d8d5cb" stroke-width="1" opacity="0.7"/>
-        <line x1="46" y1="58" x2="54" y2="58" stroke="#d8d5cb" stroke-width="1" opacity="0.7"/>
-      </svg>`;
-    case 'microfono':
-      // Micrófono en planta: cápsula con rejilla + base de trípode (stand incluido, no se duplica pieza)
-      return `<svg viewBox="0 0 100 100">
-        <line x1="50" y1="70" x2="50" y2="92" stroke="${trazo}" stroke-width="3" opacity="0.7"/>
-        <line x1="50" y1="92" x2="31" y2="97" stroke="${trazo}" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
-        <line x1="50" y1="92" x2="69" y2="97" stroke="${trazo}" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
-        <line x1="50" y1="92" x2="50" y2="99" stroke="${trazo}" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
-        <circle cx="50" cy="40" r="32" fill="${relleno}" stroke="${trazo}" stroke-width="6"/>
-        <circle cx="50" cy="40" r="21" fill="none" stroke="${trazo}" stroke-width="1.5" opacity="0.5"/>
-        <circle cx="50" cy="40" r="10" fill="none" stroke="${trazo}" stroke-width="1.5" opacity="0.5"/>
-      </svg>`;
-    case 'stand-vacio':
-      // Base de mic sin cápsula asignada (v1.18): posición reservada, objeto sin canal
-      return `<svg viewBox="0 0 100 100">
-        <line x1="50" y1="8" x2="50" y2="78" stroke="${trazo}" stroke-width="4" opacity="0.8"/>
-        <line x1="50" y1="78" x2="28" y2="92" stroke="${trazo}" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
-        <line x1="50" y1="78" x2="72" y2="92" stroke="${trazo}" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
-        <line x1="50" y1="78" x2="50" y2="97" stroke="${trazo}" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
-        <circle cx="50" cy="8" r="7" fill="none" stroke="${trazo}" stroke-width="3"/>
-      </svg>`;
-    default:
-      return `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="${relleno}" stroke="${trazo}" stroke-width="6"/></svg>`;
-  }
-}
+// v1.62: COLORES_POR_TIPO, hexARgba y svgIcono se movieron a catalogo-iconos.js
+// (cargado antes que este script). Misma función global, mismo comportamiento.
 
 function renderStageCanvas(){
   const canvas = document.getElementById('stageCanvas');
@@ -2803,6 +2672,7 @@ function renderZonasCanvas(canvas, ev){
     const el = document.createElement('div');
     el.className = 'stage-zona' + (z.id === zonaSeleccionadaId ? ' sel' : '');
     el.dataset.tipo = z.tipo;
+    el.dataset.zonaId = z.id; // v1.64: para poder ubicar el elemento real en el DOM al exportar el PDF (mismo patrón que data-canal-id, v1.60)
     el.style.left = z.x + '%';
     el.style.top = z.y + '%';
     el.style.width = z.ancho + '%';
@@ -3423,6 +3293,21 @@ async function capturarStageCanvasComoImagen(){
   const pct2x = p => ((p / 100) * W).toFixed(1);
   const pct2y = p => ((p / 100) * H).toFixed(1);
   const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // v1.66: mismo cálculo que actualizarConectorNumero() en pantalla — el
+  // conector no debe nacer del CENTRO del ícono, sino del punto donde el
+  // rayo (centro → etiqueta) sale del borde real del ícono. Antes el PDF
+  // dibujaba la línea siempre desde cx,cy (centro), por eso se veía
+  // distinto al canvas cuando la etiqueta se arrastraba lejos.
+  const puntoSalidaBorde = (cx, cy, halfW, halfH, tx, ty) => {
+    const dx = tx - cx, dy = ty - cy;
+    const dist = Math.hypot(dx, dy);
+    if(dist < 1) return { x: cx, y: cy };
+    const ux = dx / dist, uy = dy / dist;
+    const tX = ux !== 0 ? halfW / Math.abs(ux) : Infinity;
+    const tY = uy !== 0 ? halfH / Math.abs(uy) : Infinity;
+    const t = Math.min(tX, tY, dist);
+    return { x: cx + ux * t, y: cy + uy * t };
+  };
 
   let out = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 ${W} ${H}">`;
   // fondo
@@ -3444,23 +3329,59 @@ async function capturarStageCanvasComoImagen(){
   });
 
   // elementos sin canal (tienen forma pero no número)
+  // v1.64: mismo criterio que los canales numerados (v1.61) — se mide
+  // PRIMERO del DOM real (forma + etiqueta ya renderizadas en pantalla),
+  // en vez de recalcular por fórmula pct2x/pct2y. Esto es lo que causaba
+  // la desalineación reportada: los canales ya medían del DOM desde v1.61,
+  // pero estos elementos seguían siempre por fórmula (confirmado con el
+  // diagnóstico de v1.63 — eran ellos, ningún canal cayó al respaldo). Si
+  // por algún motivo el elemento no está en el DOM, cae a la fórmula de
+  // siempre como respaldo — nunca se rompe el PDF.
   zonas.filter(z => z.forma && z.esElemento).forEach(z => {
-    const cx = +pct2x(z.x + z.ancho/2);
-    const cy = +pct2y(z.y + z.alto/2);
+    const elReal = canvasEl.querySelector(`.stage-zona[data-zona-id="${z.id}"]`);
+    const formaElReal = elReal ? elReal.querySelector('.zona-objeto-forma') : null;
+    const etiquetaElReal = elReal ? elReal.querySelector('.zona-etiqueta-elemento') : null;
+    let cx, cy, iw, ih, lx, ly;
+    if(formaElReal && etiquetaElReal){
+      const formaRectReal = formaElReal.getBoundingClientRect();
+      const etiquetaRectReal = etiquetaElReal.getBoundingClientRect();
+      cx = (formaRectReal.left + formaRectReal.width/2) - rect.left;
+      cy = (formaRectReal.top + formaRectReal.height/2) - rect.top;
+      // v1.65: offsetWidth/offsetHeight en vez de formaRectReal.width/height.
+      // getBoundingClientRect() devuelve la caja YA ROTADA cuando el elemento
+      // tiene transform:rotate() (más grande que el ícono real, porque una
+      // forma girada ocupa más espacio en un rectángulo alineado a los
+      // ejes). Eso inflaba el tamaño de cualquier ícono rotado (ej. el
+      // HH), y encima se le volvía a aplicar la rotación abajo (rotObj) —
+      // doble rotación sobre un tamaño ya incorrecto. offsetWidth/Height
+      // da el tamaño real sin rotar (el transform no afecta el layout,
+      // solo el pintado). El centro (cx,cy) sigue viniendo de
+      // getBoundingClientRect porque al rotar sobre su propio centro, el
+      // centro no se mueve — solo el tamaño estaba mal.
+      iw = formaElReal.offsetWidth;
+      ih = formaElReal.offsetHeight;
+      lx = (etiquetaRectReal.left + etiquetaRectReal.width/2) - rect.left;
+      ly = (etiquetaRectReal.top + etiquetaRectReal.height/2) - rect.top;
+    } else {
+      console.warn(`[PDF] Elemento "${z.nombre || 'sin nombre'}" no se encontró en el DOM — usando respaldo por fórmula (puede verse distinto al canvas).`);
+      cx = +pct2x(z.x + z.ancho/2);
+      cy = +pct2y(z.y + z.alto/2);
+      iw = Math.max(+pct2x(z.ancho), 10); ih = Math.max(+pct2y(z.alto), 10);
+      const offX = z.etiqOffsetX ?? 0, offY = z.etiqOffsetY ?? 0;
+      lx = cx + offX; ly = cy + offY;
+    }
     // v1.50: mismo criterio que los canales (v1.49/v1.50) — se reutiliza
     // svgIcono() con la forma real y la rotación de z.rotacion, en vez
     // del círculo marcador genérico que había hasta ahora. Color resuelto
     // explícito (no var(--gold)) por el mismo motivo que en los canales.
-    const iw = Math.max(+pct2x(z.ancho), 10), ih = Math.max(+pct2y(z.alto), 10);
     const fillObj = COLORES_POR_TIPO[z.forma] || C.gold;
     const iconoObjInner = svgIcono(z.forma, false, fillObj)
       .replace(/^<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
     const rotObj = z.rotacion ? ` transform="rotate(${z.rotacion} ${cx} ${cy})"` : '';
     out += `<g${rotObj}><svg x="${cx-iw/2}" y="${cy-ih/2}" width="${iw}" height="${ih}" viewBox="0 0 100 100">${iconoObjInner}</svg></g>`;
-    const offX = z.etiqOffsetX ?? 0, offY = z.etiqOffsetY ?? 0;
-    const lx = cx + offX, ly = cy + offY;
-    if(Math.hypot(offX,offY) > 4){
-      out += `<line x1="${cx}" y1="${cy}" x2="${lx}" y2="${ly}" stroke="${C.gold}" stroke-dasharray="3 3" stroke-width="1"/>`;
+    if(Math.hypot(lx-cx, ly-cy) > 4){
+      const salida = puntoSalidaBorde(cx, cy, iw/2, ih/2, lx, ly);
+      out += `<line x1="${salida.x}" y1="${salida.y}" x2="${lx}" y2="${ly}" stroke="${C.gold}" stroke-dasharray="3 3" stroke-width="1"/>`;
     }
     out += `<rect x="${lx-2}" y="${ly-10}" width="${(z.nombre||'').length*6+8}" height="14" rx="2" fill="#0b0b0d" stroke="${C.gold}" stroke-width="0.8"/>`;
     out += `<text x="${lx+2}" y="${ly+1}" font-size="9" font-weight="700" fill="${C.gold}" font-family="'JetBrains Mono',monospace">${esc(z.nombre||'')}</text>`;
@@ -3469,11 +3390,46 @@ async function capturarStageCanvasComoImagen(){
   // íconos de canal
   canalesCache.forEach(c => {
     const med = medidasIconoPorFuente(c.fuente, c.tipoForzado);
-    const cx = +pct2x(c.posX ?? 50);
-    const cy = +pct2y(c.posY ?? 50);
-    const rw = (+pct2x((med.anchoCM/100)/dims.ancho*100)) / 2;
-    const rh = (+pct2y((med.altoCM /100)/dims.fondo*100)) / 2;
-    const r  = Math.max(rw, rh, 8);
+    // v1.61: se mide PRIMERO del DOM real (ícono real en pantalla), antes
+    // de calcular nada por fórmula. v1.60 solo medía la posición del
+    // número pero seguía calculando la posición/tamaño del ícono por
+    // fórmula (pct2x/pct2y) — cualquier mínima diferencia entre ese
+    // cálculo y el render real desalineaba ícono vs número entre sí. Ahora
+    // ambos se miden del mismo lugar (el DOM visible), así que quedan
+    // perfectamente consistentes uno con otro. Si por algún motivo el
+    // ícono no está en el DOM (canvas no renderizado), cae a las fórmulas
+    // de siempre como respaldo — nunca se rompe el PDF.
+    const iconElReal = canvasEl.querySelector(`.stage-icono[data-canal-id="${c.id}"]`);
+    const formaElReal = iconElReal ? iconElReal.querySelector('.stage-forma') : null;
+    const numElReal = iconElReal ? iconElReal.querySelector('.stage-num') : null;
+    let cx, cy, iw, ih, nx, ny;
+    if(formaElReal && numElReal){
+      const formaRectReal = formaElReal.getBoundingClientRect();
+      const numRectReal = numElReal.getBoundingClientRect();
+      cx = (formaRectReal.left + formaRectReal.width/2) - rect.left;
+      cy = (formaRectReal.top + formaRectReal.height/2) - rect.top;
+      // v1.65: offsetWidth/offsetHeight en vez de formaRectReal.width/height
+      // — mismo motivo que en los elementos sin canal (ver comentario ahí
+      // arriba): getBoundingClientRect() infla el tamaño en íconos rotados
+      // (ej. el HH), offsetWidth/Height da el tamaño real sin ese efecto.
+      iw = formaElReal.offsetWidth;
+      ih = formaElReal.offsetHeight;
+      nx = (numRectReal.left + numRectReal.width/2) - rect.left;
+      ny = (numRectReal.top + numRectReal.height/2) - rect.top;
+    } else {
+      // v1.64: si un canal cae aquí (no se encontró en el DOM al exportar),
+      // avisa en consola cuál fue — red de seguridad para detectar a futuro
+      // si algún canal se desalinea del canvas por este motivo. No cambia
+      // ningún cálculo, solo hace visible el problema si vuelve a pasar.
+      console.warn(`[PDF] Canal #${c.numero ?? '—'} "${c.fuente || 'sin nombre'}" no se encontró en el DOM — usando respaldo por fórmula (puede verse distinto al canvas).`);
+      cx = +pct2x(c.posX ?? 50);
+      cy = +pct2y(c.posY ?? 50);
+      const rw = (+pct2x((med.anchoCM/100)/dims.ancho*100)) / 2;
+      const rh = (+pct2y((med.altoCM /100)/dims.fondo*100)) / 2;
+      iw = Math.max(rw*2, 10); ih = Math.max(rh*2, 10);
+      const offX = c.numOffsetX ?? 0, offY = c.numOffsetY ?? 0;
+      nx = cx + offX; ny = cy + offY;
+    }
     // v1.48: color resuelto — primero el override manual del catálogo,
     // si no existe el color de fábrica por tipo (igual que en pantalla,
     // svgIcono → COLORES_POR_TIPO), y si tampoco existe, dorado.
@@ -3486,41 +3442,18 @@ async function capturarStageCanvasComoImagen(){
     // caiga a var(--gold)/var(--surf), porque en este punto el tema ya
     // puede estar restaurado al original (ver forzado en
     // exportarStageplotPDF) y esas variables ya no reflejarían el claro.
-    // Tamaño real (no forzado a cuadrado): rw*2 × rh*2, según anchoCM/altoCM.
     const iconoInner = svgIcono(med.formaBase, false, fill, med.svgCustom)
       .replace(/^<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
-    const iw = Math.max(rw*2, 10), ih = Math.max(rh*2, 10);
     // v1.50: se aplica la misma rotación que en pantalla (c.rotacion,
     // transform:rotate en renderStageCanvas) — antes el PDF ignoraba el
     // campo y todo salía sin girar. Se envuelve el <svg> del ícono en un
     // <g> con rotate(deg, cx, cy) para rotar sobre su propio centro.
     const rotIcono = c.rotacion ? ` transform="rotate(${c.rotacion} ${cx} ${cy})"` : '';
     out += `<g${rotIcono}><svg x="${cx-iw/2}" y="${cy-ih/2}" width="${iw}" height="${ih}" viewBox="0 0 100 100">${iconoInner}</svg></g>`;
-    // número
-    // v1.60: en vez de recalcular la posición del número por fórmula
-    // (v1.57/v1.58, ambos fallidos), se MIDE directamente del DOM real
-    // en pantalla — mismo criterio que ya usa actualizarConectorNumero()
-    // para el conector en pantalla. Así el PDF copia literalmente lo que
-    // el usuario ve, sin mantener dos fórmulas sincronizadas a mano. Si
-    // por algún motivo el ícono no se encuentra en el DOM (ej. canvas no
-    // renderizado aún), cae al centrado simple de v1.56 como respaldo.
-    const iconElReal = canvasEl.querySelector(`.stage-icono[data-canal-id="${c.id}"]`);
-    const formaElReal = iconElReal ? iconElReal.querySelector('.stage-forma') : null;
-    const numElReal = iconElReal ? iconElReal.querySelector('.stage-num') : null;
-    let nx, ny, medCx = cx, medCy = cy;
-    if(formaElReal && numElReal){
-      const formaRectReal = formaElReal.getBoundingClientRect();
-      const numRectReal = numElReal.getBoundingClientRect();
-      medCx = (formaRectReal.left + formaRectReal.width/2) - rect.left;
-      medCy = (formaRectReal.top + formaRectReal.height/2) - rect.top;
-      nx = (numRectReal.left + numRectReal.width/2) - rect.left;
-      ny = (numRectReal.top + numRectReal.height/2) - rect.top;
-    } else {
-      const offX = c.numOffsetX ?? 0, offY = c.numOffsetY ?? 0;
-      nx = cx + offX; ny = cy + offY;
-    }
-    if(Math.hypot(nx-medCx, ny-medCy) > 4){
-      out += `<line x1="${medCx}" y1="${medCy}" x2="${nx}" y2="${ny}" stroke="${C.gold}" stroke-dasharray="3 3" stroke-width="1"/>`;
+    // número — conector solo si el número real está separado del ícono
+    if(Math.hypot(nx-cx, ny-cy) > 4){
+      const salida = puntoSalidaBorde(cx, cy, iw/2, ih/2, nx, ny);
+      out += `<line x1="${salida.x}" y1="${salida.y}" x2="${nx}" y2="${ny}" stroke="${C.gold}" stroke-dasharray="3 3" stroke-width="1"/>`;
     }
     out += `<rect x="${nx-14}" y="${ny-10}" width="26" height="14" rx="3" fill="#0b0b0d" stroke="${C.gold}" stroke-width="0.8"/>`;
     out += `<text x="${nx}" y="${ny+1}" text-anchor="middle" font-size="9" font-weight="700" fill="${C.gold}" font-family="'JetBrains Mono',monospace">#${c.numero ?? '—'}</text>`;

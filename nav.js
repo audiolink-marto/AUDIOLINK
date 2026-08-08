@@ -1,4 +1,11 @@
-/* AUDIOLINK · nav.js · v1.5
+/* AUDIOLINK · nav.js · v1.6
+   V1.6: se agrega el ítem "Avatar / Icono" (avatares-iconos.html) a
+   ITEMS, después de "Vacas" — catálogo de avatars/iconos del ecosistema
+   (Cloudinary, folder ICONOS + Firestore colección avataresIconos). Se
+   suma también a idsFueraBottomnav para no saturar la barra inferior
+   móvil (queda accesible por sidebar desktop y panel "···" móvil). No
+   se tocó ninguna otra función, ítem existente ni la lógica de
+   inyección/colapsar/tema.
    V1.5: se agrega el ítem "Vacas" (vacas.html) a ITEMS, después de
    "Cotizador" — módulo de vaca colectiva (crowdfunding interno). Se suma
    también a idsFueraBottomnav para no saturar la barra inferior móvil
@@ -79,7 +86,8 @@
     { id:'equipo-tecnico', href:'equipo-tecnico.html', icon:'🛠️', label:'Equipo Técnico' },
     { id:'eventos',   href:'eventos.html',   icon:'🎤', label:'Eventos'    },
     { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador'  },
-    { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas'      }
+    { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas'      },
+    { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono' }
   ];
 
   // Ítems que se sacan del mobile-bottomnav (para no saturar la barra de 4
@@ -87,7 +95,7 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas'];
+  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
 
