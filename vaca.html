@@ -3,7 +3,70 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vaca · AUDIOLINK · v1.70</title>
+  <title>Vaca · AUDIOLINK · v1.77</title>
+  <!-- v1.77: a pedido del usuario — aviso visible en el portal cuando la
+       vaca está cerrada (banner rojo arriba del header, "🔒 Esta vaca
+       está cerrada"). Antes un participante ya registrado entraba a su
+       portal normal sin ningún indicio del cierre — solo se bloqueaba
+       el registro de gente NUEVA (vistaError). Ver #bannerVacaCerrada
+       y renderHeaderVaca(). -->
+
+  <!-- v1.76: fix reportado por el usuario — el checkbox "Ocultar montos
+       en el feed de actividad" (vacas.html v1.49, campo
+       ocultarMontosActividad en el doc de la vaca) no tenía ningún
+       efecto en el portal: cargarActividad() en vaca.html nunca leía
+       ese campo y siempre mostraba "+$monto" sin excepción. Ahora, si
+       vacaData.ocultarMontosActividad está en true, el feed muestra
+       "aportó" en vez del monto — mismo criterio ya usado en
+       cargarIntegrantes()/renderListaIntegrantes() para la lista de
+       participantes. No se tocó nada más de cargarActividad() (orden,
+       fecha, nombre, listener). -->
+
+  <!-- v1.75: a pedido del usuario — footer del PDF (generarResumenPDF)
+       cambia de "Diseñado por: Marto 🧠" al mismo texto exacto que usa
+       el crédito del sidebar (.app-credit / .sb-credit en nav.js):
+       "Marto 🧠 · martowave@gmail.com". Solo ese texto — nada más del
+       PDF se tocó. -->
+
+  <!-- v1.74: a pedido del usuario — fondo animado (.shimmer-dot): se
+       quita el translateY (salto vertical) de @keyframes shimmerPulse,
+       queda solo encendido/apagado (opacity) + pulso sutil de tamaño
+       (scale), y se duplica la duración del ciclo (más lento). No se
+       tocó la red de nodos (.neuron-node/.neuron-line), que ya solo
+       pulsa opacidad/escala y conecta con líneas — avisar si también
+       hay que bajarle la velocidad a esa. -->
+
+  <!-- v1.73: a pedido del usuario — la barra "RECAUDADO" (#portalFill,
+       dentro de .progreso-bar) se veía delgada (6px) y de un solo color
+       sólido (var(--accent), el mismo turquesa que ya usan otros
+       elementos como el badge de cuota, así que no resaltaba mucho
+       contra el resto de la UI). Se subió a 11px de alto y se cambió a
+       degradado var(--accent)→var(--green) — mismo tratamiento que ya
+       existía sin usar en .progreso-global (línea ~552, clase que no
+       tiene HTML que la use en este archivo), reutilizado aquí en vez
+       de introducir un color nuevo fuera de los tokens del proyecto.
+       No se tocó .progreso-track/.progreso-global (siguen sin uso, tal
+       cual estaban) ni la lógica de portalFill.style.width en JS.
+  <!-- v1.72: a pedido del usuario — el selector de país (regPais/
+       editPais, dentro de .form-group-contacto) tenía 84px fijos. En
+       Windows, donde el sistema no trae fuente para emojis de bandera
+       regional (🇨🇴), el navegador cae a mostrar el código de 2 letras
+       en texto plano ("CO +57"), que no cabía cómodo en 84px y apretaba
+       el input de número al lado. Se subió a 96px. No es un fix del
+       emoji en sí (eso es una limitación de fuente del sistema
+       operativo, no del código — en Android/iOS/Mac sí se ve la
+       bandera normalmente, confirmado por el usuario en Opera móvil).
+  <!-- v1.71: fix reportado por el usuario — el <select id="regTipo">
+       (Tipo de participación) se veía mordido, mostrando "🐄 Cuota" en
+       vez de "🐄 Cuota fija repartida". Causa: estaba envuelto en
+       div.form-group-contacto, clase con "flex:0 0 84px" pensada para
+       el selector corto de país (co +57) en el campo de contacto — al
+       heredar esa regla, este select (que no tiene input al lado)
+       quedaba forzado a 84px. Se quitó ese div envolvente; el select ya
+       tenía su propio ancho completo vía ".form-group select". Revisado
+       también "Editar mis datos" (editTipo no existe — el tipo de
+       participación solo se define al registrarse, no aplica el mismo
+       bug ahí). Ningún otro selector del archivo usa este patrón.
   <!-- v1.70: a pedido del usuario — Opción A: se fusiona la bienvenida.
        El paso 1 del tutorial ("¡Bienvenido! Una vaca es...", agregado en
        v1.67) se eliminó de _TUT_PASOS — quedaba repetido justo después
@@ -609,14 +672,18 @@
       line-height: 1;
     }
     .progreso-bar {
-      height: 6px;
+      height: 11px; /* v1.73: 6→11px, a pedido del usuario */
       background: var(--bg3);
       border-radius: 99px;
       overflow: hidden;
     }
     .progreso-fill {
       height: 100%;
-      background: var(--accent);
+      /* v1.73: degradado accent→green en vez de color sólido — mismo
+         tratamiento que ya existía (sin usar) en .progreso-global de
+         arriba, reutilizado aquí para más contraste contra el fondo,
+         sin introducir un color nuevo fuera de los tokens del proyecto. */
+      background: linear-gradient(90deg, var(--accent), var(--green));
       border-radius: 99px;
       transition: width .6s ease;
     }
@@ -980,17 +1047,15 @@
       animation: shimmerPulse var(--d, 3s) ease-in-out infinite;
       animation-delay: var(--delay, 0s);
     }
-    /* v1.18 (a pedido del usuario — "¿seguro que hay movimiento?"):
-       la v1.17 SÍ animaba, pero arrancaba en opacidad .12 y sin
-       desplazamiento, así que a simple vista se veía estático. Ahora
-       suma traslado vertical (flota ±10px) además del pulso de
-       opacidad/escala, con piso de opacidad más alto (.28) para que
-       el movimiento se note incluso en el punto más "apagado" del
-       ciclo. Mismo mecanismo, solo más perceptible. */
+    /* v1.74 (a pedido del usuario — "que los puntos no salten, solo
+       enciendan/apaguen y conecten"): se quita el translateY(-10px) de
+       la v1.18 (el "salto" vertical). Ahora el ciclo es puramente
+       encendido/apagado (opacity) + un pulso de tamaño sutil (scale),
+       sin desplazamiento de posición. */
     @keyframes shimmerPulse {
-      0%   { opacity: .28; transform: translateY(0) scale(.75); }
-      50%  { opacity: 1;   transform: translateY(-10px) scale(1.3); }
-      100% { opacity: .28; transform: translateY(0) scale(.75); }
+      0%   { opacity: .28; transform: scale(.75); }
+      50%  { opacity: 1;   transform: scale(1.15); }
+      100% { opacity: .28; transform: scale(.75); }
     }
 
     .bg-decor {
@@ -1070,7 +1135,7 @@
 
     /* v1.6: fila país + número */
     .form-group-contacto { display: flex; gap: 8px; }
-    .form-group-contacto select { flex: 0 0 84px; }
+    .form-group-contacto select { flex: 0 0 96px; } /* v1.72: 84→96px — en Windows sin fuente de banderas emoji, el fallback a texto ("CO +57") quedaba apretado */
     .form-group-contacto input { flex: 1; }
 
     .btn {
@@ -1238,8 +1303,8 @@ function generarShimmer(paleta) {
     const y = (Math.random() * 100).toFixed(2);
     const size = (3 + Math.random() * 4).toFixed(1);
     const color = colores[Math.floor(Math.random() * colores.length)];
-    const d = (1.6 + Math.random() * 1.8).toFixed(2);
-    const delay = (Math.random() * 4).toFixed(2);
+    const d = (3.2 + Math.random() * 3.6).toFixed(2); // v1.74: 2x más lento (antes 1.6-3.4s)
+    const delay = (Math.random() * 6).toFixed(2); // v1.74: más rango de delay para que no se sincronicen tan seguido
     html += `<span class="shimmer-dot" style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;background:${color};box-shadow:0 0 6px ${color},0 0 12px ${color};--d:${d}s;--delay:${delay}s;"></span>`;
   }
   cont.innerHTML = html;
@@ -1337,6 +1402,16 @@ function toggleTema() {
   <div class="card">
     <!-- Header de la vaca (siempre visible una vez cargada) -->
     <div class="card-top" id="cardTop" style="display:none">
+      <!-- v1.77: a pedido del usuario — aviso visible cuando la vaca está
+           cerrada. Antes solo se bloqueaba el REGISTRO de gente nueva
+           (mostrarError en vistaError) — quien ya era participante y
+           entraba a su portal personal no veía ningún indicio de que la
+           vaca había cerrado. Se muestra/oculta en renderHeaderVaca()
+           según vacaData.estado, mismo campo que ya usa vacas.html para
+           el candado de UI del admin. -->
+      <div id="bannerVacaCerrada" style="display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-weight:600;font-size:0.9rem;text-align:center">
+        🔒 Esta vaca está cerrada — no se aceptan más aportes.
+      </div>
       <img id="vacaImagen" class="comprobante-thumb" style="display:none;width:100%;height:160px;border-radius:10px;margin-bottom:12px" alt="" />
       <div class="vaca-label">🐄 Vaca colectiva</div>
       <div class="vaca-nombre" id="vacaNombre">—</div>
@@ -1412,12 +1487,18 @@ function toggleTema() {
              ni afectar la de los demás (ver registrarse()). -->
         <div class="form-group">
           <label>Tipo de participación</label>
-          <div class="form-group-contacto">
-            <select id="regTipo" onchange="document.getElementById('regTipoNota').textContent = this.value === 'libre' ? 'Aportas lo que puedas, sin cuota fija ni presión de pendiente.' : 'La cuota se reparte en partes iguales entre todos los confirmados.'">
-              <option value="fijo" selected>🐄 Cuota fija repartida</option>
-              <option value="libre">🐠 Aporte libre (lo que pueda)</option>
-            </select>
-          </div>
+          <!-- v1.71: se quita el div.form-group-contacto que envolvía
+               este <select> — esa clase trae "flex:0 0 84px" pensado
+               para el selector corto de país (co +57) en el campo de
+               contacto. Al heredar esa regla, este select (que va solo,
+               sin input al lado) quedaba mordido a 84px de ancho,
+               truncando "🐄 Cuota fija repartida" a "Cuota". El select
+               ya tiene su propio ancho completo vía ".form-group select"
+               (ver <style>), no necesita ese wrapper. -->
+          <select id="regTipo" onchange="document.getElementById('regTipoNota').textContent = this.value === 'libre' ? 'Aportas lo que puedas, sin cuota fija ni presión de pendiente.' : 'La cuota se reparte en partes iguales entre todos los confirmados.'">
+            <option value="fijo" selected>🐄 Cuota fija repartida</option>
+            <option value="libre">🐠 Aporte libre (lo que pueda)</option>
+          </select>
           <p class="cuota-nota" id="regTipoNota">La cuota se reparte en partes iguales entre todos los confirmados.</p>
         </div>
         <div class="form-group">
@@ -1983,6 +2064,12 @@ let ultimosAbonos = []; // v1.54: cache de los abonos del último snapshot, para
 // nombre/descripcion/urlProducto). Es exactamente el mismo bloque que
 // antes vivía inline en init(), solo que ahora es reutilizable.
 function renderHeaderVaca() {
+  // v1.77: banner de vaca cerrada, visible en el header (registro y
+  // portal) siempre que el admin haya cerrado la vaca — ver comentario
+  // junto al div #bannerVacaCerrada en el HTML.
+  document.getElementById('bannerVacaCerrada').style.display =
+    (vacaData.estado === 'cerrada') ? '' : 'none';
+
   document.getElementById('vacaNombre').textContent = vacaData.nombre || '—';
   const imgEl = document.getElementById('vacaImagen');
   if (vacaData.imagenUrl) {
@@ -2818,12 +2905,20 @@ function cargarActividad() {
         const fechaStr = a.fecha
           ? new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' })
           : '—';
+        // v1.76: mismo criterio de vacas.html — cuando el flag
+        // ocultarMontosActividad está activo en la vaca, el feed público
+        // solo dice quién aportó, sin el monto. Antes cargarActividad()
+        // nunca leía este campo y siempre mostraba el monto sin
+        // excepción, por eso el check del admin no tenía efecto acá.
+        const montoHtml = (vacaData && vacaData.ocultarMontosActividad)
+          ? `<span class="abono-monto">aportó</span>`
+          : `<span class="abono-monto">+${formatCOP(a.monto)}</span>`;
         html += `
           <div class="abono-item">
             <div class="abono-left">
               <span class="abono-fecha">${escapeHtml(a.nombreParticipante || 'Participante')} · ${fechaStr}</span>
             </div>
-            <span class="abono-monto">+${formatCOP(a.monto)}</span>
+            ${montoHtml}
           </div>`;
       });
       html += '</div>';
@@ -2958,7 +3053,7 @@ function generarResumenPDF() {
   </div>
   <table><thead><tr><th>Fecha</th><th>Nota</th><th style="text-align:right;">Monto</th></tr></thead><tbody>${filasAbonos}</tbody></table>
   <div class="total-box">${saldoBoxHtml}</div>
-  <p style="text-align:center;margin-top:40px;font-size:0.75rem;color:#94a3b8;">Diseñado por: Marto 🧠</p></body></html>`;
+  <p style="text-align:center;margin-top:40px;font-size:0.75rem;color:#94a3b8;">Marto 🧠 · martowave@gmail.com</p></body></html>`;
 
   const win = window.open('', '_blank', 'width=900,height=800');
   win.document.write(html);

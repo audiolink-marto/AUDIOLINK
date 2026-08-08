@@ -363,6 +363,17 @@ rules_version = '2';
 //      antes /integrantes no tenía ningún update público.
 // No se tocó ninguna otra regla, función, condición, match ni colección
 // existente — ni /actividad, ni /participantes, ni el resto de /vacas.
+// ------------------------------------------------------------
+// v2.27: a pedido del usuario — defensa extra a nivel de Rules cuando una
+// vaca está cerrada (estado=='cerrada'). Antes el cierre era SOLO un
+// candado de UI (vacas.html ocultaba botones, vaca.html bloqueaba el
+// registro de gente nueva en el HTML) — a nivel de Firestore Rules
+// cualquiera con el link general podía seguir creando un doc en
+// /participantes o /integrantes directamente. Se agrega la función
+// vacaAbierta(vacaId) y se exige en el `allow create` público de ambas
+// subcolecciones. No se tocó ningún `update` (edición de datos propios,
+// avatar) ni ninguna otra regla — la edición de datos ya registrados
+// sigue funcionando igual, solo se bloquea CREAR nuevos.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -384,6 +395,17 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/ingenieros/$(request.auth.token.email)) &&
         get(/databases/$(database)/documents/ingenieros/$(request.auth.token.email)).data.activo == true &&
         proyectoId in get(/databases/$(database)/documents/ingenieros/$(request.auth.token.email)).data.proyectosAsignados;
+    }
+    // v2.27 (a pedido del usuario — defensa extra al cerrar una vaca):
+    // vacas.html ya bloquea por UI el registro/edición cuando
+    // estado=='cerrada', y vaca.html ya bloquea el registro de gente
+    // NUEVA. Esto agrega el mismo candado a nivel de Rules, para que
+    // create público en /participantes e /integrantes quede bloqueado
+    // aunque alguien intente escribir directo sin pasar por la UI.
+    // Se usa != 'cerrada' (no == 'activa') para no romper vacas viejas
+    // sin el campo `estado` todavía (se tratan como abiertas).
+    function vacaAbierta(vacaId) {
+      return get(/databases/$(database)/documents/vacas/$(vacaId)).data.estado != 'cerrada';
     }
     // ---------- PROYECTOS ----------
     match /proyectos/{proyectoId} {
@@ -805,7 +827,11 @@ service cloud.firestore {
         //            viaja en la URL como "secreto" — sin el link personal es
         //            imposible llegar a este doc; list sigue bloqueado para
         //            no poder enumerar participantes sin auth.
-        allow create: if true;
+        // v2.27: create ahora exige que la vaca no esté cerrada (ver
+        // vacaAbierta()) — antes cualquiera con el link general podía
+        // seguir creando participantes aunque el admin hubiera cerrado
+        // la vaca, saltándose el candado de UI de vacas.html/vaca.html.
+        allow create: if vacaAbierta(vacaId);
         allow get: if true;
         // v2.19 (fix, luego ajustado a pedido del usuario): el portal
         // (vaca.html, modal "✏️ Editar") deja que el participante corrija
@@ -911,7 +937,11 @@ service cloud.firestore {
         // opcional (string o null) al esquema permitido — antes solo
         // aceptaba exactamente [nombre, tipo, aporto], así que el create()
         // con avatarUrl agregado por esta entrega habría sido rechazado.
-        allow create: if
+        // v2.27: create ahora exige que la vaca no esté cerrada (ver
+        // vacaAbierta()) — mismo candado que /participantes, para que
+        // el mirror de integrantes tampoco se pueda crear vía escritura
+        // directa una vez la vaca cerró.
+        allow create: if vacaAbierta(vacaId) &&
           request.resource.data.keys().hasOnly(['nombre', 'tipo', 'aporto', 'avatarUrl']) &&
           request.resource.data.nombre is string &&
           request.resource.data.tipo is string &&

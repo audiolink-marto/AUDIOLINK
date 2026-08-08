@@ -3,7 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK · v1.51</title>
+  <title>Vacas · AUDIOLINK · v1.53</title>
+  <!-- v1.53: a pedido del usuario — footer del PDF (exportarAbonosPDF)
+       cambia de "Diseñado por: Marto 🧠" al mismo texto exacto que usa
+       el crédito del sidebar (.sb-credit en nav.js / .app-credit en
+       vaca.html): "Marto 🧠 · martowave@gmail.com". Solo ese texto —
+       nada más del PDF se tocó.
+  <!-- v1.52: a pedido del usuario — exportarAbonosPDF(): los participantes
+       tipo 'libre' (aporte libre, sin cuota fija) ya no muestran
+       "pendiente" en la tabla "Saldo por participante" del PDF, porque
+       no tiene sentido comparar su abonado contra cuota_fija (mismo
+       criterio que ya aplica vaca.html en el portal, donde 'libre' oculta
+       el estado pendiente/al día). Ahora muestran "Aporte libre" en gris
+       en la columna Saldo. También se excluyen del cálculo de
+       "Total a devolver" (antes su excedente contra la cuota fija se
+       sumaba ahí sin sentido). No se tocó ninguna otra columna, tabla,
+       cálculo de abonado real, ni exportarAbonosCSV().
   <!-- v1.51: a pedido del usuario — exportarAbonosPDF() reescrita para
        usar el mismo MÉTODO y mismo DISEÑO que generarResumenPDF() en
        vaca.html (portal del participante): ventana nueva vía
@@ -1963,8 +1978,9 @@ async function exportarAbonosPDF() {
       const p = pDoc.data();
       const abonado = p.totalAbonado || 0;
       const excedente = abonado - cuota;
-      if (excedente > 0) totalDevolver += excedente;
-      filasSaldo.push({ nombre: p.nombre || '', contacto: p.contacto || '', abonado, excedente });
+      const esLibre = p.tipo === 'libre'; // v1.52: aporte libre no tiene cuota fija — no aplica pendiente
+      if (!esLibre && excedente > 0) totalDevolver += excedente; // v1.52: libres no entran al cálculo de "a devolver"
+      filasSaldo.push({ nombre: p.nombre || '', contacto: p.contacto || '', abonado, excedente, esLibre });
 
       const abonosSnap = await pDoc.ref.collection('abonos').orderBy('fecha', 'asc').get();
       abonosSnap.forEach(aDoc => {
@@ -1982,11 +1998,15 @@ async function exportarAbonosPDF() {
 
     filasSaldo.sort((a, b) => b.excedente - a.excedente);
     const filasSaldoHtml = filasSaldo.map(f => {
-      const saldoTxt = f.excedente > 0
-        ? `<span style="color:#16a34a;font-weight:bold;">${formatCOP(f.excedente)} a favor</span>`
-        : f.excedente < 0
-          ? `${formatCOP(-f.excedente)} pendiente`
-          : 'Al día';
+      // v1.52: aporte libre no tiene cuota fija — no aplica pendiente/a
+      // favor, mismo criterio que ya usa vaca.html en el portal.
+      const saldoTxt = f.esLibre
+        ? `<span style="color:#64748b;">Aporte libre</span>`
+        : f.excedente > 0
+          ? `<span style="color:#16a34a;font-weight:bold;">${formatCOP(f.excedente)} a favor</span>`
+          : f.excedente < 0
+            ? `${formatCOP(-f.excedente)} pendiente`
+            : 'Al día';
       return `<tr><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${escapeHtml(f.nombre)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#475569;">${escapeHtml(f.contacto)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${formatCOP(f.abonado)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${saldoTxt}</td></tr>`;
     }).join('');
 
@@ -2022,7 +2042,7 @@ async function exportarAbonosPDF() {
   <table><thead><tr><th>Participante</th><th>Contacto</th><th style="text-align:left;">Abonado</th><th>Saldo</th></tr></thead><tbody>${filasSaldoHtml}</tbody></table>
   <h3 style="margin:18px 0 8px;">Detalle de abonos</h3>
   <table><thead><tr><th>Participante</th><th>Contacto</th><th>Fecha</th><th>Monto</th><th>Nota</th></tr></thead><tbody>${filasAbonosHtml}</tbody></table>
-  <p style="text-align:center;margin-top:40px;font-size:0.75rem;color:#94a3b8;">Diseñado por: Marto 🧠</p></body></html>`;
+  <p style="text-align:center;margin-top:40px;font-size:0.75rem;color:#94a3b8;">Marto 🧠 · martowave@gmail.com</p></body></html>`;
 
     const win = window.open('', '_blank', 'width=900,height=800');
     win.document.write(html);
