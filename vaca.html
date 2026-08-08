@@ -1290,7 +1290,7 @@
 // 'noche' = noche en el campo (base). 'dia' = día en el prado.
 const PALETAS_FONDO = {
   noche: { shimmer: ['#3a6b3a','#8c6a2a','#c8cdd8'], decor: ['#3a6b3a','#7a5a28'] },
-  dia:   { shimmer: ['#5db85d','#c89040','#e8f0c0'], decor: ['#5db85d','#c89040'] }
+  dia:   { shimmer: ['#0e7c70','#5a9fb0','#c9a86a'], decor: ['#0e7c70','#5a9fb0'] }
 };
 
 function generarShimmer(paleta) {
@@ -1370,7 +1370,7 @@ function generarFondoDecorativo(paleta) {
 function toggleTema() {
   const esDia = document.body.classList.toggle('tema-dia');
   const tema = esDia ? 'dia' : 'noche';
-  document.getElementById('btnTema').textContent = esDia ? '🌿' : '🌙';
+  document.getElementById('btnTema').textContent = esDia ? '🌙' : '🌞';
   generarShimmer(PALETAS_FONDO[tema]);
   generarFondoDecorativo(PALETAS_FONDO[tema]);
   try { localStorage.setItem('vaca-tema', tema); } catch(e) {}
@@ -2970,6 +2970,13 @@ function cargarIntegrantes() {
 
       if (ocultarLibres) integrantes = integrantes.filter(p => p.tipo !== 'libre');
 
+      // v1.79: orden alfabético como base — antes quedaban en orden de
+      // inserción/registro, que no ayuda a nadie a ubicarse en la
+      // lista. Se ordena siempre por nombre; si ordenarPorAporte está
+      // activo, ese orden manda por grupo (pendiente/aportó/libre) y el
+      // alfabético queda dentro de cada grupo.
+      integrantes.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+
       if (ordenarPorAporte) {
         // pendientes (fijo, sin aportar) primero; luego fijo que ya
         // aportó; los 'libre' quedan siempre al final (no tienen estado
@@ -3242,10 +3249,10 @@ function terminarTutorial() {
 // generarFondoDecorativo(). El fondo solo se activaba al usar el toggle
 // porque toggleTema() sí se ejecuta después de que todo ya cargó.
 (function iniciarTema() {
-  let tema = 'noche';
-  try { tema = localStorage.getItem('vaca-tema') || 'noche'; } catch(e) {}
+  let tema = 'dia';
+  try { tema = localStorage.getItem('vaca-tema') || 'dia'; } catch(e) {}
   if (tema === 'dia') document.body.classList.add('tema-dia');
-  document.getElementById('btnTema').textContent = tema === 'dia' ? '🌿' : '🌙';
+  document.getElementById('btnTema').textContent = tema === 'dia' ? '🌙' : '🌞';
   generarShimmer(PALETAS_FONDO[tema]);
   generarFondoDecorativo(PALETAS_FONDO[tema]);
 })();

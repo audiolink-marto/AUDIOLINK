@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK · v1.78</title>
+  <title>Vacas · AUDIOLINK · v1.79</title>
   <!-- v1.53: a pedido del usuario — footer del PDF (exportarAbonosPDF)
        cambia de "Diseñado por: Marto 🧠" al mismo texto exacto que usa
        el crédito del sidebar (.sb-credit en nav.js / .app-credit en
@@ -1000,6 +1000,15 @@
       font-weight: 700;
       color: var(--accent);
       margin-left: 6px;
+    }
+    /* v1.79: checkbox de control "avisado" — tamaño táctil cómodo,
+       no interfiere con el click de la fila (stopPropagation en el JS). */
+    .chk-avisado {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      accent-color: var(--accent);
+      cursor: pointer;
     }
 
     /* v1.22: caja de resumen "Total a devolver", solo se inserta si
@@ -2198,6 +2207,7 @@ function cargarParticipantes(vacaId) {
         }
         html += `<tr onclick="toggleFilaPart(this)">
           <td class="part-fila-header" data-label="">
+            <input type="checkbox" class="chk-avisado" title="Avisado" ${p.avisado ? 'checked' : ''} onclick='event.stopPropagation();toggleAvisado("${doc.id}", this.checked)' />
             ${p.avatarUrl ? `<img src="${escapeHtml(p.avatarUrl.replace('/upload/', '/upload/w_100,h_100,c_fill,f_auto,q_auto/'))}" alt="" loading="lazy" style="width:32px;height:32px;border-radius:50%;object-fit:cover;display:block;flex-shrink:0" />` : `<span style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">👤</span>`}
             <span class="part-fila-nombre">${escapeHtml(p.nombre || '—')}${esLibre ? ' <span class="tag-libre">🐠</span>' : ''}</span>
             <span class="estado-chip ${estadoClass}" style="font-size:11px">${estadoLabel}</span>
@@ -3320,7 +3330,7 @@ function notificarWhatsApp(vacaId, participanteId, nombre, contacto, paisCodigo,
   // cae al texto genérico que ya existía (sin romper nada).
   const organizador = (localStorage.getItem('audiolink_organizador') || '').trim();
   const msg = organizador
-    ? `Hola ${nombre}! Soy ${organizador} y te agregué a "${nombreVaca}" en AUDIOLINK. Este es tu link personal para ver tu saldo: ${url}`
+    ? `Hola ${nombre}! Soy ${organizador} y te agregué a "${nombreVaca}". Este es tu link personal para ver tu saldo: ${url}`
     : `Hola ${nombre}! Te comparto tu link personal para ver tu saldo en "${nombreVaca}": ${url}`;
 
   const numeroWa = paisCodigo
@@ -3328,6 +3338,21 @@ function notificarWhatsApp(vacaId, participanteId, nombre, contacto, paisCodigo,
     : (soloNumeros.length === 10 ? '57' + soloNumeros : soloNumeros);
 
   window.open(`https://wa.me/${numeroWa}?text=${encodeURIComponent(msg)}`, '_blank');
+
+  // v1.79: marca "avisado" automáticamente al usar el botón de WhatsApp.
+  // No bloquea la apertura del link si falla — solo control interno.
+  toggleAvisado(participanteId, true);
+}
+
+// ===== CONTROL "AVISADO" =====
+// v1.79: checkbox manual + auto-marcado desde notificarWhatsApp().
+// Campo simple en el doc del participante, no afecta cuotas ni abonos.
+function toggleAvisado(participanteId, valor) {
+  if (!vacaActualId || !participanteId) return;
+  db.collection('vacas').doc(vacaActualId)
+    .collection('participantes').doc(participanteId)
+    .update({ avisado: !!valor })
+    .catch(err => mostrarToast('Error: ' + err.message));
 }
 
 // ===== COPIAR LINK =====
