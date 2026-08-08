@@ -3,7 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vaca · AUDIOLINK · v1.67</title>
+  <title>Vaca · AUDIOLINK · v1.70</title>
+  <!-- v1.70: a pedido del usuario — Opción A: se fusiona la bienvenida.
+       El paso 1 del tutorial ("¡Bienvenido! Una vaca es...", agregado en
+       v1.67) se eliminó de _TUT_PASOS — quedaba repetido justo después
+       de #vistaEligeAvatar (v1.69), que ya cumple ese rol de primera
+       pantalla para participantes del admin. Ese texto (qué es una vaca
+       + nombre real) ahora vive en #eligeAvatarTexto, rellenado en
+       cargarPortal() justo antes de mostrar la vista. iniciarTutorial()
+       ya no necesita reemplazar el marcador __VACA__ (se quitó esa
+       lógica) — el tutorial ahora arranca directo en lo que antes era
+       el paso 2 ("La vaca y su cuota"). Quien se auto-registra sigue
+       sin ver #vistaEligeAvatar (avatarElegido:true desde registrarse())
+       pero ya recibió la explicación del concepto en vistaBienvenida,
+       así que no queda ningún flujo sin cubrir. No se tocaron los pasos
+       3 a 5 del tutorial (ex 3-5, siguen igual en contenido).
+  <!-- v1.69: a pedido del usuario — participantes creados desde el
+       admin (vacas.html) entraban directo al portal sin pasar por el
+       selector de avatar (eso solo ocurría en vistaRegistro, el flujo
+       de auto-registro). Ahora, si el doc del participante no tiene
+       avatarElegido:true, cargarPortal() intercepta ANTES de mostrar
+       vistaPortal y muestra la vista nueva #vistaEligeAvatar (mismo
+       grid reutilizado vía cargarCatalogoAvatares('primerAvatarGrid',...)
+       y la función seleccionarAvatarPrimero()). Al pulsar "Continuar",
+       confirmarPrimerAvatar() guarda avatarUrl + avatarElegido:true en
+       'participantes' y su espejo en 'integrantes' (mismo patrón que
+       guardarEdicionDatos()) — el propio onSnapshot de cargarPortal()
+       se vuelve a disparar y, ya con el flag en true, sigue de largo
+       hacia el portal normal (sin llamada extra a mostrarVista()).
+       registrarse() ahora también graba avatarElegido:true al crear el
+       participante (auto-registro SÍ pasó por el selector), para que
+       este paso nunca se le repita a nadie que ya eligió antes — ni a
+       quien elige deliberadamente "🚫 Sin avatar". Vacas/participantes
+       viejos (sin el campo) se comportan igual que uno nuevo del admin:
+       ven el paso una sola vez, la próxima entrada ya no lo repite. No
+       se tocó cargarAbonos(), cargarActividad(), cargarIntegrantes() ni
+       la validación de linkToken.
+  <!-- v1.68: a pedido del usuario — tamaño táctil de los avatares del
+       catálogo (selector en registro y en "editar mis datos") subido de
+       40px a 48px, gap de 8px a 10px. En móvil, 40px + 8px de separación
+       quedaba por debajo del mínimo recomendado (Apple HIG / Material
+       Design: 44-48px de área táctil), generando toques accidentales al
+       vecino. Aplica a los 2 grids (#regAvatarGrid y #editAvatarGrid) y
+       a los 2 puntos donde se arma el HTML en cargarCatalogoAvatares():
+       el círculo "🚫 Sin avatar" y cada <img> del catálogo.
+       ESTÁNDAR A REUTILIZAR: cualquier grilla de selección táctil de
+       avatares/iconos en este ecosistema (AUDIOLINK) debería usar
+       mínimo 48x48px por opción con gap ≥10px entre ellas — mismo
+       criterio aplicado aquí, para no repetir este ajuste por archivo.
   <!-- v1.67: a pedido del usuario — el paso 1 del tutorial (bienvenida)
        ahora explica brevemente qué es "una vaca" (colecta grupal) y
        menciona el nombre real de la vaca, en vez de asumir que quien
@@ -1324,6 +1371,20 @@ function toggleTema() {
         <div class="loading"><div class="spinner"></div> Cargando…</div>
       </div>
 
+      <!-- v1.69: paso "elige tu avatar" — se muestra solo a
+           participantes cuyo doc no tiene avatarElegido:true (creados
+           desde el admin, sin haber pasado por vistaRegistro). Ver
+           cargarPortal() y confirmarPrimerAvatar(). -->
+      <div id="vistaEligeAvatar" class="vista" style="text-align:center">
+        <div style="font-size:40px;margin-bottom:8px">🎨</div>
+        <h3 style="margin:0 0 6px" id="eligeAvatarTitulo">¡Bienvenido!</h3>
+        <p style="color:var(--text2);font-size:14px;margin:0 0 16px" id="eligeAvatarTexto">
+          Elige tu avatar. Puedes cambiarlo después desde "Editar mis datos".
+        </p>
+        <div id="primerAvatarGrid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;max-height:220px;overflow-y:auto;padding:4px 0"></div>
+        <button class="btn btn-primary" id="btnConfirmarPrimerAvatar" onclick="confirmarPrimerAvatar()" style="margin-top:18px;width:100%">Continuar</button>
+      </div>
+
       <!-- ERROR -->
       <div id="vistaError" class="vista">
         <div class="error-state">
@@ -1384,7 +1445,7 @@ function toggleTema() {
         <!-- v1.58: selector de avatar opcional -->
         <div class="form-group">
           <label>Avatar (opcional)</label>
-          <div id="regAvatarGrid" style="display:flex;flex-wrap:wrap;gap:8px;max-height:180px;overflow-y:auto;padding:4px 0">
+          <div id="regAvatarGrid" style="display:flex;flex-wrap:wrap;gap:10px;max-height:180px;overflow-y:auto;padding:4px 0">
             <div style="color:var(--text2);font-size:13px">Cargando catálogo…</div>
           </div>
         </div>
@@ -1516,7 +1577,7 @@ function toggleTema() {
       <!-- v1.58: selector de avatar opcional -->
       <div class="form-group">
         <label>Avatar (opcional)</label>
-        <div id="editAvatarGrid" style="display:flex;flex-wrap:wrap;gap:8px;max-height:180px;overflow-y:auto;padding:4px 0">
+        <div id="editAvatarGrid" style="display:flex;flex-wrap:wrap;gap:10px;max-height:180px;overflow-y:auto;padding:4px 0">
           <div style="color:var(--text2);font-size:13px">Cargando catálogo…</div>
         </div>
       </div>
@@ -2067,8 +2128,13 @@ function cargarCatalogoAvatares(gridId, seleccionActual) {
         cont.innerHTML = '<div style="color:var(--text2);font-size:13px">No hay avatares disponibles.</div>';
         return;
       }
-      const seleccionar = gridId === 'regAvatarGrid' ? 'seleccionarAvatarRegistro' : 'seleccionarAvatarEdicion';
-      let html = `<div class="avatar-opt-${gridId}" data-url="" onclick="${seleccionar}(null, this)" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:2px solid ${seleccionActual ? 'transparent' : 'var(--accent)'}" title="Sin avatar">🚫</div>`;
+      // v1.69: 3er grid (primerAvatarGrid) para el paso "elige tu avatar"
+      // que se muestra a participantes creados desde el admin, que nunca
+      // pasaron por el selector de registro.
+      const seleccionar = gridId === 'regAvatarGrid' ? 'seleccionarAvatarRegistro'
+        : gridId === 'primerAvatarGrid' ? 'seleccionarAvatarPrimero'
+        : 'seleccionarAvatarEdicion';
+      let html = `<div class="avatar-opt-${gridId}" data-url="" onclick="${seleccionar}(null, this)" style="width:48px;height:48px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;border:2px solid ${seleccionActual ? 'transparent' : 'var(--accent)'}" title="Sin avatar">🚫</div>`;
       snap.forEach(doc => {
         const d = doc.data();
         if (!d.urlCloudinary) return;
@@ -2078,7 +2144,7 @@ function cargarCatalogoAvatares(gridId, seleccionActual) {
         // avatares-iconos.html. avatarUrl guardado sigue siendo la URL
         // original (d.urlCloudinary), solo el <img src> es liviano.
         const miniatura = d.urlCloudinary.replace('/upload/', '/upload/w_150,h_150,c_fill,f_auto,q_auto/');
-        html += `<img class="avatar-opt-${gridId}" src="${escapeHtml(miniatura)}" data-url="${escapeHtml(d.urlCloudinary)}" onclick="${seleccionar}('${escapeHtml(d.urlCloudinary)}', this)" loading="lazy" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid ${activo ? 'var(--accent)' : 'transparent'}" title="${escapeHtml(d.nombre || '')}" />`;
+        html += `<img class="avatar-opt-${gridId}" src="${escapeHtml(miniatura)}" data-url="${escapeHtml(d.urlCloudinary)}" onclick="${seleccionar}('${escapeHtml(d.urlCloudinary)}', this)" loading="lazy" style="width:48px;height:48px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid ${activo ? 'var(--accent)' : 'transparent'}" title="${escapeHtml(d.nombre || '')}" />`;
       });
       cont.innerHTML = html;
     })
@@ -2098,6 +2164,15 @@ let editAvatarSeleccionado = null;
 function seleccionarAvatarEdicion(url, el) {
   editAvatarSeleccionado = url;
   document.querySelectorAll('.avatar-opt-editAvatarGrid').forEach(n => n.style.borderColor = 'transparent');
+  el.style.borderColor = 'var(--accent)';
+}
+
+// v1.69: selector del paso "elige tu avatar" mostrado a participantes
+// creados desde el admin (ver cargarPortal() y confirmarPrimerAvatar()).
+let primerAvatarSeleccionado = null;
+function seleccionarAvatarPrimero(url, el) {
+  primerAvatarSeleccionado = url;
+  document.querySelectorAll('.avatar-opt-primerAvatarGrid').forEach(n => n.style.borderColor = 'transparent');
   el.style.borderColor = 'var(--accent)';
 }
 
@@ -2286,6 +2361,7 @@ async function registrarse() {
         paisCodigo,
         tipo,
         avatarUrl: regAvatarSeleccionado || null, // v1.58
+        avatarElegido: true, // v1.69: ya pasó por el selector, no se le vuelve a pedir
         fechaRegistro: firebase.firestore.FieldValue.serverTimestamp(),
         totalAbonado: 0,
         linkToken: token
@@ -2449,11 +2525,17 @@ function renderPortal(p) {
 // Cada listener escucha UN documento o UNA subcolección puntual de UN
 // participante — no una colección abierta — así que el costo en lecturas
 // solo crece con cambios reales sobre ESE participante, no con tráfico.
+// v1.69: en pareja con la vista nueva vistaEligeAvatar y
+// confirmarPrimerAvatar(). Antes esta función mostraba vistaPortal de
+// inmediato, sin condición; ahora, en el primer snapshot válido, si el
+// participante no tiene avatarElegido:true (no pasó por vistaRegistro —
+// típico de quien fue agregado desde el admin), se intercala el paso
+// de selección de avatar ANTES de entrar al portal normal. El resto del
+// flujo (validación de linkToken, abonos/actividad/integrantes) no se
+// tocó — solo se retrasa hasta que el avatar quede resuelto.
 function cargarPortal() {
-  mostrarVista('vistaPortal');
-  setTimeout(() => iniciarTutorial(), 800); // v1.52: tutorial automático primera vez
-
   let tokenValidado = false; // v1.62: evita disparar los listeners de abajo más de una vez
+  let avatarPromptMostrado = false; // v1.69: solo se actúa una vez por sesión de este onSnapshot
 
   db.collection('vacas').doc(vacaId)
     .collection('participantes').doc(partId)
@@ -2471,7 +2553,32 @@ function cargarPortal() {
         mostrarError('Link inválido o incompleto. Pide que te reenvíen tu link personal desde el panel.');
         return;
       }
-      renderPortal(partSnap.data());
+
+      const p = partSnap.data();
+
+      // v1.69: paso de avatar pendiente — se detiene aquí, no se llega
+      // a renderPortal() ni se activan los listeners de abonos/actividad
+      // hasta que confirmarPrimerAvatar() guarde avatarElegido:true (lo
+      // cual dispara este mismo onSnapshot de nuevo, ya con el flag en
+      // true, y en ese segundo paso sigue de largo hacia el portal).
+      if (p.avatarElegido !== true && !avatarPromptMostrado) {
+        avatarPromptMostrado = true;
+        primerAvatarSeleccionado = p.avatarUrl || null;
+        // v1.70: texto de bienvenida (antes vivía en el paso 1 del
+        // tutorial, movido aquí en fusión con el usuario) — explica qué
+        // es una vaca y menciona el nombre real, solo para quien no pasó
+        // por vistaBienvenida/vistaRegistro (que ya lo explican ahí).
+        const nombreVaca = (vacaData && vacaData.nombre) || 'esta vaca';
+        document.getElementById('eligeAvatarTexto').textContent =
+          `Una "vaca" es una colecta grupal — todos aportan para una meta común. Este es tu espacio personal en ${nombreVaca}. Elige tu avatar para continuar; puedes cambiarlo después desde "Editar mis datos".`;
+        cargarCatalogoAvatares('primerAvatarGrid', primerAvatarSeleccionado);
+        mostrarVista('vistaEligeAvatar');
+        return;
+      }
+
+      mostrarVista('vistaPortal');
+      setTimeout(() => iniciarTutorial(), 800); // v1.52: tutorial automático primera vez
+      renderPortal(p);
       if (!tokenValidado) {
         tokenValidado = true;
         cargarAbonos();
@@ -2481,6 +2588,33 @@ function cargarPortal() {
     }, err => {
       mostrarError('Error al cargar tu portal: ' + err.message);
     });
+}
+
+// v1.69: guarda la elección (o "sin avatar" si no seleccionó ninguno) y
+// marca avatarElegido:true para que este paso no se vuelva a mostrar.
+// También actualiza el espejo en 'integrantes' — mismo patrón que
+// guardarEdicionDatos() ya usa para reflejar el avatar en la lista
+// pública. No toca totalAbonado, abonos, ni ningún otro campo.
+async function confirmarPrimerAvatar() {
+  const btn = document.getElementById('btnConfirmarPrimerAvatar');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  try {
+    const vacaRef = db.collection('vacas').doc(vacaId);
+    const partRef = vacaRef.collection('participantes').doc(partId);
+    const integranteRef = vacaRef.collection('integrantes').doc(partId);
+    const batch = db.batch();
+    batch.update(partRef, { avatarUrl: primerAvatarSeleccionado || null, avatarElegido: true });
+    batch.set(integranteRef, { avatarUrl: primerAvatarSeleccionado || null }, { merge: true });
+    await batch.commit();
+    // No se llama mostrarVista() aquí — el onSnapshot de cargarPortal()
+    // se vuelve a disparar solo con avatarElegido:true y sigue de largo
+    // hacia vistaPortal automáticamente.
+  } catch (err) {
+    mostrarToast('Error al guardar avatar: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Continuar';
+  }
 }
 
 // v1.11: miniatura + lightbox de comprobantes, mismo tratamiento que
@@ -2833,7 +2967,7 @@ function generarResumenPDF() {
 
 // ===== UTILIDADES =====
 function mostrarVista(id) {
-  ['vistaLoading','vistaError','vistaBienvenida','vistaRegistro','vistaLinkGenerado','vistaPortal'].forEach(v => {
+  ['vistaLoading','vistaError','vistaEligeAvatar','vistaBienvenida','vistaRegistro','vistaLinkGenerado','vistaPortal'].forEach(v => {
     document.getElementById(v).classList.remove('show');
   });
   document.getElementById(id).classList.add('show');
@@ -2870,17 +3004,6 @@ let _tutPasosActivos = [];
 
 const _TUT_PASOS = [
   {
-    target: null,
-    emoji: '🐄',
-    titulo: '¡Bienvenido!',
-    // v1.67: texto base — se completa en iniciarTutorial() con el nombre
-    // real de la vaca (vacaData.nombre), a pedido del usuario: quien
-    // llega por un link agregado desde el admin (sin haber pasado por
-    // el auto-registro) puede no saber qué es "una vaca". Se agrega una
-    // explicación breve del concepto antes de entrar al resto de la guía.
-    texto: 'Una "vaca" es una colecta grupal — todos aportan para una meta común. Este es tu espacio personal en __VACA__. Aquí ves tu saldo, lo que llevas abonado y lo que falta. Solo tú tienes este link — guárdalo bien, sin él no podrás volver.'
-  },
-  {
     target: '#cardTop',
     emoji: '💳',
     titulo: 'La vaca y su cuota',
@@ -2909,16 +3032,7 @@ const _TUT_PASOS = [
 function iniciarTutorial(forzar = false) {
   const visto = localStorage.getItem(_TUT_LLAVE);
   if (visto && !forzar) return;
-  // v1.67: se arma una copia superficial de _TUT_PASOS, reemplazando el
-  // marcador __VACA__ del primer paso por el nombre real de la vaca
-  // (vacaData ya está poblado en este punto — el tutorial se dispara
-  // después de renderPortal()). Si por algún motivo vacaData.nombre no
-  // existe todavía, cae a "esta vaca" — nunca queda el marcador crudo.
-  const nombreVaca = (vacaData && vacaData.nombre) || 'esta vaca';
-  _tutPasosActivos = _TUT_PASOS.map(p => ({
-    ...p,
-    texto: p.texto.replace('__VACA__', nombreVaca)
-  }));
+  _tutPasosActivos = _TUT_PASOS;
   _tutPaso = 0;
   document.getElementById('tutorial-overlay').classList.remove('oculto');
   _renderTutPaso();

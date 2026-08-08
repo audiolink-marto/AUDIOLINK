@@ -3,7 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK · v1.50</title>
+  <title>Vacas · AUDIOLINK · v1.51</title>
+  <!-- v1.51: a pedido del usuario — exportarAbonosPDF() reescrita para
+       usar el mismo MÉTODO y mismo DISEÑO que generarResumenPDF() en
+       vaca.html (portal del participante): ventana nueva vía
+       window.open + document.write, documento HTML autónomo con header
+       AUDIOLINK, acento teal #2dd4bf, info-grid, tablas, total-box y
+       footer "Diseñado por: Marto 🧠". Antes usaba un método distinto
+       (div oculto #reportePrint + @media print + window.print() sobre
+       la propia página). El CONTENIDO no cambió: mismo resumen
+       ejecutivo (meta/recaudado/%/participantes/total a devolver),
+       misma tabla de saldo por participante, misma tabla de detalle de
+       abonos, misma lectura participantes→abonos (no se tocó
+       exportarAbonosCSV() ni ninguna otra función). El div
+       #reportePrint y su bloque @media print quedaron sin uso — no se
+       borraron todavía, a la espera de confirmar que el nuevo método
+       funciona bien.
   <!-- v1.50: a pedido del usuario — botón nuevo "🗑️ Reiniciar actividad"
        en la vista de detalle, junto a Link de invitación. Llama a
        reiniciarActividad() (ver junto a eliminarAbono()): borra en
@@ -1918,12 +1933,20 @@ async function exportarAbonosCSV() {
   }
 }
 
-// v1.21: exporta el mismo estado de la vaca a PDF, con el método del
-// cotizador (window.print() + @media print, sin librerías). Reutiliza
-// la misma lectura participantes→abonos que exportarAbonosCSV() (sin
-// tocarla), arma un resumen ejecutivo + tabla detallada dentro de
-// #reportePrint y dispara la impresión del navegador (el usuario elige
-// "Guardar como PDF" desde ahí, igual que en el resto del ecosistema).
+// v1.51: a pedido del usuario — mismo MÉTODO y mismo DISEÑO que
+// generarResumenPDF() en vaca.html (portal del participante): ventana
+// nueva vía window.open + document.write con documento HTML autónomo
+// (header AUDIOLINK, acento teal #2dd4bf, info-grid, tabla, total-box,
+// footer "Diseñado por: Marto 🧠", botón de impresión dentro de la
+// ventana). Antes usaba un método distinto: div oculto #reportePrint +
+// @media print + window.print() sobre la propia página. El CONTENIDO no
+// cambió — mismo resumen ejecutivo (meta/recaudado/%/participantes/
+// total a devolver), misma tabla de saldo por participante y misma
+// tabla de detalle de abonos, mismas lecturas a Firestore (sin tocar
+// exportarAbonosCSV() ni la consulta participantes→abonos).
+// NOTA: el div #reportePrint y su bloque @media print quedaron sin uso
+// tras este cambio — no se borraron por si se prefiere revisar primero
+// que todo funcione bien antes de limpiarlos.
 async function exportarAbonosPDF() {
   if (!vacaActualId || !vacaActualData) return;
   mostrarToast('Generando reporte…');
@@ -1955,67 +1978,55 @@ async function exportarAbonosPDF() {
     const numParticipantes = vacaActualData.numParticipantes || 0;
     const pct = meta > 0 ? Math.min(100, Math.round(recaudado / meta * 100)) : 0;
     const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const colorAcento = '#2dd4bf'; // v1.51: mismo acento que generarResumenPDF() en vaca.html
 
-    // v1.22: fila extra en el resumen ejecutivo solo si hay algo que
-    // devolver — no se agrega vacía para no confundir en vacas sin excedente.
-    const filaDevolverHtml = totalDevolver > 0
-      ? `<div>Total a devolver<strong style="color:var(--green)">${formatCOP(totalDevolver)}</strong></div>`
-      : '';
-
-    // v1.22: tabla resumen por participante con columna Saldo — sirve
-    // como soporte de a quién devolverle qué, sin tener que cruzar la
-    // tabla de abonos sueltos.
     filasSaldo.sort((a, b) => b.excedente - a.excedente);
     const filasSaldoHtml = filasSaldo.map(f => {
       const saldoTxt = f.excedente > 0
-        ? `<span style="color:var(--green)">${formatCOP(f.excedente)} a favor</span>`
+        ? `<span style="color:#16a34a;font-weight:bold;">${formatCOP(f.excedente)} a favor</span>`
         : f.excedente < 0
           ? `${formatCOP(-f.excedente)} pendiente`
           : 'Al día';
-      return `<tr>
-        <td>${escapeHtml(f.nombre)}</td>
-        <td>${escapeHtml(f.contacto)}</td>
-        <td>${formatCOP(f.abonado)}</td>
-        <td>${saldoTxt}</td>
-      </tr>`;
+      return `<tr><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${escapeHtml(f.nombre)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#475569;">${escapeHtml(f.contacto)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${formatCOP(f.abonado)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${saldoTxt}</td></tr>`;
     }).join('');
 
-    let filasHtml = '';
+    let filasAbonosHtml = '';
     if (filasAbonos.length === 0) {
-      filasHtml = '<tr><td colspan="5">Sin abonos registrados todavía.</td></tr>';
+      filasAbonosHtml = `<tr><td colspan="5" style="padding:14px;text-align:center;color:#94a3b8;">Sin abonos registrados aún.</td></tr>`;
     } else {
-      filasHtml = filasAbonos.map(f => `
-        <tr>
-          <td>${escapeHtml(f.nombre)}</td>
-          <td>${escapeHtml(f.contacto)}</td>
-          <td>${f.fecha}</td>
-          <td>${formatCOP(f.monto)}</td>
-          <td>${escapeHtml(f.nota)}</td>
-        </tr>`).join('');
+      filasAbonosHtml = filasAbonos.map(f => {
+        const fechaStr = f.fecha
+          ? new Date(f.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '—';
+        return `<tr><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${escapeHtml(f.nombre)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#475569;">${escapeHtml(f.contacto)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;">${fechaStr}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;font-weight:bold;">${formatCOP(f.monto)}</td><td style="padding:10px;border-bottom:1px solid #e2e8f0;color:#475569;">${escapeHtml(f.nota) || '—'}</td></tr>`;
+      }).join('');
     }
 
-    document.getElementById('reportePrint').innerHTML = `
-      <h2>🐄 ${escapeHtml(vacaActualData.nombre || 'Vaca')}</h2>
-      <div class="rp-sub">Reporte generado el ${fechaHoy} · AUDIOLINK</div>
-      <div class="rp-resumen">
-        <div>Meta<strong>${formatCOP(meta)}</strong></div>
-        <div>Recaudado<strong>${formatCOP(recaudado)}</strong></div>
-        <div>% completado<strong>${pct}%</strong></div>
-        <div>Participantes<strong>${numParticipantes}</strong></div>
-        ${filaDevolverHtml}
-      </div>
-      <h3 style="margin:18px 0 8px;font-size:13px;">Saldo por participante</h3>
-      <table>
-        <thead><tr><th>Participante</th><th>Contacto</th><th>Abonado</th><th>Saldo</th></tr></thead>
-        <tbody>${filasSaldoHtml}</tbody>
-      </table>
-      <h3 style="margin:18px 0 8px;font-size:13px;">Detalle de abonos</h3>
-      <table>
-        <thead><tr><th>Participante</th><th>Contacto</th><th>Fecha</th><th>Monto</th><th>Nota</th></tr></thead>
-        <tbody>${filasHtml}</tbody>
-      </table>`;
+    const totalDevolverHtml = totalDevolver > 0
+      ? `<div><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">Total a devolver</span><br><strong style="font-size:1.05rem;color:#16a34a;">${formatCOP(totalDevolver)}</strong></div>`
+      : '';
 
-    window.print();
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte — ${escapeHtml(vacaActualData.nombre || 'Vaca')}</title>
+  <style>body{font-family:sans-serif;padding:40px;max-width:850px;margin:0 auto;color:#0f172a;}@media print{.no-print{display:none!important}}.header{display:flex;justify-content:space-between;border-bottom:4px solid ${colorAcento};padding-bottom:20px;}.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:20px;background:#f8fafc;padding:20px;border-radius:8px;margin:20px 0;border:1px solid #e2e8f0;}table{width:100%;border-collapse:collapse;margin-bottom:24px;}th{background:${colorAcento};color:#fff;padding:12px;text-align:left;}.total-box{display:flex;justify-content:flex-end;gap:30px;background:#0f172a;color:#fff;padding:20px;border-radius:8px;margin-top:20px;align-items:center;}</style></head><body>
+  <button class="no-print" onclick="window.print()" style="padding:12px;background:${colorAcento};color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-bottom:20px;width:100%;">🖨️ Imprimir / Guardar como PDF</button>
+  <div class="header"><div><h1 style="margin:0;letter-spacing:1px;">AUDIOLINK</h1><div style="color:${colorAcento};font-weight:bold;letter-spacing:1px;margin-top:4px;">REPORTE DE VACA — RESUMEN ADMINISTRATIVO</div></div>
+  <div style="text-align:right;font-size:0.9rem;"><div><strong>Fecha:</strong> ${fechaHoy}</div></div></div>
+  <div class="info-grid">
+    <div><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">Vaca</span><br><strong style="font-size:1.05rem;">${escapeHtml(vacaActualData.nombre || '—')}</strong></div>
+    <div><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">Meta / Recaudado</span><br><strong style="font-size:1.05rem;">${formatCOP(meta)} / ${formatCOP(recaudado)}</strong></div>
+    <div><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">% completado</span><br><strong style="font-size:1.05rem;">${pct}%</strong></div>
+    <div><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">Participantes</span><br><strong style="font-size:1.05rem;">${numParticipantes}</strong></div>
+    ${totalDevolverHtml}
+  </div>
+  <h3 style="margin:18px 0 8px;">Saldo por participante</h3>
+  <table><thead><tr><th>Participante</th><th>Contacto</th><th style="text-align:left;">Abonado</th><th>Saldo</th></tr></thead><tbody>${filasSaldoHtml}</tbody></table>
+  <h3 style="margin:18px 0 8px;">Detalle de abonos</h3>
+  <table><thead><tr><th>Participante</th><th>Contacto</th><th>Fecha</th><th>Monto</th><th>Nota</th></tr></thead><tbody>${filasAbonosHtml}</tbody></table>
+  <p style="text-align:center;margin-top:40px;font-size:0.75rem;color:#94a3b8;">Diseñado por: Marto 🧠</p></body></html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=800');
+    win.document.write(html);
+    win.document.close();
   } catch (err) {
     mostrarToast('Error al generar PDF: ' + err.message);
   }
