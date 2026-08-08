@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vaca · AUDIOLINK · v1.77</title>
+  <title>Vaca</title>
   <!-- v1.77: a pedido del usuario — aviso visible en el portal cuando la
        vaca está cerrada (banner rojo arriba del header, "🔒 Esta vaca
        está cerrada"). Antes un participante ya registrado entraba a su
@@ -2071,6 +2071,8 @@ function renderHeaderVaca() {
     (vacaData.estado === 'cerrada') ? '' : 'none';
 
   document.getElementById('vacaNombre').textContent = vacaData.nombre || '—';
+  const _org = (localStorage.getItem('audiolink_organizador') || '').trim();
+  document.title = vacaData.nombre ? (vacaData.nombre + (_org ? ' · por ' + _org : '')) : 'Vaca';
   const imgEl = document.getElementById('vacaImagen');
   if (vacaData.imagenUrl) {
     imgEl.src = cloudinaryHeaderThumb(vacaData.imagenUrl);

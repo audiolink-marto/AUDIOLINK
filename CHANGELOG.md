@@ -6,6 +6,31 @@ Historial de versiones del ecosistema. Antes vivía repartido en el comentario d
 
 ## firestore.rules
 
+### v2.27
+defensa extra a nivel de Rules cuando una vaca está cerrada
+(estado=='cerrada'). Antes el cierre era SOLO un candado de UI
+(vacas.html ocultaba botones, vaca.html bloqueaba el registro de gente
+nueva en el HTML) — a nivel de Rules cualquiera con el link general
+podía seguir creando un doc en /participantes o /integrantes
+directamente. Se agrega la función vacaAbierta(vacaId) (usa != 'cerrada',
+no == 'activa', para no romper vacas viejas sin el campo `estado`
+todavía) y se exige en el `allow create` público de ambas subcolecciones.
+No se tocó ningún `update` (edición de datos propios, avatar) ni ninguna
+otra regla — la edición de datos ya registrados sigue funcionando igual,
+solo se bloquea CREAR nuevos.
+
+### v2.26
+FIX — confirmarPrimerAvatar() en vaca.html v1.69 hace
+batch.update(partRef, { avatarUrl, avatarElegido:true }) para que el
+paso "elige tu avatar" no se repita en cada carga. La regla de update
+en /participantes no incluía avatarElegido como affectedKey permitida,
+así que ese update SIEMPRE era rechazado (el batch entero fallaba en
+silencio, sin toast visible) — el participante quedaba pidiendo avatar
+de nuevo en cada recarga aunque ya hubiera elegido uno. Se agrega
+avatarElegido como campo opcional adicional (validado como boolean) en
+AMBAS variantes del `allow update` de /participantes. No se tocó
+ninguna otra regla.
+
 ### v2.24
 se agrega lectura pública (get+list, filtrada a activo == true) a
 /avataresIconos — para que vaca.html (portal, sin login) pueda leer el
@@ -1594,6 +1619,23 @@ cálculo, el borrador local, ni la exportación a PDF existentes.
 
 ## vacas.html
 
+### v1.53
+footer del PDF (exportarAbonosPDF) cambia de "Diseñado por: Marto 🧠"
+al mismo texto exacto que usa el crédito del sidebar (.sb-credit en
+nav.js / .app-credit en vaca.html): "Marto 🧠 · martowave@gmail.com".
+Solo ese texto — nada más del PDF se tocó.
+
+### v1.52
+exportarAbonosPDF(): los participantes tipo 'libre' (aporte libre, sin
+cuota fija) ya no muestran "pendiente" en la tabla "Saldo por
+participante" del PDF, porque no tiene sentido comparar su abonado
+contra cuota_fija (mismo criterio que ya aplica vaca.html en el portal,
+donde 'libre' oculta el estado pendiente/al día). Ahora muestran
+"Aporte libre" en gris en la columna Saldo. También se excluyen del
+cálculo de "Total a devolver" (antes su excedente contra la cuota fija
+se sumaba ahí sin sentido). No se tocó ninguna otra columna, tabla,
+cálculo de abonado real, ni exportarAbonosCSV().
+
 ### v1.44
 FIX — el selector de avatar de v1.43 usaba d.url, pero el campo real en
 avataresIconos (definido en avatares-iconos.html) es d.urlCloudinary; por
@@ -1621,6 +1663,41 @@ ampliado con avatarUrl opcional) y ver también el patrón documentado en
 ARQUITECTURA.md sección 4 para reutilizarlo en catálogos futuros.
 
 ## vaca.html
+
+### v1.77
+aviso visible en el portal cuando la vaca está cerrada (banner rojo
+arriba del header, "🔒 Esta vaca está cerrada — no se aceptan más
+aportes."). Antes un participante ya registrado entraba a su portal
+normal sin ningún indicio del cierre — solo se bloqueaba el registro
+de gente NUEVA (vistaError). Se muestra/oculta en renderHeaderVaca()
+según vacaData.estado. Ver también firestore.rules v2.27 (candado
+equivalente a nivel de Rules).
+
+### v1.76
+FIX reportado por el usuario — el checkbox "Ocultar montos en el feed
+de actividad" (vacas.html v1.49, campo ocultarMontosActividad en el
+doc de la vaca) no tenía ningún efecto en el portal: cargarActividad()
+en vaca.html nunca leía ese campo y siempre mostraba "+$monto" sin
+excepción. Ahora, si vacaData.ocultarMontosActividad está en true, el
+feed muestra "aportó" en vez del monto — mismo criterio ya usado en
+cargarIntegrantes() para la lista de participantes. No se tocó nada
+más de cargarActividad() (orden, fecha, nombre, listener).
+
+### v1.75
+footer del PDF (generarResumenPDF) cambia de "Diseñado por: Marto 🧠"
+al mismo texto exacto que usa el crédito del sidebar (.app-credit /
+.sb-credit en nav.js): "Marto 🧠 · martowave@gmail.com". Solo ese
+texto — nada más del PDF se tocó.
+
+### v1.74
+a pedido del usuario ("que los puntos no salten, solo enciendan/
+apaguen y conecten"): se quita el translateY(-10px) de @keyframes
+shimmerPulse (el "salto" vertical de la v1.18) — ahora el ciclo del
+fondo (.shimmer-dot) es puramente encendido/apagado (opacity) + un
+pulso de tamaño sutil (scale), sin desplazamiento de posición.
+También se duplica la duración del ciclo (antes 1.6-3.4s, ahora
+3.2-6.8s) y se amplía el rango de delay para que no se vean tan
+sincronizados. No se tocó la red de nodos (.neuron-node/.neuron-line).
 
 ### v1.59
 FIX — mismo bug de vacas.html v1.44 (d.url en vez de d.urlCloudinary),
