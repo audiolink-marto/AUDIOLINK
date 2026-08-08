@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK · v1.79</title>
+  <title>Vacas · AUDIOLINK · v1.80</title>
   <!-- v1.53: a pedido del usuario — footer del PDF (exportarAbonosPDF)
        cambia de "Diseñado por: Marto 🧠" al mismo texto exacto que usa
        el crédito del sidebar (.sb-credit en nav.js / .app-credit en
@@ -3396,7 +3396,15 @@ function copiarLinkInvitacion() {
   if (!vacaActualId) return;
   const base = window.location.origin + window.location.pathname.replace('vacas.html', '');
   const url  = `${base}vaca.html?id=${vacaActualId}`;
-  navigator.clipboard.writeText(url)
+  const nombreVaca = (vacaActualData && vacaActualData.nombre) || 'la vaca';
+  // v1.80: mismo criterio que notificarWhatsApp() — si hay organizador
+  // guardado, da contexto de quién invita; si no, cae al texto genérico.
+  // Es un link GENERAL (sin &p=), no lleva nombre de participante.
+  const organizador = (localStorage.getItem('audiolink_organizador') || '').trim();
+  const msg = organizador
+    ? `Hola! Soy ${organizador} y los invito a la vaca "${nombreVaca}". Confirma tu participación aquí: ${url}`
+    : `Los invito a la vaca "${nombreVaca}". Confirma tu participación aquí: ${url}`;
+  navigator.clipboard.writeText(msg)
     .then(() => mostrarToast('🔗 Link de invitación copiado'))
     .catch(() => mostrarToast('No se pudo copiar el link'));
 }
