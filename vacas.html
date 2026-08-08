@@ -1001,14 +1001,29 @@
       color: var(--accent);
       margin-left: 6px;
     }
-    /* v1.79: checkbox de control "avisado" — tamaño táctil cómodo,
-       no interfiere con el click de la fila (stopPropagation en el JS). */
-    .chk-avisado {
-      width: 18px;
-      height: 18px;
+    /* v1.79b: botón "avisado" — pill compacto en vez de checkbox nativo,
+       más consistente con el resto de la UI (chips, botones). */
+    .btn-avisado {
       flex-shrink: 0;
-      accent-color: var(--accent);
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
+      padding: 0;
+      opacity: .55;
+      transition: opacity .15s, border-color .15s, background .15s;
+    }
+    .btn-avisado:hover { opacity: .85; }
+    .btn-avisado.on {
+      opacity: 1;
+      border-color: var(--green);
+      background: rgba(62,207,142,.12);
     }
 
     /* v1.22: caja de resumen "Total a devolver", solo se inserta si
@@ -2207,10 +2222,10 @@ function cargarParticipantes(vacaId) {
         }
         html += `<tr onclick="toggleFilaPart(this)">
           <td class="part-fila-header" data-label="">
-            <input type="checkbox" class="chk-avisado" title="Avisado" ${p.avisado ? 'checked' : ''} onclick='event.stopPropagation();toggleAvisado("${doc.id}", this.checked)' />
             ${p.avatarUrl ? `<img src="${escapeHtml(p.avatarUrl.replace('/upload/', '/upload/w_100,h_100,c_fill,f_auto,q_auto/'))}" alt="" loading="lazy" style="width:32px;height:32px;border-radius:50%;object-fit:cover;display:block;flex-shrink:0" />` : `<span style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">👤</span>`}
             <span class="part-fila-nombre">${escapeHtml(p.nombre || '—')}${esLibre ? ' <span class="tag-libre">🐠</span>' : ''}</span>
             <span class="estado-chip ${estadoClass}" style="font-size:11px">${estadoLabel}</span>
+            <button type="button" class="btn-avisado ${p.avisado ? 'on' : ''}" title="${p.avisado ? 'Ya le avisaste' : 'Marcar como avisado'}" onclick='event.stopPropagation();toggleAvisado("${doc.id}", ${!p.avisado})'>${p.avisado ? '✅' : '🔔'}</button>
             <span class="part-fila-flecha">▸</span>
           </td>
           <td class="part-fila-detalle" data-label="Abonado">${formatCOP(abonado)}${(!esLibre && cuota > 0) ? ` <span style="color:var(--text2);font-size:11px">/ ${formatCOP(cuota)}</span>` : ''}</td>
