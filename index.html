@@ -254,6 +254,29 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .resumen-card .num{font-size:1.3rem;font-weight:700;color:var(--gold);}
 .resumen-card .num.err{color:var(--err);}
 .resumen-card .num.ok{color:var(--ok);}
+
+/* v1.8: notificaciones flotantes de actividad de Vacas (abonos nuevos).
+   Contenedor fijo arriba-derecha, máx 3 tarjetas visibles + contador
+   "+N más" si se acumulan. Persisten hasta que el usuario les da clic
+   (se marcan como leídas en localStorage y no vuelven a aparecer). */
+#vacaNotifStack{
+  position:fixed; top:16px; right:16px; z-index:500;
+  display:flex; flex-direction:column; gap:8px;
+  max-width:320px; pointer-events:none;
+}
+.vaca-notif{
+  background:var(--surf); border:1px solid var(--brd); border-left:3px solid var(--gold);
+  border-radius:8px; padding:10px 14px; box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  font-size:0.82rem; color:var(--txt); cursor:pointer; pointer-events:all;
+  animation:vacaNotifIn 0.25s ease;
+}
+.vaca-notif:hover{ border-left-color:var(--gold); background:var(--surf-light); }
+.vaca-notif b{ color:var(--gold); }
+@keyframes vacaNotifIn{ from{opacity:0; transform:translateX(12px);} to{opacity:1; transform:none;} }
+.vaca-notif-mas{
+  text-align:center; font-size:0.75rem; color:var(--muted);
+  padding:4px; cursor:default; pointer-events:none;
+}
 </style>
 </head>
 <body>
@@ -276,6 +299,8 @@ window.NAV_CONFIG = { activo: 'dashboard' };
 </script>
 <div id="nav-mount"></div>
 <script src="nav.js"></script>
+
+<div id="vacaNotifStack"></div>
 
 <div class="main-wrap" id="mainWrap">
 <header style="display:none;"></header>
@@ -435,6 +460,69 @@ db.collectionGroup('sesiones').onSnapshot(snap => {
   renderCalendario();
   renderProximasSesiones();
 }, err => console.error('Error cargando sesiones para el calendario:', err));
+
+// ============ NOTIFICACIONES DE ACTIVIDAD DE VACAS (v1.8) ============
+// Escucha collectionGroup('actividad') — feed liviano ya usado por
+// vaca.html para el portal público (ver vacas.html v1.41). Solo genera
+// notificación visual para docs con creadoEn POSTERIOR al momento en
+// que cargó el Dashboard (_vacaNotifDesde), para no mostrar de golpe
+// todo el historial existente cada vez que se abre la página. Estado
+// de "leído" vive en localStorage (clave 'audiolink_vacaNotifLeidas'),
+// por id de doc de actividad — al hacer clic se marca leída y no
+// vuelve a aparecer en futuras visitas. No toca vacas.html ni
+// vaca.html, ni ninguna Rule existente.
+const _vacaNotifDesde = firebase.firestore.Timestamp.now();
+let _vacaNotifColas = []; // [{id, msg}], más reciente al final
+const _VACA_NOTIF_LLAVE = 'audiolink_vacaNotifLeidas';
+
+function _vacaNotifLeidas() {
+  try { return new Set(JSON.parse(localStorage.getItem(_VACA_NOTIF_LLAVE) || '[]')); }
+  catch(e) { return new Set(); }
+}
+function _vacaNotifMarcarLeida(id) {
+  const leidas = _vacaNotifLeidas();
+  leidas.add(id);
+  try { localStorage.setItem(_VACA_NOTIF_LLAVE, JSON.stringify([...leidas])); } catch(e) {}
+}
+
+db.collectionGroup('actividad').orderBy('creadoEn', 'desc').limit(20)
+  .onSnapshot(snap => {
+    const leidas = _vacaNotifLeidas();
+    snap.docChanges().forEach(change => {
+      if (change.type !== 'added') return; // solo altas nuevas, no ediciones
+      const doc = change.doc;
+      const a = doc.data();
+      if (!a.creadoEn || a.creadoEn.toMillis() <= _vacaNotifDesde.toMillis()) return; // ya existía antes de cargar
+      if (leidas.has(doc.id)) return;
+      if (_vacaNotifColas.some(n => n.id === doc.id)) return; // evita duplicados
+
+      const vacaRef = doc.ref.parent.parent;
+      vacaRef.get().then(vacaDoc => {
+        const nombreVaca = (vacaDoc.exists && vacaDoc.data().nombre) || 'una vaca';
+        const msg = `💰 <b>${escapeHtml(a.nombreParticipante || 'Alguien')}</b> abonó ${formatCOP(a.monto || 0)} a "${escapeHtml(nombreVaca)}"`;
+        _vacaNotifColas.push({ id: doc.id, msg });
+        renderVacaNotifs();
+      }).catch(() => {});
+    });
+  }, err => console.error('Error cargando actividad de vacas:', err));
+
+function renderVacaNotifs() {
+  const cont = document.getElementById('vacaNotifStack');
+  if (!cont) return;
+  const visibles = _vacaNotifColas.slice(-3); // últimas 3
+  const restantes = _vacaNotifColas.length - visibles.length;
+  let html = visibles.map(n =>
+    `<div class="vaca-notif" onclick="cerrarVacaNotif('${n.id}')">${n.msg}</div>`
+  ).join('');
+  if (restantes > 0) html += `<div class="vaca-notif-mas">+${restantes} más</div>`;
+  cont.innerHTML = html;
+}
+
+function cerrarVacaNotif(id) {
+  _vacaNotifMarcarLeida(id);
+  _vacaNotifColas = _vacaNotifColas.filter(n => n.id !== id);
+  renderVacaNotifs();
+}
 
 // ============ PRÓXIMAS SESIONES (v2.5) ============
 // Reutiliza `sesionesCal` (ya cargado para el calendario, sin query
