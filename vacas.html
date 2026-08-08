@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK · v1.53</title>
+  <title>Vacas · AUDIOLINK · v1.78</title>
   <!-- v1.53: a pedido del usuario — footer del PDF (exportarAbonosPDF)
        cambia de "Diseñado por: Marto 🧠" al mismo texto exacto que usa
        el crédito del sidebar (.sb-credit en nav.js / .app-credit en
@@ -891,35 +891,69 @@
       .main-content { padding: 20px 16px 80px; }
       .acciones-td { flex-wrap: wrap; }
 
-      /* v1.8: tabla de participantes → lista de mini-cards apiladas.
-         Antes dependía solo de overflow-x:auto (scroll horizontal para
-         ver "Acciones"). Técnica estándar: la tabla se "desarma" a
-         bloques, cada <tr> se convierte en una card, y cada <td> muestra
-         su etiqueta (data-label, agregado en el JS) antes del valor. No
-         se tocó el HTML/JS fuera de agregar esos data-label — la misma
-         tabla sigue funcionando igual en desktop (≥769px). */
+      /* v1.78: tabla de participantes → filas colapsables en móvil.
+         Cada <tr> muestra solo avatar + nombre + chip de estado + flecha.
+         Al tocar la fila se expande el detalle (abonado, contacto,
+         acciones) con transición suave. Desktop (≥769px) no se toca. */
       .table-wrap { overflow-x: visible; }
       table, thead, tbody, th, td, tr { display: block; }
       thead { display: none; }
+
       tbody tr {
         background: var(--bg2);
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        padding: 4px 14px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
+        overflow: hidden;
+        cursor: pointer;
       }
-      tbody tr:hover td { background: transparent; }
-      tbody td {
-        display: flex;
+
+      /* cabecera siempre visible */
+      .part-fila-header {
+        display: flex !important;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px !important;
+        border-bottom: none !important;
+      }
+      .part-fila-header::before { display: none !important; }
+      .part-fila-nombre {
+        flex: 1;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .part-fila-flecha {
+        font-size: 11px;
+        color: var(--text2);
+        transition: transform 0.22s ease;
+        flex-shrink: 0;
+      }
+      tbody tr.abierta .part-fila-flecha { transform: rotate(90deg); }
+
+      /* detalle colapsado por defecto */
+      .part-fila-detalle {
+        display: flex !important;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--border);
+        padding: 0 14px !important;
+        border-top: 1px solid var(--border) !important;
+        border-bottom: none !important;
+        font-size: 13px;
         text-align: right;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
       }
-      tbody tr td:last-child { border-bottom: none; }
-      tbody td::before {
+      tbody tr.abierta .part-fila-detalle {
+        max-height: 80px;
+        opacity: 1;
+        padding-top: 9px !important;
+        padding-bottom: 9px !important;
+      }
+      .part-fila-detalle::before {
         content: attr(data-label);
         font-size: 10px;
         font-weight: 700;
@@ -929,7 +963,28 @@
         text-align: left;
         flex-shrink: 0;
       }
-      .acciones-td { justify-content: flex-end; width: 100%; }
+
+      /* acciones colapsadas por defecto */
+      .part-fila-acciones {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 0 14px !important;
+        border-top: 1px solid var(--border) !important;
+        border-bottom: none !important;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height 0.28s ease, opacity 0.22s ease, padding 0.2s ease;
+      }
+      .part-fila-acciones::before { display: none !important; }
+      tbody tr.abierta .part-fila-acciones {
+        max-height: 200px;
+        opacity: 1;
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+      }
+      .acciones-td { justify-content: flex-start !important; width: 100%; flex-wrap: wrap; gap: 6px; }
     }
 
     /* v1.22: chip de excedente ("a favor") — mismo verde de chip-pagado
@@ -1023,6 +1078,15 @@
       }
       #reportePrint th { background: #e6f7f5 !important; color: #0e7c70 !important; }
       #reportePrint td::before { content: none !important; }
+    }
+
+    /* v1.78: will-change en elementos fixed para evitar repaint/parpadeo
+       durante el scroll en móvil — mueve cada elemento a su propia capa
+       de composición GPU. Solo aplica en mobile (≤768px). */
+    @media (max-width: 768px) {
+      .mobile-topbar, .mobile-bottomnav, #toast {
+        will-change: transform;
+      }
     }
   </style>
 </head>
@@ -2132,21 +2196,24 @@ function cargarParticipantes(vacaId) {
                       : abonado > 0      ? `${pct}% abonado`
                       :                    'Pendiente';
         }
-        html += `<tr>
-          <td data-label="" style="width:36px">${p.avatarUrl ? `<img src="${escapeHtml(p.avatarUrl.replace('/upload/', '/upload/w_100,h_100,c_fill,f_auto,q_auto/'))}" alt="" loading="lazy" style="width:32px;height:32px;border-radius:50%;object-fit:cover;display:block" />` : `<span style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px">👤</span>`}</td>
-          <td data-label="Nombre" style="font-weight:600">${escapeHtml(p.nombre || '—')}${esLibre ? ' <span class="tag-libre">🐠 Libre</span>' : ''}</td>
-          <td data-label="Contacto" style="color:var(--text2)">${escapeHtml(p.contacto || '—')}</td>
-          <td data-label="Abonado">${formatCOP(abonado)}${(!esLibre && cuota > 0) ? ` <span style="color:var(--text2);font-size:11px">/ ${formatCOP(cuota)}</span>` : ''}</td>
-          <td data-label="Estado"><span class="estado-chip ${estadoClass}">${estadoLabel}</span></td>
-          <td data-label="Acciones">
+        html += `<tr onclick="toggleFilaPart(this)">
+          <td class="part-fila-header" data-label="">
+            ${p.avatarUrl ? `<img src="${escapeHtml(p.avatarUrl.replace('/upload/', '/upload/w_100,h_100,c_fill,f_auto,q_auto/'))}" alt="" loading="lazy" style="width:32px;height:32px;border-radius:50%;object-fit:cover;display:block;flex-shrink:0" />` : `<span style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">👤</span>`}
+            <span class="part-fila-nombre">${escapeHtml(p.nombre || '—')}${esLibre ? ' <span class="tag-libre">🐠</span>' : ''}</span>
+            <span class="estado-chip ${estadoClass}" style="font-size:11px">${estadoLabel}</span>
+            <span class="part-fila-flecha">▸</span>
+          </td>
+          <td class="part-fila-detalle" data-label="Abonado">${formatCOP(abonado)}${(!esLibre && cuota > 0) ? ` <span style="color:var(--text2);font-size:11px">/ ${formatCOP(cuota)}</span>` : ''}</td>
+          <td class="part-fila-detalle" data-label="Contacto" style="color:var(--text2)">${escapeHtml(p.contacto || '—')}</td>
+          <td class="part-fila-acciones" data-label="">
             <div class="acciones-td">
-              <button class="btn btn-ghost btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='abrirModalAbono("${doc.id}", "${escapeHtml(p.nombre || '')}")'>💰 Abono</button>
-              <button class="btn btn-ghost btn-sm" onclick='abrirModalAbonosList("${doc.id}", "${escapeHtml(p.nombre || '')}")'>📋 Historial</button>
-              <button class="btn btn-ghost btn-sm" onclick='copiarLink("${vacaActualId}", "${doc.id}", "${escapeHtml(p.linkToken || '')}")'>🔗 Copiar</button>
-              <button class="btn btn-ghost btn-sm" onclick='abrirLinkParticipante("${vacaActualId}", "${doc.id}", "${escapeHtml(p.linkToken || '')}")'>↗ Abrir</button>
-              <button class="btn btn-ghost btn-sm" onclick='notificarWhatsApp("${vacaActualId}", "${doc.id}", "${escapeHtml(p.nombre || '')}", "${escapeHtml(p.contacto || '')}", "${escapeHtml(p.paisCodigo || '')}", "${escapeHtml(p.linkToken || '')}")'>📲 Avisar</button>
-              <button class="btn btn-ghost btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='abrirModalEditarParticipante("${doc.id}")'>✏️ Editar</button>
-              <button class="btn btn-danger btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='eliminarParticipante("${doc.id}", "${escapeHtml(p.nombre || '')}", this)'>🗑️</button>
+              <button class="btn btn-ghost btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='event.stopPropagation();abrirModalAbono("${doc.id}", "${escapeHtml(p.nombre || '')}")'>💰 Abono</button>
+              <button class="btn btn-ghost btn-sm" onclick='event.stopPropagation();abrirModalAbonosList("${doc.id}", "${escapeHtml(p.nombre || '')}")'>📋 Historial</button>
+              <button class="btn btn-ghost btn-sm" onclick='event.stopPropagation();copiarLink("${vacaActualId}", "${doc.id}", "${escapeHtml(p.linkToken || '')}")'>🔗 Copiar</button>
+              <button class="btn btn-ghost btn-sm" onclick='event.stopPropagation();abrirLinkParticipante("${vacaActualId}", "${doc.id}", "${escapeHtml(p.linkToken || '')}")'>↗ Abrir</button>
+              <button class="btn btn-ghost btn-sm" onclick='event.stopPropagation();notificarWhatsApp("${vacaActualId}", "${doc.id}", "${escapeHtml(p.nombre || '')}", "${escapeHtml(p.contacto || '')}", "${escapeHtml(p.paisCodigo || '')}", "${escapeHtml(p.linkToken || '')}")'>📲 Avisar</button>
+              <button class="btn btn-ghost btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='event.stopPropagation();abrirModalEditarParticipante("${doc.id}")'>✏️ Editar</button>
+              <button class="btn btn-danger btn-sm btn-abono-row" style="${cerrada ? 'display:none' : ''}" onclick='event.stopPropagation();eliminarParticipante("${doc.id}", "${escapeHtml(p.nombre || '')}", this)'>🗑️</button>
             </div>
           </td>
         </tr>`;
@@ -3292,6 +3359,14 @@ function copiarLinkInvitacion() {
   navigator.clipboard.writeText(url)
     .then(() => mostrarToast('🔗 Link de invitación copiado'))
     .catch(() => mostrarToast('No se pudo copiar el link'));
+}
+
+// ===== FILAS COLAPSABLES (móvil) =====
+// v1.78: toggle de fila de participante en tabla móvil.
+// El onclick está en el <tr>; los botones de acciones usan
+// event.stopPropagation() para no cerrar la fila al pulsarlos.
+function toggleFilaPart(tr) {
+  tr.classList.toggle('abierta');
 }
 
 // ===== UTILIDADES UI =====
