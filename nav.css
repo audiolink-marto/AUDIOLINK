@@ -1,4 +1,47 @@
-/* AUDIOLINK · nav.css · v1.1
+/* AUDIOLINK · nav.css · v1.7
+   v1.7: fix cosmético — el espaciado reducido para el primer grupo
+   (GESTIÓN) nunca se aplicaba: el selector pedía que .sb-grupo-label
+   fuera :first-child de .sb-nav, pero como antes va el ítem Dashboard
+   (fuera de cualquier .sb-grupo), el grupo "Gestión" nunca es
+   literalmente el primer hijo — es el primero DE SU TIPO. Se cambia
+   a :first-of-type para que sí aplique. Puramente visual, no cambia
+   ninguna lógica.
+   v1.6: fix — el panel "···" móvil (.mas-mobile-panel) no tenía límite
+   de altura con scroll. Antes tenía pocos ítems y siempre entraba en
+   pantalla; desde v1.4 (acordeón por grupo) creció con los labels de
+   sección y en pantallas chicas se cortaba contra el borde inferior,
+   dejando invisibles/inalcanzables los últimos ítems (Tema, Cerrar
+   sesión, y los masMobileExtra de cada página, ej. "Nuevo Proyecto").
+   Se agrega max-height relativo al viewport + overflow-y:auto, así si
+   no entra todo, scrollea en vez de cortarse. No se tocó nada más del
+   panel ni su lógica de apertura/cierre.
+   v1.5: se centraliza acá el ícono `vu` (las 5 barritas animadas del
+   título "AUDIOLINK" y del nuevo botón de menú móvil, ver nav.js
+   v1.8). Antes .vu vivía duplicado como CSS suelto en cada página —
+   algunas lo conservaban (ej. proyecto.html) y otras lo habían borrado
+   asumiendo que ya estaba centralizado acá (ej. index.html), lo que
+   causaba que el ícono desapareciera solo en esas páginas. Mismo
+   selector y mismos valores que tenía proyecto.html, sin inventar
+   nada nuevo — ahora vive en un solo lugar para todo el ecosistema.
+   v1.4: soporte para acordeón por grupo (ver nav.js v1.8). Se agrega
+   .sb-grupo/.sb-grupo-body (desktop) y .mas-mobile-grupo/
+   .mas-mobile-grupo-body (panel "···" móvil), con la flecha
+   .sb-grupo-arrow que rota al plegar. Cuando el sidebar está en modo
+   colapsado (solo íconos, .sidebar.collapsed), el acordeón por grupo
+   se ignora vía CSS — todos los grupos quedan visibles igual que
+   antes. También se agrega .btn-menu-vu: reset de botón para el nuevo
+   ícono de menú móvil (las barritas `vu`, ver nav.js v1.8) que
+   reemplaza al viejo "⋮". No se tocó nada del sidebar colapsable
+   global existente.
+   v1.3: fix visual en .sb-grupo-label — el texto se veía "pisado"/
+   cortado contra el ítem de arriba (line-height insuficiente +
+   overflow:hidden innecesario). Se agrega line-height explícito, se
+   sube el padding-top y se quita overflow:hidden (solo hace falta
+   white-space:nowrap para que no rompa línea). No se tocó nada del
+   sidebar colapsable (sigue funcionando igual, ver .sidebar.collapsed).
+   v1.2: se agrega .sb-grupo-label — encabezado de sección para el
+   sidebar de escritorio agrupado (ver nav.js v1.7). Solo aplica al
+   sidebar; mobile-bottomnav y panel "···" no se tocaron.
    v1.1: se aumenta un poco el tamaño en mobile del texto del
    .mobile-bottomnav (0.64rem→0.7rem, ícono 1.15rem→1.2rem) y del panel
    "···" .mas-mobile-item (0.82rem→0.88rem), para mejorar legibilidad y
@@ -36,6 +79,19 @@
 .sb-brand h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);transition:opacity 0.15s;}
 .sidebar.collapsed .sb-brand h1{opacity:0;}
 .sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sb-grupo-label{
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;
+  font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--faint);padding:18px 10px 6px;line-height:1.6;white-space:nowrap;
+}
+.sb-nav .sb-grupo:first-of-type .sb-grupo-label{padding-top:8px;}
+.sb-grupo-arrow{font-style:normal;font-size:0.6rem;transition:transform 0.15s;flex-shrink:0;}
+.sb-grupo.colapsado .sb-grupo-arrow{transform:rotate(-90deg);}
+.sb-grupo-body{display:flex;flex-direction:column;gap:2px;}
+.sb-grupo.colapsado .sb-grupo-body{display:none;}
+.sidebar.collapsed .sb-grupo-body{display:flex !important;}
+.sidebar.collapsed .sb-grupo-label{opacity:0;height:8px;padding:8px 0 0;line-height:1;}
+.sidebar.collapsed .sb-grupo-arrow{display:none;}
 .sb-item{
   display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:7px;
   color:var(--muted);text-decoration:none;font-size:0.85rem;white-space:nowrap;overflow:hidden;
@@ -75,6 +131,7 @@
   .mobile-topbar .brand{display:flex;align-items:center;gap:10px;}
   .mobile-topbar h1{font-family:var(--T);font-size:1.05rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
   .mobile-topbar-actions{display:flex;gap:8px;align-items:center;}
+  .btn-menu-vu{background:none;border:none;padding:6px;margin:0;cursor:pointer;display:flex;align-items:center;}
   main{padding-bottom:78px !important;}
   .mobile-bottomnav{
     display:flex;position:fixed;bottom:0;left:0;right:0;height:var(--bn-h);
@@ -90,6 +147,7 @@
     display:none;position:fixed;top:60px;right:14px;z-index:81;
     background:var(--surf);border:1px solid var(--brd);border-radius:10px;
     padding:6px;min-width:210px;box-shadow:0 8px 26px rgba(0,0,0,0.35);
+    max-height:calc(100vh - 80px);overflow-y:auto;
   }
   .mas-mobile-panel.show{display:block;}
   .mas-mobile-item{
@@ -98,5 +156,23 @@
   }
   .mas-mobile-item:hover{background:var(--surf-light);}
   .mas-mobile-item i{font-style:normal;color:var(--gold);width:18px;text-align:center;}
+  .mas-mobile-grupo-label{
+    display:flex;align-items:center;justify-content:space-between;cursor:pointer;
+    font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+    color:var(--faint);padding:10px 12px 4px;line-height:1.6;
+  }
+  .mas-mobile-grupo:first-child .mas-mobile-grupo-label{padding-top:4px;}
+  .mas-mobile-grupo-body{display:flex;flex-direction:column;gap:2px;}
+  .mas-mobile-grupo.colapsado .mas-mobile-grupo-body{display:none;}
+  .mas-mobile-grupo.colapsado .sb-grupo-arrow{transform:rotate(-90deg);}
   .mas-mobile-credit{padding:8px 12px 4px;font-size:0.6rem;color:var(--faint);letter-spacing:0.02em;border-top:1px solid var(--brd);margin-top:4px;}
 }
+
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}

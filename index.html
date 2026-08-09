@@ -4,7 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.6
+<!-- AUDIOLINK · index.html · v2.7
+     V2.7: fix estético — Dashboard se veía distinto al resto del
+     ecosistema (título del sidebar/topbar con fuente por defecto en
+     vez de Playfair Display) porque esta página no cargaba las Google
+     Fonts (Playfair Display/DM Sans/JetBrains Mono) ni definía las
+     variables --T/--S/--M que sí tienen proyecto.html y las demás
+     páginas. Se agrega el mismo <link> de fonts, las mismas 3
+     variables al :root, y se cambia el font-family hardcodeado del
+     body ('Segoe UI'...) por var(--S) para quedar consistente. No se
+     tocó ningún panel, listener ni lógica de Firestore.
      V2.6: se agrega el panel "RESUMEN FINANCIERO · ESTE MES" (Ingresos/
      Egresos/Balance), debajo de Próximas Sesiones y arriba de Resumen
      Comercial. Dos listeners nuevos: collectionGroup('pagos') (sin
@@ -94,6 +103,8 @@
      enlaza a proyecto.html. Solo lectura, no gestiona nada aquí. No se tocó
      ninguna otra función ni estilo existente. -->
 <link rel="stylesheet" href="nav.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -119,6 +130,9 @@
   --ok:#4caf7d;
   --warn:#d9a441;
   --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
 }
 :root[data-tema="light"]{
   --bg:#faf8f4;
@@ -138,7 +152,7 @@
 body{
   background:var(--bg);
   color:var(--txt);
-  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  font-family:var(--S);
   min-height:100vh;
   position:relative;
   overflow-x:hidden;

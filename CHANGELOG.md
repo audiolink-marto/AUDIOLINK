@@ -78,12 +78,30 @@ nav.css igual que el resto de páginas.
 
 ## nav.js
 
+### v1.7
+sidebar de escritorio agrupado por categoría (Gestión/Catálogos/
+Operación/Finanzas), separado por encabezados de sección
+(.sb-grupo-label, ver nav.css v1.2). Cada ítem de ITEMS ahora tiene un
+campo `grupo` (o null para los que van sueltos: Dashboard arriba,
+Avatar/Icono abajo). Nueva función sbNavGroupedHtml() reemplaza el
+antiguo ITEMS.map(sbItemHtml) SOLO en el sidebar desktop — el orden
+real del array ITEMS no cambió, así que el mobile-bottomnav y el
+panel "···" (que siguen usando ITEMS.filter/.map directo) quedan
+exactamente igual que antes, sin reordenarse.
+
 ### v1.6
 se agrega el ítem "Avatar / Icono" (avatares-iconos.html) a ITEMS,
 después de "Vacas". Se suma también a idsFueraBottomnav para no
 saturar la barra inferior móvil (queda accesible por sidebar desktop
 y panel "···" móvil). No se tocó ninguna otra función, ítem existente
 ni la lógica de inyección/colapsar/tema.
+
+## nav.css
+
+### v1.2
+se agrega .sb-grupo-label — encabezado de sección para el sidebar de
+escritorio agrupado (ver nav.js v1.7). Solo aplica al sidebar;
+mobile-bottomnav y panel "···" no se tocaron.
 
 ## proyecto.html
 
@@ -785,6 +803,19 @@ sin acceso de ingeniero).
 ---
 
 ## index.html
+
+### v2.7
+notificaciones flotantes de actividad de Vacas — nuevo listener
+`collectionGroup('actividad')` (mismo feed liviano que ya usa
+vaca.html para el portal público, sin tocar Rules ni ningún otro
+archivo). Solo genera notificación visual para movimientos con
+`creadoEn` posterior al momento en que cargó el Dashboard (no muestra
+de golpe el historial existente). Contenedor fijo arriba-derecha,
+máx. 3 tarjetas visibles + contador "+N más" si se acumulan. Clic en
+cualquiera marca esa notificación como leída en localStorage (clave
+`audiolink_vacaNotifLeidas`) y no vuelve a aparecer en futuras
+visitas — sin redirigir a ningún lado por ahora (queda pendiente para
+una iteración futura). No se tocó vacas.html ni vaca.html.
 
 ### v2.6
 se agrega el panel "RESUMEN FINANCIERO · ESTE MES"
@@ -1619,6 +1650,39 @@ cálculo, el borrador local, ni la exportación a PDF existentes.
 
 ## vacas.html
 
+### v1.80
+copiarLinkInvitacion() ahora copia un mensaje completo en vez de solo
+la URL pelada — mismo criterio que notificarWhatsApp() (organizador
+desde localStorage si existe, si no cae a texto genérico): `Hola! Soy
+{organizador} y los invito a la vaca "{nombre}". Confirma tu
+participación aquí: {url}`. Es el link GENERAL (sin &p=), no lleva
+nombre de participante. No se tocó el toast ni la función de copiado
+en sí, solo qué texto arma.
+
+### v1.79
+control "avisado" por participante — botón pill (🔔/✅) al final de
+cada fila, junto a la flecha de expandir. Se marca automáticamente al
+usar el botón "📲 Avisar" (notificarWhatsApp()), y también se puede
+togglear manual en cualquier momento (para cuando se avisó por otro
+medio). Nuevo campo `avisado` (boolean) en el doc de cada
+participante, vía función toggleAvisado(). No afecta cuotas, abonos
+ni ninguna otra lógica. También se quita la mención "en AUDIOLINK"
+del mensaje de notificarWhatsApp() (pedido explícito — el participante
+no debe ver el nombre del ecosistema interno).
+
+### v1.78
+(1) fix de parpadeo/repaint al hacer scroll en móvil — se agrega
+`will-change: transform` a `.mobile-topbar`, `.mobile-bottomnav` y
+`#toast` dentro de `@media (max-width:768px)`, para moverlos a su
+propia capa de composición GPU. (2) filas de participantes en móvil
+pasan de mini-cards apiladas (todo el detalle siempre visible) a
+filas colapsables: la cabecera muestra solo avatar + nombre + chip de
+estado + flecha; al tocar se expande el detalle (abonado, contacto,
+acciones) con transición suave (max-height/opacity). Nueva función
+toggleFilaPart(). Todos los botones de acción llevan
+event.stopPropagation() para no disparar el toggle de la fila al
+pulsarlos. Desktop (≥769px) no se tocó — la tabla sigue igual.
+
 ### v1.53
 footer del PDF (exportarAbonosPDF) cambia de "Diseñado por: Marto 🧠"
 al mismo texto exacto que usa el crédito del sidebar (.sb-credit en
@@ -1663,6 +1727,37 @@ ampliado con avatarUrl opcional) y ver también el patrón documentado en
 ARQUITECTURA.md sección 4 para reutilizarlo en catálogos futuros.
 
 ## vaca.html
+
+### v1.79
+lista pública de Integrantes (cargarIntegrantes()) ahora se ordena
+siempre alfabéticamente por nombre (antes quedaba en orden de
+inserción/registro, sin ayudar a nadie a ubicarse). Si el admin tiene
+activo `ordenarPorAporte` en la vaca, ese agrupamiento (pendientes →
+aportaron → libres) manda, pero el orden alfabético queda dentro de
+cada grupo (Array.sort() de JS es estable). No se tocó
+mostrarEstadoIntegrantes ni ocultarLibresDeLista.
+
+### v1.78
+varios ajustes pedidos tras revisión del portal:
+(1) `<title>` deja de decir "Vaca · AUDIOLINK · v1.77" y pasa a solo
+"Vaca" — WhatsApp usa el `<title>` para el preview del link antes de
+enviar, y mostraba el nombre del ecosistema interno + número de
+versión a quien recibía la invitación. document.title ahora se
+actualiza dinámicamente en renderHeaderVaca() a "{nombreVaca} · por
+{organizador}" (o solo el nombre si no hay organizador en
+localStorage) — sin ninguna alusión a AUDIOLINK.
+(2) vistaBienvenida reescrita — título destacado "🐄 Te están
+invitando a esta vaca", explicación corta con mención explícita de la
+alternativa de aporte libre desde el primer momento (se había perdido
+al simplificar el texto original), CTA "Quiero unirme 🐄" a ancho
+completo. El tutorial no se tocó (ya no tiene paso de bienvenida
+redundante desde v1.70).
+(3) tema por defecto pasa de oscuro a claro (`dia`) — se respeta el
+localStorage de quien ya lo haya cambiado antes. Iconos del toggle
+invertidos a pedido explícito: 🌙 en modo claro, 🌞 en modo oscuro.
+Paleta de puntos animados (PALETAS_FONDO.dia) cambia de tonos
+verde-bosque/naranja-tierra (chocaban con el fondo frío) a turquesa/
+azul-grisáceo/dorado, a juego con --accent.
 
 ### v1.77
 aviso visible en el portal cuando la vaca está cerrada (banner rojo

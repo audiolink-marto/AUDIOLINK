@@ -1,4 +1,39 @@
-/* AUDIOLINK · nav.js · v1.6
+/* AUDIOLINK · nav.js · v1.9
+   V1.9: fix — "Cotizador" nunca aparecía en el panel "···" móvil.
+   Estaba en ITEMS con grupo:'Finanzas' (por eso sí se veía en el
+   sidebar desktop, que recorre ITEMS completo), pero se excluía de la
+   bottomnav con una condición aparte (it.id !== 'cotizador') en vez de
+   vía idsFueraBottomnav — y como masMobileGroupedHtml() solo muestra
+   lo que está en esa lista, Cotizador quedaba inalcanzable desde el
+   menú móvil. Se agrega 'cotizador' a idsFueraBottomnav; la condición
+   `it.id !== 'cotizador'` en el filtro de la bottomnav queda igual
+   (redundante pero inofensiva, no se tocó para minimizar el diff). No
+   se tocó ningún otro ítem, grupo ni lógica.
+   V1.8: acordeón por grupo. Cada .sb-grupo-label (desktop) y su
+   equivalente en el panel "···" móvil ahora son clickeables: pliegan/
+   expanden los ítems de ese grupo (Gestión/Catálogos/Operación/
+   Finanzas). Estado por grupo persistido en localStorage, clave
+   `audiolink_sb_grupo_<nombre>` — compartida entre desktop y mobile,
+   así que cerrar un grupo en uno lo cierra en el otro. Si el sidebar
+   desktop está en modo colapsado (solo íconos), el acordeón por grupo
+   se ignora vía CSS (.sidebar.collapsed fuerza todos los grupos
+   visibles) — no tiene sentido plegar grupos cuando ya solo se ven
+   íconos. También: el botón de menú móvil (antes "⋮" / .btn-icon,
+   suelto en cada página) ahora lo genera nav.js con el mismo ícono
+   `vu` (barritas animadas) que ya vive junto al título "AUDIOLINK" —
+   se reutiliza el mismo markup/CSS del vu de marca, sin duplicar
+   nada. Páginas viejas con su propio botón "⋮"/.btn-icon van a mostrar
+   temporalmente los dos botones superpuestos hasta que se les quite
+   ese bloque manualmente (pendiente, uno por uno).
+   V1.7: sidebar de escritorio agrupado por categoría (Gestión/
+   Catálogos/Operación/Finanzas), separado por encabezados de sección
+   (.sb-grupo-label, ver nav.css). Cada ítem de ITEMS ahora tiene un
+   campo `grupo` (o null para los que van sueltos: Dashboard arriba,
+   Avatar/Icono abajo). Nueva función sbNavGroupedHtml() reemplaza el
+   antiguo ITEMS.map(sbItemHtml) SOLO en el sidebar desktop — el orden
+   real del array ITEMS no cambió, así que el mobile-bottomnav y el
+   panel "···" (que seguían usando ITEMS.filter/.map directo hasta
+   v1.7) quedaban exactamente igual que antes, sin reordenarse.
    V1.6: se agrega el ítem "Avatar / Icono" (avatares-iconos.html) a
    ITEMS, después de "Vacas" — catálogo de avatars/iconos del ecosistema
    (Cloudinary, folder ICONOS + Firestore colección avataresIconos). Se
@@ -75,19 +110,19 @@
   const soportaTema = cfg.soportaTema !== false; // default true; false = página aún sin CSS de modo claro (ej. cotizador)
 
   const ITEMS = [
-    { id:'dashboard', href:'index.html',     icon:'🏠', label:'Dashboard'  },
-    { id:'proyecto',  href:'proyecto.html',  icon:'📁', label:'Proyectos'  },
-    { id:'clientes',  href:'clientes.html',  icon:'👤', label:'Clientes'   },
-    { id:'estudios',  href:'estudios.html',  icon:'🏢', label:'Estudios'   },
-    { id:'musicos',   href:'musicos.html',   icon:'🎻', label:'Músicos'    },
-    { id:'logistica', href:'logistica.html', icon:'🎚️', label:'Logística' },
-    { id:'pagos',     href:'pagos.html',     icon:'💳', label:'Pagos'      },
-    { id:'egresos',   href:'egresos.html',   icon:'📤', label:'Egresos'    },
-    { id:'equipo-tecnico', href:'equipo-tecnico.html', icon:'🛠️', label:'Equipo Técnico' },
-    { id:'eventos',   href:'eventos.html',   icon:'🎤', label:'Eventos'    },
-    { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador'  },
-    { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas'      },
-    { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono' }
+    { id:'dashboard', href:'index.html',     icon:'🏠', label:'Dashboard', grupo:null },
+    { id:'proyecto',  href:'proyecto.html',  icon:'📁', label:'Proyectos', grupo:'Gestión' },
+    { id:'clientes',  href:'clientes.html',  icon:'👤', label:'Clientes',  grupo:'Gestión' },
+    { id:'estudios',  href:'estudios.html',  icon:'🏢', label:'Estudios',  grupo:'Catálogos' },
+    { id:'musicos',   href:'musicos.html',   icon:'🎻', label:'Músicos',   grupo:'Catálogos' },
+    { id:'logistica', href:'logistica.html', icon:'🎚️', label:'Logística', grupo:'Operación' },
+    { id:'pagos',     href:'pagos.html',     icon:'💳', label:'Pagos',      grupo:'Finanzas' },
+    { id:'egresos',   href:'egresos.html',   icon:'📤', label:'Egresos',    grupo:'Finanzas' },
+    { id:'equipo-tecnico', href:'equipo-tecnico.html', icon:'🛠️', label:'Equipo Técnico', grupo:'Catálogos' },
+    { id:'eventos',   href:'eventos.html',   icon:'🎤', label:'Eventos',   grupo:'Operación' },
+    { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador',  grupo:'Finanzas' },
+    { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas',     grupo:'Operación' },
+    { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono', grupo:null }
   ];
 
   // Ítems que se sacan del mobile-bottomnav (para no saturar la barra de 4
@@ -95,9 +130,17 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares'];
+  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares', 'cotizador'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
+
+  function grupoColapsado(nombre){
+    return localStorage.getItem('audiolink_sb_grupo_' + nombre) === '1';
+  }
+
+  function sbGrupoLabelHtml(nombre){
+    return `<div class="sb-grupo-label" onclick="toggleSbGrupo('${nombre}')"><span>${nombre}</span><i class="sb-grupo-arrow">▾</i></div>`;
+  }
 
   function sbItemHtml(it){
     const esActivo = it.id === activo;
@@ -105,6 +148,60 @@
       return `<a href="#" class="sb-item active" style="pointer-events:none;"><i>${it.icon}</i><span>${it.label}</span></a>`;
     }
     return `<a href="${it.href}" class="sb-item"><i>${it.icon}</i><span>${it.label}</span></a>`;
+  }
+
+  // v1.7: sidebar agrupado por categoría (grupo:null = sin sección,
+  // van sueltos arriba/abajo). Recorre GRUPOS_ORDEN y por cada uno
+  // filtra ITEMS conservando su orden original — no se reordena ni
+  // se toca la lista plana ITEMS (de la que dependen el mobile-bottomnav
+  // y el panel "···", que siguen exactamente igual que antes).
+  const GRUPOS_ORDEN = ['Gestión', 'Catálogos', 'Operación', 'Finanzas'];
+  function sbNavGroupedHtml(){
+    let html = '';
+    // Dashboard (primer ítem sin grupo) va suelto arriba, en su lugar original
+    const sinGrupo = ITEMS.filter(it => !it.grupo);
+    if(sinGrupo[0]) html += sbItemHtml(sinGrupo[0]) + '\n    ';
+    GRUPOS_ORDEN.forEach(nombreGrupo => {
+      const itemsGrupo = ITEMS.filter(it => it.grupo === nombreGrupo);
+      if(itemsGrupo.length === 0) return;
+      const colapsado = grupoColapsado(nombreGrupo);
+      html += `<div class="sb-grupo${colapsado ? ' colapsado' : ''}" data-grupo="${nombreGrupo}">\n      `;
+      html += sbGrupoLabelHtml(nombreGrupo) + '\n      ';
+      html += `<div class="sb-grupo-body">\n        `;
+      itemsGrupo.forEach(it => { html += sbItemHtml(it) + '\n        '; });
+      html += `</div>\n    </div>\n    `;
+    });
+    // resto de ítems sin grupo (ej. Avatar/Icono) van sueltos al final,
+    // en su orden original — mismo lugar que ocupaban antes de agrupar
+    sinGrupo.slice(1).forEach(it => { html += sbItemHtml(it) + '\n    '; });
+    return html;
+  }
+
+  // V1.8: mismo agrupado que sbNavGroupedHtml pero para el panel "···"
+  // móvil — solo incluye los ítems que ya estaban fuera del bottomnav
+  // (idsFueraBottomnav), respetando exactamente el mismo filtro que
+  // usaba el .mas-mobile-panel antes de v1.8. Comparte estado de
+  // colapsado con el sidebar desktop (misma clave de localStorage).
+  function masMobileGroupedHtml(){
+    let html = '';
+    const itemsFuera = ITEMS.filter(it => idsFueraBottomnav.includes(it.id) && it.id !== activo);
+    const sinGrupo = itemsFuera.filter(it => !it.grupo);
+    GRUPOS_ORDEN.forEach(nombreGrupo => {
+      const itemsGrupo = itemsFuera.filter(it => it.grupo === nombreGrupo);
+      if(itemsGrupo.length === 0) return;
+      const colapsado = grupoColapsado(nombreGrupo);
+      html += `<div class="mas-mobile-grupo${colapsado ? ' colapsado' : ''}" data-grupo="${nombreGrupo}">\n    `;
+      html += `<div class="mas-mobile-grupo-label" onclick="toggleSbGrupo('${nombreGrupo}')"><span>${nombreGrupo}</span><i class="sb-grupo-arrow">▾</i></div>\n    `;
+      html += `<div class="mas-mobile-grupo-body">\n      `;
+      itemsGrupo.forEach(it => {
+        html += `<a href="${it.href}" class="mas-mobile-item" style="text-decoration:none;"><i>${it.icon}</i>${it.label}</a>\n      `;
+      });
+      html += `</div>\n  </div>\n  `;
+    });
+    sinGrupo.forEach(it => {
+      html += `<a href="${it.href}" class="mas-mobile-item" style="text-decoration:none;"><i>${it.icon}</i>${it.label}</a>\n  `;
+    });
+    return html;
   }
 
   function extraSbFootHtml(){
@@ -126,7 +223,7 @@
     <h1>AUDIOLINK</h1>
   </div>
   <nav class="sb-nav">
-    ${ITEMS.map(sbItemHtml).join('\n    ')}
+    ${sbNavGroupedHtml()}
   </nav>
   <div class="sb-foot">
     ${extraSbFootHtml()}
@@ -143,14 +240,12 @@
     <h1>AUDIOLINK</h1>
   </div>
   <div class="mobile-topbar-actions">
-    <button class="btn-icon" onclick="toggleMasMobile()" title="Más opciones">⋮</button>
+    <button class="btn-menu-vu" onclick="toggleMasMobile()" title="Más opciones">${vu}</button>
   </div>
 </div>
 
 <div class="mas-mobile-panel" id="masMobilePanel">
-  ${ITEMS.filter(it => idsFueraBottomnav.includes(it.id) && it.id !== activo).map(it =>
-    `<a href="${it.href}" class="mas-mobile-item" style="text-decoration:none;"><i>${it.icon}</i>${it.label}</a>`
-  ).join('\n  ')}
+  ${masMobileGroupedHtml()}
   ${extraMasMobileHtml()}
   ${soportaTema ? '<div class="mas-mobile-item" onclick="toggleTema()"><i>🌙</i>Cambiar tema</div>' : ''}
   <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
@@ -169,6 +264,16 @@
   } else {
     console.error('nav.js: no se encontró <div id="nav-mount"></div> en el body.');
   }
+
+  // ============ ACORDEÓN POR GRUPO (sidebar desktop + panel "···") ============
+  window.toggleSbGrupo = function(nombre){
+    const key = 'audiolink_sb_grupo_' + nombre;
+    const nuevo = localStorage.getItem(key) !== '1';
+    localStorage.setItem(key, nuevo ? '1' : '0');
+    document.querySelectorAll('[data-grupo="' + nombre + '"]').forEach(el => {
+      el.classList.toggle('colapsado', nuevo);
+    });
+  };
 
   // ============ CERRAR SESIÓN ============
   window.cerrarSesion = function(){
