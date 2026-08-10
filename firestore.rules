@@ -363,6 +363,29 @@ rules_version = '2';
 //      antes /integrantes no tenía ningún update público.
 // No se tocó ninguna otra regla, función, condición, match ni colección
 // existente — ni /actividad, ni /participantes, ni el resto de /vacas.
+// ------------------------------------------------------------
+// v2.27: a pedido del usuario — defensa extra a nivel de Rules cuando una
+// vaca está cerrada (estado=='cerrada'). Antes el cierre era SOLO un
+// candado de UI (vacas.html ocultaba botones, vaca.html bloqueaba el
+// registro de gente nueva en el HTML) — a nivel de Firestore Rules
+// cualquiera con el link general podía seguir creando un doc en
+// /participantes o /integrantes directamente. Se agrega la función
+// vacaAbierta(vacaId) y se exige en el `allow create` público de ambas
+// subcolecciones. No se tocó ningún `update` (edición de datos propios,
+// avatar) ni ninguna otra regla — la edición de datos ya registrados
+// sigue funcionando igual, solo se bloquea CREAR nuevos.
+// v2.28 (esta entrega — fix reportado por el usuario: Dashboard index.html
+// v1.8, notificaciones de vaca + resumen financiero): faltaban los
+// bloques collectionGroup con comodín para /actividad y /pagos, mismo
+// patrón que ya existía para /cotizaciones (v1.3) y /sesiones (v1.4).
+// Las reglas anidadas (vacas/{id}/actividad, proyectos/{id}/pagos) ya
+// existían y funcionaban para lecturas directas, pero NO cubrían
+// db.collectionGroup('actividad') ni db.collectionGroup('pagos') que usa
+// index.html — causaba "Missing or insufficient permissions" en ambas,
+// confirmado en consola del navegador. Se agregan los 2 bloques, mismo
+// alcance exacto que sus reglas anidadas correspondientes (actividad:
+// público; pagos: solo staff). No se tocó ninguna otra regla, colección,
+// match ni condición existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -384,6 +407,17 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/ingenieros/$(request.auth.token.email)) &&
         get(/databases/$(database)/documents/ingenieros/$(request.auth.token.email)).data.activo == true &&
         proyectoId in get(/databases/$(database)/documents/ingenieros/$(request.auth.token.email)).data.proyectosAsignados;
+    }
+    // v2.27 (a pedido del usuario — defensa extra al cerrar una vaca):
+    // vacas.html ya bloquea por UI el registro/edición cuando
+    // estado=='cerrada', y vaca.html ya bloquea el registro de gente
+    // NUEVA. Esto agrega el mismo candado a nivel de Rules, para que
+    // create público en /participantes e /integrantes quede bloqueado
+    // aunque alguien intente escribir directo sin pasar por la UI.
+    // Se usa != 'cerrada' (no == 'activa') para no romper vacas viejas
+    // sin el campo `estado` todavía (se tratan como abiertas).
+    function vacaAbierta(vacaId) {
+      return get(/databases/$(database)/documents/vacas/$(vacaId)).data.estado != 'cerrada';
     }
     // ---------- PROYECTOS ----------
     match /proyectos/{proyectoId} {
@@ -603,6 +637,34 @@ service cloud.firestore {
     match /{path=**}/sesiones/{sesionId} {
       allow read: if esStaff();
     }
+    // ---------- ACTIVIDAD (collectionGroup, v2.28) ----------
+    // Habilita específicamente db.collectionGroup('actividad') que usa
+    // index.html (Dashboard v1.8) para las notificaciones flotantes de
+    // abonos nuevos en cualquier vaca. Mismo motivo que los bloques de
+    // cotizaciones/sesiones de arriba: el match anidado
+    // vacas/{vacaId}/actividad/{actividadId} (allow get, list: if true)
+    // cubre lecturas normales y el feed de vaca.html, pero NO la consulta
+    // collectionGroup — reportado por el usuario como "Missing or
+    // insufficient permissions" en la consola. Público (if true), igual
+    // que la regla anidada de la que depende — el feed de actividad ya
+    // era público de por sí, esto solo habilita la MISMA lectura vía
+    // collectionGroup. No se tocó ninguna otra regla existente.
+    match /{path=**}/actividad/{actividadId} {
+      allow get, list: if true;
+    }
+    // ---------- PAGOS (collectionGroup, v2.28) ----------
+    // Habilita específicamente db.collectionGroup('pagos') que usa
+    // index.html (Dashboard, resumen financiero del mes) para sumar pagos
+    // de TODOS los proyectos a la vez. Mismo motivo que los bloques de
+    // cotizaciones/sesiones/actividad — el match anidado
+    // proyectos/{id}/pagos/{id} (esStaff()) no cubre la consulta
+    // collectionGroup. Reportado por el usuario junto con el error de
+    // actividad, misma causa raíz. Solo lectura, solo staff — mismo
+    // alcance que la regla anidada de la que depende. No se tocó ninguna
+    // otra regla existente.
+    match /{path=**}/pagos/{pagoId} {
+      allow read: if esStaff();
+    }
     // ---------- EQUIPO INTERNO ----------
     // Cualquier usuario autenticado puede LEER SOLO su propio doc (para el
     // guard de sesión de login.html/proyecto.html/etc). Solo staff ya activo
@@ -805,7 +867,11 @@ service cloud.firestore {
         //            viaja en la URL como "secreto" — sin el link personal es
         //            imposible llegar a este doc; list sigue bloqueado para
         //            no poder enumerar participantes sin auth.
-        allow create: if true;
+        // v2.27: create ahora exige que la vaca no esté cerrada (ver
+        // vacaAbierta()) — antes cualquiera con el link general podía
+        // seguir creando participantes aunque el admin hubiera cerrado
+        // la vaca, saltándose el candado de UI de vacas.html/vaca.html.
+        allow create: if vacaAbierta(vacaId);
         allow get: if true;
         // v2.19 (fix, luego ajustado a pedido del usuario): el portal
         // (vaca.html, modal "✏️ Editar") deja que el participante corrija
@@ -911,7 +977,11 @@ service cloud.firestore {
         // opcional (string o null) al esquema permitido — antes solo
         // aceptaba exactamente [nombre, tipo, aporto], así que el create()
         // con avatarUrl agregado por esta entrega habría sido rechazado.
-        allow create: if
+        // v2.27: create ahora exige que la vaca no esté cerrada (ver
+        // vacaAbierta()) — mismo candado que /participantes, para que
+        // el mirror de integrantes tampoco se pueda crear vía escritura
+        // directa una vez la vaca cerró.
+        allow create: if vacaAbierta(vacaId) &&
           request.resource.data.keys().hasOnly(['nombre', 'tipo', 'aporto', 'avatarUrl']) &&
           request.resource.data.nombre is string &&
           request.resource.data.tipo is string &&

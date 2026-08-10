@@ -420,6 +420,21 @@
        que el admin re-elija una opción válida — no rompe nada, solo
        deja de verse el violeta. -->
   <style>
+    /* ===== AUDIOLINK · vaca.html · v1.80
+       v1.80: a pedido del usuario — el scroll se sentía "pegado" en
+       mobile. Causa: 3 capas de fondo apiladas (.bg-wash, .bg-shimmer,
+       .bg-decor), todas en position:fixed y animando sin parar —
+       .bg-shimmer genera 70 puntitos vía JS (generarShimmer()) y
+       .bg-decor genera una red de 38 nodos + líneas + chispazos vía JS
+       (generarFondoDecorativo()), cada elemento con su propia animación
+       CSS y varios con drop-shadow/box-shadow (caro de recomponer en
+       cada frame de scroll). En mobile (≤768px) se ocultan esas 2 capas
+       por CSS y además el JS ya ni siquiera las genera (evita crear
+       100+ nodos en el DOM sin necesidad). .bg-wash (el degradado que
+       se mueve) se deja intacto en mobile — es un solo elemento con una
+       sola animación, mucho más barato, mantiene algo de ambiente. NO
+       se tocó nada en desktop (>768px): las 3 capas siguen exactamente
+       igual, mismo aspecto de siempre. ===== */
     /* ===== AUDIOLINK · vaca.html · v1.25
        Vista pública sin auth. Dos estados según URL:
        ?id=XXX        → formulario de registro
@@ -1089,6 +1104,16 @@
       94% { opacity: .5; transform: scale(1.5); }
       97% { opacity: 0; transform: scale(.6); }
     }
+
+    /* v1.80: en mobile se apagan las 2 capas de fondo caras (70
+       puntitos animados + red de 38 nodos con drop-shadow) — el scroll
+       se sentía pegado. .bg-wash (el degradado) se deja intacto, es
+       barato. El JS (generarShimmer/generarFondoDecorativo) también se
+       salta la generación en mobile, ver más abajo — esto es un
+       refuerzo por si el JS corriera antes de que el CSS aplique. */
+    @media (max-width: 768px) {
+      .bg-shimmer, .bg-decor { display: none !important; }
+    }
     @keyframes neuronFire {
       0%   { stroke-dashoffset: var(--len); opacity: 0; }
       30%  { opacity: 1; }
@@ -1296,6 +1321,10 @@ const PALETAS_FONDO = {
 function generarShimmer(paleta) {
   const cont = document.getElementById('bg-shimmer');
   if (!cont) return;
+  // v1.80: en mobile esta capa queda oculta por CSS (.bg-shimmer
+  // {display:none}) — ni siquiera se generan los 70 nodos, para no
+  // gastar de más creando DOM que nunca se va a pintar.
+  if (window.innerWidth <= 768) { cont.innerHTML = ''; return; }
   const colores = paleta.shimmer;
   let html = '';
   for (let i = 0; i < 70; i++) {
@@ -1313,6 +1342,10 @@ function generarShimmer(paleta) {
 function generarFondoDecorativo(paleta) {
   const cont = document.getElementById('bg-decor');
   if (!cont) return;
+  // v1.80: en mobile esta capa queda oculta por CSS (.bg-decor
+  // {display:none}) — ni siquiera se generan los 38 nodos + líneas +
+  // chispazos, para no gastar de más creando DOM que nunca se va a pintar.
+  if (window.innerWidth <= 768) { cont.innerHTML = ''; return; }
   const W = Math.max(window.innerWidth, 100), H = Math.max(window.innerHeight, 100);
   const N = 38;
   const DIST_MAX = Math.min(W, H) * 0.38; // v1.48: sin conexiones cruzadas largas

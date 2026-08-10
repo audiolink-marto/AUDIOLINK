@@ -3,7 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK · v1.80</title>
+  <title>Vacas · AUDIOLINK · v1.81</title>
+  <!-- v1.81: fix reportado por el usuario — la tabla de participantes se
+       veía "toda desordenada" en escritorio. Causa: el <thead> tenía 6
+       columnas (vacío/Nombre/Contacto/Abonado/Estado/Acciones) heredadas
+       de antes del rediseño mobile en tarjetas (v1.78), pero desde ese
+       rediseño cada <tr> del <tbody> solo tiene 4 <td> reales (avatar+
+       nombre+chip+flecha fusionados en una celda, luego Abonado, Contacto,
+       Acciones) — el <thead> nunca se actualizó para reflejar esa
+       consolidación. El navegador alinea por posición, así que en
+       escritorio (donde el <thead> sí se ve) las columnas quedaban
+       corridas. Se corrige el <thead> a 4 columnas, mismo orden y mismos
+       nombres que las celdas reales: Participante/Abonado/Contacto/
+       Acciones. No se tocó ningún <td>, ninguna fila, ni la vista mobile
+       en tarjetas (que ya funcionaba bien, oculta el thead por completo).
+  -->
   <!-- v1.53: a pedido del usuario — footer del PDF (exportarAbonosPDF)
        cambia de "Diseñado por: Marto 🧠" al mismo texto exacto que usa
        el crédito del sidebar (.sb-credit en nav.js / .app-credit en
@@ -2180,7 +2194,7 @@ function cargarParticipantes(vacaId) {
       }
       html += `<div class="table-wrap"><table>
         <thead><tr>
-          <th></th><th>Nombre</th><th>Contacto</th><th>Abonado</th><th>Estado</th><th>Acciones</th>
+          <th>Participante</th><th>Abonado</th><th>Contacto</th><th>Acciones</th>
         </tr></thead><tbody>`;
 
       let sumaAbonado = 0;
