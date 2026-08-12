@@ -1,4 +1,13 @@
-/* AUDIOLINK · utils.js · v1.2
+/* AUDIOLINK · utils.js · v1.3
+   v1.3: se agregan hoyISO() y esFechaVencida() — antes varios archivos
+   (index.html, recordatorios.html) repetían `new Date().toISOString()
+   .split('T')[0]` sueltos para comparar fechas de recordatorios. Se
+   centraliza acá mismo patrón que las demás utilidades: un solo lugar
+   para "qué es hoy" y "qué cuenta como vencido", así si el criterio
+   cambia (ej. usar zona horaria distinta) se ajusta en un solo sitio.
+   Se retiró la comparación inline solo en index.html y recordatorios.html
+   (las únicas que la usaban hasta ahora).
+
    v1.2: se agregan horaAMinutos() y minutosATexto() — vivían copiadas
    en bitacora.html (bloque de hora + set-up). Se centralizan acá para
    que ingeniero.html y logistica.html las usen también sin duplicar
@@ -48,4 +57,13 @@ function minutosATexto(mins){
   if(h && m) return `${h}h ${m}min`;
   if(h) return `${h}h`;
   return `${m}min`;
+}
+
+function hoyISO(){
+  return new Date().toISOString().split('T')[0];
+}
+
+function esFechaVencida(fecha){
+  if(!fecha) return false;
+  return fecha < hoyISO();
 }

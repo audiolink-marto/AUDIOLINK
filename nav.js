@@ -1,4 +1,11 @@
-/* AUDIOLINK · nav.js · v1.9
+/* AUDIOLINK · nav.js · v1.10
+   V1.10: se agrega el ítem "Recordatorios" (recordatorios.html) a ITEMS,
+   en el grupo 'Gestión' (junto a Proyectos/Clientes) — módulo nuevo de
+   notas/recordatorios personales o de equipo (ver index.html v2.8 y
+   firestore.rules v2.29). Se suma también a idsFueraBottomnav para no
+   saturar la barra inferior móvil (queda accesible por sidebar desktop
+   y panel "···" móvil). No se tocó ninguna otra función, ítem existente
+   ni la lógica de inyección/colapsar/tema.
    V1.9: fix — "Cotizador" nunca aparecía en el panel "···" móvil.
    Estaba en ITEMS con grupo:'Finanzas' (por eso sí se veía en el
    sidebar desktop, que recorre ITEMS completo), pero se excluía de la
@@ -113,6 +120,7 @@
     { id:'dashboard', href:'index.html',     icon:'🏠', label:'Dashboard', grupo:null },
     { id:'proyecto',  href:'proyecto.html',  icon:'📁', label:'Proyectos', grupo:'Gestión' },
     { id:'clientes',  href:'clientes.html',  icon:'👤', label:'Clientes',  grupo:'Gestión' },
+    { id:'recordatorios', href:'recordatorios.html', icon:'📝', label:'Recordatorios', grupo:'Gestión' },
     { id:'estudios',  href:'estudios.html',  icon:'🏢', label:'Estudios',  grupo:'Catálogos' },
     { id:'musicos',   href:'musicos.html',   icon:'🎻', label:'Músicos',   grupo:'Catálogos' },
     { id:'logistica', href:'logistica.html', icon:'🎚️', label:'Logística', grupo:'Operación' },
@@ -130,7 +138,7 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares', 'cotizador'];
+  const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares', 'cotizador'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
 

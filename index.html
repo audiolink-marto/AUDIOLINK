@@ -4,7 +4,60 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.7
+<!-- AUDIOLINK · index.html · v2.13
+     V2.13: actualizarAlertaRecosVencidos() y renderRecordatoriosDash()
+     ahora usan esFechaVencida() de utils.js (v1.3) en vez de comparar
+     strings de fecha sueltas acá — mismo resultado, un solo lugar donde
+     vive el criterio de "vencido". No se tocó la comparación de fecha
+     de renderProximasSesiones() (sesiones) ni de renderCalendario()
+     (marcador "hoy"), esas no eran parte de lo pedido. No se tocó
+     ninguna otra lógica.
+     V2.12: en renderCalendario(), el onclick de cada celda de día ya no
+     depende de `tieneEventos` — ahora cualquier día del mes actual es
+     clicable (antes solo abrían mostrarDia() los días con al menos un
+     evento). Tiene sentido desde v2.11: el detalle del día ahora también
+     sirve para CREAR (recordatorio/proyecto), no solo para ver lo
+     existente, así que un día vacío debe poder abrirse igual. Los días
+     de relleno del mes anterior/siguiente (.out) siguen sin ser
+     clicables. No se tocó el resto de renderCalendario() ni mostrarDia().
+     V2.11: en mostrarDia(), debajo de la lista de eventos existentes del
+     día, se agregan 2 links de creación rápida: "+ Nuevo recordatorio
+     este día" → recordatorios.html?fecha=X (recordatorios.html v1.1 lee
+     el param y precarga el campo fecha del form) y "+ Proyecto/sesión
+     este día" → proyecto.html?fecha=X (proyecto.html v5.24: si no hay
+     ?id=, abre el modal "Nuevo Proyecto" con Entrega estimada
+     precargada). Se unificó sesión+entrega en un solo botón porque ambos
+     requieren elegir/crear proyecto primero en la misma pantalla — ver
+     detalle en la conversación. No se tocó el resto de mostrarDia() ni
+     ninguna otra función.
+     V2.10: a pedido del usuario, los puntos del calendario ahora se
+     distinguen por FORMA además de color (con 5 tipos de punto, el color
+     solo ya no alcanzaba para diferenciar rápido en la grilla chica).
+     Entregas (ok/warn/err) se quedan como círculo — ahí el color sigue
+     siendo la información principal (semáforo de estado), no se les tocó
+     la forma. Sesión pasa a rombo (clip-path), Recordatorio a triángulo
+     (clip-path). Mismo tamaño de 5x5px que ya tenían. Se actualiza
+     también la leyenda (.cal-legend) con las mismas formas. No se tocó
+     ninguna lógica de datos, solo CSS puro — nada de SVG ni Cloudinary.
+     V2.9: dos mejoras a Recordatorios, ambas SIN queries nuevas (reutilizan
+     `recordatoriosCache` de v2.8): (1) banner "⚠️ N recordatorios
+     vencidos", debajo del banner de entregas vencidas de proyectos —
+     mismo estilo, banner separado para no mezclar los dos mensajes,
+     clic lleva a recordatorios.html. (2) los recordatorios con fecha
+     ahora también pintan puntos en el calendario (nuevo .dot.reco) y
+     aparecen en el detalle del día (mostrarDia), con clic a
+     recordatorios.html. Se extiende eventosPorFecha() para incluir
+     recordatoriosCache junto a proyectos/sesionesCal, y se agrega el
+     punto a la leyenda. No se tocó ninguna otra lógica de proyectos ni
+     sesiones.
+     V2.8: se agrega el panel "RECORDATORIOS" (widget resumen), debajo de
+     Próximas Sesiones — muestra los próximos 5 recordatorios con fecha
+     (propios + equipo) y un contador de notas sin fecha pendientes.
+     Nuevo listener db.collection('recordatorios').onSnapshot() (sin
+     .where(), mismo patrón liviano que sesionesCal), guardado en
+     `recordatoriosCache`. Enlaza a recordatorios.html (módulo nuevo v1.0,
+     ver firestore.rules v2.29 y nav.js v1.10). No se tocó ningún otro
+     panel, listener ni función existente.
      V2.7: fix estético — Dashboard se veía distinto al resto del
      ecosistema (título del sidebar/topbar con fuente por defecto en
      vez de Playfair Display) porque esta página no cargaba las Google
@@ -197,28 +250,33 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   background:var(--surf-light);border:1px solid transparent;
 }
 .cal-day.out{opacity:0.25;}
+.cal-day:not(.out){cursor:pointer;}
+.cal-day:not(.out):hover{border-color:var(--gold);}
 .cal-day.today{border-color:var(--gold);}
-.cal-day.tiene-evento{cursor:pointer;}
-.cal-day.tiene-evento:hover{border-color:var(--gold);}
 .cal-dots{display:flex;gap:2px;margin-top:3px;}
 .dot{width:5px;height:5px;border-radius:50%;}
 .dot.ok{background:var(--ok);}
 .dot.warn{background:var(--warn);}
 .dot.err{background:var(--err);}
-.dot.sesion{background:var(--gold);}
+.dot.sesion{background:var(--gold);border-radius:1px;transform:rotate(45deg);}
+.dot.reco{background:var(--muted);border-radius:0;clip-path:polygon(50% 0%, 0% 100%, 100% 100%);}
 .cal-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.7rem;color:var(--muted);}
 .cal-legend span{display:inline-flex;align-items:center;gap:4px;}
 .cal-legend i{width:6px;height:6px;border-radius:50%;display:inline-block;}
 .cal-legend i.ok{background:var(--ok);}
 .cal-legend i.warn{background:var(--warn);}
 .cal-legend i.err{background:var(--err);}
-.cal-legend i.sesion{background:var(--gold);}
+.cal-legend i.sesion{background:var(--gold);border-radius:1px;transform:rotate(45deg);}
+.cal-legend i.reco{background:var(--muted);border-radius:0;clip-path:polygon(50% 0%, 0% 100%, 100% 100%);}
 
 /* Detalle día */
 .dia-detalle{margin-top:16px;padding:14px;background:var(--surf-light);border-radius:8px;border-left:2px solid var(--gold);display:none;}
 .dia-detalle.active{display:block;}
 .dia-detalle .fecha-titulo{font-size:0.8rem;color:var(--gold);margin-bottom:8px;font-weight:600;}
 .dia-detalle .item{font-size:0.85rem;padding:6px 0;border-bottom:1px solid var(--brd);cursor:pointer;}
+.dia-acciones-rapidas{display:flex;flex-direction:column;gap:6px;margin-top:12px;}
+.dia-acciones-rapidas .link-add{font-size:0.8rem;color:var(--gold);text-decoration:none;}
+.dia-acciones-rapidas .link-add:hover{text-decoration:underline;}
 .dia-detalle .item:last-child{border-bottom:none;}
 .dia-detalle .item:hover{color:var(--gold);}
 
@@ -244,6 +302,12 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   padding:12px 16px;margin-bottom:20px;cursor:pointer;font-size:0.88rem;color:var(--err);
 }
 .alerta-vencidas .num{font-weight:700;font-size:1rem;}
+.alerta-recos-vencidos{
+  display:none;align-items:center;gap:10px;
+  background:rgba(212,87,74,0.12);border:1px solid var(--err);border-radius:10px;
+  padding:12px 16px;margin-bottom:20px;cursor:pointer;font-size:0.88rem;color:var(--err);
+}
+.alerta-recos-vencidos .num{font-weight:700;font-size:1rem;}
 
 /* Próximas sesiones (v2.5) */
 .sesion-item{
@@ -255,6 +319,23 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .sesion-item .nombre{font-size:0.9rem;font-weight:500;}
 .sesion-item .sub{font-size:0.75rem;color:var(--muted);margin-top:2px;}
 .sesion-item .fecha{font-size:0.75rem;color:var(--gold);white-space:nowrap;}
+
+/* Recordatorios (v2.8) */
+.reco-item{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:12px 14px;border-radius:8px;background:var(--surf-light);
+  margin-bottom:8px;cursor:pointer;transition:all 0.2s;border:1px solid transparent;
+}
+.reco-item:hover{border-color:var(--gold);}
+.reco-item.completado{opacity:0.5;}
+.reco-item .texto{font-size:0.88rem;}
+.reco-item.completado .texto{text-decoration:line-through;}
+.reco-item .fecha{font-size:0.75rem;color:var(--gold);white-space:nowrap;flex-shrink:0;}
+.reco-sinfecha{
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--brd);
+  font-size:0.8rem;color:var(--muted);cursor:pointer;
+}
+.reco-sinfecha:hover{color:var(--gold);}
 
 /* Resumen comercial (v1.3) */
 .resumen-grid{display:flex;flex-direction:column;gap:10px;}
@@ -323,6 +404,9 @@ window.NAV_CONFIG = { activo: 'dashboard' };
   <div class="alerta-vencidas" id="alertaVencidas" onclick="window.location.href='proyecto.html'">
     ⚠️ <span id="textoVencidas"></span>
   </div>
+  <div class="alerta-recos-vencidos" id="alertaRecosVencidos" onclick="window.location.href='recordatorios.html'">
+    ⚠️ <span id="textoRecosVencidos"></span>
+  </div>
   <div class="layout">
 
     <div class="panel">
@@ -342,6 +426,7 @@ window.NAV_CONFIG = { activo: 'dashboard' };
         <span><i class="warn"></i>Por confirmar</span>
         <span><i class="err"></i>Vencido</span>
         <span><i class="sesion"></i>Sesión</span>
+        <span><i class="reco"></i>Recordatorio</span>
       </div>
       <div class="dia-detalle" id="diaDetalle"></div>
     </div>
@@ -358,6 +443,13 @@ window.NAV_CONFIG = { activo: 'dashboard' };
     <h2>PRÓXIMAS SESIONES</h2>
     <div id="listaProximasSesiones"></div>
     <div class="empty" id="emptyProximasSesiones" style="display:none;">No hay sesiones próximas.</div>
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <h2>RECORDATORIOS</h2>
+    <div id="listaRecordatoriosDash"></div>
+    <div class="empty" id="emptyRecordatoriosDash" style="display:none;">No hay recordatorios pendientes.</div>
+    <div class="reco-sinfecha" id="recoSinFecha" style="display:none;" onclick="window.location.href='recordatorios.html'"></div>
   </div>
 
   <div class="panel" style="margin-top:24px;">
@@ -577,6 +669,78 @@ function renderProximasSesiones(){
 
 // escapeHtml() ahora vive en utils.js (compartida por todo el ecosistema).
 
+// ============ RECORDATORIOS (v2.8) ============
+// Listener liviano sin .where() (mismo patrón que sesionesCal): trae
+// todos los recordatorios y filtra/ordena en el cliente. Muestra los
+// próximos 5 con fecha (propios + equipo) y un contador de "sin fecha".
+// No gestiona nada desde acá — el CRUD real vive en recordatorios.html.
+let recordatoriosCache = [];
+
+db.collection('recordatorios').onSnapshot(snap => {
+  recordatoriosCache = [];
+  snap.forEach(doc => recordatoriosCache.push({ id: doc.id, ...doc.data() }));
+  renderRecordatoriosDash();
+  actualizarAlertaRecosVencidos();
+  renderCalendario();
+}, err => console.error('Error cargando recordatorios:', err));
+
+// v2.13: usa esFechaVencida() centralizada en utils.js (v1.3) en vez de
+// comparar strings de fecha sueltas acá. Mismo criterio de "vencido"
+// que antes (fecha < hoy, no completado). Reutiliza recordatoriosCache,
+// sin query nueva.
+function actualizarAlertaRecosVencidos(){
+  const banner = document.getElementById('alertaRecosVencidos');
+  const vencidos = recordatoriosCache.filter(r => !r.completado && esFechaVencida(r.fecha)).length;
+  if(vencidos === 0){
+    banner.style.display = 'none';
+    return;
+  }
+  document.getElementById('textoRecosVencidos').textContent =
+    vencidos === 1
+      ? '1 recordatorio vencido — revisa tus pendientes'
+      : `${vencidos} recordatorios vencidos — revisa tus pendientes`;
+  banner.style.display = 'flex';
+}
+
+function renderRecordatoriosDash(){
+  const cont = document.getElementById('listaRecordatoriosDash');
+  const empty = document.getElementById('emptyRecordatoriosDash');
+  const sinFechaEl = document.getElementById('recoSinFecha');
+
+  const pendientes = recordatoriosCache.filter(r => !r.completado);
+  const conFecha = pendientes
+    .filter(r => r.fecha)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    .slice(0, 5);
+  const sinFecha = pendientes.filter(r => !r.fecha).length;
+
+  if(conFecha.length === 0){
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    cont.innerHTML = conFecha.map(r => {
+      const [y, m, d] = r.fecha.split('-');
+      const fechaLegible = new Date(y, m - 1, d).toLocaleDateString('es-CO', { day:'numeric', month:'short' });
+      const vencida = esFechaVencida(r.fecha);
+      return `
+        <div class="reco-item" onclick="window.location.href='recordatorios.html'">
+          <span class="texto">📝 ${escapeHtml(r.texto)}</span>
+          <span class="fecha" style="${vencida ? 'color:var(--err);' : ''}">${fechaLegible}</span>
+        </div>`;
+    }).join('');
+  }
+
+  if(sinFecha > 0){
+    sinFechaEl.style.display = 'block';
+    sinFechaEl.textContent = sinFecha === 1
+      ? '+ 1 recordatorio sin fecha'
+      : `+ ${sinFecha} recordatorios sin fecha`;
+  } else {
+    sinFechaEl.style.display = 'none';
+  }
+}
+
 // ============ LISTA PROYECTOS ============
 function renderListaProyectos(){
   const cont = document.getElementById('listaProyectos');
@@ -632,6 +796,13 @@ function eventosPorFecha(){
       sala: s.sala || ''
     });
   });
+  // v2.9: recordatorios con fecha (recordatoriosCache, cargado en el
+  // listener de v2.8) — no se muestran los ya completados.
+  recordatoriosCache.forEach(r => {
+    if(!r.fecha || r.completado) return;
+    if(!mapa[r.fecha]) mapa[r.fecha] = [];
+    mapa[r.fecha].push({ tipo:'reco', nombre: r.texto, id: r.id });
+  });
   return mapa;
 }
 
@@ -669,10 +840,10 @@ function renderCalendario(){
     if(c.out) return `<div class="cal-day out">${''}</div>`;
     const esHoy = c.fecha === hoyStr;
     const tieneEventos = c.eventos.length > 0;
-    const dots = c.eventos.slice(0,4).map(e => `<span class="dot ${e.tipo === 'sesion' ? 'sesion' : e.estado}"></span>`).join('');
+    const dots = c.eventos.slice(0,4).map(e => `<span class="dot ${e.tipo === 'sesion' ? 'sesion' : e.tipo === 'reco' ? 'reco' : e.estado}"></span>`).join('');
     return `
       <div class="cal-day ${esHoy ? 'today' : ''} ${tieneEventos ? 'tiene-evento' : ''}"
-           onclick="${tieneEventos ? `mostrarDia('${c.fecha}')` : ''}">
+           onclick="mostrarDia('${c.fecha}')">
         ${c.num}
         ${tieneEventos ? `<div class="cal-dots">${dots}</div>` : ''}
       </div>`;
@@ -693,10 +864,20 @@ function mostrarDia(fechaStr){
     <div class="fecha-titulo">${fechaLegible}</div>
     ${eventos.map(e => e.tipo === 'sesion'
       ? `<div class="item" onclick="irASesion('${e.id}')">🎚️ ${escapeHtml(e.nombre)} — ${escapeHtml(e.actividad)}${e.sala ? ' · ' + escapeHtml(e.sala) : ''}</div>`
+      : e.tipo === 'reco'
+      ? `<div class="item" onclick="irARecordatorio()">📝 ${escapeHtml(e.nombre)}</div>`
       : `<div class="item" onclick="irAProyecto('${e.id}')">📁 ${escapeHtml(e.nombre)} — entrega estimada · ${ESTADO_CAL_LABEL[e.estado] || e.estado}</div>`
     ).join('')}
+    <div class="dia-acciones-rapidas">
+      <a href="recordatorios.html?fecha=${fechaStr}" class="link-add">+ Nuevo recordatorio este día</a>
+      <a href="proyecto.html?fecha=${fechaStr}" class="link-add">+ Proyecto / sesión este día</a>
+    </div>
   `;
   det.classList.add('active');
+}
+
+function irARecordatorio(){
+  window.location.href = 'recordatorios.html';
 }
 
 function irASesion(proyectoId){

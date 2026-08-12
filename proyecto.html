@@ -4,7 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.23
+<!-- AUDIOLINK · proyecto.html · v5.25
+     v5.25: se corrige v5.24 — llegar con ?fecha= ya no abre automático
+     el modal "Nuevo Proyecto" (asumía que siempre querías crear uno
+     nuevo, cuando muchas veces la intención es agregar SESIÓN a un
+     proyecto YA existente en esa fecha). Ahora, si hay ?fecha= sin ?id=,
+     se muestra un banner arriba del listado ("Elige un proyecto para
+     agregarle sesión el X, o crea uno nuevo") + botón "+ Nuevo
+     proyecto". Mientras ese banner está activo, click en cualquier
+     tarjeta de proyecto lleva directo a logistica.html?id=X&fecha=Y
+     (que ya soportaba el param, v2.70) en vez de abrir el detalle. El
+     botón "+ Nuevo proyecto" del banner sigue abriendo el modal con
+     Entrega estimada precargada, igual que v5.24, pero ahora por
+     elección explícita. No se tocó verDetalle() ni el resto de
+     renderListado().
+     v5.24: si la URL trae ?fecha=YYYY-MM-DD y NO trae ?id= (llega desde
+     el botón "+ Proyecto / sesión este día" del calendario de
+     index.html v2.11), se abre automáticamente el modal "Nuevo
+     Proyecto" con el campo Entrega estimada (fFechaEntrega) precargado
+     con esa fecha. Si la URL trae ?id=, se respeta el comportamiento
+     existente (abre el detalle de ese proyecto) y el param ?fecha= se
+     ignora — evita pisar por accidente la entrega de un proyecto ya
+     existente. No se tocó ninguna otra lógica del listener, del modal
+     ni de guardarProyecto().
      v5.23: "Egresos del proyecto" y "Margen real" (v5.21/v5.22) pasan de
      carga única (.get()) a tiempo real (.onSnapshot()) — mismo motivo
      que musicos.html v1.8 / equipo-tecnico.html v1.4: estos números se
@@ -703,6 +725,11 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
 .top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.banner-fecha-rapida{
+  background:var(--gold-bg);border:1px solid var(--gold);border-radius:10px;
+  padding:12px 16px;margin-bottom:16px;font-size:0.85rem;color:var(--txt);
+}
+.banner-fecha-rapida .link-add{color:var(--gold);cursor:pointer;text-decoration:underline;}
 .card{
   background:var(--surf);
   border:1px solid var(--brd);
@@ -1467,6 +1494,13 @@ auth.onAuthStateChanged(async (user) => {
 let proyectos = [];
 let proyectoActualId = null;
 let editando = false;
+// v5.25: si la URL trae ?fecha= sin ?id=, se guarda acá una sola vez al
+// cargar — controla el banner de selección rápida en renderListado() y
+// el destino del click en las tarjetas de proyecto (logistica.html en
+// vez de verDetalle mientras esté activo).
+const fechaParamGlobal = new URLSearchParams(window.location.search).get('id')
+  ? null
+  : new URLSearchParams(window.location.search).get('fecha');
 
 // resumenPagos: { [proyectoId]: { cotizacionId, cotizado, cobrado, saldo } }
 // Se llena por separado del listener de `proyectos` (misma lógica de
@@ -2423,9 +2457,35 @@ function escucharPagosResumen(proyectoId, cotizId){
     }, err => console.error('Error cargando pagos del resumen:', err));
 }
 
+// v5.25: banner de selección rápida cuando se llega desde el calendario
+// del Dashboard con ?fecha= sin ?id= — vive arriba de #gridProyectos,
+// se inyecta/limpia en cada render de renderListado(). No usa un
+// contenedor HTML nuevo en el <body>: se antepone al grid vía DOM.
+function renderBannerFechaRapida(){
+  const existente = document.getElementById('bannerFechaRapida');
+  if(existente) existente.remove();
+  if(!fechaParamGlobal) return;
+  const [y,m,d] = fechaParamGlobal.split('-');
+  const fechaLegible = new Date(y, m-1, d).toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' });
+  const banner = document.createElement('div');
+  banner.id = 'bannerFechaRapida';
+  banner.className = 'banner-fecha-rapida';
+  banner.innerHTML = `
+    📅 Elige un proyecto para agregarle sesión el <strong>${fechaLegible}</strong>, o
+    <span class="link-add" onclick="abrirModalNuevoConFecha()">+ crea uno nuevo con esa fecha de entrega</span>.
+  `;
+  document.getElementById('gridProyectos').insertAdjacentElement('beforebegin', banner);
+}
+
+function abrirModalNuevoConFecha(){
+  abrirModalNuevo();
+  if(fechaParamGlobal) document.getElementById('fFechaEntrega').value = fechaParamGlobal;
+}
+
 function renderListado(){
   const grid = document.getElementById('gridProyectos');
   const empty = document.getElementById('emptyState');
+  renderBannerFechaRapida();
   if(proyectos.length === 0){
     grid.innerHTML = '';
     empty.style.display = 'block';
@@ -2449,8 +2509,14 @@ function renderListado(){
           ${p.costos?.presupuesto ? '💵 ' + formatCOP(p.costos.presupuesto) : ''}
         </div>`
       : '';
+    // v5.25: con fechaParamGlobal activo, el click lleva directo a
+    // logistica.html con esa fecha (intención: agregar sesión), en vez
+    // de abrir el detalle del proyecto.
+    const destinoClick = fechaParamGlobal
+      ? `window.location.href='logistica.html?id=${p.id}&fecha=${fechaParamGlobal}'`
+      : `verDetalle('${p.id}')`;
     return `
-    <div class="card" onclick="verDetalle('${p.id}')">
+    <div class="card" onclick="${destinoClick}">
       <div class="card-top">
         <div>
           <span class="tipo-tag">${p.tipo === 'propio' ? 'Proyecto propio' : escapeHtml(p.clienteArtista || 'Cliente')}</span>

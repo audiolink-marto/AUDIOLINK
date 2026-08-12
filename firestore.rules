@@ -386,6 +386,20 @@ rules_version = '2';
 // alcance exacto que sus reglas anidadas correspondientes (actividad:
 // público; pagos: solo staff). No se tocó ninguna otra regla, colección,
 // match ni condición existente.
+//
+// v2.29 (esta entrega — recordatorios.html v1.0 / index.html v2.8): se
+// agrega el bloque /recordatorios/{recordatorioId} — notas/recordatorios
+// personales o de equipo, con fecha opcional, mostradas en el widget del
+// Dashboard. Cada doc tiene `autorId` (uid) y `visibilidad`
+// ('personal'|'equipo'). Solo equipo interno (esStaff()) puede leer y
+// escribir — no hay acceso público sin login. Un doc con
+// visibilidad=='equipo' lo puede leer cualquier miembro de esStaff(), no
+// solo su autor; uno con visibilidad=='personal' también (la UI de
+// recordatorios.html filtra por autorId en el cliente para mostrar solo
+// "mías" vs "equipo" — la regla no distingue autoría en lectura, igual
+// que el resto del ecosistema no filtra por dueño entre staff). Nunca se
+// abre a público sin login. No se tocó ninguna otra colección ni regla
+// existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -741,6 +755,15 @@ service cloud.firestore {
     // y escribe (crear, editar, borrar). El cliente nunca accede a esta
     // colección directamente.
     match /equipoTecnico/{tecnicoId} {
+      allow read, write: if esStaff();
+    }
+    // ---------- RECORDATORIOS (v2.29 — recordatorios.html v1.0 / index.html v2.8) ----------
+    // Notas/recordatorios personales o de equipo, con fecha opcional.
+    // Colección plana con `autorId` (mismo patrón que bitácora/proyectos,
+    // no subcolección por usuario). Solo equipo interno lee y escribe —
+    // nunca se abre a público sin login. El filtro "mías" vs "equipo" lo
+    // hace recordatorios.html en el cliente, no esta regla.
+    match /recordatorios/{recordatorioId} {
       allow read, write: if esStaff();
     }
     // ---------- BACKLINE CATÁLOGO (v2.13 — cotizador.html v9.54) ----------

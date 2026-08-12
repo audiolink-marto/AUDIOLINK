@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Recordatorios</title>
+<!-- AUDIOLINK · recordatorios.html · v1.2
+     V1.2: tres mejoras a pedido del usuario. (1) Editar texto: lápiz en
+     cada nota abre el mismo bloque en modo edición (textarea +
+     guardar/cancelar), update() sobre el mismo doc — no crea uno nuevo.
+     (2) Botón "Limpiar completados": borra en lote (batch) todos los
+     recordatorios con completado==true, con confirmación previa —
+     evita que la colección crezca indefinidamente con notas ya hechas.
+     (3) Se usa esFechaVencida() de utils.js (v1.3) para pintar en rojo
+     la fecha de notas vencidas en la lista, en vez de comparar strings
+     sueltas acá. No se tocó crearRecordatorio(), toggleCompletado(),
+     borrarRecordatorio() individual, ni los filtros existentes.
+     V1.1: si la URL trae ?fecha=YYYY-MM-DD (llega desde el botón
+     "+ Nuevo recordatorio este día" del calendario de index.html v2.11),
+     se precarga el campo de fecha del formulario al cargar la página.
+     No cambia nada más del CRUD existente.
+     V1.0: módulo nuevo. Notas/recordatorios personales o de equipo, con
+     fecha opcional, visibilidad ('personal'|'equipo') y vínculo opcional
+     a un proyecto existente. Mismo esqueleto/tema que clientes.html
+     (Oro Profundo, Playfair Display, nav.js/nav.css compartidos,
+     utils.js para escapeHtml). Colección plana `recordatorios` con
+     campo `autorId` (mismo patrón que bitácora/proyectos, ver
+     firestore.rules v2.29). El widget resumen vive en index.html v2.8.
+     No se tocó ningún otro módulo del ecosistema. -->
+<link rel="stylesheet" href="nav.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+}
+header, main{position:relative;z-index:1;}
+main{padding:28px;max-width:900px;margin:0 auto;}
+
+h2.titulo{font-family:var(--T);font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
+.sub-titulo{color:var(--muted);font-size:0.85rem;margin-bottom:22px;}
+
+.panel{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:22px;margin-bottom:22px;}
+.panel h3{font-size:0.85rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;margin-bottom:14px;text-transform:uppercase;}
+.panel-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+
+.form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.form-row label{font-size:0.75rem;color:var(--muted);}
+.form-row textarea,
+.form-row input,
+.form-row select{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:7px;
+  padding:10px 12px;color:var(--txt);font-family:var(--S);font-size:0.9rem;
+  min-height:44px;
+}
+.form-row textarea{min-height:70px;resize:vertical;}
+.form-row-inline{display:flex;gap:12px;flex-wrap:wrap;}
+.form-row-inline .form-row{flex:1;min-width:160px;}
+
+.btn{
+  background:var(--gold);color:#1a1509;border:none;border-radius:8px;
+  padding:11px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;
+  min-height:44px;
+}
+.btn:hover{opacity:0.9;}
+.btn-ghost{
+  background:transparent;border:1px solid var(--brd);color:var(--muted);
+  border-radius:8px;padding:8px 14px;font-size:0.8rem;cursor:pointer;min-height:38px;
+}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+.btn-ghost.active{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+
+.filtros{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+
+.nota-item{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  padding:14px;border-radius:8px;background:var(--surf-light);
+  margin-bottom:8px;border:1px solid var(--brd);
+}
+.nota-item.completado{opacity:0.5;}
+.nota-item .cuerpo{flex:1;min-width:0;}
+.nota-item .texto{font-size:0.9rem;white-space:pre-wrap;word-break:break-word;}
+.nota-item.completado .texto{text-decoration:line-through;}
+.nota-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:0.72rem;color:var(--muted);}
+.nota-meta .fecha{color:var(--gold);}
+.badge-vis{
+  font-size:0.65rem;padding:2px 8px;border-radius:20px;font-weight:600;
+  letter-spacing:0.03em;text-transform:uppercase;
+}
+.badge-vis.personal{background:var(--gold-bg);color:var(--gold);}
+.badge-vis.equipo{background:rgba(76,175,125,0.15);color:var(--ok);}
+.nota-acciones{display:flex;gap:6px;flex-shrink:0;}
+.icon-btn{
+  background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;
+  padding:6px;border-radius:6px;min-width:32px;min-height:32px;
+}
+.icon-btn:hover{background:var(--surf);color:var(--gold);}
+.icon-btn.borrar:hover{color:var(--err);}
+
+.empty{text-align:center;padding:30px 10px;color:var(--faint);font-size:0.85rem;}
+</style>
+</head>
+<body>
+
+<script>
+window.NAV_CONFIG = { activo: 'recordatorios' };
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<header style="display:none;"></header>
+
+<main>
+  <h2 class="titulo">📝 Recordatorios</h2>
+  <div class="sub-titulo">Notas y pendientes sueltos — personales o de equipo, con fecha opcional.</div>
+
+  <div class="panel">
+    <h3>Nueva nota</h3>
+    <div class="form-row">
+      <label>Texto</label>
+      <textarea id="inputTexto" placeholder="¿Qué necesitas recordar?"></textarea>
+    </div>
+    <div class="form-row-inline">
+      <div class="form-row">
+        <label>Fecha (opcional)</label>
+        <input type="date" id="inputFecha">
+      </div>
+      <div class="form-row">
+        <label>Visibilidad</label>
+        <select id="inputVisibilidad">
+          <option value="personal">Solo yo</option>
+          <option value="equipo">Equipo</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="crearRecordatorio()">Guardar recordatorio</button>
+  </div>
+
+  <div class="filtros">
+    <button class="btn-ghost active" data-filtro="todas" onclick="cambiarFiltro('todas')">Todas</button>
+    <button class="btn-ghost" data-filtro="mias" onclick="cambiarFiltro('mias')">Mías</button>
+    <button class="btn-ghost" data-filtro="equipo" onclick="cambiarFiltro('equipo')">Equipo</button>
+    <button class="btn-ghost" data-filtro="sinfecha" onclick="cambiarFiltro('sinfecha')">Sin fecha</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header-row">
+      <h3 style="margin-bottom:0;">Recordatorios</h3>
+      <button class="btn-ghost" onclick="limpiarCompletados()">🧹 Limpiar completados</button>
+    </div>
+    <div id="listaRecordatorios"></div>
+    <div class="empty" id="emptyRecordatorios" style="display:none;">No hay recordatorios en este filtro.</div>
+  </div>
+</main>
+</div><!-- /main-wrap -->
+
+<script>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const recordatoriosRef = db.collection('recordatorios');
+
+// ============ GUARD DE SESIÓN ============
+let usuarioActual = null;
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    window.location.href = 'login.html';
+    return;
+  }
+  try{
+    const doc = await db.collection('equipoInterno').doc(user.email).get();
+    if(!doc.exists || doc.data().activo !== true){
+      await auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+    usuarioActual = { uid: user.uid, email: user.email, nombre: (doc.data().nombre || user.email) };
+    iniciarListener();
+    precargarFechaDesdeUrl();
+  } catch(e){
+    console.error('Error validando sesión:', e);
+    window.location.href = 'login.html';
+  }
+});
+
+// ============ ESTADO ============
+let recordatorios = [];
+let filtroActual = 'todas';
+
+function iniciarListener(){
+  recordatoriosRef.onSnapshot(snap => {
+    recordatorios = [];
+    snap.forEach(doc => recordatorios.push({ id: doc.id, ...doc.data() }));
+    // orden: con fecha primero (asc), luego sin fecha por creadoEn desc
+    recordatorios.sort((a, b) => {
+      if(a.fecha && b.fecha) return a.fecha.localeCompare(b.fecha);
+      if(a.fecha && !b.fecha) return -1;
+      if(!a.fecha && b.fecha) return 1;
+      const ta = a.creadoEn ? a.creadoEn.toMillis() : 0;
+      const tb = b.creadoEn ? b.creadoEn.toMillis() : 0;
+      return tb - ta;
+    });
+    renderLista();
+  }, err => console.error('Error cargando recordatorios:', err));
+}
+
+// ============ PRECARGA DESDE URL (v1.1) ============
+function precargarFechaDesdeUrl(){
+  const fecha = new URLSearchParams(window.location.search).get('fecha');
+  if(fecha) document.getElementById('inputFecha').value = fecha;
+}
+
+// ============ CREAR ============
+function crearRecordatorio(){
+  const texto = document.getElementById('inputTexto').value.trim();
+  if(!texto){ alert('Escribe el texto del recordatorio.'); return; }
+  const fecha = document.getElementById('inputFecha').value || null;
+  const visibilidad = document.getElementById('inputVisibilidad').value;
+
+  recordatoriosRef.add({
+    texto,
+    fecha,
+    visibilidad,
+    completado: false,
+    autorId: usuarioActual.uid,
+    autorNombre: usuarioActual.nombre,
+    creadoEn: firebase.firestore.Timestamp.now()
+  }).then(() => {
+    document.getElementById('inputTexto').value = '';
+    document.getElementById('inputFecha').value = '';
+    document.getElementById('inputVisibilidad').value = 'personal';
+  }).catch(err => {
+    console.error('Error creando recordatorio:', err);
+    alert('No se pudo guardar el recordatorio.');
+  });
+}
+
+// ============ TOGGLE COMPLETADO ============
+function toggleCompletado(id, actual){
+  recordatoriosRef.doc(id).update({ completado: !actual })
+    .catch(err => console.error('Error actualizando recordatorio:', err));
+}
+
+// ============ BORRAR ============
+function borrarRecordatorio(id){
+  if(!confirm('¿Borrar este recordatorio?')) return;
+  recordatoriosRef.doc(id).delete()
+    .catch(err => console.error('Error borrando recordatorio:', err));
+}
+
+// ============ LIMPIAR COMPLETADOS (v1.2) ============
+function limpiarCompletados(){
+  const completados = recordatorios.filter(r => r.completado);
+  if(completados.length === 0){ alert('No hay recordatorios completados para limpiar.'); return; }
+  if(!confirm(`¿Borrar ${completados.length} recordatorio(s) ya completados? Esta acción no se puede deshacer.`)) return;
+  const batch = db.batch();
+  completados.forEach(r => batch.delete(recordatoriosRef.doc(r.id)));
+  batch.commit().catch(err => {
+    console.error('Error limpiando completados:', err);
+    alert('No se pudieron borrar los recordatorios completados.');
+  });
+}
+
+// ============ EDITAR (v1.2) ============
+let editandoId = null;
+
+function iniciarEdicion(id){
+  editandoId = id;
+  renderLista();
+}
+
+function cancelarEdicion(){
+  editandoId = null;
+  renderLista();
+}
+
+function guardarEdicion(id){
+  const nuevoTexto = document.getElementById('editTexto_' + id).value.trim();
+  if(!nuevoTexto){ alert('El texto no puede quedar vacío.'); return; }
+  recordatoriosRef.doc(id).update({ texto: nuevoTexto })
+    .then(() => { editandoId = null; })
+    .catch(err => {
+      console.error('Error editando recordatorio:', err);
+      alert('No se pudo guardar la edición.');
+    });
+}
+
+// ============ FILTROS ============
+function cambiarFiltro(f){
+  filtroActual = f;
+  document.querySelectorAll('.filtros .btn-ghost').forEach(b => {
+    b.classList.toggle('active', b.dataset.filtro === f);
+  });
+  renderLista();
+}
+
+function recordatoriosFiltrados(){
+  switch(filtroActual){
+    case 'mias': return recordatorios.filter(r => r.autorId === usuarioActual.uid);
+    case 'equipo': return recordatorios.filter(r => r.visibilidad === 'equipo');
+    case 'sinfecha': return recordatorios.filter(r => !r.fecha);
+    default: return recordatorios;
+  }
+}
+
+// ============ RENDER ============
+function fechaLegible(fechaStr){
+  const [y, m, d] = fechaStr.split('-');
+  return new Date(y, m - 1, d).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function renderLista(){
+  const cont = document.getElementById('listaRecordatorios');
+  const empty = document.getElementById('emptyRecordatorios');
+  const lista = recordatoriosFiltrados();
+
+  if(lista.length === 0){
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  cont.innerHTML = lista.map(r => {
+    if(r.id === editandoId){
+      return `
+        <div class="nota-item">
+          <div class="cuerpo">
+            <textarea id="editTexto_${r.id}" style="width:100%;background:var(--surf);border:1px solid var(--gold);border-radius:6px;padding:8px;color:var(--txt);font-family:var(--S);font-size:0.9rem;min-height:60px;">${escapeHtml(r.texto)}</textarea>
+            <div class="nota-meta" style="margin-top:8px;">
+              <button class="icon-btn" title="Guardar" onclick="guardarEdicion('${r.id}')">✓</button>
+              <button class="icon-btn" title="Cancelar" onclick="cancelarEdicion()">✕</button>
+            </div>
+          </div>
+        </div>`;
+    }
+    const vencida = esFechaVencida(r.fecha) && !r.completado;
+    return `
+    <div class="nota-item ${r.completado ? 'completado' : ''}">
+      <div class="cuerpo">
+        <div class="texto">${escapeHtml(r.texto)}</div>
+        <div class="nota-meta">
+          ${r.fecha ? `<span class="fecha" style="${vencida ? 'color:var(--err);' : ''}">📅 ${fechaLegible(r.fecha)}</span>` : ''}
+          <span class="badge-vis ${r.visibilidad}">${r.visibilidad === 'equipo' ? 'Equipo' : 'Solo yo'}</span>
+          <span>${escapeHtml(r.autorNombre || '')}</span>
+        </div>
+      </div>
+      <div class="nota-acciones">
+        <button class="icon-btn" title="Editar" onclick="iniciarEdicion('${r.id}')">✏️</button>
+        <button class="icon-btn" title="${r.completado ? 'Marcar pendiente' : 'Marcar como hecho'}" onclick="toggleCompletado('${r.id}', ${r.completado === true})">${r.completado ? '↺' : '✓'}</button>
+        <button class="icon-btn borrar" title="Borrar" onclick="borrarRecordatorio('${r.id}')">🗑️</button>
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+</script>
+
+</body>
+</html>
