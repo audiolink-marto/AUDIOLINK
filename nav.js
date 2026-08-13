@@ -1,4 +1,16 @@
-/* AUDIOLINK · nav.js · v1.10
+/* AUDIOLINK · nav.js · v1.11
+   V1.11: se agrega el indicador global de "sin conexión" — banner fijo
+   arriba de la pantalla ("🔴 Sin conexión — los cambios se guardarán al
+   recuperar señal"), que aparece/desaparece con los eventos nativos
+   online/offline del navegador. Se centraliza acá (no en cada HTML) para
+   que quede disponible automáticamente en todos los módulos apenas
+   carguen nav.js — pensado para acompañar el piloto de Firestore offline
+   persistence (proyecto.html v5.26) sin tener que repetir el indicador
+   archivo por archivo cuando se replique a logistica.html/bitacora.html/
+   etc. No depende de Firestore directamente: es solo navigator.onLine +
+   los eventos del navegador, así que funciona igual en cualquier módulo,
+   tenga o no enablePersistence() activado. No se tocó ninguna otra
+   función existente.
    V1.10: se agrega el ítem "Recordatorios" (recordatorios.html) a ITEMS,
    en el grupo 'Gestión' (junto a Proyectos/Clientes) — módulo nuevo de
    notas/recordatorios personales o de equipo (ver index.html v2.8 y
@@ -331,4 +343,22 @@
     const t = localStorage.getItem('audiolink_tema') || 'dark';
     actualizarIconoTema(t);
   });
+  // ============ INDICADOR SIN CONEXIÓN (v1.11) ============
+  function crearBannerOffline(){
+    if(document.getElementById('offlineBanner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'offlineBanner';
+    banner.className = 'offline-banner';
+    banner.textContent = '🔴 Sin conexión — los cambios se guardarán al recuperar señal';
+    document.body.appendChild(banner);
+  }
+  function actualizarEstadoConexion(){
+    crearBannerOffline();
+    const banner = document.getElementById('offlineBanner');
+    if(!banner) return;
+    banner.classList.toggle('show', !navigator.onLine);
+  }
+  window.addEventListener('online', actualizarEstadoConexion);
+  window.addEventListener('offline', actualizarEstadoConexion);
+  document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 })();
