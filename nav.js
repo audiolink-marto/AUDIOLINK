@@ -1,4 +1,13 @@
-/* AUDIOLINK · nav.js · v1.11
+/* AUDIOLINK · nav.js · v1.12
+   V1.12: fix — el banner de sin conexión (v1.11) nunca se creaba en la
+   práctica. Dependía solo de 'DOMContentLoaded' para dispararse la
+   primera vez, pero nav.js normalmente se carga DESPUÉS de que ese
+   evento ya ocurrió (se inyecta en #nav-mount, que ya existe en el
+   DOM) — el listener se registraba tarde y nunca se disparaba. Se
+   agrega una llamada directa a actualizarEstadoConexion() al cargar el
+   script (sin esperar el evento), y se deja 'DOMContentLoaded' como
+   respaldo por si algún módulo cargara nav.js antes de tiempo. No se
+   tocó la lógica de show/hide ni los listeners online/offline.
    V1.11: se agrega el indicador global de "sin conexión" — banner fijo
    arriba de la pantalla ("🔴 Sin conexión — los cambios se guardarán al
    recuperar señal"), que aparece/desaparece con los eventos nativos
@@ -361,4 +370,5 @@
   window.addEventListener('online', actualizarEstadoConexion);
   window.addEventListener('offline', actualizarEstadoConexion);
   document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
+  actualizarEstadoConexion();
 })();
