@@ -1,4 +1,11 @@
-/* AUDIOLINK · utils.js · v1.3
+/* AUDIOLINK · utils.js · v1.4
+   v1.4: se centralizan tiempoRelativo() y estadoRecordatorio() — vivían
+   solo en recordatorios.html (v1.3) y el widget del Dashboard
+   (index.html) necesitaba el mismo cálculo para mostrar el mismo badge/
+   texto relativo que la lista completa. Se retira la copia local de
+   recordatorios.html; index.html las usa ahora también en
+   renderRecordatoriosDash(). Mismo comportamiento, mismo resultado.
+
    v1.3: se agregan hoyISO() y esFechaVencida() — antes varios archivos
    (index.html, recordatorios.html) repetían `new Date().toISOString()
    .split('T')[0]` sueltos para comparar fechas de recordatorios. Se
@@ -66,4 +73,35 @@ function hoyISO(){
 function esFechaVencida(fecha){
   if(!fecha) return false;
   return fecha < hoyISO();
+}
+
+// Se recalcula cada vez que se renderiza (no es un timer corriendo en
+// segundo plano — JS no sigue corriendo sin la pestaña abierta, y este
+// ecosistema no tiene Service Worker). Si hay hora, compara con
+// precisión de minutos; si no, solo con precisión de día.
+function tiempoRelativo(fecha, hora){
+  if(!fecha) return null;
+  const ahora = new Date();
+  const objetivo = new Date(fecha + 'T' + (hora || '00:00'));
+  const diffMs = objetivo - ahora;
+  const diffMin = Math.round(diffMs / 60000);
+  const diffHoras = Math.round(diffMin / 60);
+  const diffDias = Math.round(diffHoras / 24);
+
+  if(!hora){
+    if(diffDias === 0) return 'hoy';
+    if(diffDias === 1) return 'mañana';
+    if(diffDias === -1) return 'ayer';
+    return diffDias > 0 ? `en ${diffDias} días` : `hace ${Math.abs(diffDias)} días`;
+  }
+  if(Math.abs(diffMin) < 60) return diffMin >= 0 ? `en ${diffMin} min` : `hace ${Math.abs(diffMin)} min`;
+  if(Math.abs(diffHoras) < 24) return diffHoras >= 0 ? `en ${diffHoras} h` : `hace ${Math.abs(diffHoras)} h`;
+  return diffDias >= 0 ? `en ${diffDias} días` : `hace ${Math.abs(diffDias)} días`;
+}
+
+function estadoRecordatorio(fecha){
+  if(!fecha) return null;
+  if(esFechaVencida(fecha)) return { texto: 'Vencido', clase: 'err' };
+  if(fecha === hoyISO()) return { texto: 'Hoy', clase: 'warn' };
+  return { texto: 'Próximo', clase: 'ok' };
 }

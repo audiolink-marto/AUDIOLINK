@@ -4,7 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Recordatorios</title>
-<!-- AUDIOLINK · recordatorios.html · v1.2
+<!-- AUDIOLINK · recordatorios.html · v1.6
+     V1.6: la checklist de cada nota ahora es colapsable — antes se
+     mostraba siempre abierta si tenía ítems. Nuevo botón chevron junto
+     al badge de visibilidad, tipo "▾ Lista (2/5)", que expande/colapsa
+     (Set `checklistExpandida` en memoria, empieza colapsada). El input
+     "+ agregar ítem" solo aparece cuando la checklist está expandida
+     (o si la nota aún no tiene ninguna, para poder crear la primera).
+     No se tocó agregarSubitem()/toggleSubitem()/borrarSubitem() ni
+     nada más de la lógica.
+     V1.5: mismos dos ajustes de amabilidad mobile que index.html v2.18.
+     (1) Checkboxes del checklist (.checklist-item input) suben de 16px
+     a 20px, con min-height:44px en la fila para mejor área táctil; el
+     botón "quitar" (✕) de cada sub-ítem también sube a mínimo 44px
+     (antes 24px). (2) Las notas con hora ahora muestran ⏰ antes de la
+     hora en la fecha de cada nota, igual que el widget del Dashboard.
+     No se tocó la lógica de datos.
+     V1.4: tiempoRelativo() y estadoRecordatorio() se mudan a utils.js
+     (v1.4) para que el widget del Dashboard (index.html) también las
+     use — se retira la copia local de acá, mismo comportamiento. No
+     cambia nada más.
+     V1.3: tres mejoras a pedido del usuario. (1) Hora opcional junto a
+     la fecha (campo `hora`, HH:MM) — permite un contador relativo más
+     preciso ("en 3 horas" en vez de solo "hoy"). Se agrega
+     tiempoRelativo(), que calcula el texto ("hace 2 días" / "hoy" /
+     "en 5 horas" / "en 3 días") comparando contra la hora real del
+     dispositivo — recalculado cada vez que se abre la página, no un
+     timer corriendo en segundo plano (JS no corre en background sin
+     Service Worker, y este ecosistema no tiene uno). (2) Badge de
+     estado (Vencido/Hoy/Próximo) junto a cada nota con fecha, mismo
+     criterio que esFechaVencida() de utils.js. (3) Checklist opcional
+     por nota: array `subitems` [{id, texto, hecho}], con input para
+     agregar y checkboxes para marcar — colapsado si la nota no tiene
+     ninguno. No se tocó crearRecordatorio() más allá de sumar `hora`,
+     ni limpiarCompletados(), ni la edición de texto existente.
      V1.2: tres mejoras a pedido del usuario. (1) Editar texto: lápiz en
      cada nota abre el mismo bloque en modo edición (textarea +
      guardar/cancelar), update() sobre el mismo doc — no crea uno nuevo.
@@ -135,6 +168,33 @@ h2.titulo{font-family:var(--T);font-size:1.4rem;color:var(--gold);margin-bottom:
 }
 .badge-vis.personal{background:var(--gold-bg);color:var(--gold);}
 .badge-vis.equipo{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge-estado{
+  font-size:0.65rem;padding:2px 8px;border-radius:20px;font-weight:600;
+  letter-spacing:0.03em;text-transform:uppercase;
+}
+.badge-estado.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.badge-estado.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge-estado.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.nota-meta .relativo{color:var(--muted);font-style:italic;}
+.chevron-checklist{
+  background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem;
+  padding:10px 10px;margin:-8px -8px;border-radius:8px;white-space:nowrap;min-height:44px;
+  display:inline-flex;align-items:center;
+}
+.chevron-checklist:hover{background:var(--surf-light);color:var(--gold);}
+.checklist{display:flex;flex-direction:column;gap:2px;margin-top:10px;}
+.checklist-item{display:flex;align-items:center;gap:10px;font-size:0.85rem;min-height:44px;}
+.checklist-item input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--gold);}
+.checklist-item span{flex:1;}
+.checklist-item.hecho span{text-decoration:line-through;color:var(--faint);}
+.checklist-item .icon-btn{min-width:44px;min-height:44px;padding:2px;font-size:0.85rem;opacity:0.5;}
+.checklist-item .icon-btn:hover{opacity:1;}
+.checklist-add{margin-top:8px;}
+.checklist-add input{
+  width:100%;background:transparent;border:none;border-bottom:1px dashed var(--brd);
+  padding:4px 2px;color:var(--muted);font-size:0.8rem;font-family:var(--S);
+}
+.checklist-add input:focus{outline:none;border-bottom-color:var(--gold);color:var(--txt);}
 .nota-acciones{display:flex;gap:6px;flex-shrink:0;}
 .icon-btn{
   background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;
@@ -171,6 +231,10 @@ window.NAV_CONFIG = { activo: 'recordatorios' };
       <div class="form-row">
         <label>Fecha (opcional)</label>
         <input type="date" id="inputFecha">
+      </div>
+      <div class="form-row">
+        <label>Hora (opcional)</label>
+        <input type="time" id="inputHora">
       </div>
       <div class="form-row">
         <label>Visibilidad</label>
@@ -262,11 +326,14 @@ function crearRecordatorio(){
   const texto = document.getElementById('inputTexto').value.trim();
   if(!texto){ alert('Escribe el texto del recordatorio.'); return; }
   const fecha = document.getElementById('inputFecha').value || null;
+  const hora = document.getElementById('inputHora').value || null;
   const visibilidad = document.getElementById('inputVisibilidad').value;
 
   recordatoriosRef.add({
     texto,
     fecha,
+    hora,
+    subitems: [],
     visibilidad,
     completado: false,
     autorId: usuarioActual.uid,
@@ -275,6 +342,7 @@ function crearRecordatorio(){
   }).then(() => {
     document.getElementById('inputTexto').value = '';
     document.getElementById('inputFecha').value = '';
+    document.getElementById('inputHora').value = '';
     document.getElementById('inputVisibilidad').value = 'personal';
   }).catch(err => {
     console.error('Error creando recordatorio:', err);
@@ -310,6 +378,15 @@ function limpiarCompletados(){
 
 // ============ EDITAR (v1.2) ============
 let editandoId = null;
+// v1.6: qué notas tienen su checklist expandida — en memoria, empieza
+// colapsada, se resetea al recargar (no hace falta persistirlo).
+const checklistExpandida = new Set();
+
+function toggleChecklistExpandida(id){
+  if(checklistExpandida.has(id)) checklistExpandida.delete(id);
+  else checklistExpandida.add(id);
+  renderLista();
+}
 
 function iniciarEdicion(id){
   editandoId = id;
@@ -331,6 +408,34 @@ function guardarEdicion(id){
       alert('No se pudo guardar la edición.');
     });
 }
+
+// ============ CHECKLIST / SUBITEMS (v1.3) ============
+function agregarSubitem(id){
+  const input = document.getElementById('nuevoSubitem_' + id);
+  const texto = input.value.trim();
+  if(!texto) return;
+  const r = recordatorios.find(x => x.id === id);
+  const subitems = (r.subitems || []).concat([{ id: 'si_' + Date.now(), texto, hecho: false }]);
+  recordatoriosRef.doc(id).update({ subitems }).then(() => { input.value = ''; })
+    .catch(err => console.error('Error agregando sub-ítem:', err));
+}
+
+function toggleSubitem(id, subitemId){
+  const r = recordatorios.find(x => x.id === id);
+  const subitems = (r.subitems || []).map(s => s.id === subitemId ? { ...s, hecho: !s.hecho } : s);
+  recordatoriosRef.doc(id).update({ subitems })
+    .catch(err => console.error('Error actualizando sub-ítem:', err));
+}
+
+function borrarSubitem(id, subitemId){
+  const r = recordatorios.find(x => x.id === id);
+  const subitems = (r.subitems || []).filter(s => s.id !== subitemId);
+  recordatoriosRef.doc(id).update({ subitems })
+    .catch(err => console.error('Error borrando sub-ítem:', err));
+}
+
+// tiempoRelativo() y estadoRecordatorio() ahora viven en utils.js v1.4
+// (compartidas con el widget del Dashboard en index.html).
 
 // ============ FILTROS ============
 function cambiarFiltro(f){
@@ -381,16 +486,41 @@ function renderLista(){
           </div>
         </div>`;
     }
-    const vencida = esFechaVencida(r.fecha) && !r.completado;
+    const estado = !r.completado ? estadoRecordatorio(r.fecha) : null;
+    const relativo = !r.completado && r.fecha ? tiempoRelativo(r.fecha, r.hora) : null;
+    const subitems = r.subitems || [];
+    const expandida = checklistExpandida.has(r.id);
+    const hechos = subitems.filter(s => s.hecho).length;
+    const chevronHtml = subitems.length > 0
+      ? `<button class="chevron-checklist" onclick="toggleChecklistExpandida('${r.id}')">${expandida ? '▴' : '▾'} Lista (${hechos}/${subitems.length})</button>`
+      : '';
+    const subitemsHtml = subitems.length > 0 && expandida ? `
+        <div class="checklist">
+          ${subitems.map(s => `
+            <div class="checklist-item ${s.hecho ? 'hecho' : ''}">
+              <input type="checkbox" ${s.hecho ? 'checked' : ''} onchange="toggleSubitem('${r.id}','${s.id}')">
+              <span>${escapeHtml(s.texto)}</span>
+              <button class="icon-btn borrar" title="Quitar" onclick="borrarSubitem('${r.id}','${s.id}')">✕</button>
+            </div>`).join('')}
+        </div>` : '';
+    const mostrarInputAgregar = subitems.length === 0 || expandida;
     return `
     <div class="nota-item ${r.completado ? 'completado' : ''}">
       <div class="cuerpo">
         <div class="texto">${escapeHtml(r.texto)}</div>
         <div class="nota-meta">
-          ${r.fecha ? `<span class="fecha" style="${vencida ? 'color:var(--err);' : ''}">📅 ${fechaLegible(r.fecha)}</span>` : ''}
+          ${r.fecha ? `<span class="fecha" style="${estado && estado.clase === 'err' ? 'color:var(--err);' : ''}">📅 ${fechaLegible(r.fecha)}${r.hora ? ' · ⏰ ' + r.hora : ''}</span>` : ''}
+          ${estado ? `<span class="badge-estado ${estado.clase}">${estado.texto}</span>` : ''}
+          ${relativo ? `<span class="relativo">${relativo}</span>` : ''}
           <span class="badge-vis ${r.visibilidad}">${r.visibilidad === 'equipo' ? 'Equipo' : 'Solo yo'}</span>
           <span>${escapeHtml(r.autorNombre || '')}</span>
+          ${chevronHtml}
         </div>
+        ${subitemsHtml}
+        ${mostrarInputAgregar ? `
+        <div class="checklist-add">
+          <input type="text" id="nuevoSubitem_${r.id}" placeholder="+ agregar ítem a la lista" onkeydown="if(event.key==='Enter') agregarSubitem('${r.id}')">
+        </div>` : ''}
       </div>
       <div class="nota-acciones">
         <button class="icon-btn" title="Editar" onclick="iniciarEdicion('${r.id}')">✏️</button>

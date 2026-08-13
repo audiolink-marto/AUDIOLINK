@@ -4,7 +4,64 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.13
+<!-- AUDIOLINK · index.html · v2.19
+     V2.19: se simplifica el widget "RECORDATORIOS" de vuelta a solo
+     lectura — mismo patrón que Próximas Sesiones/Resumen Financiero/
+     Resumen Comercial (muestran estado, no dejan operar in-place). Se
+     retiran el chevron colapsable, el checklist inline y su toggle
+     (toggleExpandirDash, toggleSubitemDash, recoExpandidosDash de
+     v2.17), y el texto de tiempo relativo (v2.16) — para bajar la
+     densidad visual de la card. Se mantiene: texto, badge de estado
+     (Vencido/Hoy/Próximo), fecha + hora con ⏰. El clic en la card
+     sigue llevando a recordatorios.html, donde vive toda la gestión
+     interactiva (checklist, edición, etc. — sin cambios ahí). No se
+     tocó el calendario ni el banner de vencidos.
+     V2.18: dos ajustes de amabilidad mobile en el widget de
+     Recordatorios. (1) Área táctil del chevron (▾ N/M) y de los
+     checkboxes del checklist inline sube a mínimo 44px (antes 2px 6px
+     de padding y 15px de checkbox — muy chico para dedo). (2) las
+     notas con hora ahora muestran ⏰ antes de la hora, para distinguir
+     de un vistazo "tiene fecha" vs "tiene hora específica" (antes era
+     el mismo texto/tamaño que la fecha, fácil de pasar por alto). No
+     se tocó la lógica de datos, solo CSS + una línea de template string.
+     V2.17: cuando un recordatorio del widget del Dashboard tiene
+     checklist (subitems), aparece un chevron "▾" a la derecha — clic
+     ahí (no en la card) despliega la lista de sub-ítems inline, con
+     checkboxes funcionales que actualizan Firestore directo (mismo
+     patrón que toggleSubitem() de recordatorios.html), sin navegar a
+     recordatorios.html. El clic en el resto de la card sigue llevando
+     a recordatorios.html como antes (para agregar ítems nuevos, que
+     sigue siendo más rápido allá). Nuevo Set `recoExpandidosDash` en
+     memoria (se resetea al recargar, no persiste — no hace falta).
+     Todos los stopPropagation() necesarios para que abrir/cerrar o
+     marcar un check no dispare la navegación de la card. No se tocó
+     el resto de renderRecordatoriosDash() ni ninguna otra función.
+     V2.16: el widget "RECORDATORIOS" del Dashboard ahora muestra el
+     mismo badge de estado (Vencido/Hoy/Próximo) y texto de tiempo
+     relativo ("en 3 días", "hace 2 h") que ya tenía la lista completa
+     en recordatorios.html (v1.3) — antes el widget solo pintaba la
+     fecha en rojo si estaba vencida, sin badge ni texto. Usa
+     tiempoRelativo() y estadoRecordatorio(), centralizadas ahora en
+     utils.js v1.4. No se tocó el resto de renderRecordatoriosDash() ni
+     el límite de 5 recordatorios mostrados.
+     V2.15: el día que se clickea en el calendario ahora queda resaltado
+     con un color distinto (turquesa #2dd4bf, el mismo acento que ya usa
+     el módulo Vacas) hasta que se elige otro día — antes no había forma
+     visual de saber cuál día abrió el detalle de abajo. Nueva variable
+     diaSeleccionado, nueva clase .cal-day.seleccionado (no pisa
+     .today, que sigue siendo dorado). mostrarDia() ahora también
+     re-renderiza el calendario para reflejar la selección. No se tocó
+     el resto de renderCalendario() ni mostrarDia().
+     V2.14: dos ajustes de legibilidad/mobile a pedido del usuario. (1)
+     .dia-acciones-rapidas pasa de links de texto plano a botones tipo
+     icon-card (ícono + texto, mismo estilo de fondo/borde que el resto
+     de botones del ecosistema), con min-height 44px para mejor área
+     táctil en mobile. (2) se sube el tamaño de fuente de .cal-legend
+     (0.7rem→0.78rem) y de los items del detalle del día (.dia-detalle
+     .item y .fecha-titulo, +0.05rem cada uno) — antes no tenían ningún
+     ajuste para mobile y se veían pequeños en pantallas chicas. No se
+     tocó el tamaño de los números del calendario (.cal-day) ni ninguna
+     otra sección.
      V2.13: actualizarAlertaRecosVencidos() y renderRecordatoriosDash()
      ahora usan esFechaVencida() de utils.js (v1.3) en vez de comparar
      strings de fecha sueltas acá — mismo resultado, un solo lugar donde
@@ -253,6 +310,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .cal-day:not(.out){cursor:pointer;}
 .cal-day:not(.out):hover{border-color:var(--gold);}
 .cal-day.today{border-color:var(--gold);}
+.cal-day.seleccionado{border-color:#2dd4bf;background:rgba(45,212,191,0.12);}
 .cal-dots{display:flex;gap:2px;margin-top:3px;}
 .dot{width:5px;height:5px;border-radius:50%;}
 .dot.ok{background:var(--ok);}
@@ -260,7 +318,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .dot.err{background:var(--err);}
 .dot.sesion{background:var(--gold);border-radius:1px;transform:rotate(45deg);}
 .dot.reco{background:var(--muted);border-radius:0;clip-path:polygon(50% 0%, 0% 100%, 100% 100%);}
-.cal-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.7rem;color:var(--muted);}
+.cal-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.78rem;color:var(--muted);}
 .cal-legend span{display:inline-flex;align-items:center;gap:4px;}
 .cal-legend i{width:6px;height:6px;border-radius:50%;display:inline-block;}
 .cal-legend i.ok{background:var(--ok);}
@@ -272,11 +330,17 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 /* Detalle día */
 .dia-detalle{margin-top:16px;padding:14px;background:var(--surf-light);border-radius:8px;border-left:2px solid var(--gold);display:none;}
 .dia-detalle.active{display:block;}
-.dia-detalle .fecha-titulo{font-size:0.8rem;color:var(--gold);margin-bottom:8px;font-weight:600;}
-.dia-detalle .item{font-size:0.85rem;padding:6px 0;border-bottom:1px solid var(--brd);cursor:pointer;}
-.dia-acciones-rapidas{display:flex;flex-direction:column;gap:6px;margin-top:12px;}
-.dia-acciones-rapidas .link-add{font-size:0.8rem;color:var(--gold);text-decoration:none;}
-.dia-acciones-rapidas .link-add:hover{text-decoration:underline;}
+.dia-detalle .fecha-titulo{font-size:0.85rem;color:var(--gold);margin-bottom:8px;font-weight:600;}
+.dia-detalle .item{font-size:0.9rem;padding:6px 0;border-bottom:1px solid var(--brd);cursor:pointer;}
+.dia-acciones-rapidas{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+.dia-acciones-rapidas .accion-card{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:44px;
+  background:var(--surf);border:1px solid var(--brd);border-radius:8px;
+  color:var(--gold);text-decoration:none;font-size:0.88rem;font-weight:500;
+  transition:border-color 0.15s,background 0.15s;
+}
+.dia-acciones-rapidas .accion-card:hover{border-color:var(--gold);background:var(--gold-bg);}
+.dia-acciones-rapidas .accion-card .icono{font-size:1.1rem;flex-shrink:0;}
 .dia-detalle .item:last-child{border-bottom:none;}
 .dia-detalle .item:hover{color:var(--gold);}
 
@@ -320,17 +384,26 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .sesion-item .sub{font-size:0.75rem;color:var(--muted);margin-top:2px;}
 .sesion-item .fecha{font-size:0.75rem;color:var(--gold);white-space:nowrap;}
 
-/* Recordatorios (v2.8) */
+/* Recordatorios (v2.8, meta ampliada v2.16) */
 .reco-item{
   display:flex;justify-content:space-between;align-items:center;gap:10px;
   padding:12px 14px;border-radius:8px;background:var(--surf-light);
   margin-bottom:8px;cursor:pointer;transition:all 0.2s;border:1px solid transparent;
+  flex-wrap:wrap;
 }
 .reco-item:hover{border-color:var(--gold);}
 .reco-item.completado{opacity:0.5;}
 .reco-item .texto{font-size:0.88rem;}
 .reco-item.completado .texto{text-decoration:line-through;}
-.reco-item .fecha{font-size:0.75rem;color:var(--gold);white-space:nowrap;flex-shrink:0;}
+.reco-item .fecha{font-size:0.75rem;color:var(--gold);white-space:nowrap;}
+.reco-item-meta{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
+.badge-estado-mini{
+  font-size:0.62rem;padding:2px 7px;border-radius:20px;font-weight:600;
+  letter-spacing:0.03em;text-transform:uppercase;white-space:nowrap;
+}
+.badge-estado-mini.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.badge-estado-mini.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge-estado-mini.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
 .reco-sinfecha{
   margin-top:10px;padding-top:10px;border-top:1px solid var(--brd);
   font-size:0.8rem;color:var(--muted);cursor:pointer;
@@ -722,11 +795,14 @@ function renderRecordatoriosDash(){
     cont.innerHTML = conFecha.map(r => {
       const [y, m, d] = r.fecha.split('-');
       const fechaLegible = new Date(y, m - 1, d).toLocaleDateString('es-CO', { day:'numeric', month:'short' });
-      const vencida = esFechaVencida(r.fecha);
+      const estado = estadoRecordatorio(r.fecha);
       return `
         <div class="reco-item" onclick="window.location.href='recordatorios.html'">
           <span class="texto">📝 ${escapeHtml(r.texto)}</span>
-          <span class="fecha" style="${vencida ? 'color:var(--err);' : ''}">${fechaLegible}</span>
+          <span class="reco-item-meta">
+            ${estado ? `<span class="badge-estado-mini ${estado.clase}">${estado.texto}</span>` : ''}
+            <span class="fecha" style="${estado && estado.clase === 'err' ? 'color:var(--err);' : ''}">${fechaLegible}${r.hora ? ' · ⏰ ' + r.hora : ''}</span>
+          </span>
         </div>`;
     }).join('');
   }
@@ -840,9 +916,10 @@ function renderCalendario(){
     if(c.out) return `<div class="cal-day out">${''}</div>`;
     const esHoy = c.fecha === hoyStr;
     const tieneEventos = c.eventos.length > 0;
+    const seleccionado = c.fecha === diaSeleccionado;
     const dots = c.eventos.slice(0,4).map(e => `<span class="dot ${e.tipo === 'sesion' ? 'sesion' : e.tipo === 'reco' ? 'reco' : e.estado}"></span>`).join('');
     return `
-      <div class="cal-day ${esHoy ? 'today' : ''} ${tieneEventos ? 'tiene-evento' : ''}"
+      <div class="cal-day ${esHoy ? 'today' : ''} ${tieneEventos ? 'tiene-evento' : ''} ${seleccionado ? 'seleccionado' : ''}"
            onclick="mostrarDia('${c.fecha}')">
         ${c.num}
         ${tieneEventos ? `<div class="cal-dots">${dots}</div>` : ''}
@@ -854,8 +931,11 @@ function renderCalendario(){
 // aquí para que el detalle del día no se desincronice del texto de la
 // leyenda si algún día se cambia una palabra.
 const ESTADO_CAL_LABEL = { ok: 'Al día', warn: 'Por confirmar', err: 'Vencido' };
+let diaSeleccionado = null;
 
 function mostrarDia(fechaStr){
+  diaSeleccionado = fechaStr;
+  renderCalendario();
   const eventos = eventosPorFecha()[fechaStr] || [];
   const det = document.getElementById('diaDetalle');
   const [y,m,d] = fechaStr.split('-');
@@ -869,8 +949,8 @@ function mostrarDia(fechaStr){
       : `<div class="item" onclick="irAProyecto('${e.id}')">📁 ${escapeHtml(e.nombre)} — entrega estimada · ${ESTADO_CAL_LABEL[e.estado] || e.estado}</div>`
     ).join('')}
     <div class="dia-acciones-rapidas">
-      <a href="recordatorios.html?fecha=${fechaStr}" class="link-add">+ Nuevo recordatorio este día</a>
-      <a href="proyecto.html?fecha=${fechaStr}" class="link-add">+ Proyecto / sesión este día</a>
+      <a href="recordatorios.html?fecha=${fechaStr}" class="accion-card"><span class="icono">📝</span> Nuevo recordatorio este día</a>
+      <a href="proyecto.html?fecha=${fechaStr}" class="accion-card"><span class="icono">📁</span> Proyecto / sesión este día</a>
     </div>
   `;
   det.classList.add('active');
