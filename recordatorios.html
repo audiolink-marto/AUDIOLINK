@@ -4,7 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Recordatorios</title>
-<!-- AUDIOLINK · recordatorios.html · v1.6
+<!-- AUDIOLINK · recordatorios.html · v1.8
+     V1.8: monto opcional por ítem de checklist — útil para listas de
+     compras en logística (ej. "Cables XLR" + $45.000), sin ensuciar
+     checklists normales que no lo necesitan (campo opcional, si nadie
+     lo usa no se muestra ningún total). Input de monto compacto junto
+     al de texto al agregar (usa formatCOP() de utils.js, ya existente).
+     Cuando al menos un ítem tiene monto, aparece un footer de totales
+     dentro de la checklist expandida: "Total" (todos los ítems con
+     monto) y "Pendiente" (solo los no marcados con monto) — separado
+     con borde superior para distinguirlo de la lista. Ajustes mobile:
+     el input de monto usa inputmode="numeric" (teclado numérico en
+     mobile) y min-height:44px como el resto de controles del módulo.
+     No se tocó toggleSubitem() ni borrarSubitem(), solo agregarSubitem()
+     (ahora también lee el monto) y el render.
+     V1.7: la sección de checklist no se distinguía bien del resto de
+     la meta (chevron era texto gris chico, se perdía entre badges).
+     Se le da al chevron fondo/borde propio (deja de ser texto suelto,
+     ahora se ve como un botón real, con ícono ☑️) y se mueve fuera de
+     la fila de .nota-meta a su propia línea. El bloque .checklist
+     expandido ahora tiene borde superior + fondo propio para separarse
+     visualmente del resto de la nota. No se tocó la lógica.
      V1.6: la checklist de cada nota ahora es colapsable — antes se
      mostraba siempre abierta si tenía ítems. Nuevo botón chevron junto
      al badge de visibilidad, tipo "▾ Lista (2/5)", que expande/colapsa
@@ -177,23 +197,35 @@ h2.titulo{font-family:var(--T);font-size:1.4rem;color:var(--gold);margin-bottom:
 .badge-estado.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
 .nota-meta .relativo{color:var(--muted);font-style:italic;}
 .chevron-checklist{
-  background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem;
-  padding:10px 10px;margin:-8px -8px;border-radius:8px;white-space:nowrap;min-height:44px;
-  display:inline-flex;align-items:center;
+  background:var(--surf);border:1px solid var(--brd);color:var(--muted);cursor:pointer;
+  font-size:0.78rem;font-weight:500;padding:10px 12px;border-radius:8px;white-space:nowrap;
+  min-height:44px;display:inline-flex;align-items:center;gap:4px;margin-top:10px;
 }
-.chevron-checklist:hover{background:var(--surf-light);color:var(--gold);}
-.checklist{display:flex;flex-direction:column;gap:2px;margin-top:10px;}
+.chevron-checklist:hover{border-color:var(--gold);color:var(--gold);}
+.checklist{
+  display:flex;flex-direction:column;gap:2px;margin-top:8px;padding:10px 4px 4px;
+  border-top:1px dashed var(--brd);
+}
 .checklist-item{display:flex;align-items:center;gap:10px;font-size:0.85rem;min-height:44px;}
 .checklist-item input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--gold);}
 .checklist-item span{flex:1;}
 .checklist-item.hecho span{text-decoration:line-through;color:var(--faint);}
+.checklist-item .checklist-monto{flex:none;color:var(--gold);font-size:0.8rem;white-space:nowrap;}
+.checklist-item.hecho .checklist-monto{color:var(--faint);text-decoration:line-through;}
 .checklist-item .icon-btn{min-width:44px;min-height:44px;padding:2px;font-size:0.85rem;opacity:0.5;}
 .checklist-item .icon-btn:hover{opacity:1;}
-.checklist-add{margin-top:8px;}
-.checklist-add input{
-  width:100%;background:transparent;border:none;border-bottom:1px dashed var(--brd);
-  padding:4px 2px;color:var(--muted);font-size:0.8rem;font-family:var(--S);
+.checklist-totales{
+  display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;padding-top:8px;
+  border-top:1px dashed var(--brd);font-size:0.8rem;color:var(--muted);
 }
+.checklist-totales strong{color:var(--gold);font-weight:600;}
+.checklist-add{display:flex;gap:8px;margin-top:8px;}
+.checklist-add input{
+  background:transparent;border:none;border-bottom:1px dashed var(--brd);
+  padding:10px 2px;color:var(--muted);font-size:0.85rem;font-family:var(--S);min-height:44px;
+}
+.checklist-add input[type="text"]{flex:1;min-width:0;}
+.checklist-add-monto{width:100px;flex-shrink:0;}
 .checklist-add input:focus{outline:none;border-bottom-color:var(--gold);color:var(--txt);}
 .nota-acciones{display:flex;gap:6px;flex-shrink:0;}
 .icon-btn{
@@ -412,12 +444,16 @@ function guardarEdicion(id){
 // ============ CHECKLIST / SUBITEMS (v1.3) ============
 function agregarSubitem(id){
   const input = document.getElementById('nuevoSubitem_' + id);
+  const inputMonto = document.getElementById('nuevoSubitemMonto_' + id);
   const texto = input.value.trim();
   if(!texto) return;
+  const monto = inputMonto && inputMonto.value ? Number(inputMonto.value) : null;
   const r = recordatorios.find(x => x.id === id);
-  const subitems = (r.subitems || []).concat([{ id: 'si_' + Date.now(), texto, hecho: false }]);
-  recordatoriosRef.doc(id).update({ subitems }).then(() => { input.value = ''; })
-    .catch(err => console.error('Error agregando sub-ítem:', err));
+  const subitems = (r.subitems || []).concat([{ id: 'si_' + Date.now(), texto, hecho: false, monto: (monto && monto > 0) ? monto : null }]);
+  recordatoriosRef.doc(id).update({ subitems }).then(() => {
+    input.value = '';
+    if(inputMonto) inputMonto.value = '';
+  }).catch(err => console.error('Error agregando sub-ítem:', err));
 }
 
 function toggleSubitem(id, subitemId){
@@ -492,16 +528,26 @@ function renderLista(){
     const expandida = checklistExpandida.has(r.id);
     const hechos = subitems.filter(s => s.hecho).length;
     const chevronHtml = subitems.length > 0
-      ? `<button class="chevron-checklist" onclick="toggleChecklistExpandida('${r.id}')">${expandida ? '▴' : '▾'} Lista (${hechos}/${subitems.length})</button>`
+      ? `<button class="chevron-checklist" onclick="toggleChecklistExpandida('${r.id}')">☑️ ${expandida ? '▴' : '▾'} Lista (${hechos}/${subitems.length})</button>`
       : '';
+    const totalGeneral = subitems.reduce((sum, s) => sum + (s.monto || 0), 0);
+    const totalPendiente = subitems.filter(s => !s.hecho).reduce((sum, s) => sum + (s.monto || 0), 0);
+    const hayMontos = totalGeneral > 0;
+    const totalesHtml = hayMontos ? `
+        <div class="checklist-totales">
+          <span>Total: <strong>${formatCOP(totalGeneral)}</strong></span>
+          <span>Pendiente: <strong>${formatCOP(totalPendiente)}</strong></span>
+        </div>` : '';
     const subitemsHtml = subitems.length > 0 && expandida ? `
         <div class="checklist">
           ${subitems.map(s => `
             <div class="checklist-item ${s.hecho ? 'hecho' : ''}">
               <input type="checkbox" ${s.hecho ? 'checked' : ''} onchange="toggleSubitem('${r.id}','${s.id}')">
               <span>${escapeHtml(s.texto)}</span>
+              ${s.monto ? `<span class="checklist-monto">${formatCOP(s.monto)}</span>` : ''}
               <button class="icon-btn borrar" title="Quitar" onclick="borrarSubitem('${r.id}','${s.id}')">✕</button>
             </div>`).join('')}
+          ${totalesHtml}
         </div>` : '';
     const mostrarInputAgregar = subitems.length === 0 || expandida;
     return `
@@ -514,12 +560,13 @@ function renderLista(){
           ${relativo ? `<span class="relativo">${relativo}</span>` : ''}
           <span class="badge-vis ${r.visibilidad}">${r.visibilidad === 'equipo' ? 'Equipo' : 'Solo yo'}</span>
           <span>${escapeHtml(r.autorNombre || '')}</span>
-          ${chevronHtml}
         </div>
+        ${chevronHtml}
         ${subitemsHtml}
         ${mostrarInputAgregar ? `
         <div class="checklist-add">
           <input type="text" id="nuevoSubitem_${r.id}" placeholder="+ agregar ítem a la lista" onkeydown="if(event.key==='Enter') agregarSubitem('${r.id}')">
+          <input type="number" inputmode="numeric" id="nuevoSubitemMonto_${r.id}" placeholder="$ (opcional)" class="checklist-add-monto" onkeydown="if(event.key==='Enter') agregarSubitem('${r.id}')">
         </div>` : ''}
       </div>
       <div class="nota-acciones">
