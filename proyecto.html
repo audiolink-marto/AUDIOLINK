@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.25
+<!-- AUDIOLINK · proyecto.html · v5.26
+     v5.26: se activa Firestore offline persistence (db.enablePersistence())
+     — piloto del ecosistema, primer archivo en probarlo antes de
+     replicarlo a logistica.html/bitacora.html/etc. Cachea lecturas
+     recientes en IndexedDB y encola escrituras si se corta el wifi a
+     mitad de sesión (ej. en ICESI); sincroniza solo al volver la señal.
+     Se maneja el error 'failed-precondition' (ya hay otra pestaña de
+     Audiolink abierta en este navegador — la persistencia solo puede
+     estar activa en una a la vez, no rompe nada, solo esa pestaña no
+     cachea) y 'unimplemented' (navegador sin soporte — mismo caso,
+     sigue funcionando en modo online normal). No cambia ninguna otra
+     lógica de listeners, guardarProyecto() ni el resto del archivo.
      v5.25: se corrige v5.24 — llegar con ?fecha= ya no abre automático
      el modal "Nuevo Proyecto" (asumía que siempre querías crear uno
      nuevo, cuando muchas veces la intención es agregar SESIÓN a un
@@ -1443,6 +1454,18 @@ window.NAV_CONFIG = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+
+// v5.26: offline persistence (piloto del ecosistema). Si falla, la app
+// sigue funcionando normal en modo online — solo no cachea offline.
+db.enablePersistence().catch(err => {
+  if(err.code === 'failed-precondition'){
+    console.warn('Persistencia offline no activada: ya hay otra pestaña de Audiolink abierta en este navegador.');
+  } else if(err.code === 'unimplemented'){
+    console.warn('Persistencia offline no soportada en este navegador.');
+  } else {
+    console.error('Error activando persistencia offline:', err);
+  }
+});
 // v4.1: comentado — Firebase Storage requiere plan Blaze, no activado.
 // const storage = firebase.storage(); // v4.0 — audio de Producción musical
 const proyectosRef = db.collection('proyectos');
