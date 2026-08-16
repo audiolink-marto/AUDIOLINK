@@ -1,4 +1,15 @@
-/* AUDIOLINK · nav.js · v1.14
+/* AUDIOLINK · nav.js · v1.15
+   V1.15: el indicador de conexión (.conn-dot) ahora distingue DOS
+   casos que antes se mezclaban en uno solo ("sin conexión"): (1) sin
+   internet real (navigator.onLine), y (2) modo offline ACTIVADO A
+   PROPÓSITO por el usuario (switch de index.html v2.22), aunque SÍ
+   haya internet real — antes el punto quedaba verde en este segundo
+   caso, confuso al verificar en qué modo está la app. Nueva clase
+   `conn-modo-offline` en <body> (además de la ya existente
+   `conn-offline`), CSS define el color/animación de cada estado (ver
+   nav.css v1.12). El banner inferior también distingue el mensaje
+   según el caso. No se tocó ninguna otra función existente.
+
    V1.14: fix — el banner de sin conexión a veces no desaparecía solo
    al recuperar señal (había que recargar la página), mientras el punto
    de estado (v1.13) sí se actualizaba. Los eventos nativos 'online'/
@@ -382,21 +393,49 @@
     const t = localStorage.getItem('audiolink_tema') || 'dark';
     actualizarIconoTema(t);
   });
-  // ============ INDICADOR SIN CONEXIÓN (v1.11) ============
+  // ============ INDICADOR SIN CONEXIÓN (v1.11) / MODO OFFLINE (v1.15) ============
   function crearBannerOffline(){
     if(document.getElementById('offlineBanner')) return;
     const banner = document.createElement('div');
     banner.id = 'offlineBanner';
     banner.className = 'offline-banner';
-    banner.textContent = '🔴 Sin conexión — los cambios se guardarán al recuperar señal';
     document.body.appendChild(banner);
+  }
+  // v1.15: distingue dos casos antes mezclados en uno solo ("conn-offline"):
+  // (1) sin internet real (navigator.onLine === false) — como siempre.
+  // (2) modo offline ACTIVADO A PROPÓSITO por el usuario (switch de
+  // index.html v2.22/firebase-config.js v1.2 AUDIOLINK_OFFLINE_OVERRIDE),
+  // aunque SÍ haya internet real. Antes el puntito quedaba verde en este
+  // segundo caso porque solo miraba navigator.onLine, sin saber nada del
+  // modo manual — confuso para verificar visualmente en qué modo está la
+  // app. estaModoOfflineActivo() vive en firebase-config.js; si esa
+  // función no existe todavía (orden de scripts, o página sin
+  // firebase-config.js cargado), se asume false sin romper nada.
+  function _modoOfflineManualActivo(){
+    try{
+      return typeof estaModoOfflineActivo === 'function' && estaModoOfflineActivo();
+    }catch(err){ return false; }
   }
   function actualizarEstadoConexion(){
     crearBannerOffline();
     const banner = document.getElementById('offlineBanner');
-    const offline = !navigator.onLine;
-    if(banner) banner.classList.toggle('show', offline);
-    document.body.classList.toggle('conn-offline', offline);
+    const sinInternet = !navigator.onLine;
+    const modoOfflineManual = _modoOfflineManualActivo();
+
+    document.body.classList.toggle('conn-offline', sinInternet);
+    document.body.classList.toggle('conn-modo-offline', !sinInternet && modoOfflineManual);
+
+    if(banner){
+      if(sinInternet){
+        banner.textContent = '🔴 Sin conexión — los cambios se guardarán al recuperar señal';
+        banner.classList.add('show');
+      } else if(modoOfflineManual){
+        banner.textContent = '🟡 Modo offline activo — usando datos cargados localmente';
+        banner.classList.add('show');
+      } else {
+        banner.classList.remove('show');
+      }
+    }
   }
   window.addEventListener('online', actualizarEstadoConexion);
   window.addEventListener('offline', actualizarEstadoConexion);

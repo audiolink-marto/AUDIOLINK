@@ -3,8 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación (v2.71)</title>
-<!-- AUDIOLINK · bitacora.html · v2.72
+<title>Audiolink — Bitácora de Grabación (v2.73)</title>
+<!-- AUDIOLINK · bitacora.html · v2.73
+     v2.73: se migra al patrón offline Fase 1 (mismo cambio que index.html
+     v2.21, proyecto.html v5.34, logistica.html v2.72) — se agrega
+     <script src="offline-mock.js"> en el <head> (antes de
+     firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+     (default), crearDB() devuelve firebase.firestore() real — cero
+     cambio de comportamiento. No se tocó enablePersistence() (v2.72),
+     auth ni ninguna otra lógica.
      v2.72: se activa Firestore offline persistence (db.enablePersistence())
      — mismo patrón que proyecto.html v5.26 (piloto ya validado), ahora
      replicado acá porque bitácora es donde el ingeniero toma notas en
@@ -344,6 +352,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <style>
@@ -1063,7 +1072,7 @@ if(origenNav === 'ingeniero'){
 }
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = crearDB();
 const auth = firebase.auth();
 
 // v2.72: offline persistence (mismo patrón validado en proyecto.html

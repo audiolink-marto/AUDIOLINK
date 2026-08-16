@@ -4,7 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.23
+<!-- AUDIOLINK · index.html · v2.24
+     v2.24: se agrega el botón "📦 Descargar catálogos" al panel "MODO
+     OFFLINE", junto al botón de carga — mismo patrón que
+     descargarProyectoOffline() (proyecto.html v5.33): .get() de una
+     sola vez (no onSnapshot) sobre las 3 colecciones raíz de catálogo
+     (musicos, equipoTecnico, estudios) y descarga como .json con
+     tipoArchivo: 'audiolink_catalogos_offline' — el mismo esquema que
+     ya lee cargarArchivoOffline() en offline-mock.js. Solo lectura, no
+     modifica Firestore. No se tocó musicos.html, equipo-tecnico.html
+     ni estudios.html.
      v2.23: el guard de sesión (auth.onAuthStateChanged) se salta por
      completo cuando estaModoOfflineActivo() es true (firebase-config.js
      v1.3) — antes, en modo offline, siempre mandaba a login.html porque
@@ -601,6 +610,7 @@ window.NAV_CONFIG = { activo: 'dashboard' };
     <div style="margin-top:14px;">
       <input type="file" id="inputArchivoOffline" accept=".json" multiple style="display:none;" onchange="manejarCargaArchivoOffline(this.files)">
       <button class="btn btn-ghost" onclick="document.getElementById('inputArchivoOffline').click()">📂 Cargar archivo(s) offline</button>
+      <button class="btn btn-ghost" onclick="descargarCatalogosOffline()">📦 Descargar catálogos</button>
       <div id="estadoArchivoOffline" style="margin-top:10px; font-size:0.9em;"></div>
     </div>
   </div>
@@ -636,6 +646,53 @@ async function manejarCargaArchivoOffline(fileList){
   const resumen = await cargarArchivoOffline(fileList);
   estado.innerHTML = resumen.map(linea => `<div>${linea}</div>`).join('');
   document.getElementById('inputArchivoOffline').value = '';
+}
+
+// v2.24 — Fase 1 de modo offline (ver ARQUITECTURA.md sección 5).
+// Descarga los 3 catálogos raíz (musicos, equipoTecnico, estudios) en
+// un solo .json, mismo patrón que descargarProyectoOffline()
+// (proyecto.html v5.33): .get() de una sola vez, no onSnapshot — no
+// hace falta estar viendo cambios en vivo para un archivo que se va a
+// llevar offline. Solo lectura: no modifica nada en Firestore.
+async function descargarCatalogosOffline(){
+  const boton = event?.target;
+  const textoOriginal = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = '⏳ Descargando...'; }
+
+  try{
+    const [musicosSnap, equipoTecnicoSnap, estudiosSnap] = await Promise.all([
+      db.collection('musicos').get(),
+      db.collection('equipoTecnico').get(),
+      db.collection('estudios').get()
+    ]);
+
+    const paquete = {
+      tipoArchivo: 'audiolink_catalogos_offline',
+      version: 1,
+      fechaDescarga: new Date().toISOString(),
+      musicos: musicosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      equipoTecnico: equipoTecnicoSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      estudios: estudiosSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    };
+
+    const fechaArchivo = new Date().toISOString().split('T')[0];
+    const nombreArchivo = `audiolink_catalogos_${fechaArchivo}.json`;
+
+    const blob = new Blob([JSON.stringify(paquete, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(err){
+    console.error('Error descargando catálogos para offline:', err);
+    alert('No se pudo descargar los catálogos. Revisa la consola para más detalle.');
+  }finally{
+    if(boton){ boton.disabled = false; boton.textContent = textoOriginal; }
+  }
 }
 
 // v2.22 — switch visual del modo offline (antes solo se podía cambiar

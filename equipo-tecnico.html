@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Equipo Técnico</title>
-<!-- AUDIOLINK · equipo-tecnico.html · v1.6
+<!-- AUDIOLINK · equipo-tecnico.html · v1.7
+     v1.7: se migra al patrón offline Fase 1 (mismo cambio que
+     index.html v2.21, proyecto.html v5.34, logistica.html v2.72) — se
+     agrega <script src="offline-mock.js"> en el <head> (antes de
+     firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+     (default), crearDB() devuelve firebase.firestore() real — cero
+     cambio de comportamiento. No se tocó ninguna otra lógica.
      v1.6: mismo cambio que musicos.html v2.0 — mitigación de costo de
      collectionGroup('sesiones'): (1) botón manual "🔄 Calcular
      registrado" en vez de disparo automático; (2) caché en localStorage
@@ -73,6 +80,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script>
@@ -339,7 +347,7 @@ window.NAV_CONFIG = { activo: 'equipo-tecnico' };
 <script>
 // ============ FIREBASE CONFIG ============
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = crearDB();
 const auth = firebase.auth();
 const equipoTecnicoRef = db.collection('equipoTecnico');
 const egresosRefTec = db.collection('egresos'); // v1.3: solo lectura, para "Total pagado"

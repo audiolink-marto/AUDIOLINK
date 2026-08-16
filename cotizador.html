@@ -3,8 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V9.55</title>
-<!-- AUDIOLINK · cotizador.html · v9.55
+<title>AUDIOLINK - Central de Operaciones & Cotizador V9.56</title>
+<!-- AUDIOLINK · cotizador.html · v9.56
+     v9.56: se migra al patrón offline Fase 1 (mismo cambio que
+     index.html v2.21, proyecto.html v5.34, logistica.html v2.72) — se
+     agrega <script src="offline-mock.js"> en el <head> (antes de
+     firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+     (default), crearDB() devuelve firebase.firestore() real — cero
+     cambio de comportamiento. No se tocó ninguna otra lógica.
      V9.55 (a pedido del usuario, sobre v9.54): dos mejoras al Catálogo
      Avalado de Backline, SIN tocar reglas de Firestore (quedan en
      v2.13, allow read/write genérico para esStaff() — el angostamiento
@@ -42,6 +49,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script>
@@ -2084,7 +2092,7 @@ window.onload = function() {
 /* firebaseConfig ahora vive en firebase-config.js (ecosistema compartido) */
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = firebase.firestore();
+const db = crearDB();
 const proyectosRef = db.collection('proyectos');
 
 let proyectoVinculadoId = null;

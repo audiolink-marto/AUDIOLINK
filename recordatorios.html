@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Recordatorios</title>
-<!-- AUDIOLINK · recordatorios.html · v1.8
+<!-- AUDIOLINK · recordatorios.html · v1.9
+     v1.9: se migra al patrón offline Fase 1 (mismo cambio que index.html
+     v2.21, proyecto.html v5.34, logistica.html v2.72) — se agrega
+     <script src="offline-mock.js"> en el <head> (antes de
+     firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+     (default), crearDB() devuelve firebase.firestore() real — cero
+     cambio de comportamiento. No se tocó ninguna otra lógica.
      V1.8: monto opcional por ítem de checklist — útil para listas de
      compras en logística (ej. "Cables XLR" + $45.000), sin ensuciar
      checklists normales que no lo necesitan (campo opcional, si nadie
@@ -86,6 +93,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script>
@@ -299,7 +307,7 @@ window.NAV_CONFIG = { activo: 'recordatorios' };
 
 <script>
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = crearDB();
 const auth = firebase.auth();
 const recordatoriosRef = db.collection('recordatorios');
 

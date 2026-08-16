@@ -3,8 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.70)</title>
-<!-- AUDIOLINK · logistica.html · v2.71
+<title>Audiolink — Logística (v2.72)</title>
+<!-- AUDIOLINK · logistica.html · v2.72
+     v2.72: se migra al patrón offline Fase 1 (mismo cambio que index.html
+     v2.21 y proyecto.html v5.34) — se agrega <script src="offline-mock.js">
+     en el <head> (antes de firebase-config.js) y se cambia
+     `const db = firebase.firestore()` por `const db = crearDB()`. Con
+     AUDIOLINK_MODO_OFFLINE en false (default), crearDB() devuelve
+     firebase.firestore() real — cero cambio de comportamiento. No se tocó
+     enablePersistence() (v2.71), auth, guardarSesion(), checklist,
+     inputList ni ninguna otra lógica.
      v2.71: se activa Firestore offline persistence (db.enablePersistence())
      — mismo patrón que proyecto.html v5.26 y bitacora.html v2.72. Cachea
      lecturas recientes en IndexedDB y encola escrituras si se corta el
@@ -843,6 +851,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1635,7 +1644,7 @@ window.NAV_CONFIG = { activo: 'logistica' };
 // ============ FIREBASE CONFIG ============
 /* firebaseConfig ahora vive en firebase-config.js (ecosistema compartido) */
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = crearDB();
 const auth = firebase.auth();
 
 // v2.71: offline persistence (mismo patrón validado en proyecto.html

@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Ingeniero</title>
-<!-- AUDIOLINK · ingeniero.html · v1.4
+<!-- AUDIOLINK · ingeniero.html · v1.5
+     v1.5: se migra al patrón offline Fase 1 (mismo cambio que
+     index.html v2.21, proyecto.html v5.34, logistica.html v2.72) — se
+     agrega <script src="offline-mock.js"> en el <head> (antes de
+     firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+     (default), crearDB() devuelve firebase.firestore() real — cero
+     cambio de comportamiento. No se tocó ninguna otra lógica.
      v1.4: la tarjeta de cada sesión ahora muestra también la hora real
      de llegada (horaInicio − tiempoSetupMin) y la duración total
      (horaFin − horaInicio + tiempoSetupMin), usando horaAMinutos()/
@@ -22,6 +29,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script>
@@ -172,7 +180,7 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 <script>
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = firebase.firestore();
+const db = crearDB();
 const proyectosRef = db.collection('proyectos');
 
 // v1.3: escapeHtml() ahora vive en utils.js (compartida con proyecto.html

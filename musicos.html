@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Músicos</title>
-<!-- AUDIOLINK · musicos.html · v2.0
+<!-- AUDIOLINK · musicos.html · v2.1
+     v2.1: se migra al patrón offline Fase 1 (mismo cambio que
+     index.html v2.21, proyecto.html v5.34, logistica.html v2.72) — se
+     agrega <script src="offline-mock.js"> en el <head> (antes de
+     firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+     (default), crearDB() devuelve firebase.firestore() real — cero
+     cambio de comportamiento. No se tocó ninguna otra lógica.
      v2.0: mitigación de costo de collectionGroup('sesiones') (v1.9),
      acordada con AUDIOLINK: (1) ya NO se dispara sola al abrir la
      página — pasa a un botón "🔄 Calcular registrado" arriba de la
@@ -112,6 +119,7 @@
 <!-- v4.1: comentado — requiere plan Blaze, no activado. Ver nota arriba.
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 -->
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -682,7 +690,7 @@ function escJsHtml(str){
 <script>
 // ============ FIREBASE CONFIG ============
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = crearDB();
 const auth = firebase.auth();
 let totalesPagadosMus = {}; // v1.7: { personaId: totalAcumulado } desde egresos, solo lectura
 let totalesRegistradosMus = {}; // v1.9: { musicoId: totalRegistrado } — suma de tarifa×canales en sesiones (collectionGroup)

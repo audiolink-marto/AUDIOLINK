@@ -1,4 +1,16 @@
-/* AUDIOLINK · nav.css · v1.11
+/* AUDIOLINK · nav.css · v1.12
+   v1.12: el .conn-dot ahora tiene efecto LED pulsante (@keyframes
+   ledPulse) en los dos estados que requieren atención — antes era un
+   simple cambio de color estático. Se agrega el estado nuevo
+   `conn-modo-offline` (amarillo/--warn) para el modo offline manual
+   activado a propósito (ver nav.js v1.15) — antes solo existía
+   conn-offline (rojo) para "sin internet real", y el modo manual con
+   internet disponible quedaba indistinguible (el punto se veía verde).
+   El banner inferior (.offline-banner) también tiene su variante
+   amarilla para este caso. El verde (estado normal) se deja sin
+   animación a propósito, para no generar parpadeo constante cuando
+   todo funciona bien. No se tocó ningún otro estilo.
+
    v1.11: fix — en mobile el banner "sin conexión" se quedaba pegado
    encima de la barra inferior después de recuperar señal, en vez de
    desaparecer del todo. Causa: la posición base usaba
@@ -211,9 +223,16 @@
   position:fixed;bottom:0;left:0;right:0;z-index:200;
   background:#4a1512;color:#ffb4a8;text-align:center;
   font-size:0.8rem;font-weight:500;padding:9px 14px;
-  transform:translateY(120%);transition:transform 0.25s ease;
+  transform:translateY(120%);transition:transform 0.25s ease,background 0.2s,color 0.2s;
 }
 .offline-banner.show{transform:translateY(0);}
+/* v1.12: variante amarilla — modo offline manual con internet real
+   disponible (no es una falla, es un modo elegido a propósito). El
+   color del banner cambia solo cuando el body tiene conn-modo-offline
+   y NO conn-offline (sin internet real siempre manda el rojo). */
+body.conn-modo-offline:not(.conn-offline) .offline-banner{
+  background:#4a3a12;color:#ffdf9e;
+}
 @media (max-width:768px){
   .offline-banner{font-size:0.75rem;padding:8px 10px;}
   .offline-banner.show{transform:translateY(calc(-1 * var(--bn-h)));}
@@ -224,5 +243,24 @@
   flex-shrink:0;box-shadow:0 0 4px rgba(76,175,125,0.6);
   transition:background 0.2s,box-shadow 0.2s;
 }
-body.conn-offline .conn-dot{background:var(--err);box-shadow:0 0 4px rgba(212,87,74,0.6);}
+/* v1.12: LED pulsante para los dos estados que requieren atención
+   (sin conexión real / modo offline manual) — el verde se deja quieto
+   a propósito, para no generar parpadeo constante cuando todo está
+   normal. */
+@keyframes ledPulse{
+  0%,100%{ opacity:1; transform:scale(1); }
+  50%{ opacity:0.45; transform:scale(0.82); }
+}
+body.conn-offline .conn-dot{
+  background:var(--err);box-shadow:0 0 6px rgba(212,87,74,0.75);
+  animation:ledPulse 1.4s ease-in-out infinite;
+}
 body.conn-offline .vu-brand span{background:var(--err);}
+/* Modo offline manual (switch activado a propósito, con internet real
+   disponible) — amarillo/dorado en vez de rojo, para no confundirlo
+   con una falla de conexión real. */
+body.conn-modo-offline .conn-dot{
+  background:var(--warn);box-shadow:0 0 6px rgba(217,164,65,0.75);
+  animation:ledPulse 1.4s ease-in-out infinite;
+}
+body.conn-modo-offline .vu-brand span{background:var(--warn);}

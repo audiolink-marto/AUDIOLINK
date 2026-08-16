@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Producción musical</title>
-<!-- AUDIOLINK · produccion.html · v1.2
+<!-- AUDIOLINK · produccion.html · v1.3
+     v1.3: se migra al patrón offline Fase 1 (mismo cambio que
+     index.html v2.21, proyecto.html v5.34, logistica.html v2.72) — se
+     agrega <script src="offline-mock.js"> en el <head> (antes de
+     firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+     (default), crearDB() devuelve firebase.firestore() real — cero
+     cambio de comportamiento. No se tocó ninguna otra lógica.
      v1.2: la tarjeta de ítem en cargarListaProduccion() ahora muestra
      explícitamente "👁️ Visible al cliente" / "🔒 Privado" (antes solo
      se distinguía por el color del badge, sin texto) y la nota
@@ -34,6 +41,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -543,7 +551,7 @@ window.NAV_CONFIG = { activo: "proyecto" };
 <script>
 // ============ FIREBASE CONFIG ============
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = crearDB();
 const auth = firebase.auth();
 const proyectosRef = db.collection('proyectos');
 

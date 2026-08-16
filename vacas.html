@@ -3,7 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK · v1.81</title>
+  <title>Vacas · AUDIOLINK · v1.82</title>
+  <!-- v1.82: se migra al patrón offline Fase 1 (mismo cambio que index.html
+       v2.21, proyecto.html v5.34, logistica.html v2.72) — se agrega
+       <script src="offline-mock.js"> en el <head> (antes de
+       firebase-config.js) y se cambia `const db = firebase.firestore()`
+       por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+       (default), crearDB() devuelve firebase.firestore() real — cero
+       cambio de comportamiento. No se tocó ninguna otra lógica.
+  -->
   <!-- v1.81: fix reportado por el usuario — la tabla de participantes se
        veía "toda desordenada" en escritorio. Causa: el <thead> tenía 6
        columnas (vacío/Nombre/Contacto/Abonado/Estado/Acciones) heredadas
@@ -1416,6 +1424,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 
@@ -1800,7 +1809,7 @@ window.NAV_CONFIG = { activo: 'vacas' };
 // ============================================================
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = crearDB();
 const auth = firebase.auth();
 const { FieldValue } = firebase.firestore;
 

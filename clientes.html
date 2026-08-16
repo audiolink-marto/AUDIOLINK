@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Clientes</title>
-<!-- AUDIOLINK · clientes.html · v1.4
+<!-- AUDIOLINK · clientes.html · v1.5
+     v1.5: se migra al patrón offline Fase 1 (mismo cambio que
+     index.html v2.21, proyecto.html v5.34, logistica.html v2.72) — se
+     agrega <script src="offline-mock.js"> en el <head> (antes de
+     firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE en false
+     (default), crearDB() devuelve firebase.firestore() real — cero
+     cambio de comportamiento. No se tocó ninguna otra lógica.
      V1.4: se aumenta un poco el tamaño en mobile de botones/campos de
      formulario (.btn/.btn-ghost, .field input/textarea, .buscador,
      .field label) para mejorar legibilidad y área táctil — no toca
@@ -71,6 +78,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script>
 (function(){
@@ -334,7 +342,7 @@ window.NAV_CONFIG = {
 <script>
 // ============ FIREBASE CONFIG ============
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = crearDB();
 const auth = firebase.auth();
 const clientesRef = db.collection('clientes');
 const clientesAccesoRef = db.collection('clientesAcceso');
