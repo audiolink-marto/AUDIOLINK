@@ -4,7 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.22
+<!-- AUDIOLINK · index.html · v2.23
+     v2.23: el guard de sesión (auth.onAuthStateChanged) se salta por
+     completo cuando estaModoOfflineActivo() es true (firebase-config.js
+     v1.3) — antes, en modo offline, siempre mandaba a login.html porque
+     Firebase Auth real nunca confirma sesión sin señal. No hace falta
+     esa verificación offline: los datos ya están cargados en el mismo
+     dispositivo. No se tocó la rama online del guard.
      v2.22: se mueve el panel "MODO OFFLINE" al final de la página
      (antes de </main>, después de todos los paneles normales) y se
      agrega un switch visual (🟢 ONLINE / 🔴 OFFLINE) con
@@ -680,22 +686,32 @@ function alternarModoOffline(){
 pintarEstadoModoOffline();
 
 // ============ GUARD DE SESIÓN ============
-auth.onAuthStateChanged(async (user) => {
-  if(!user){
-    window.location.href = 'login.html';
-    return;
-  }
-  try{
-    const doc = await db.collection('equipoInterno').doc(user.email).get();
-    if(!doc.exists || doc.data().activo !== true){
-      await auth.signOut();
+if(estaModoOfflineActivo()){
+  // v2.23: en modo offline no hay forma de validar sesión contra
+  // Firebase Auth real (sin señal, onAuthStateChanged nunca confirma
+  // el usuario) — antes esto mandaba siempre a login.html sin poder
+  // continuar. Se salta la verificación por completo: no protege datos
+  // que ya están cargados en este mismo dispositivo, así que pedir
+  // login contra un servidor inalcanzable no agregaba seguridad real.
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){
+      window.location.href = 'login.html';
+      return;
+    }
+    try{
+      const doc = await db.collection('equipoInterno').doc(user.email).get();
+      if(!doc.exists || doc.data().activo !== true){
+        await auth.signOut();
+        window.location.href = 'login.html';
+      }
+    } catch(e){
+      console.error('Error validando sesión:', e);
       window.location.href = 'login.html';
     }
-  } catch(e){
-    console.error('Error validando sesión:', e);
-    window.location.href = 'login.html';
-  }
-});
+  });
+}
 
 // cerrarSesion(), toggleTema(), toggleMasMobile() y el colapsar del sidebar
 // ahora viven en nav.js (compartido por todo el ecosistema).
