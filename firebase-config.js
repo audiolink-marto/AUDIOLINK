@@ -1,4 +1,16 @@
-/* AUDIOLINK · firebase-config.js · v1.2
+/* AUDIOLINK · firebase-config.js · v1.3
+   v1.3: se agrega estaModoOfflineActivo() — index.html v2.23 ya la
+   llama (guard de sesión: se salta auth.onAuthStateChanged cuando el
+   modo offline está activo, porque Firebase Auth real nunca confirma
+   sesión sin señal), pero la función nunca se había agregado acá,
+   causando "ReferenceError: estaModoOfflineActivo is not defined" que
+   cortaba todo el script de index.html a mitad de carga (calendario y
+   proyectos no llegaban a renderizar). Misma lógica que ya usa
+   crearDB() internamente para decidir offline/online (revisa el
+   override de localStorage, si no hay usa AUDIOLINK_MODO_OFFLINE),
+   pero devuelve un booleano en vez de la instancia de DB. No se tocó
+   crearDB(), el flag ni firebaseConfig.
+
    v1.2: crearDB() ahora revisa primero un override guardado en
    localStorage (clave AUDIOLINK_OFFLINE_OVERRIDE) — lo controla el
    switch visual del panel "MODO OFFLINE" en index.html (v2.22). Si no
@@ -68,4 +80,21 @@ function crearDB(){
     return crearDBOffline();
   }
   return firebase.firestore();
+}
+
+// v1.3 — usada por index.html v2.23 para saltar el guard de sesión
+// (auth.onAuthStateChanged) cuando el modo offline está activo, ya que
+// Firebase Auth real nunca confirma sesión sin señal. Misma lógica que
+// crearDB() usa internamente para decidir offline/online, pero
+// devuelve el booleano en vez de la instancia de DB.
+function estaModoOfflineActivo(){
+  let modoOffline = AUDIOLINK_MODO_OFFLINE;
+  try{
+    const override = localStorage.getItem('AUDIOLINK_OFFLINE_OVERRIDE');
+    if(override === 'true') modoOffline = true;
+    if(override === 'false') modoOffline = false;
+  }catch(err){
+    console.error('AUDIOLINK: no se pudo leer el override de modo offline, se usa el flag por defecto.', err);
+  }
+  return modoOffline;
 }
