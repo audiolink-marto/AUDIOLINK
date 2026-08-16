@@ -1,4 +1,22 @@
-/* AUDIOLINK · offline-mock.js · v0.7 (Fase 1 — persiste entre páginas)
+/* AUDIOLINK · offline-mock.js · v0.8 (Fase 1 — persiste entre páginas)
+   v0.8: dos mejoras, revisadas contra los usos reales en los archivos
+   ya migrados (logistica/musicos/equipo-tecnico/clientes/pagos/
+   bitacora/vacas/etc):
+   (a) where()/orderBy()/limit() en _crearQueryEstatica ahora SÍ
+       filtran/ordenan/truncan de verdad (antes eran placeholders que
+       devolvían todo sin tocar). Soporta los operadores que de hecho
+       se usan hoy: ==, !=, <, <=, >, >=, in, array-contains,
+       array-contains-any. orderBy() de un solo campo (no se encontró
+       ningún caso real con más de un orderBy() encadenado). Se
+       reescribió como builder inmutable (cada .where()/.orderBy()/
+       .limit() devuelve una query nueva que acumula la anterior) en
+       vez del placeholder que ignoraba los argumentos.
+   (b) cargarArchivoOffline() reconoce un tercer tipoArchivo:
+       'audiolink_todo_offline' — el paquete de descargarTodoOffline()
+       (index.html v2.25, botón "🌴 Descargar todo"): varios proyectos
+       + catálogos en un solo archivo. No se tocó cómo se leen
+       audiolink_proyecto_offline ni audiolink_catalogos_offline.
+
    v0.7: se agrega docChanges() a los snapshots de query (get() y
    onSnapshot()) — index.html:779 lo usa sobre
    collectionGroup('actividad') para detectar altas nuevas de
@@ -165,6 +183,34 @@ async function cargarArchivoOffline(fileList){
         };
         resumen.push(`✅ Catálogos — descargados ${_formatearFecha(json.fechaDescarga)}`);
       }
+      else if(json.tipoArchivo === 'audiolink_todo_offline'){
+        // v0.8 — lee el paquete de descargarTodoOffline() (index.html
+        // v2.25, botón "🌴 Descargar todo"): mismo esquema que un .json
+        // de proyecto individual (audiolink_proyecto_offline), pero con
+        // varios proyectos en un array `proyectos`, más los catálogos
+        // embebidos (mismo esquema que audiolink_catalogos_offline).
+        (json.proyectos || []).forEach(p => {
+          _offlineData.proyectos[p.proyectoId] = {
+            data: p.proyecto,
+            sub: {
+              sesiones: p.sesiones || [],
+              produccion: p.produccion || [],
+              temas: p.temas || [],
+              pagos: p.pagos || []
+            },
+            fechaDescarga: json.fechaDescarga
+          };
+        });
+        if(json.catalogos){
+          _offlineData.catalogos = {
+            musicos: json.catalogos.musicos || [],
+            equipoTecnico: json.catalogos.equipoTecnico || [],
+            estudios: json.catalogos.estudios || [],
+            fechaDescarga: json.fechaDescarga
+          };
+        }
+        resumen.push(`✅ Modo extendido — ${(json.proyectos || []).length} proyecto(s) + catálogos — descargado ${_formatearFecha(json.fechaDescarga)}`);
+      }
       else{
         resumen.push(`⚠️ "${file.name}" no es un archivo offline de AUDIOLINK reconocido (falta o no coincide tipoArchivo).`);
       }
@@ -291,43 +337,84 @@ function _crearDocSnapshot(id, data, proyectoIdPadre){
   };
 }
 
-// "Query" de solo lectura sobre un array ya resuelto en memoria. where()/
-// orderBy() son placeholders (devuelven la misma query sin filtrar) —
-// implementar filtrado real cuando aparezca un caso concreto que lo pida.
-function _crearQueryEstatica(docsSnapshot){
-  return {
-    where(){ return _crearQueryEstatica(docsSnapshot); },
-    orderBy(){ return _crearQueryEstatica(docsSnapshot); },
-    // Placeholder — no corta la cantidad real de docs todavía (a
-    // diferencia de where()/orderBy(), acá SÍ importaría cortar de
-    // verdad si hay muchos docs, pero se deja así por ahora: el
-    // volumen esperado en modo offline es bajo — solo lo que el
-    // usuario descargó a mano — así que no truncar no debería causar
-    // problemas prácticos. Revisar si aparece un caso real que lo pida.
-    limit(){ return _crearQueryEstatica(docsSnapshot); },
+// "Query" de solo lectura sobre un array ya resuelto en memoria.
+// v0.8: where()/orderBy()/limit() ahora SÍ filtran/ordenan/truncan de
+// verdad (antes eran placeholders que devolvían todo tal cual). Se
+// revisaron todos los usos reales en los archivos ya migrados
+// (logistica/musicos/equipo-tecnico/clientes/pagos/bitacora/vacas/etc):
+// solo usan operadores '==', 'array-contains' en where(), orderBy() de
+// un solo campo, y limit(n) — es lo que se soporta acá. Encadenar más
+// de un orderBy() no se usa en ningún archivo real hoy, así que solo
+// se aplica el último orderBy() encadenado (ordenamiento simple, no
+// compuesto) — revisar esta nota si en el futuro aparece un caso con
+// orderBy() múltiple.
+function _crearQueryEstatica(docsSnapshot, _filtros = [], _orden = null, _limite = null){
+  const builder = {
+    where(campo, operador, valor){
+      return _crearQueryEstatica(docsSnapshot, [..._filtros, { campo, operador, valor }], _orden, _limite);
+    },
+    orderBy(campo, direccion = 'asc'){
+      return _crearQueryEstatica(docsSnapshot, _filtros, { campo, direccion }, _limite);
+    },
+    limit(n){
+      return _crearQueryEstatica(docsSnapshot, _filtros, _orden, n);
+    },
     async get(){
-      return {
-        docs: docsSnapshot,
-        empty: docsSnapshot.length === 0,
-        forEach(fn){ docsSnapshot.forEach(fn); },
-        docChanges(){ return _crearDocChanges(docsSnapshot); }
-      };
+      return _resolverQuery();
     },
     onSnapshot(callback){
       // Async a propósito — mismo motivo que el onSnapshot de _mockDoc
       // arriba (ver comentario ahí). Este es el que efectivamente
       // causó el bug reportado (recordatoriosCache en index.html).
-      setTimeout(() => {
-        callback({
-          docs: docsSnapshot,
-          empty: docsSnapshot.length === 0,
-          forEach(fn){ docsSnapshot.forEach(fn); },
-          docChanges(){ return _crearDocChanges(docsSnapshot); }
-        });
-      }, 0);
+      setTimeout(() => callback(_resolverQuery()), 0);
       return function unsubscribe(){};
     }
   };
+  return builder;
+
+  function _cumpleFiltro(doc, filtro){
+    const valorDoc = doc.data()[filtro.campo];
+    switch(filtro.operador){
+      case '==': return valorDoc === filtro.valor;
+      case '!=': return valorDoc !== filtro.valor;
+      case '<':  return valorDoc < filtro.valor;
+      case '<=': return valorDoc <= filtro.valor;
+      case '>':  return valorDoc > filtro.valor;
+      case '>=': return valorDoc >= filtro.valor;
+      case 'in': return Array.isArray(filtro.valor) && filtro.valor.includes(valorDoc);
+      case 'array-contains': return Array.isArray(valorDoc) && valorDoc.includes(filtro.valor);
+      case 'array-contains-any': return Array.isArray(valorDoc) && Array.isArray(filtro.valor) && valorDoc.some(v => filtro.valor.includes(v));
+      default:
+        console.warn(`AUDIOLINK offline-mock: operador where() "${filtro.operador}" no soportado, el filtro se ignora.`, filtro);
+        return true;
+    }
+  }
+
+  function _resolverQuery(){
+    let docs = docsSnapshot.filter(doc => _filtros.every(f => _cumpleFiltro(doc, f)));
+
+    if(_orden){
+      const { campo, direccion } = _orden;
+      docs = [...docs].sort((a, b) => {
+        const va = a.data()[campo];
+        const vb = b.data()[campo];
+        if(va === vb) return 0;
+        if(va === undefined || va === null) return 1;
+        if(vb === undefined || vb === null) return -1;
+        const cmp = va < vb ? -1 : 1;
+        return direccion === 'desc' ? -cmp : cmp;
+      });
+    }
+
+    if(_limite != null) docs = docs.slice(0, _limite);
+
+    return {
+      docs,
+      empty: docs.length === 0,
+      forEach(fn){ docs.forEach(fn); },
+      docChanges(){ return _crearDocChanges(docs); }
+    };
+  }
 }
 
 // docChanges() real de Firestore avisa qué cambió entre snapshots

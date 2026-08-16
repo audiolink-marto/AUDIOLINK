@@ -4,7 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.25
+<!-- AUDIOLINK · index.html · v2.26
+     v2.26: dos mejoras al panel "MODO OFFLINE" (a pedido, sobre v2.25):
+     (1) los 3 botones pasan a ser cards (mismo lenguaje visual que
+     .resumen-card ya usado en "Resumen Comercial": fondo surf-light,
+     borde dorado al hover) con ícono, título y descripción corta —
+     antes eran botones en fila.
+     (2) la card "Descargar todo" gana un selector de proyectos:
+     buscador de texto, chips de filtro por estadoComercial (Cotización/
+     Aprobado/En curso/Finalizado — reutiliza el mismo campo que ya usa
+     proyecto.html, es lo más cercano a "activo/cerrado" que existe hoy
+     en el modelo), checklist con "Seleccionar todos los visibles" y
+     contador. Reutiliza el array `proyectos` que ya mantiene el
+     onSnapshot existente — no dispara lecturas nuevas de Firestore
+     solo por abrir el selector. descargarTodoOffline() ahora arma el
+     paquete SOLO con los proyectos marcados; si no se marca ninguno,
+     mismo comportamiento que v2.25 (trae todos). No se tocó
+     descargarCatalogosOffline(), manejarCargaArchivoOffline() ni
+     ningún otro panel del dashboard.
      v2.25: dos cambios en el panel "MODO OFFLINE":
      (1) se agrega el botón "🌴 Descargar todo (modo extendido)" —
      descargarTodoOffline(): junta TODOS los proyectos (con sus 4
@@ -345,23 +362,66 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .panel{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:22px;}
 .panel h2{font-size:0.95rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;margin-bottom:18px;}
 
-/* Panel MODO OFFLINE — v2.25: rediseño estético + mobile de los
-   botones (antes con estilos inline sueltos). Solo afecta este panel,
-   no se tocó .btn/.btn-ghost base (viven en nav.css, compartido). */
+/* Panel MODO OFFLINE — v2.26: rediseño como cards (antes botones en
+   fila), con selector de proyectos dentro de la card "Descargar todo".
+   Solo afecta este panel, no se tocó .btn/.btn-ghost base (viven en
+   nav.css, compartido). */
 .panel-offline{margin-top:24px;}
 .offline-estado-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--brd);}
 .offline-estado-txt{font-weight:600;font-size:0.95rem;}
 .offline-btn-toggle{margin-left:auto;}
-.offline-acciones{display:flex;flex-wrap:wrap;gap:10px;}
-.offline-btn{display:flex;align-items:center;justify-content:center;gap:8px;flex:1 1 200px;white-space:nowrap;}
-.offline-btn-ico{font-size:1.05em;line-height:1;}
-.offline-btn-extendido{border-color:var(--gold);color:var(--gold);}
 .offline-estado-archivo{margin-top:12px;font-size:0.9em;color:var(--muted);}
+
+.offline-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;align-items:start;}
+.offline-card{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:12px;
+  padding:18px;display:flex;flex-direction:column;gap:6px;cursor:pointer;
+  transition:border-color 0.2s,transform 0.15s;
+}
+.offline-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.offline-card-ico{font-size:1.7rem;line-height:1;}
+.offline-card-titulo{font-weight:700;font-size:0.95rem;color:var(--txt);}
+.offline-card-desc{font-size:0.82rem;color:var(--muted);line-height:1.4;}
+.offline-card-extendido{grid-column:1/-1;border-color:var(--gold-bg);cursor:default;}
+.offline-card-extendido:hover{transform:none;}
+
+.offline-btn-descargar{align-self:flex-start;display:flex;align-items:center;gap:8px;margin-top:4px;}
+.offline-btn-ico{font-size:1.05em;line-height:1;}
+
+.offline-selector{
+  margin-top:8px;padding:14px;border-radius:10px;background:var(--bg);
+  border:1px solid var(--brd);display:flex;flex-direction:column;gap:10px;cursor:default;
+}
+.offline-selector-buscador{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
+  padding:9px 12px;color:var(--txt);font-size:0.88rem;font-family:var(--S);
+}
+.offline-selector-buscador:focus{outline:none;border-color:var(--gold);}
+.offline-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.offline-chip{
+  background:transparent;border:1px solid var(--brd);border-radius:20px;
+  padding:5px 12px;font-size:0.78rem;color:var(--muted);cursor:pointer;
+  transition:all 0.15s;font-family:var(--S);
+}
+.offline-chip:hover{border-color:var(--gold);color:var(--txt);}
+.offline-chip.activo{background:var(--gold-bg);border-color:var(--gold);color:var(--gold);font-weight:600;}
+.offline-selector-todos{display:flex;align-items:center;gap:8px;font-size:0.82rem;color:var(--muted);cursor:pointer;}
+.offline-selector-lista{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+.offline-proyecto-item{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;
+  cursor:pointer;font-size:0.85rem;
+}
+.offline-proyecto-item:hover{background:var(--surf-light);}
+.offline-proyecto-item input{flex-shrink:0;}
+.offline-proyecto-nombre{flex:1;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.offline-proyecto-badge{font-size:0.7rem;color:var(--faint);flex-shrink:0;}
+.offline-selector-vacio{font-size:0.82rem;color:var(--faint);text-align:center;padding:12px;}
+.offline-selector-conteo{font-size:0.78rem;color:var(--muted);}
+
 @media (max-width:640px){
   .offline-estado-row{flex-direction:column;align-items:stretch;}
   .offline-btn-toggle{margin-left:0;width:100%;}
-  .offline-acciones{flex-direction:column;}
-  .offline-btn{flex:1 1 auto;width:100%;white-space:normal;text-align:center;}
+  .offline-cards{grid-template-columns:1fr;}
 }
 
 /* Calendario */
@@ -642,18 +702,53 @@ window.NAV_CONFIG = { activo: 'dashboard' };
       <span id="estadoModoOffline" class="offline-estado-txt">—</span>
       <button class="btn btn-ghost offline-btn-toggle" id="btnToggleModoOffline" onclick="alternarModoOffline()">Cambiar</button>
     </div>
-    <div class="offline-acciones">
+
+    <div class="offline-cards">
       <input type="file" id="inputArchivoOffline" accept=".json" multiple style="display:none;" onchange="manejarCargaArchivoOffline(this.files)">
-      <button class="btn btn-ghost offline-btn" onclick="document.getElementById('inputArchivoOffline').click()">
-        <span class="offline-btn-ico">📂</span><span>Cargar archivo(s) offline</span>
-      </button>
-      <button class="btn btn-ghost offline-btn" onclick="descargarCatalogosOffline()">
-        <span class="offline-btn-ico">📦</span><span>Descargar catálogos</span>
-      </button>
-      <button class="btn btn-ghost offline-btn offline-btn-extendido" onclick="descargarTodoOffline()">
-        <span class="offline-btn-ico">🌴</span><span>Descargar todo (modo extendido)</span>
-      </button>
+
+      <div class="offline-card" onclick="document.getElementById('inputArchivoOffline').click()">
+        <span class="offline-card-ico">📂</span>
+        <span class="offline-card-titulo">Cargar archivo(s) offline</span>
+        <span class="offline-card-desc">Sube uno o varios .json ya descargados para trabajar sin señal.</span>
+      </div>
+
+      <div class="offline-card" onclick="descargarCatalogosOffline()">
+        <span class="offline-card-ico">📦</span>
+        <span class="offline-card-titulo">Descargar catálogos</span>
+        <span class="offline-card-desc">Músicos, equipo técnico y estudios en un solo archivo.</span>
+      </div>
+
+      <div class="offline-card offline-card-extendido" id="cardDescargarTodo">
+        <span class="offline-card-ico">🌴</span>
+        <span class="offline-card-titulo">Descargar todo (modo extendido)</span>
+        <span class="offline-card-desc">Catálogos + los proyectos que elijas abajo (o todos, si no marcás ninguno).</span>
+
+        <div class="offline-selector" onclick="event.stopPropagation();">
+          <input type="text" id="buscadorProyectosOffline" class="offline-selector-buscador" placeholder="🔎 Buscar proyecto..." oninput="renderSelectorProyectosOffline()">
+
+          <div class="offline-chips" id="chipsEstadoOffline">
+            <button type="button" class="offline-chip" data-estado="cotizacion" onclick="toggleChipEstadoOffline('cotizacion')">Cotización</button>
+            <button type="button" class="offline-chip" data-estado="aprobado" onclick="toggleChipEstadoOffline('aprobado')">Aprobado</button>
+            <button type="button" class="offline-chip" data-estado="en_curso" onclick="toggleChipEstadoOffline('en_curso')">En curso</button>
+            <button type="button" class="offline-chip" data-estado="finalizado" onclick="toggleChipEstadoOffline('finalizado')">Finalizado</button>
+          </div>
+
+          <label class="offline-selector-todos">
+            <input type="checkbox" id="chkSeleccionarTodosOffline" onchange="marcarTodosProyectosOffline(this.checked)">
+            <span>Seleccionar todos los visibles</span>
+          </label>
+
+          <div class="offline-selector-lista" id="listaProyectosOffline"></div>
+
+          <div class="offline-selector-conteo" id="conteoSeleccionOffline">Sin selección — se descargan todos los proyectos.</div>
+        </div>
+
+        <button class="btn btn-ghost offline-btn-descargar" onclick="event.stopPropagation(); descargarTodoOffline();">
+          <span class="offline-btn-ico">⬇️</span><span>Descargar</span>
+        </button>
+      </div>
     </div>
+
     <div id="estadoArchivoOffline" class="offline-estado-archivo"></div>
   </div>
 </main>
@@ -737,40 +832,139 @@ async function descargarCatalogosOffline(){
   }
 }
 
-// v2.25 — Fase 1 de modo offline, "modo extendido" (ver ARQUITECTURA.md
-// sección 5). Combina TODOS los proyectos (con sus 4 subcolecciones,
-// mismo patrón que descargarProyectoOffline() de proyecto.html v5.33)
-// + los 3 catálogos (mismo patrón que descargarCatalogosOffline() de
-// arriba) en un solo .json con tipoArchivo: 'audiolink_todo_offline'
+// ============ SELECTOR DE PROYECTOS — MODO EXTENDIDO (v2.26) ============
+// Vive junto a descargarTodoOffline(), reutiliza el array `proyectos`
+// que ya mantiene actualizado el onSnapshot de arriba (no dispara
+// lecturas nuevas). Sin selección, descargarTodoOffline() trae todos
+// los proyectos (mismo comportamiento que v2.25) — los chips y
+// checkboxes de acá solo acotan la selección, nunca la obligan.
+let seleccionProyectosOffline = new Set();
+let chipsEstadoActivosOffline = new Set();
+
+const ESTADO_COMERCIAL_LABEL = {
+  cotizacion: 'Cotización', aprobado: 'Aprobado',
+  en_curso: 'En curso', finalizado: 'Finalizado'
+};
+
+function toggleChipEstadoOffline(estado){
+  if(chipsEstadoActivosOffline.has(estado)) chipsEstadoActivosOffline.delete(estado);
+  else chipsEstadoActivosOffline.add(estado);
+  renderSelectorProyectosOffline();
+}
+
+function _proyectosVisiblesOffline(){
+  const texto = (document.getElementById('buscadorProyectosOffline')?.value || '').toLowerCase().trim();
+  return proyectos.filter(p => {
+    if(chipsEstadoActivosOffline.size > 0 && !chipsEstadoActivosOffline.has(p.estadoComercial)) return false;
+    if(!texto) return true;
+    const nombre = (p.nombre || '').toLowerCase();
+    const cliente = (p.cliente || '').toLowerCase();
+    return nombre.includes(texto) || cliente.includes(texto);
+  });
+}
+
+function renderSelectorProyectosOffline(){
+  // Chips: refleja cuáles están activos
+  document.querySelectorAll('#chipsEstadoOffline .offline-chip').forEach(chip => {
+    chip.classList.toggle('activo', chipsEstadoActivosOffline.has(chip.dataset.estado));
+  });
+
+  const visibles = _proyectosVisiblesOffline();
+  const lista = document.getElementById('listaProyectosOffline');
+
+  if(visibles.length === 0){
+    lista.innerHTML = '<div class="offline-selector-vacio">Ningún proyecto coincide con el filtro.</div>';
+  } else {
+    lista.innerHTML = visibles.map(p => `
+      <label class="offline-proyecto-item">
+        <input type="checkbox" ${seleccionProyectosOffline.has(p.id) ? 'checked' : ''}
+          onchange="toggleProyectoOffline('${p.id}', this.checked)">
+        <span class="offline-proyecto-nombre">${escapeHtmlOffline(p.nombre || p.cliente || p.id)}</span>
+        <span class="offline-proyecto-badge">${escapeHtmlOffline(ESTADO_COMERCIAL_LABEL[p.estadoComercial] || '—')}</span>
+      </label>
+    `).join('');
+  }
+
+  const todosVisiblesMarcados = visibles.length > 0 && visibles.every(p => seleccionProyectosOffline.has(p.id));
+  const chkTodos = document.getElementById('chkSeleccionarTodosOffline');
+  if(chkTodos) chkTodos.checked = todosVisiblesMarcados;
+
+  _actualizarConteoSeleccionOffline();
+}
+
+function toggleProyectoOffline(id, marcado){
+  if(marcado) seleccionProyectosOffline.add(id);
+  else seleccionProyectosOffline.delete(id);
+  renderSelectorProyectosOffline();
+}
+
+function marcarTodosProyectosOffline(marcarTodos){
+  const visibles = _proyectosVisiblesOffline();
+  visibles.forEach(p => {
+    if(marcarTodos) seleccionProyectosOffline.add(p.id);
+    else seleccionProyectosOffline.delete(p.id);
+  });
+  renderSelectorProyectosOffline();
+}
+
+function _actualizarConteoSeleccionOffline(){
+  const el = document.getElementById('conteoSeleccionOffline');
+  if(!el) return;
+  el.textContent = seleccionProyectosOffline.size === 0
+    ? 'Sin selección — se descargan todos los proyectos.'
+    : `${seleccionProyectosOffline.size} proyecto(s) seleccionado(s).`;
+}
+
+// escapeHtml propio y acotado a este selector — evita depender de si
+// utils.js está cargado o no en index.html (no lo está hoy).
+function escapeHtmlOffline(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// v2.26 — Fase 1 de modo offline, "modo extendido" (ver ARQUITECTURA.md
+// sección 5). Combina los proyectos ELEGIDOS en el selector de arriba
+// (o TODOS si no se marcó ninguno) con sus 4 subcolecciones, mismo
+// patrón que descargarProyectoOffline() de proyecto.html v5.33) + los
+// 3 catálogos (mismo patrón que descargarCatalogosOffline() de arriba)
+// en un solo .json con tipoArchivo: 'audiolink_todo_offline'
 // (offline-mock.js v0.8 ya sabe leerlo). Pide confirmación antes de
 // arrancar — puede ser una descarga pesada según cuántos proyectos y
 // sesiones haya, mismo criterio de aviso que ya se usa en
 // musicos.html/equipo-tecnico.html para collectionGroup('sesiones').
 // Solo lectura: no modifica nada en Firestore.
 async function descargarTodoOffline(){
-  const proyectosPreview = await proyectosRef.get().catch(() => null);
-  const totalProyectos = proyectosPreview ? proyectosPreview.docs.length : '?';
+  const idsElegidos = Array.from(seleccionProyectosOffline);
+  const usaSeleccion = idsElegidos.length > 0;
+  const totalProyectos = usaSeleccion ? idsElegidos.length : proyectos.length;
+
   const confirmado = confirm(
-    `Esto va a descargar los ${totalProyectos} proyecto(s) del sistema (con sesiones, producción, temas y pagos) más los 3 catálogos, todo en un solo archivo. Puede tardar unos segundos si hay muchos proyectos. ¿Continuar?`
+    usaSeleccion
+      ? `Esto va a descargar los ${totalProyectos} proyecto(s) que elegiste (con sesiones, producción, temas y pagos) más los 3 catálogos, todo en un solo archivo. ¿Continuar?`
+      : `No marcaste ningún proyecto, así que se van a descargar los ${totalProyectos} proyecto(s) del sistema (con sesiones, producción, temas y pagos) más los 3 catálogos, todo en un solo archivo. Puede tardar unos segundos si hay muchos proyectos. ¿Continuar?`
   );
   if(!confirmado) return;
 
   const boton = event?.target?.closest('button');
   const htmlOriginal = boton ? boton.innerHTML : null;
-  if(boton){ boton.disabled = true; boton.innerHTML = '<span class="offline-btn-ico">⏳</span><span>Descargando todo...</span>'; }
+  if(boton){ boton.disabled = true; boton.innerHTML = '<span class="offline-btn-ico">⏳</span><span>Descargando...</span>'; }
 
   try{
-    const proyectosSnap = proyectosPreview || await proyectosRef.get();
+    const docsProyecto = usaSeleccion
+      ? idsElegidos.map(id => proyectosRef.doc(id))
+      : (await proyectosRef.get()).docs.map(d => proyectosRef.doc(d.id));
 
-    const proyectosPaquete = await Promise.all(proyectosSnap.docs.map(async docProyecto => {
-      const [sesionesSnap, produccionSnap, temasSnap, pagosSnap] = await Promise.all([
-        proyectosRef.doc(docProyecto.id).collection('sesiones').get(),
-        proyectosRef.doc(docProyecto.id).collection('produccion').get(),
-        proyectosRef.doc(docProyecto.id).collection('temas').get(),
-        proyectosRef.doc(docProyecto.id).collection('pagos').get()
+    const proyectosPaquete = await Promise.all(docsProyecto.map(async ref => {
+      const [docProyecto, sesionesSnap, produccionSnap, temasSnap, pagosSnap] = await Promise.all([
+        ref.get(),
+        ref.collection('sesiones').get(),
+        ref.collection('produccion').get(),
+        ref.collection('temas').get(),
+        ref.collection('pagos').get()
       ]);
       return {
-        proyectoId: docProyecto.id,
+        proyectoId: ref.id,
         proyecto: { id: docProyecto.id, ...docProyecto.data() },
         sesiones: sesionesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
         produccion: produccionSnap.docs.map(d => ({ id: d.id, ...d.data() })),
@@ -915,6 +1109,7 @@ proyectosRef.orderBy('creadoEn', 'desc').onSnapshot(snap => {
   renderCalendario();
   actualizarAlertaVencidas();
   renderProximasSesiones();
+  renderSelectorProyectosOffline();
 }, err => console.error("Error cargando proyectos:", err));
 
 // ============ ALERTA ENTREGAS VENCIDAS (v2.5) ============
