@@ -1,4 +1,43 @@
-/* AUDIOLINK · offline-mock.js · v0.4 (Fase 1 — persiste entre páginas)
+/* AUDIOLINK · offline-mock.js · v0.7 (Fase 1 — persiste entre páginas)
+   v0.7: se agrega docChanges() a los snapshots de query (get() y
+   onSnapshot()) — index.html:779 lo usa sobre
+   collectionGroup('actividad') para detectar altas nuevas de
+   actividad de Las Vacas. Simplificado: todos los docs se reportan
+   como 'added' (no hay "snapshot anterior" real contra el que
+   comparar en el mock). También se hace que doc.ref.parent.parent
+   tenga un .get() real (antes era un objeto plano sin métodos) —
+   index.html:788 lo llama. Limitación conocida anotada en el código:
+   asume 'proyectos' como colección padre porque es la única con datos
+   reales en Fase 1; si se carga actividad de Las Vacas offline en el
+   futuro, hay que generalizar esto.
+
+   v0.6: se agrega limit() como placeholder a _crearQueryEstatica (igual
+   que where()/orderBy() — no filtra/trunca de verdad todavía). Causa
+   real del "entra y sale" en index.html, más allá del fix de
+   asincronía de v0.5: index.html:776 usa
+   collectionGroup('actividad').orderBy(...).limit(20), y el mock no
+   tenía .limit() — `db.collectionGroup(...).orderBy(...).limit is not
+   a function` cortaba la ejecución del script ahí mismo, ANTES de
+   llegar a la línea que declara `let recordatoriosCache` más abajo en
+   el mismo <script>. Esto dejaba la variable en TDZ para siempre, que
+   es lo que después se veía como
+   "ReferenceError: Cannot access 'recordatoriosCache' before
+   initialization" al disparar los onSnapshot ya registrados antes del
+   corte. El fix de v0.5 (async real) seguía siendo necesario, pero no
+   alcanzaba por este segundo problema encadenado.
+
+   v0.5: los dos onSnapshot() del mock ahora disparan el callback de
+   forma ASÍNCRONA (setTimeout 0) en vez de sincrónica. Causa real del
+   bug "entra un segundo y sale" reportado en index.html: Firestore
+   real SIEMPRE dispara onSnapshot de forma asíncrona, nunca en el
+   mismo tick en que se registra — el mock lo hacía sincrónico, así que
+   el callback corría en medio de la ejecución del script de
+   index.html, ANTES de que terminara de declarar variables más abajo
+   (ej. recordatoriosCache), causando
+   "ReferenceError: Cannot access 'recordatoriosCache' before
+   initialization" y cortando la página a mitad de carga — de ahí el
+   flash de contenido seguido de expulsión.
+
    v0.4: se agrega enablePersistence() como no-op al mock. Se nos había
    pasado por alto en el diagnóstico original — proyecto.html v5.26 ya
    llamaba db.enablePersistence() (piloto de persistencia offline de
@@ -202,11 +241,20 @@ function _mockDoc(coleccionRaiz, id){
       return { exists: false, id, data: () => undefined };
     },
     onSnapshot(callback){
-      if(proyectoEnMemoria){
-        callback({ exists: true, id, data: () => ({ ...proyectoEnMemoria.data }) });
-      } else {
-        callback({ exists: false, id, data: () => undefined });
-      }
+      // Async a propósito (setTimeout 0) — Firestore real SIEMPRE
+      // dispara onSnapshot de forma asíncrona, nunca en el mismo tick
+      // en que se registra. Si el mock lo disparaba sincrónico, el
+      // callback corría ANTES de que el resto del script terminara de
+      // declarar sus variables (ej. "recordatoriosCache" en
+      // index.html), causando ReferenceError: Cannot access '...'
+      // before initialization y cortando la página a mitad de carga.
+      setTimeout(() => {
+        if(proyectoEnMemoria){
+          callback({ exists: true, id, data: () => ({ ...proyectoEnMemoria.data }) });
+        } else {
+          callback({ exists: false, id, data: () => undefined });
+        }
+      }, 0);
       return function unsubscribe(){};
     },
     // Subcolección: solo tiene datos reales si coleccionRaiz === 'proyectos'
@@ -221,7 +269,26 @@ function _mockDoc(coleccionRaiz, id){
 
 function _crearDocSnapshot(id, data, proyectoIdPadre){
   const { id: _omit, ...resto } = data || {};
-  return { id, data: () => ({ ...resto }), exists: true, ref: { parent: { parent: proyectoIdPadre ? { id: proyectoIdPadre } : null } } };
+  return {
+    id,
+    data: () => ({ ...resto }),
+    exists: true,
+    ref: {
+      // .parent.parent imita la referencia al doc padre (ej. para
+      // collectionGroup('actividad'), el padre sería la vaca dueña de
+      // esa actividad, no un proyecto) — necesita su propio .get()
+      // real porque código como index.html:788 (vacaRef.get()) lo
+      // llama. LIMITACIÓN CONOCIDA: acá se asume 'proyectos' como
+      // colección padre porque es el único caso con datos reales en
+      // Fase 1 (sesiones/produccion/temas/pagos de un proyecto
+      // descargado). Si en el futuro se carga actividad de Las Vacas
+      // offline, esto habría que generalizarlo a la colección padre
+      // real, no fijo a 'proyectos'.
+      parent: {
+        parent: proyectoIdPadre ? _mockDoc('proyectos', proyectoIdPadre) : null
+      }
+    }
+  };
 }
 
 // "Query" de solo lectura sobre un array ya resuelto en memoria. where()/
@@ -231,20 +298,47 @@ function _crearQueryEstatica(docsSnapshot){
   return {
     where(){ return _crearQueryEstatica(docsSnapshot); },
     orderBy(){ return _crearQueryEstatica(docsSnapshot); },
+    // Placeholder — no corta la cantidad real de docs todavía (a
+    // diferencia de where()/orderBy(), acá SÍ importaría cortar de
+    // verdad si hay muchos docs, pero se deja así por ahora: el
+    // volumen esperado en modo offline es bajo — solo lo que el
+    // usuario descargó a mano — así que no truncar no debería causar
+    // problemas prácticos. Revisar si aparece un caso real que lo pida.
+    limit(){ return _crearQueryEstatica(docsSnapshot); },
     async get(){
       return {
         docs: docsSnapshot,
         empty: docsSnapshot.length === 0,
-        forEach(fn){ docsSnapshot.forEach(fn); }
+        forEach(fn){ docsSnapshot.forEach(fn); },
+        docChanges(){ return _crearDocChanges(docsSnapshot); }
       };
     },
     onSnapshot(callback){
-      callback({
-        docs: docsSnapshot,
-        empty: docsSnapshot.length === 0,
-        forEach(fn){ docsSnapshot.forEach(fn); }
-      });
+      // Async a propósito — mismo motivo que el onSnapshot de _mockDoc
+      // arriba (ver comentario ahí). Este es el que efectivamente
+      // causó el bug reportado (recordatoriosCache en index.html).
+      setTimeout(() => {
+        callback({
+          docs: docsSnapshot,
+          empty: docsSnapshot.length === 0,
+          forEach(fn){ docsSnapshot.forEach(fn); },
+          docChanges(){ return _crearDocChanges(docsSnapshot); }
+        });
+      }, 0);
       return function unsubscribe(){};
     }
   };
+}
+
+// docChanges() real de Firestore avisa qué cambió entre snapshots
+// (added/modified/removed) comparando contra el snapshot anterior. El
+// mock no tiene "snapshot anterior" real (no hay listener persistente
+// contra un servidor) — se simplifica: TODOS los docs se reportan como
+// 'added' una sola vez, que es lo que pasa en Firestore real también
+// en la primera carga de cualquier onSnapshot. Si algún código
+// dependiera de ver 'modified'/'removed' en vivo, no lo va a ver acá
+// — no encontramos ese caso en el diagnóstico (index.html:780 filtra
+// explícitamente solo 'added').
+function _crearDocChanges(docsSnapshot){
+  return docsSnapshot.map(doc => ({ type: 'added', doc }));
 }
