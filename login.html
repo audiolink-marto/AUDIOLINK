@@ -4,7 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Acceso</title>
-<!-- AUDIOLINK · login.html · v1.9
+<!-- AUDIOLINK · login.html · v1.10
+     v1.10: se agrega un link discreto "¿Atascado en modo offline?" bajo
+     el formulario — parte de la Fase 1 de modo offline (ver
+     ARQUITECTURA.md sección 5). Antes, si alguien activaba el switch
+     offline (index.html v2.22) sin datos cargados, y algo fallaba en
+     el camino (ej. el bug de enablePersistence ya corregido en
+     offline-mock.js v0.4), quedaba sin forma visual de volver a
+     online — login.html es la única página que siempre carga pase lo
+     que pase, así que es el lugar correcto para esta salida de
+     emergencia. El link solo borra el override de localStorage
+     (AUDIOLINK_OFFLINE_OVERRIDE) y recarga; no toca sesión de Auth ni
+     nada más. No se tocó ninguna otra función existente.
+
+     AUDIOLINK · login.html · v1.9
      v1.9: destinoPostLogin() ya no deja al ingeniero con un mensaje
      estático cuando no hay ?next= — ahora cae en ingeniero.html (su
      portal propio, v1.0), mismo criterio que proyecto.html para staff.
@@ -201,6 +214,9 @@ h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;c
   </div>
   <button class="btn" id="btnLogin" onclick="login()">Ingresar</button>
   <div class="msg" id="msg"></div>
+  <div style="text-align:center; margin-top:16px;">
+    <a href="#" onclick="salirModoOfflineEmergencia(); return false;" style="font-size:0.8em; color:var(--muted); text-decoration:underline;">¿Atascado en modo offline? Volver a modo online</a>
+  </div>
 </div>
 
 <script>
@@ -323,6 +339,23 @@ function mostrarMsg(texto, tipo){
   const msg = document.getElementById('msg');
   msg.textContent = texto;
   msg.className = 'msg ' + tipo;
+}
+
+// v1.10 — salida de emergencia del modo offline (ver ARQUITECTURA.md
+// sección 5). No depende de crearDB() ni de offline-mock.js estar
+// cargado en esta página — solo borra el override directo de
+// localStorage, mismo criterio que usa crearDB()/estaModoOfflineActivo()
+// en firebase-config.js para decidir online/offline.
+function salirModoOfflineEmergencia(){
+  try{
+    localStorage.removeItem('AUDIOLINK_OFFLINE_OVERRIDE');
+    mostrarMsg('Modo online restablecido. Recargando...', 'info');
+  }catch(err){
+    console.error('Error al salir del modo offline:', err);
+    mostrarMsg('No se pudo restablecer el modo online. Revisa la consola.', 'error');
+    return;
+  }
+  setTimeout(() => window.location.reload(), 800);
 }
 
 async function login(){

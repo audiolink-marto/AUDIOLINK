@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Panel del Músico</title>
+<!-- AUDIOLINK · musico.html · v1.2
+     v1.2: cada sesión gana un botón "✍️ Firmar consentimiento", que abre
+     consentimiento.html (ya existente, sin tocar) en pestaña nueva con
+     ?p={proyectoId}&s={sesionId}&nombre=&correo=&tarifa= precargados
+     desde la misma asignación (musicosAsignados) que ya usamos para el
+     instrumento — el músico no depende de que staff le mande el link
+     por WhatsApp. No se agregó ninguna verificación de "ya firmé"
+     porque implicaría un permiso de lectura nuevo en Firestore rules
+     que se decidió no agregar por ahora (firmar dos veces no rompe
+     nada, cada firma es solo un registro más). No se tocó
+     consentimiento.html, RSVP, ni el guard de sesión.
+     v1.1: se corrige el alcance de "tus sesiones" — v1.0 mostraba TODAS
+     las sesiones del proyecto (asignación solo por proyecto, calcado
+     de ingenieros). Se descubrió que logistica.html YA tiene asignación
+     por sesión (`musicosAsignados`, array con {musicoId, nombre, correo,
+     instrumento, telefono, tarifa, canales} — sistema completo y
+     preexistente, no hubo que tocar logistica.html en absoluto). Ahora
+     cargarSesiones() filtra: solo se listan sesiones donde
+     musicosAsignados contiene una entrada con `correo` igual al del
+     músico logueado (comparación case-insensitive). El instrumento
+     mostrado en cada card ahora sale de esa entrada específica
+     (m.instrumento), no de un campo genérico de sesión inexistente
+     (v1.0 leía `s.instrumentoRequerido`, que nunca existió — error de
+     diseño antes de revisar el archivo real). Sesiones sin
+     musicosAsignados (o vacío) NO se muestran — antes esto habría sido
+     un fallback "mostrar a todos", pero como el campo ya existe y se
+     usa activamente en logística, no hace falta ese fallback. No se
+     tocó el resto del archivo (RSVP, vista previa, guard de sesión).
+     v1.0: módulo nuevo. Portal del músico, calcado de ingeniero.html en
+     esqueleto (guard de sesión, modo vista previa, tema, login con
+     ?next=) pero con una diferencia deliberada de UI: en vez de
+     listado de proyectos → detalle → sesiones (útil para el ingeniero,
+     que trabaja tema por tema), acá es una LISTA PLANA de "tus próximas
+     sesiones" ordenadas por fecha — lo único que le importa al músico
+     es cuándo/dónde toca, no navegar por proyecto. Cada card muestra
+     fecha, hora, sala, instrumento a llevar, director musical, y un
+     RSVP (confirmar/rechazar asistencia) que escribe en el campo
+     `rsvp` de la sesión: { [correoMusico]: 'confirmado'|'rechazado' }.
+     Requiere: firestore.rules con esMusicoDe() (pendiente, próxima
+     pieza) y colección `musicosPortal` (id=correo, activo, nombre,
+     proyectosAsignados[]) — separada del catálogo administrativo
+     `musicos.html`, mismo criterio que ingenieros vs equipoInterno
+     (ver ARQUITECTURA.md). Sin esas piezas, este archivo carga pero no
+     puede leer nada todavía — es la UI primero, según lo pedido.
+     Historial completo de versiones: ver CHANGELOG.md -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;}
+header{
+  padding:16px 20px;border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surf);flex-wrap:wrap;gap:12px;
+}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+.btn{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  transition:all 0.2s;font-weight:500;min-height:44px;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+.btn-icon{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+main{padding:28px;max-width:760px;margin:0 auto;}
+.preview-banner{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:10px 16px;border-radius:8px;font-size:0.82rem;text-align:center;margin-bottom:20px;
+}
+.top-actions{margin-bottom:20px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+.msg-panel{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:40px 24px;text-align:center;color:var(--muted);
+}
+.rol-tag{font-size:0.72rem;color:var(--muted);letter-spacing:0.04em;margin-left:2px;}
+.credit{text-align:center;padding:18px 20px 24px;font-size:0.68rem;color:var(--faint);letter-spacing:0.02em;}
+
+.sesion-card{
+  background:var(--surf);border:1px solid var(--brd);border-left:3px solid var(--gold);
+  border-radius:10px;padding:18px 20px;margin-bottom:14px;
+}
+.sesion-card.pasada{opacity:0.55;border-left-color:var(--faint);}
+.sesion-card .proyecto{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;}
+.sesion-card h3{font-size:1.05rem;color:var(--txt);font-weight:600;margin-bottom:10px;}
+.sesion-meta{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;}
+.sesion-meta .item{font-size:0.85rem;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.sesion-meta .item strong{color:var(--txt);font-weight:500;}
+.rsvp-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--brd);}
+.consent-row{padding-top:10px;}
+.consent-btn{width:100%;font-size:0.82rem;}
+.rsvp-label{font-size:0.8rem;color:var(--muted);}
+.rsvp-btn{
+  min-height:44px;padding:9px 16px;border-radius:7px;font-size:0.82rem;font-weight:500;
+  cursor:pointer;border:1px solid var(--brd);background:var(--surf-light);color:var(--muted);
+  transition:all 0.15s;
+}
+.rsvp-btn.confirmar:hover{border-color:var(--ok);color:var(--ok);}
+.rsvp-btn.rechazar:hover{border-color:var(--err);color:var(--err);}
+.rsvp-btn.activo.confirmar{background:rgba(76,175,125,0.15);border-color:var(--ok);color:var(--ok);}
+.rsvp-btn.activo.rechazar{background:rgba(212,87,74,0.15);border-color:var(--err);color:var(--err);}
+.rsvp-estado{font-size:0.8rem;margin-left:auto;font-weight:500;}
+.rsvp-estado.confirmado{color:var(--ok);}
+.rsvp-estado.rechazado{color:var(--err);}
+.rsvp-estado.pendiente{color:var(--warn);}
+
+@media (max-width:640px){
+  header{padding:14px 16px;}
+  .brand h1{font-size:1.05rem;}
+  main{padding:18px;}
+  .sesion-card{padding:16px;}
+  .rsvp-row{flex-direction:column;align-items:stretch;}
+  .rsvp-estado{margin-left:0;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+    <h1>AUDIOLINK</h1>
+    <span class="rol-tag" id="rolTag"></span>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
+    <button class="btn btn-ghost btn-icon" onclick="cerrarSesion()" title="Salir" id="btnSalirMus">⏻</button>
+  </div>
+</header>
+
+<main>
+  <div class="preview-banner" id="previewBanner" style="display:none;">
+    👁️ Estás viendo esto en modo vista previa (equipo interno) — así lo ve el músico asignado.
+  </div>
+
+  <div class="top-actions">
+    <h2>TUS PRÓXIMAS SESIONES</h2>
+  </div>
+
+  <div id="listaSesiones"></div>
+  <div class="empty" id="emptyState" style="display:none;">Aún no tienes sesiones asignadas. Contacta a producción.</div>
+</main>
+<div class="credit">Marto 🧠 · martowave@gmail.com</div>
+
+<script>
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+function toggleTema(){
+  const actual = document.documentElement.getAttribute('data-tema') || 'dark';
+  const nuevo = actual === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  localStorage.setItem('audiolink_tema', nuevo);
+  document.getElementById('btnTema').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+}
+(function(){
+  const t = localStorage.getItem('audiolink_tema') || 'dark';
+  document.getElementById('btnTema').textContent = t === 'dark' ? '🌙' : '☀️';
+})();
+
+function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  auth.signOut().then(() => window.location.href = 'login.html');
+}
+
+// ============ GUARD DE SESIÓN ============
+// Mismo patrón que ingeniero.html: staff (equipoInterno) o músico
+// (musicosPortal, proyectosAsignados[]). Modo vista previa igual
+// (?preview=correo), solo para staff.
+const urlParams = new URLSearchParams(window.location.search);
+const previewEmail = urlParams.get('preview');
+let modoPreview = false;
+let proyectosAsignados = [];
+let correoActual = null;
+let nombreMusicoActual = '';
+
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    if(previewEmail){
+      document.getElementById('listaSesiones').innerHTML = '';
+      document.getElementById('emptyState').style.display = 'none';
+      document.querySelector('main').insertAdjacentHTML('beforeend',
+        '<div class="msg-panel">Esta es una vista previa de staff. Inicia sesión como equipo interno en otra pestaña primero.</div>');
+      return;
+    }
+    location.href = 'login.html?next=' + encodeURIComponent(location.href);
+    return;
+  }
+
+  const correo = user.email.toLowerCase();
+
+  if(previewEmail){
+    const staffDoc = await db.collection('equipoInterno').doc(correo).get();
+    if(!staffDoc.exists || staffDoc.data().activo !== true){
+      document.querySelector('main').insertAdjacentHTML('beforeend',
+        '<div class="msg-panel">No tienes permisos de staff para usar la vista previa.</div>');
+      return;
+    }
+    modoPreview = true;
+    correoActual = previewEmail.toLowerCase();
+    document.getElementById('previewBanner').style.display = 'block';
+    document.getElementById('rolTag').textContent = '👁️ Vista previa: ' + previewEmail;
+  } else {
+    const staffDoc = await db.collection('equipoInterno').doc(correo).get();
+    if(staffDoc.exists && staffDoc.data().activo === true){
+      document.getElementById('rolTag').textContent = 'Staff';
+      correoActual = correo;
+    } else {
+      const musDoc = await db.collection('musicosPortal').doc(correo).get();
+      if(!musDoc.exists || musDoc.data().activo !== true){
+        document.querySelector('main').insertAdjacentHTML('beforeend',
+          '<div class="msg-panel">Tu cuenta no tiene sesiones asignadas todavía. Contacta a producción.</div>');
+        return;
+      }
+      document.getElementById('rolTag').textContent = 'Músico · ' + (musDoc.data().nombre || correo);
+      correoActual = correo;
+    }
+  }
+
+  const musDocActual = await db.collection('musicosPortal').doc(correoActual).get();
+  proyectosAsignados = musDocActual.exists ? (musDocActual.data().proyectosAsignados || []) : [];
+  nombreMusicoActual = musDocActual.exists ? (musDocActual.data().nombre || '') : '';
+  cargarSesiones();
+});
+
+// ============ CARGA DE SESIONES ============
+// Carga única (.get()), no tiempo real — mismo criterio de
+// ARQUITECTURA.md sección 1: catálogo/contexto que no cambia mientras
+// el músico mira su lista, no es una pantalla donde otro dispositivo
+// esté escribiendo al mismo tiempo.
+async function cargarSesiones(){
+  const cont = document.getElementById('listaSesiones');
+  const empty = document.getElementById('emptyState');
+  if(proyectosAsignados.length === 0){
+    empty.style.display = 'block';
+    return;
+  }
+  cont.innerHTML = '<div class="empty">Cargando...</div>';
+  try{
+    const todasSesiones = [];
+    for(const proyectoId of proyectosAsignados){
+      const [proyDoc, sesSnap] = await Promise.all([
+        db.collection('proyectos').doc(proyectoId).get(),
+        db.collection('proyectos').doc(proyectoId).collection('sesiones').get()
+      ]);
+      const nombreProyecto = proyDoc.exists ? (proyDoc.data().nombre || 'Proyecto') : 'Proyecto';
+      sesSnap.forEach(d => {
+        const datos = d.data();
+        const asignados = Array.isArray(datos.musicosAsignados) ? datos.musicosAsignados : [];
+        const miAsignacion = asignados.find(m => (m.correo || '').toLowerCase() === correoActual);
+        if(!miAsignacion) return; // esta sesión no es para este músico
+        todasSesiones.push({
+          id: d.id, proyectoId, proyectoNombre: nombreProyecto,
+          ...datos, miInstrumento: miAsignacion.instrumento || '', miTarifa: miAsignacion.tarifa || null
+        });
+      });
+    }
+    todasSesiones.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+    renderSesiones(todasSesiones);
+  } catch(err){
+    console.error('Error cargando sesiones del músico:', err);
+    cont.innerHTML = '<div class="empty">No pudimos cargar tus sesiones.</div>';
+  }
+}
+
+function renderSesiones(sesiones){
+  const cont = document.getElementById('listaSesiones');
+  const empty = document.getElementById('emptyState');
+  if(sesiones.length === 0){
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const hoy = hoyISO();
+  cont.innerHTML = sesiones.map(s => {
+    const pasada = s.fecha && s.fecha < hoy;
+    const rsvp = (s.rsvp || {})[correoActual];
+    const fechaLegible = s.fecha
+      ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' })
+      : 'Sin fecha';
+    return `
+      <div class="sesion-card ${pasada ? 'pasada' : ''}">
+        <div class="proyecto">${escapeHtml(s.proyectoNombre)}</div>
+        <h3>${escapeHtml(s.actividad || 'Sesión')}</h3>
+        <div class="sesion-meta">
+          <span class="item">📅 <strong>${escapeHtml(fechaLegible)}</strong></span>
+          ${s.hora ? `<span class="item">⏰ <strong>${escapeHtml(s.hora)}</strong></span>` : ''}
+          ${s.sala ? `<span class="item">📍 <strong>${escapeHtml(s.sala)}</strong></span>` : ''}
+          ${s.miInstrumento ? `<span class="item">🎸 <strong>${escapeHtml(s.miInstrumento)}</strong></span>` : ''}
+        </div>
+        ${!pasada ? `
+        <div class="rsvp-row">
+          <span class="rsvp-label">¿Confirmas asistencia?</span>
+          <button class="rsvp-btn confirmar ${rsvp === 'confirmado' ? 'activo' : ''}" onclick="responderRsvp('${s.proyectoId}','${s.id}','confirmado')">✓ Confirmar</button>
+          <button class="rsvp-btn rechazar ${rsvp === 'rechazado' ? 'activo' : ''}" onclick="responderRsvp('${s.proyectoId}','${s.id}','rechazado')">✕ No puedo</button>
+          <span class="rsvp-estado ${rsvp || 'pendiente'}">${rsvp === 'confirmado' ? 'Confirmado' : rsvp === 'rechazado' ? 'No asiste' : 'Pendiente'}</span>
+        </div>` : ''}
+        <div class="consent-row">
+          <button class="btn btn-ghost consent-btn" onclick="abrirConsentimiento('${s.proyectoId}','${s.id}',${s.miTarifa || 'null'})">✍️ Firmar consentimiento</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// v1.2: abre consentimiento.html (existente, sin tocar) con los datos
+// ya conocidos precargados — mismo esquema de parámetros que ya genera
+// logistica.html ("Generar link de consentimiento"), solo que acá no
+// hace falta que staff lo arme y lo mande: el músico ya está en su
+// propio portal con sus propios datos.
+function abrirConsentimiento(proyectoId, sesionId, tarifa){
+  const params = new URLSearchParams({
+    p: proyectoId, s: sesionId,
+    nombre: nombreMusicoActual, correo: correoActual
+  });
+  if(tarifa) params.set('tarifa', tarifa);
+  window.open('consentimiento.html?' + params.toString(), '_blank');
+}
+
+async function responderRsvp(proyectoId, sesionId, respuesta){
+  if(modoPreview){ alert('No puedes confirmar asistencia en modo vista previa.'); return; }
+  try{
+    // set(...,{merge:true}) con objeto anidado — NO usar update() con un
+    // string tipo 'rsvp.correo@ejemplo.com': Firestore interpreta los
+    // puntos de un string de update() como separadores de campo, y un
+    // correo real tiene puntos, así que rompería la ruta. Con un objeto
+    // JS normal, la key (aunque tenga puntos) se guarda literal.
+    await db.collection('proyectos').doc(proyectoId).collection('sesiones').doc(sesionId)
+      .set({ rsvp: { [correoActual]: respuesta } }, { merge: true });
+    cargarSesiones();
+  } catch(err){
+    console.error('Error guardando RSVP:', err);
+    alert('No pudimos guardar tu respuesta. Intenta de nuevo.');
+  }
+}
+</script>
+
+</body>
+</html>

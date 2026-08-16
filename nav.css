@@ -1,4 +1,29 @@
-/* AUDIOLINK · nav.css · v1.8
+/* AUDIOLINK · nav.css · v1.11
+   v1.11: fix — en mobile el banner "sin conexión" se quedaba pegado
+   encima de la barra inferior después de recuperar señal, en vez de
+   desaparecer del todo. Causa: la posición base usaba
+   bottom:var(--bn-h) con transform:translateY(100%) para "ocultarlo",
+   pero eso solo lo desplazaba una fracción — no lo sacaba realmente de
+   pantalla, quedaba montado sobre la barra de navegación. Se cambia el
+   enfoque: la posición base ahora es SIEMPRE bottom:0 (oculto = fuera
+   de pantalla del todo, transform:translateY(120%)); en mobile, al
+   mostrarse (.show), se levanta con translateY(calc(-1 * var(--bn-h)))
+   para quedar arriba de la barra inferior, en vez de mover la posición
+   de reposo. En desktop no cambia el comportamiento visual (translateY(0)
+   sigue siendo bottom:0 normal). No se tocó nada más.
+   v1.10: el banner "sin conexión" se mueve de arriba a abajo — no tapa
+   el header/topbar. En desktop queda pegado al fondo (bottom:0). En
+   mobile (≤768px) queda justo ARRIBA de la barra .mobile-bottomnav
+   (bottom:var(--bn-h)), para no superponerse con ella — la animación
+   de entrada pasa de translateY(-100%) a translateY(100%), deslizando
+   desde abajo en vez de desde arriba. No se tocó ningún otro estilo.
+   v1.9: CSS de las dos mejoras de nav.js v1.13. (1) .conn-dot — puntito
+   redondo junto al logo "AUDIOLINK" (sidebar + topbar móvil), verde por
+   defecto (--ok), rojo cuando <body> tiene la clase .conn-offline.
+   (2) .vu-brand span (las barritas del logo, no las del botón de menú
+   móvil) cambian de --gold a --err bajo la misma clase .conn-offline
+   en <body>. Ningún selector nuevo choca con .vu ni .btn-menu-vu
+   existentes — .vu-brand es aditivo. No se tocó nada más.
    v1.8: CSS del banner "sin conexión" (ver nav.js v1.11) — fijo arriba
    de la pantalla, oculto por defecto (translateY), se muestra con
    .show cuando navigator.onLine es false. Encima del sidebar/topbar
@@ -183,12 +208,21 @@
 @keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
 
 .offline-banner{
-  position:fixed;top:0;left:0;right:0;z-index:200;
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
   background:#4a1512;color:#ffb4a8;text-align:center;
   font-size:0.8rem;font-weight:500;padding:9px 14px;
-  transform:translateY(-100%);transition:transform 0.25s ease;
+  transform:translateY(120%);transition:transform 0.25s ease;
 }
 .offline-banner.show{transform:translateY(0);}
 @media (max-width:768px){
   .offline-banner{font-size:0.75rem;padding:8px 10px;}
+  .offline-banner.show{transform:translateY(calc(-1 * var(--bn-h)));}
 }
+
+.conn-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--ok);
+  flex-shrink:0;box-shadow:0 0 4px rgba(76,175,125,0.6);
+  transition:background 0.2s,box-shadow 0.2s;
+}
+body.conn-offline .conn-dot{background:var(--err);box-shadow:0 0 4px rgba(212,87,74,0.6);}
+body.conn-offline .vu-brand span{background:var(--err);}

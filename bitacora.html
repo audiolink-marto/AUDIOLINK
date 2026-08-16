@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Bitácora de Grabación (v2.71)</title>
-<!-- AUDIOLINK · bitacora.html · v2.71
+<!-- AUDIOLINK · bitacora.html · v2.72
+     v2.72: se activa Firestore offline persistence (db.enablePersistence())
+     — mismo patrón que proyecto.html v5.26 (piloto ya validado), ahora
+     replicado acá porque bitácora es donde el ingeniero toma notas en
+     vivo durante la sesión, el caso más sensible a un corte de wifi en
+     sala. Cachea lecturas recientes en IndexedDB y encola escrituras si
+     se corta la señal; sincroniza al volver. Se maneja igual
+     'failed-precondition' (otra pestaña de Audiolink abierta) y
+     'unimplemented' (navegador sin soporte) — en ambos casos sigue
+     funcionando normal en modo online, solo sin caché offline. No se
+     tocó ninguna otra lógica.
      v2.71: checklist accionable en Edición/Mezcla/Mastering — reemplaza
      el rol de "pendientes" que cumplía la textarea libre. Campo nuevo
      por etapa `checklist{Edicion|Mezcla|Mastering}` (array de
@@ -1055,6 +1065,18 @@ if(origenNav === 'ingeniero'){
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+
+// v2.72: offline persistence (mismo patrón validado en proyecto.html
+// v5.26). Si falla, la app sigue funcionando normal en modo online.
+db.enablePersistence().catch(err => {
+  if(err.code === 'failed-precondition'){
+    console.warn('Persistencia offline no activada: ya hay otra pestaña de Audiolink abierta en este navegador.');
+  } else if(err.code === 'unimplemented'){
+    console.warn('Persistencia offline no soportada en este navegador.');
+  } else {
+    console.error('Error activando persistencia offline:', err);
+  }
+});
 
 // v2.18: reusa el GRUPOS_INSTRUMENTACION_LABELS que ya existía en este
 // mismo archivo (pestaña Reportes, más abajo) — mismo diccionario,

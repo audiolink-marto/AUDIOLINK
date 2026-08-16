@@ -1,4 +1,27 @@
-/* AUDIOLINK · nav.js · v1.12
+/* AUDIOLINK · nav.js · v1.14
+   V1.14: fix — el banner de sin conexión a veces no desaparecía solo
+   al recuperar señal (había que recargar la página), mientras el punto
+   de estado (v1.13) sí se actualizaba. Los eventos nativos 'online'/
+   'offline' del navegador son conocidos por no dispararse siempre de
+   forma confiable (varía según navegador/SO/red). Se agrega un chequeo
+   de respaldo cada 5s (setInterval) y también al volver a la pestaña
+   (evento 'visibilitychange') — ambos llaman la misma
+   actualizarEstadoConexion() de siempre, así que aunque el evento nativo
+   falle, en máximo 5s (o al volver a mirar la pestaña) se corrige solo,
+   sin depender de un recargado manual. No se tocó la lógica interna de
+   la función ni el resto del archivo.
+   V1.13: dos mejoras al indicador de conexión (v1.11/v1.12), a pedido
+   del usuario. (1) Punto de estado (🟢/🔴) junto al logo "AUDIOLINK",
+   tanto en el sidebar de escritorio como en la topbar móvil. (2) Las
+   barritas del ícono `vu` JUNTO AL LOGO cambian de dorado a rojo cuando
+   se pierde conexión — se le agrega la clase extra .vu-brand solo a
+   esas dos instancias (sidebar + topbar), el ícono `vu` del botón de
+   menú móvil (⋮) queda igual que siempre, sin tocar, para no confundir
+   "conexión" con "hay opciones nuevas en el menú". Todo controlado por
+   una sola clase en <body> ('conn-offline'/quitarla si online), que
+   actualizarEstadoConexion() ya calculaba — no se agregó ningún
+   listener nuevo, solo se extendió esa misma función. No se tocó
+   ninguna otra lógica.
    V1.12: fix — el banner de sin conexión (v1.11) nunca se creaba en la
    práctica. Dependía solo de 'DOMContentLoaded' para dispararse la
    primera vez, pero nav.js normalmente se carga DESPUÉS de que ese
@@ -162,6 +185,11 @@
   const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares', 'cotizador'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
+  // v1.13: mismo ícono, clase extra para poder cambiarle el color según
+  // conexión sin afectar el vu del botón de menú móvil (que usa `vu` a
+  // secas, arriba).
+  const vuBrand = `<div class="vu vu-brand"><span></span><span></span><span></span><span></span><span></span></div>`;
+  const connDot = `<span class="conn-dot" title="Estado de conexión"></span>`;
 
   function grupoColapsado(nombre){
     return localStorage.getItem('audiolink_sb_grupo_' + nombre) === '1';
@@ -248,8 +276,9 @@
   const sidebarHtml = `
 <aside class="sidebar" id="sidebar">
   <div class="sb-brand">
-    ${vu}
+    ${vuBrand}
     <h1>AUDIOLINK</h1>
+    ${connDot}
   </div>
   <nav class="sb-nav">
     ${sbNavGroupedHtml()}
@@ -265,8 +294,9 @@
 
 <div class="mobile-topbar">
   <div class="brand">
-    ${vu}
+    ${vuBrand}
     <h1>AUDIOLINK</h1>
+    ${connDot}
   </div>
   <div class="mobile-topbar-actions">
     <button class="btn-menu-vu" onclick="toggleMasMobile()" title="Más opciones">${vu}</button>
@@ -364,11 +394,16 @@
   function actualizarEstadoConexion(){
     crearBannerOffline();
     const banner = document.getElementById('offlineBanner');
-    if(!banner) return;
-    banner.classList.toggle('show', !navigator.onLine);
+    const offline = !navigator.onLine;
+    if(banner) banner.classList.toggle('show', offline);
+    document.body.classList.toggle('conn-offline', offline);
   }
   window.addEventListener('online', actualizarEstadoConexion);
   window.addEventListener('offline', actualizarEstadoConexion);
   document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') actualizarEstadoConexion();
+  });
+  setInterval(actualizarEstadoConexion, 5000);
   actualizarEstadoConexion();
 })();

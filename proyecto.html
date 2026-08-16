@@ -4,7 +4,103 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.26
+<!-- AUDIOLINK · proyecto.html · v5.34
+     v5.34: se agrega <script src="offline-mock.js"> en el <head> (antes
+     de firebase-config.js) y se cambia `const db = firebase.firestore()`
+     por `const db = crearDB()` — parte de la Fase 1 de modo offline
+     (ver ARQUITECTURA.md sección 5). Sin el flag AUDIOLINK_MODO_OFFLINE
+     activado (default: false), crearDB() devuelve firebase.firestore()
+     real — cero cambio de comportamiento en producción. Con el flag
+     activado y datos ya cargados vía el panel de index.html
+     (persisten entre páginas por localStorage, ver offline-mock.js
+     v0.3), este archivo lee del mock en vez de la nube. No se tocó
+     ninguna otra línea ni función.
+     v5.33: se agrega el botón "📥 Descargar proyecto" en .pdf-actions
+     (junto a PDF Cliente/Interno/Editar) y la función
+     descargarProyectoOffline() — parte de la Fase 1 de modo offline
+     (ver ARQUITECTURA.md sección 5). Al tocarlo, trae con .get() el doc
+     del proyecto abierto + sus 4 subcolecciones (sesiones, produccion,
+     temas, pagos), arma un JSON con fecha de descarga incluida, y
+     dispara la descarga como archivo real
+     (audiolink_proyecto_{id}_{fecha}.json) — pensado para portabilidad
+     entre dispositivos, no localStorage. No toca ninguna función
+     existente ni ningún otro botón de la barra.
+     v5.32: se refuerza la claridad de la línea de tiempo (v5.29/v5.31) —
+     cada fecha ahora incluye el tiempo relativo entre paréntesis (ej.
+     "Mar, 25 de ago (en 11 días)"), reutilizando tiempoRelativo() de
+     utils.js v1.4 (mismo patrón ya usado en recordatorios.html, ya
+     cargado en este archivo, no se agregó ningún script nuevo). Así no
+     hace falta ubicar mentalmente el separador "HOY" para saber qué tan
+     lejos está cada evento — el dato está en la fecha misma. Se quita
+     el "· hoy" que solo aparecía en el evento exacto de hoy (redundante
+     ahora que tiempoRelativo() ya devuelve "hoy" en ese caso). No se
+     tocó el separador HOY (v5.31) ni ninguna otra lógica.
+     v5.31: fix de claridad en la línea de tiempo (v5.29) — el separador
+     "HOY" no mostraba la fecha actual, así que parecía decir "esta
+     sesión de abajo es hoy" cuando en realidad solo marca el punto
+     divisorio entre pasado/futuro (la sesión de abajo puede ser varios
+     días después si no hay nada agendado justo hoy). Se le agrega la
+     fecha real junto al texto: "HOY · 14 ago". No se tocó la lógica de
+     dónde se inserta el separador (sigue siendo antes del primer evento
+     no-pasado), solo el texto mostrado.
+     v5.30: el modal "Músicos (portal)" ahora ofrece elegir del catálogo
+     `musicos` (musicos.html) en vez de escribir nombre/correo a mano
+     como única opción — evita doble digitación y errores de tipeo en
+     el correo (antes un correo mal escrito no se detectaba hasta que
+     el músico no podía entrar). Nuevo <select id="musicoPortalCatalogo">
+     que carga el catálogo con .get() (carga única, no onSnapshot —
+     mismo criterio de ARQUITECTURA.md sección 1 para catálogos que casi
+     no cambian dentro de una sesión de uso) al abrir el modal; al
+     elegir uno, autocompleta los campos de nombre/correo existentes
+     (que ahora quedan de solo lectura mientras el select tiene algo
+     elegido). Se conserva la opción "Otro (no está en el catálogo)"
+     para escribir manual, mismo comportamiento que v5.27 — no se quitó
+     ninguna funcionalidad, solo se le agregó un atajo. No se tocó
+     agregarMusicoAlProyecto() más allá de que ahora puede recibir el
+     nombre/correo ya autocompletados; el resto del flujo (crear cuenta,
+     reenviar, vista previa, quitar) sigue igual.
+     v5.29: el mini-calendario mensual del detalle de proyecto
+     (renderMiniCalendario, grilla con navegación mes a mes) se
+     reemplaza por una LÍNEA DE TIEMPO — a pedido del usuario: la vista
+     de un proyecto individual normalmente tiene pocas sesiones +una
+     entrega, y una grilla mensual obliga a navegar entre meses para
+     verlas todas si el proyecto se extiende más de 30 días, con la
+     mayoría de celdas vacías de ruido visual. La línea de tiempo lista
+     TODOS los eventos (sesiones + entrega) en una sola columna
+     cronológica, con un separador "HOY" entre lo pasado (atenuado) y lo
+     próximo, sin paginar por mes. Se reemplaza por completo, no queda
+     como alternativa/toggle (decisión explícita del usuario: simplicidad
+     sobre flexibilidad no pedida). Reutiliza tal cual
+     editarFechaEntregaDash(), moverFechaSesionDash() y
+     validarFechaISODash() (v5.8) — mismas acciones rápidas de siempre,
+     ahora inline en cada ítem en vez de detrás de un tooltip de día. Se
+     retiran renderMiniCalendario(), cambiarMesDash(), mostrarTooltipDia()
+     y la variable dashCalMes (ya sin uso). El CSS .dash-cal-* queda sin
+     uso pero no se borra en esta pasada (bajo riesgo dejarlo inerte vs.
+     riesgo de tocar más de lo pedido); se puede limpiar en una sesión
+     aparte de housekeeping. No se tocó renderRutaEtapa() (el roadmap de
+     etapas es una pieza visual distinta, no se confunda con esto) ni
+     ningún otro dashboard.
+     v5.28: se renombra el botón "🎸 Músicos" → "🎸 Músicos (portal)" y el
+     título del modal → "🎸 Portal de músicos — acceso a este proyecto",
+     para distinguirlo del catálogo administrativo musicos.html (mismo
+     nombre genérico generaba confusión: uno es "editar datos del
+     músico", el otro es "dar acceso al portal de sesiones/RSVP"). Solo
+     texto, no cambia ninguna función ni lógica de v5.27.
+     v5.27: se agrega el modal "Músicos con acceso a este proyecto",
+     calcado línea por línea del modal de Ingenieros (v4.17-v4.20) — misma
+     estructura, mismos flujos (agregar por correo, crear cuenta real de
+     Firebase Auth con contraseña temporal + correo de "crear tu
+     contraseña", reenviar, copiar link genérico de login, vista previa,
+     quitar acceso a este proyecto sin borrar al músico de otros). Usa la
+     colección `musicosPortal` (firestore.rules v2.30, esMusicoDe()) y
+     abre musico.html (v1.0) en vista previa. Reutiliza la MISMA app
+     secundaria de Auth (`appIng`/`authIng`) que ya existe para
+     ingenieros — no se crea una tercera instancia de Firebase solo para
+     esto, el nombre de la instancia no tiene relación con el rol, es
+     puramente para no pisar la sesión de staff al crear la cuenta. Botón
+     "🎸 Músicos" nuevo junto a "🎧 Ingenieros" en el detalle del
+     proyecto. No se tocó ninguna función ni modal existente.
      v5.26: se activa Firestore offline persistence (db.enablePersistence())
      — piloto del ecosistema, primer archivo en probarlo antes de
      replicarlo a logistica.html/bitacora.html/etc. Cachea lecturas
@@ -592,6 +688,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script src="instrumentacion.js"></script>
@@ -995,6 +1092,43 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .dash-cal-tooltip a{color:var(--gold);}
 .dash-proxima-sesion{font-size:0.85rem;color:var(--muted);margin-bottom:16px;}
 
+/* Línea de tiempo del proyecto (v5.29) — reemplaza el mini-calendario
+   mensual (.dash-cal-*, dejado arriba sin uso). Acento superior por
+   etapa igual que el calendario tenía (--etapa-acento). */
+.linea-tiempo{
+  background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);
+  border-top:2px solid var(--etapa-acento, var(--brd));border-radius:8px;
+  padding:14px 18px;margin-bottom:16px;
+}
+.linea-tiempo-head{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px;
+}
+.linea-tiempo-vacia{font-size:0.85rem;color:var(--muted);padding:8px 0;}
+.linea-tiempo-lista{display:flex;flex-direction:column;}
+.linea-hoy-marcador{
+  display:flex;align-items:center;gap:8px;margin:4px 0 8px 15px;
+  font-size:0.68rem;font-weight:700;letter-spacing:0.08em;color:var(--gold);
+}
+.linea-hoy-marcador::after{content:'';flex:1;height:1px;background:var(--gold);opacity:0.4;}
+.linea-item{display:flex;gap:12px;padding-bottom:16px;position:relative;}
+.linea-item:not(:last-child)::before{
+  content:'';position:absolute;left:5px;top:14px;bottom:0;width:1px;background:var(--brd);
+}
+.linea-item.pasado{opacity:0.5;}
+.linea-punto{
+  width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:3px;
+  border:2px solid var(--bg);box-shadow:0 0 0 1px var(--brd);
+}
+.linea-punto.sesion{background:#6ea3e8;}
+.linea-punto.entrega{background:var(--warn);}
+.linea-contenido{flex:1;min-width:0;}
+.linea-fecha{font-size:0.7rem;color:var(--muted);text-transform:capitalize;margin-bottom:2px;}
+.linea-titulo{font-size:0.88rem;color:var(--txt);margin-bottom:4px;}
+.linea-acciones{display:flex;gap:12px;font-size:0.76rem;}
+.linea-acciones a{color:var(--gold);text-decoration:none;}
+
 /* ============ DASHBOARD DE PROYECTO — secciones v4.24 ============ */
 .dash-seccion{margin:18px 0;}
 /* v4.33: acento visual por etapa del proyecto — variable CSS --etapa-acento
@@ -1251,6 +1385,8 @@ window.NAV_CONFIG = {
       <button class="btn btn-ghost" onclick="window.open('cotizacion-rapida.html?id=' + proyectoActualId, '_blank')">🧾 Cotizador</button>
       <button class="btn btn-ghost" onclick="window.open('produccion.html?id=' + proyectoActualId, '_blank')">🎵 Producción</button>
       <button class="btn btn-ghost" onclick="abrirModalIngenieros()">🎧 Ingenieros</button>
+      <button class="btn btn-ghost" onclick="abrirModalMusicos()">🎸 Músicos (portal)</button>
+      <button class="btn btn-ghost" onclick="descargarProyectoOffline()">📥 Descargar proyecto</button>
     </div>
   </div>
 
@@ -1403,6 +1539,36 @@ window.NAV_CONFIG = {
   </div>
 </div>
 
+<!-- MODAL MÚSICOS (v5.27) — calcado línea por línea del modal de
+     Ingenieros de arriba. Usa la colección `musicosPortal` en vez de
+     `ingenieros`, y abre musico.html en vez de ingeniero.html. -->
+<div class="modal-bg" id="modalMusicosBg">
+  <div class="modal">
+    <h2>🎸 Portal de músicos — acceso a este proyecto</h2>
+    <div class="field" style="margin-bottom:10px;">
+      <select id="musicoPortalCatalogo" onchange="seleccionarMusicoCatalogo()">
+        <option value="">— Elegir del catálogo de músicos —</option>
+        <option value="__otro__">Otro (no está en el catálogo)</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:10px;">
+      <input type="text" id="musicoPortalNuevoNombre" placeholder="Nombre completo">
+    </div>
+    <div class="row2">
+      <div class="field" style="margin-bottom:0;">
+        <input type="email" id="musicoPortalNuevoCorreo" placeholder="correo@musico.com">
+      </div>
+      <button class="btn" style="height:fit-content;" onclick="agregarMusicoAlProyecto()">+ Agregar</button>
+    </div>
+    <div id="musicoPortalErr" style="color:var(--err);font-size:0.82rem;margin:10px 0;"></div>
+    <div id="musicoPortalLista" style="display:flex;flex-direction:column;gap:8px;max-height:45vh;overflow-y:auto;margin-top:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="cerrarModalMusicos()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- MODAL TEMAS (v5.4) — gestión completa desde el dashboard: crear,
      reordenar, renombrar, fijar estado por etapa y eliminar. Escribe
      directo en proyectos/{id}/temas, mismo patrón que el resto del
@@ -1452,7 +1618,13 @@ window.NAV_CONFIG = {
 // (Firebase Console → Configuración del proyecto → Tus apps → SDK config)
 /* firebaseConfig ahora vive en firebase-config.js (ecosistema compartido) */
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// v5.33: antes `firebase.firestore()` directo. Ahora crearDB() —
+// si offline-mock.js está cargado (arriba en el <head>) y
+// AUDIOLINK_MODO_OFFLINE está en true (firebase-config.js), devuelve
+// el mock con los datos cargados en la sesión offline. Si el flag
+// está en false (default, como hoy en producción), devuelve
+// firebase.firestore() real — cero cambio de comportamiento.
+const db = crearDB();
 const auth = firebase.auth();
 
 // v5.26: offline persistence (piloto del ecosistema). Si falla, la app
@@ -1695,7 +1867,6 @@ let unsubSesionesDash = null;
 let unsubProduccionDash = null;
 let sesionesDash = [];
 let produccionDash = [];
-let dashCalMes = new Date();
 
 // --- v4.24: Temas (Edición/Mezcla/Mastering) ---
 let unsubTemasDash = null;
@@ -1717,7 +1888,6 @@ function suscribirDashboardDetalle(id){
   sesionesDash = [];
   produccionDash = [];
   temasDash = [];
-  dashCalMes = new Date();
   unsubSesionesDash = proyectosRef.doc(id).collection('sesiones')
     .onSnapshot(snap => {
       sesionesDash = [];
@@ -1884,105 +2054,79 @@ function renderRutaEtapa(p){
   `;
 }
 
-function renderMiniCalendario(p){
-  const anio = dashCalMes.getFullYear();
-  const mes = dashCalMes.getMonth();
+// v5.29: reemplaza renderMiniCalendario() — ver changelog arriba. Lista
+// cronológica plana de sesiones + entrega, sin paginar por mes.
+function renderLineaTiempo(p){
   const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const primerDia = new Date(anio, mes, 1);
-  const diasEnMes = new Date(anio, mes + 1, 0).getDate();
-  const offset = primerDia.getDay();
-  const entregaStr = p.fechaEntregaEstimada ? p.fechaEntregaEstimada.split('T')[0] : null;
-
-  const eventosPorDia = {};
+  const eventos = [];
   sesionesDash.forEach(s => {
     if(!s.fecha) return;
-    const d = new Date(s.fecha + 'T00:00:00');
-    const pasada = d < hoy;
-    if(!eventosPorDia[s.fecha]) eventosPorDia[s.fecha] = [];
-    eventosPorDia[s.fecha].push({ tipo: pasada ? 'pasada' : 'proxima', sesion: s });
+    eventos.push({ tipo: 'sesion', fecha: s.fecha, sesion: s });
   });
-  if(entregaStr && entregaStr.slice(0,7) === `${anio}-${String(mes+1).padStart(2,'0')}`){
-    if(!eventosPorDia[entregaStr]) eventosPorDia[entregaStr] = [];
-    eventosPorDia[entregaStr].push({ tipo: 'entrega' });
+  if(p.fechaEntregaEstimada){
+    eventos.push({ tipo: 'entrega', fecha: p.fechaEntregaEstimada.split('T')[0] });
+  }
+  eventos.sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+  const cabezal = `
+    <div class="linea-tiempo-head">
+      <span>LÍNEA DE TIEMPO</span>
+      <span class="link-add" onclick="window.open('logistica.html?id='+proyectoActualId,'_blank')">+ Agregar sesión</span>
+    </div>`;
+
+  if(eventos.length === 0){
+    return `
+      <div class="linea-tiempo" id="lineaTiempoProyecto">
+        ${cabezal}
+        <div class="linea-tiempo-vacia">Sin sesiones ni fecha de entrega todavía.</div>
+      </div>`;
   }
 
-  const dow = ['D','L','M','X','J','V','S'];
-  let celdas = dow.map(d => `<div class="dow">${d}</div>`).join('');
-  for(let i = 0; i < offset; i++) celdas += `<div></div>`;
-  for(let dia = 1; dia <= diasEnMes; dia++){
-    const fechaStr = `${anio}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-    const eventos = eventosPorDia[fechaStr];
-    const esHoy = new Date(fechaStr + 'T00:00:00').getTime() === hoy.getTime();
-    const dots = eventos ? `<div class="dash-cal-dots">${eventos.map(e => `<span class="dot-${e.tipo}"></span>`).join('')}</div>` : '';
-    const onclickDia = eventos ? `mostrarTooltipDia(event,'${fechaStr}')` : `abrirLogisticaDesdeCalendario('${fechaStr}')`;
-    celdas += `<div class="dash-cal-day ${esHoy ? 'hoy' : ''} ${eventos ? 'con-evento' : 'clicable'}" onclick="${onclickDia}">${dia}${dots}</div>`;
-  }
+  let marcadorPuesto = false;
+  const itemsHtml = eventos.map(e => {
+    const d = new Date(e.fecha + 'T00:00:00');
+    const pasado = d < hoy;
+    let marcadorHoy = '';
+    if(!marcadorPuesto && !pasado){
+      marcadorHoy = `<div class="linea-hoy-marcador"><span>HOY · ${hoy.toLocaleDateString('es-CO', { day:'numeric', month:'short' })}</span></div>`;
+      marcadorPuesto = true;
+    }
+    const fechaFmt = d.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short' });
+    const relativo = tiempoRelativo(e.fecha, null);
+    let cuerpo;
+    if(e.tipo === 'entrega'){
+      cuerpo = `
+        <div class="linea-item entrega ${pasado ? 'pasado' : ''}">
+          <div class="linea-punto entrega"></div>
+          <div class="linea-contenido">
+            <div class="linea-fecha">${fechaFmt}${relativo ? ` (${relativo})` : ''}</div>
+            <div class="linea-titulo">🎯 Entrega estimada del proyecto</div>
+            <div class="linea-acciones"><span class="link-add" onclick="editarFechaEntregaDash()">✎ Cambiar fecha</span></div>
+          </div>
+        </div>`;
+    } else {
+      const s = e.sesion;
+      cuerpo = `
+        <div class="linea-item sesion ${pasado ? 'pasado' : ''}">
+          <div class="linea-punto sesion"></div>
+          <div class="linea-contenido">
+            <div class="linea-fecha">${fechaFmt}${relativo ? ` (${relativo})` : ''}</div>
+            <div class="linea-titulo">${escapeHtml(s.actividad || 'Sesión')}${s.sala ? ' · ' + escapeHtml(s.sala) : ''}</div>
+            <div class="linea-acciones">
+              <span class="link-add" onclick="moverFechaSesionDash('${s.id}','${s.fecha}')">✎ Mover fecha</span>
+              <a href="logistica.html?id=${proyectoActualId}" class="link-add">Ver en logística →</a>
+            </div>
+          </div>
+        </div>`;
+    }
+    return (marcadorHoy || '') + cuerpo;
+  }).join('');
 
   return `
-    <div class="dash-calendario" id="dashCalendario">
-      <div class="dash-cal-head">
-        <button onclick="cambiarMesDash(-1)">‹</button>
-        <span>${dashCalMes.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}</span>
-        <button onclick="cambiarMesDash(1)">›</button>
-      </div>
-      <div class="dash-cal-grid">${celdas}</div>
-      <div class="dash-cal-legend">
-        <span><i class="pasada"></i>Sesión pasada</span>
-        <span><i class="proxima"></i>Próxima sesión</span>
-        <span><i class="entrega"></i>Entrega</span>
-      </div>
+    <div class="linea-tiempo" id="lineaTiempoProyecto">
+      ${cabezal}
+      <div class="linea-tiempo-lista">${itemsHtml}</div>
     </div>`;
-}
-
-function cambiarMesDash(delta){
-  dashCalMes = new Date(dashCalMes.getFullYear(), dashCalMes.getMonth() + delta, 1);
-  refrescarDetalleSiActivo();
-}
-
-function mostrarTooltipDia(evt, fechaStr){
-  evt.stopPropagation();
-  const existente = document.querySelector('.dash-cal-tooltip');
-  if(existente) existente.remove();
-  const sesionesDia = sesionesDash.filter(s => s.fecha === fechaStr);
-  const esEntrega = proyectos.find(x => x.id === proyectoActualId)?.fechaEntregaEstimada?.split('T')[0] === fechaStr;
-  const fechaFmt = new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' });
-  let html = `<strong>${fechaFmt}</strong><br>`;
-  if(esEntrega) html += `<div style="color:var(--warn);margin-top:4px;">Entrega estimada del proyecto <span class="link-add" onclick="editarFechaEntregaDash()">✎ Cambiar fecha</span></div>`;
-  sesionesDia.forEach(s => {
-    const dPasada = new Date(s.fecha + 'T00:00:00') < new Date(new Date().toDateString());
-    const etiquetaSesion = dPasada ? 'Sesión pasada' : 'Próxima sesión';
-    html += `<div style="margin-top:6px;">${escapeHtml(s.actividad || 'Sesión')}${s.sala ? ' · ' + escapeHtml(s.sala) : ''} · <em>${etiquetaSesion}</em> · <span class="link-add" onclick="moverFechaSesionDash('${s.id}','${s.fecha}')">✎ Mover fecha</span><br><a href="logistica.html?id=${proyectoActualId}">Ver en logística →</a></div>`;
-  });
-  const box = document.createElement('div');
-  box.className = 'dash-cal-tooltip';
-  box.innerHTML = html;
-  evt.currentTarget.appendChild(box);
-  // v5.10: en mobile la celda del día es angosta (~40-45px) y el tooltip
-  // tiene min-width:180px — antes se salía de la pantalla en los días
-  // de la derecha de la grilla (viernes/sábado). Se corrige la posición
-  // DESPUÉS de insertarlo (con las medidas reales ya calculadas), sin
-  // tocar el CSS base: si se sale por la derecha, se ancla por la
-  // derecha del día en vez de por la izquierda; si igual se sale por la
-  // izquierda de la pantalla (celdas muy angostas), se centra respecto
-  // a la ventana en vez del día.
-  requestAnimationFrame(() => {
-    box.style.left = '0';
-    box.style.right = 'auto';
-    let r = box.getBoundingClientRect();
-    const margen = 8;
-    if(r.right > window.innerWidth - margen){
-      box.style.left = 'auto';
-      box.style.right = '0';
-      r = box.getBoundingClientRect();
-    }
-    if(r.left < margen){
-      box.style.right = 'auto';
-      box.style.left = `${box.offsetLeft + (margen - r.left)}px`;
-    }
-  });
-  setTimeout(() => document.addEventListener('click', function cerrar(e){
-    if(!box.contains(e.target)){ box.remove(); document.removeEventListener('click', cerrar); }
-  }), 0);
 }
 
 // v5.8: validación simple de fecha AAAA-MM-DD, reutilizada por los dos
@@ -2066,7 +2210,7 @@ function renderDashboardProyecto(p){
     ${renderDashInstrumentacion(p.instrumentacion, p.instrumentacionGrupos, p.etapaActual)}
     ${renderDashProduccionSesiones(p.etapaActual)}
     ${renderDashAlertas()}
-    ${renderMiniCalendario(p)}
+    ${renderLineaTiempo(p)}
   `;
 }
 /* ============ FIN DASHBOARD DE PROYECTO ============ */
@@ -2836,6 +2980,66 @@ function verSesiones(){
   window.location.href = `logistica.html?id=${proyectoActualId}`;
 }
 
+// v5.33 — Fase 1 de modo offline (ver ARQUITECTURA.md sección 5).
+// Trae el proyecto abierto + sus 4 subcolecciones con .get() (carga
+// única, no onSnapshot — coincide con el criterio ya fijado en
+// ARQUITECTURA.md sección 1 para este tipo de descarga puntual) y
+// dispara la descarga como archivo .json real. Solo lectura: no
+// modifica nada en Firestore.
+async function descargarProyectoOffline(){
+  if(!proyectoActualId) return;
+  const boton = event?.target;
+  const textoOriginal = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = '⏳ Descargando...'; }
+
+  try{
+    const docProyecto = await proyectosRef.doc(proyectoActualId).get();
+    if(!docProyecto.exists){
+      alert('No se pudo descargar: el proyecto no existe.');
+      return;
+    }
+
+    const [sesionesSnap, produccionSnap, temasSnap, pagosSnap] = await Promise.all([
+      proyectosRef.doc(proyectoActualId).collection('sesiones').get(),
+      proyectosRef.doc(proyectoActualId).collection('produccion').get(),
+      proyectosRef.doc(proyectoActualId).collection('temas').get(),
+      proyectosRef.doc(proyectoActualId).collection('pagos').get()
+    ]);
+
+    const paquete = {
+      tipoArchivo: 'audiolink_proyecto_offline',
+      version: 1,
+      fechaDescarga: new Date().toISOString(),
+      proyectoId: proyectoActualId,
+      proyecto: { id: docProyecto.id, ...docProyecto.data() },
+      sesiones: sesionesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      produccion: produccionSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      temas: temasSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      pagos: pagosSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    };
+
+    const nombreProyecto = (docProyecto.data().nombre || docProyecto.data().cliente || proyectoActualId)
+      .toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_');
+    const fechaArchivo = new Date().toISOString().split('T')[0];
+    const nombreArchivo = `audiolink_proyecto_${nombreProyecto}_${fechaArchivo}.json`;
+
+    const blob = new Blob([JSON.stringify(paquete, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(err){
+    console.error('Error descargando proyecto para offline:', err);
+    alert('No se pudo descargar el proyecto. Revisa la consola para más detalle.');
+  }finally{
+    if(boton){ boton.disabled = false; boton.textContent = textoOriginal; }
+  }
+}
+
 function volverListado(){
   document.getElementById('vistaDetalle').classList.remove('active');
   document.getElementById('vistaListado').style.display = 'block';
@@ -3280,6 +3484,214 @@ window._ingQuitar = async function(correo){
       proyectosAsignados: firebase.firestore.FieldValue.arrayRemove(proyectoActualId)
     });
     cargarListaIngenieros();
+  } catch(err){
+    console.error(err);
+    alert('No pudimos quitar el acceso.');
+  }
+};
+
+// ============ MODAL: MÚSICOS (v5.27) ============
+// Calcado línea por línea del bloque de Ingenieros de arriba. Colección
+// `musicosPortal`, misma estructura de doc (nombre, activo,
+// proyectosAsignados). Reutiliza la MISMA app secundaria de Auth
+// (appIng/authIng) — no hace falta una tercera instancia, ese nombre
+// solo evita pisar la sesión de staff al crear la cuenta, no tiene
+// relación con el rol.
+function abrirModalMusicos(){
+  if(!proyectoActualId){
+    alert('Abre un proyecto primero.');
+    return;
+  }
+  document.getElementById('musicoPortalErr').textContent = '';
+  document.getElementById('musicoPortalNuevoCorreo').value = '';
+  document.getElementById('musicoPortalNuevoNombre').value = '';
+  document.getElementById('musicoPortalNuevoCorreo').readOnly = false;
+  document.getElementById('musicoPortalNuevoNombre').readOnly = false;
+  document.getElementById('musicoPortalCatalogo').value = '';
+  cargarCatalogoMusicosSelect();
+  cargarListaMusicosPortal();
+  document.getElementById('modalMusicosBg').classList.add('active');
+}
+
+// v5.30: carga única (.get()) del catálogo `musicos` para el <select>
+// del modal — mismo criterio de ARQUITECTURA.md sección 1 (catálogo que
+// casi no cambia dentro de una sesión de uso). No confundir con la
+// colección `musicosPortal` (acceso al portal), esto es solo para
+// poblar el selector con datos ya existentes.
+let musicosCatalogoParaSelect = [];
+async function cargarCatalogoMusicosSelect(){
+  const sel = document.getElementById('musicoPortalCatalogo');
+  try{
+    const snap = await db.collection('musicos').orderBy('nombre').get();
+    musicosCatalogoParaSelect = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const opciones = musicosCatalogoParaSelect
+      .map(m => `<option value="${m.id}">${escapeHtml(m.nombre || 'Sin nombre')}${m.instrumento ? ' · ' + escapeHtml(m.instrumento) : ''}</option>`)
+      .join('');
+    sel.innerHTML = `
+      <option value="">— Elegir del catálogo de músicos —</option>
+      ${opciones}
+      <option value="__otro__">Otro (no está en el catálogo)</option>`;
+  } catch(err){
+    console.error('Error cargando catálogo de músicos:', err);
+    // Si falla, el select se queda con las 2 opciones base ya presentes
+    // en el HTML — el flujo manual sigue funcionando igual.
+  }
+}
+
+function seleccionarMusicoCatalogo(){
+  const sel = document.getElementById('musicoPortalCatalogo');
+  const nombreInput = document.getElementById('musicoPortalNuevoNombre');
+  const correoInput = document.getElementById('musicoPortalNuevoCorreo');
+  if(sel.value === '' || sel.value === '__otro__'){
+    nombreInput.readOnly = false;
+    correoInput.readOnly = false;
+    nombreInput.value = '';
+    correoInput.value = '';
+    return;
+  }
+  const m = musicosCatalogoParaSelect.find(x => x.id === sel.value);
+  if(!m) return;
+  nombreInput.value = m.nombre || '';
+  correoInput.value = (m.correo || '').toLowerCase();
+  nombreInput.readOnly = true;
+  correoInput.readOnly = !!m.correo;
+  if(!m.correo){
+    document.getElementById('musicoPortalErr').textContent = 'Este músico no tiene correo guardado en el catálogo — agrégaselo en musicos.html o escríbelo acá.';
+  } else {
+    document.getElementById('musicoPortalErr').textContent = '';
+  }
+}
+
+function cerrarModalMusicos(){
+  document.getElementById('modalMusicosBg').classList.remove('active');
+}
+
+async function cargarListaMusicosPortal(){
+  const cont = document.getElementById('musicoPortalLista');
+  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  try{
+    const snap = await db.collection('musicosPortal')
+      .where('proyectosAsignados', 'array-contains', proyectoActualId)
+      .get();
+    if(snap.empty){
+      cont.innerHTML = '<div class="empty" style="padding:16px;">Ningún músico tiene acceso a este proyecto todavía.</div>';
+      return;
+    }
+    cont.innerHTML = snap.docs.map(d => `
+      <div style="border:1px solid var(--brd);border-radius:8px;padding:10px 14px;background:var(--surf-light);${d.data().activo === false ? 'opacity:0.5;' : ''}">
+        <div style="font-size:0.88rem;margin-bottom:8px;">
+          ${escapeHtml(d.data().nombre || d.id)}${d.data().activo === false ? ' <em style="font-size:0.75rem;">(inactivo)</em>' : ''}
+          ${d.data().nombre ? `<br><span style="color:var(--muted);font-size:0.76rem;">${escapeHtml(d.id)}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:0.78rem;">
+          <span style="cursor:pointer;color:var(--muted);" onclick="window._musReenviar('${d.id}')">Reenviar correo</span>
+          <span style="cursor:pointer;color:var(--muted);" id="musCopiar-${d.id.replace(/[^a-zA-Z0-9]/g,'')}" onclick="window._musCopiarLink('${d.id.replace(/[^a-zA-Z0-9]/g,'')}')">🔗 Copiar link</span>
+          <span style="cursor:pointer;" onclick="window._musPreview('${d.id}')" title="Vista previa: ver como este músico">👁️ Vista previa</span>
+          <span style="color:var(--err);cursor:pointer;margin-left:auto;" onclick="window._musQuitar('${d.id}')" title="Quitar acceso a este proyecto">✕ Quitar</span>
+        </div>
+      </div>`).join('');
+  } catch(err){
+    console.error(err);
+    cont.innerHTML = '<div class="empty" style="padding:16px;">No pudimos cargar la lista.</div>';
+  }
+}
+
+async function agregarMusicoAlProyecto(){
+  const errEl = document.getElementById('musicoPortalErr');
+  errEl.textContent = '';
+  const correo = document.getElementById('musicoPortalNuevoCorreo').value.trim().toLowerCase();
+  const nombre = document.getElementById('musicoPortalNuevoNombre').value.trim();
+  if(!correo || !correo.includes('@')){
+    errEl.textContent = 'Ingresa un correo válido.';
+    return;
+  }
+  try{
+    const ref = db.collection('musicosPortal').doc(correo);
+    const doc = await ref.get();
+    if(doc.exists){
+      const datosActualizar = {
+        proyectosAsignados: firebase.firestore.FieldValue.arrayUnion(proyectoActualId),
+        activo: true
+      };
+      if(nombre) datosActualizar.nombre = nombre;
+      await ref.update(datosActualizar);
+    } else {
+      if(!nombre){
+        errEl.textContent = 'Ingresa el nombre del músico (primera vez que se registra).';
+        return;
+      }
+      try{
+        const passTemp = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        await authIng.createUserWithEmailAndPassword(correo, passTemp);
+        await authIng.sendPasswordResetEmail(correo, ingActionCodeSettings);
+        await authIng.signOut();
+      } catch(authErr){
+        console.error(authErr);
+        if(authErr.code === 'auth/email-already-in-use'){
+          // Ya tiene cuenta de Auth — no es error real, seguimos y
+          // guardamos el doc (mismo caso que ingenieros).
+        } else {
+          errEl.textContent = 'No pudimos crear la cuenta de acceso. Intenta de nuevo.';
+          return;
+        }
+      }
+      await ref.set({
+        nombre,
+        activo: true,
+        proyectosAsignados: [proyectoActualId],
+        agregadoEn: new Date().toISOString()
+      });
+    }
+    document.getElementById('musicoPortalNuevoCorreo').value = '';
+    document.getElementById('musicoPortalNuevoNombre').value = '';
+    cargarListaMusicosPortal();
+  } catch(err){
+    console.error(err);
+    errEl.textContent = 'No pudimos agregar el correo. Intenta de nuevo.';
+  }
+}
+
+window._musReenviar = async function(correo){
+  try{
+    await authIng.sendPasswordResetEmail(correo, ingActionCodeSettings);
+    alert(`Correo de acceso reenviado a ${correo}.`);
+  } catch(err){
+    console.error(err);
+    alert('No pudimos reenviar el correo.');
+  }
+};
+
+window._musCopiarLink = function(btnId){
+  const btn = document.getElementById(`musCopiar-${btnId}`);
+  const textoOriginal = btn ? btn.textContent : '';
+  const marcarCopiado = () => {
+    if(!btn) return;
+    btn.textContent = '✅ Copiado';
+    setTimeout(() => { btn.textContent = textoOriginal; }, 1500);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(LOGIN_ING_URL).then(marcarCopiado).catch(() => {
+      alert(`Copia manual: ${LOGIN_ING_URL}`);
+    });
+  } else {
+    alert(`Copia manual: ${LOGIN_ING_URL}`);
+  }
+};
+
+// v5.27 — igual que _ingPreview: abre el portal del músico en pestaña
+// nueva con ?preview=correo. musico.html valida sesión de staff antes
+// de mostrar nada.
+window._musPreview = function(correo){
+  window.open(`musico.html?preview=${encodeURIComponent(correo)}`, '_blank');
+};
+
+window._musQuitar = async function(correo){
+  if(!confirm(`¿Quitar a ${correo} el acceso a este proyecto?`)) return;
+  try{
+    await db.collection('musicosPortal').doc(correo).update({
+      proyectosAsignados: firebase.firestore.FieldValue.arrayRemove(proyectoActualId)
+    });
+    cargarListaMusicosPortal();
   } catch(err){
     console.error(err);
     alert('No pudimos quitar el acceso.');

@@ -147,3 +147,102 @@ del selector de avatar usó `d.url` en vez de `d.urlCloudinary` — las
 miniaturas no cargaban. Revisar siempre el campo real del catálogo
 fuente antes de copiar este patrón a un catálogo nuevo.
 
+---
+
+## 5. Modo offline (planeado — no implementado aún, agosto 2026)
+
+Necesidad: poder trabajar en entornos remotos sin señal (uso frecuente,
+no solo viajes ocasionales). Diseño acordado antes de tocar código, para
+que quede documentado el mapa completo aunque se implemente por partes
+o en otra instancia.
+
+### Decisión de arquitectura general
+Un solo código, no una versión aparte. `firebase-config.js` expone la
+variable `db` de siempre; internamente decide si apunta a Firestore real
+o a un mock, según un flag. El resto de los archivos (proyecto.html,
+logistica.html, etc.) siguen llamando `db.collection(...).doc(...).get()`
+exactamente igual — no se toca su lógica interna. Se descartó mantener
+dos codebases separadas por el riesgo de desincronización (arreglar un
+bug en producción y olvidarlo en la versión offline).
+
+Se descartó Firebase Emulator Suite como base de este modo: mantenerlo
+sincronizado con reglas/índices/estructura de colecciones reales
+(incluyendo `collectionGroup('actividad')` de Las Vacas) es carga de
+mantenimiento constante, no justificada para este caso de uso.
+
+Cloudinary y Auth quedan fuera del alcance offline por ahora: sin subida
+ni edición de imágenes offline; sesión de Auth se asume persistida por
+el navegador (pendiente de verificar).
+
+### Fase 1 — Solo lectura offline
+- Flag `AUDIOLINK_MODO_OFFLINE` en `firebase-config.js` (manual, sin
+  detección automática de red — evita falsos positivos con wifi lento).
+- Datos guardados como **archivo `.json` real** descargado por el
+  usuario (no `localStorage`), para portabilidad entre dispositivo/
+  navegador — `localStorage` queda atado a un solo navegador y dominio,
+  no sirve si se cambia de equipo para ir a terreno.
+- Cada archivo descargado incluye su propia fecha/hora de descarga. Al
+  cargar un proyecto junto con un catálogo descargado por separado, si
+  las fechas difieren más de un umbral (a definir, ej. 7 días), se
+  muestra una alerta no bloqueante ("⚠️ catálogo de hace N días") — el
+  usuario puede seguir trabajando; la alerta queda anotada dentro del
+  archivo offline para reaparecer en la revisión de sincronización de
+  Fase 2, no se pierde solo por cerrarla en el momento.
+
+**Tres botones de descarga, para tres escenarios de uso distintos:**
+
+1. **"📦 Descargar catálogos"** — central (`index.html`). Uso poco
+   frecuente (semanal o al agregar gente nueva). Trae músicos/técnicos/
+   estudios (cambian poco).
+2. **"📥 Descargar proyecto"** — por proyecto, en `proyecto.html`. Uso
+   frecuente (cada salida a terreno). Trae el proyecto + sus sesiones
+   (cambian seguido). Separado del anterior a propósito, mismo criterio
+   de costo de lectura ya fijado en la sección 1 de este documento.
+3. **"🌴 Descargar todo para modo extendido"** — central (`index.html`).
+   Para viajes largos donde no conviene depender de reconectar seguido.
+   Trae catálogos + todos los proyectos con `etapaActual` en
+   `preproduccion / grabacion / edicion / mezcla / mastering` (excluye
+   `entrega` por defecto), todos con la misma fecha de descarga —
+   elimina el problema de desalineación de por sí. Incluye un checkbox
+   opcional **"☐ Incluir también proyectos ya entregados (modo fin del
+   mundo)"**, desmarcado por defecto — al marcarlo, suma también los
+   proyectos en etapa `entrega` para cobertura completa en viajes donde
+   de verdad no habrá señal por mucho tiempo.
+
+- Botón "📂 Cargar archivo offline" — en terreno, sin señal, carga el/los
+  `.json` descargados previamente (permite cargar catálogos + uno o
+  varios proyectos en la misma sesión de trabajo).
+- Mock de `db` que imita `.collection().doc().get()/.where()/onSnapshot()`
+  leyendo del archivo cargado en memoria. `onSnapshot` dispara el
+  callback una sola vez con los datos locales (no hay listener real
+  posible sin conexión).
+- Sin escritura offline en esta fase.
+
+### Fase 2 — Escritura offline + sincronización con revisión de conflictos
+- Requiere campo `updatedAt` estandarizado en todo documento editable
+  offline — verificar cobertura real antes de empezar; sin esto no hay
+  forma de saber qué versión es más reciente al comparar.
+- Documentos nuevos creados offline usan ID con prefijo reconocible
+  `offline_{timestamp}_{random}` en vez de dejar que Firestore
+  autogenere — evita colisión con IDs reales creados en paralelo por
+  otra persona mientras se estaba offline. Si igual aparece un
+  duplicado conceptual (dos documentos distintos para "lo mismo"), es
+  una decisión de negocio a resolver manualmente, no un error de
+  sistema.
+- Sincronización siempre manual — botón "🔄 Revisar cambios pendientes",
+  nunca automática al detectar señal de nuevo.
+- Comparación documento por documento contra el estado real en
+  Firestore al momento de sincronizar:
+  - Sin cambios del lado de Firestore → sube directo, sin fricción.
+  - Cambió Firestore Y hubo edición offline del mismo documento →
+    conflicto, pasa a revisión.
+  - Documento eliminado en Firestore mientras se estaba offline → no
+    se sube encima; se avisa para decidir (recrear o descartar).
+- Revisión de conflictos campo por campo (no documento completo, para
+  no perder ediciones válidas de ambos lados), con atajo "✅ Usar todas
+  las mías" / "✅ Usar todas las de la nube" para conflictos triviales
+  sin tener que revisar campo por campo.
+- Confirmación final tipo resumen ("vas a actualizar N campos en M
+  documentos") antes de escribir a Firestore — última oportunidad de
+  cancelar.
+

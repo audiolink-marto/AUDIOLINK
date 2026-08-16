@@ -4,7 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.19
+<!-- AUDIOLINK · index.html · v2.22
+     v2.22: se mueve el panel "MODO OFFLINE" al final de la página
+     (antes de </main>, después de todos los paneles normales) y se
+     agrega un switch visual (🟢 ONLINE / 🔴 OFFLINE) con
+     alternarModoOffline() — antes solo se podía cambiar
+     AUDIOLINK_MODO_OFFLINE editando firebase-config.js a mano, lo que
+     llevó a que quedara en `true` sin querer y el dashboard se viera
+     vacío sin explicación. El switch guarda un override en
+     localStorage (lee/escribe la misma clave que revisa crearDB() en
+     firebase-config.js v1.2) y recarga la página para aplicar el
+     cambio. Avisa con confirm() si se activa offline sin datos
+     cargados todavía. No se tocó ningún otro panel.
+     v2.21: se cambia `const db = firebase.firestore()` por
+     `const db = crearDB()` — mismo cambio que proyecto.html v5.34,
+     parte de la Fase 1 de modo offline (ver ARQUITECTURA.md sección 5).
+     Sin AUDIOLINK_MODO_OFFLINE activado, cero cambio de comportamiento.
+     v2.20: se agrega el panel "MODO OFFLINE" con el botón "📂 Cargar
+     archivo(s) offline" — parte de la Fase 1 de modo offline (ver
+     ARQUITECTURA.md sección 5). Permite cargar uno o varios .json
+     generados por descargarProyectoOffline() (proyecto.html v5.33).
+     Llama a cargarArchivoOffline() (offline-mock.js) si ese archivo
+     está cargado en el <head>; si no está presente, el panel avisa que
+     el modo offline no está disponible en vez de fallar en silencio.
+     No toca ningún panel ni función existente.
      V2.19: se simplifica el widget "RECORDATORIOS" de vuelta a solo
      lectura — mismo patrón que Próximas Sesiones/Resumen Financiero/
      Resumen Comercial (muestran estado, no dejan operar in-place). Se
@@ -218,6 +241,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script>
@@ -480,6 +504,7 @@ window.NAV_CONFIG = { activo: 'dashboard' };
   <div class="alerta-recos-vencidos" id="alertaRecosVencidos" onclick="window.location.href='recordatorios.html'">
     ⚠️ <span id="textoRecosVencidos"></span>
   </div>
+
   <div class="layout">
 
     <div class="panel">
@@ -560,15 +585,99 @@ window.NAV_CONFIG = { activo: 'dashboard' };
       </div>
     </div>
   </div>
+
+  <div class="panel" id="panelOffline" style="margin-top:24px;">
+    <h2>MODO OFFLINE</h2>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span id="estadoModoOffline" style="font-weight:600;">—</span>
+      <button class="btn btn-ghost" id="btnToggleModoOffline" onclick="alternarModoOffline()">Cambiar</button>
+    </div>
+    <div style="margin-top:14px;">
+      <input type="file" id="inputArchivoOffline" accept=".json" multiple style="display:none;" onchange="manejarCargaArchivoOffline(this.files)">
+      <button class="btn btn-ghost" onclick="document.getElementById('inputArchivoOffline').click()">📂 Cargar archivo(s) offline</button>
+      <div id="estadoArchivoOffline" style="margin-top:10px; font-size:0.9em;"></div>
+    </div>
+  </div>
 </main>
 </div><!-- /main-wrap -->
 
 <script>
 /* firebaseConfig ahora vive en firebase-config.js (ecosistema compartido) */
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// v2.21: antes `firebase.firestore()` directo. Ahora crearDB() —
+// mismo cambio y mismo criterio que proyecto.html v5.34. Con el flag
+// AUDIOLINK_MODO_OFFLINE en false (default), cero cambio de
+// comportamiento.
+const db = crearDB();
 const auth = firebase.auth();
 const proyectosRef = db.collection('proyectos');
+
+// v2.20 — Fase 1 de modo offline (ver ARQUITECTURA.md sección 5).
+// Conecta el panel "MODO OFFLINE" con cargarArchivoOffline() de
+// offline-mock.js. Si ese archivo no está cargado en el <head>, avisa
+// en vez de fallar en silencio — no depende de AUDIOLINK_MODO_OFFLINE
+// (se puede cargar el archivo de antemano, con o sin el flag activado).
+async function manejarCargaArchivoOffline(fileList){
+  const estado = document.getElementById('estadoArchivoOffline');
+  if(!fileList || fileList.length === 0) return;
+
+  if(typeof cargarArchivoOffline !== 'function'){
+    estado.innerHTML = '❌ offline-mock.js no está cargado en esta página — no se puede usar el modo offline aquí.';
+    return;
+  }
+
+  estado.innerHTML = '⏳ Leyendo archivo(s)...';
+  const resumen = await cargarArchivoOffline(fileList);
+  estado.innerHTML = resumen.map(linea => `<div>${linea}</div>`).join('');
+  document.getElementById('inputArchivoOffline').value = '';
+}
+
+// v2.22 — switch visual del modo offline (antes solo se podía cambiar
+// editando AUDIOLINK_MODO_OFFLINE a mano en firebase-config.js, lo que
+// llevó a que quedara en `true` sin querer y el dashboard se viera
+// vacío sin explicación). Guarda el override en localStorage (lo lee
+// crearDB() en firebase-config.js v1.2) y recarga la página para que
+// tome efecto — crearDB() ya corrió al momento de cargar, cambiarlo en
+// caliente sin recargar no tendría efecto real.
+function pintarEstadoModoOffline(){
+  let activo = false;
+  try{
+    const override = localStorage.getItem('AUDIOLINK_OFFLINE_OVERRIDE');
+    activo = override === 'true' || (override === null && typeof AUDIOLINK_MODO_OFFLINE !== 'undefined' && AUDIOLINK_MODO_OFFLINE);
+  }catch(err){ console.error('Error leyendo estado de modo offline:', err); }
+
+  const span = document.getElementById('estadoModoOffline');
+  const boton = document.getElementById('btnToggleModoOffline');
+  if(!span || !boton) return;
+  span.textContent = activo ? '🔴 OFFLINE (usando datos cargados localmente)' : '🟢 ONLINE (Firestore real)';
+  boton.textContent = activo ? 'Volver a Online' : 'Activar Offline';
+}
+
+function alternarModoOffline(){
+  let activo = false;
+  try{
+    activo = localStorage.getItem('AUDIOLINK_OFFLINE_OVERRIDE') === 'true';
+  }catch(err){ console.error(err); }
+
+  const nuevoValor = !activo;
+  if(nuevoValor && (!_offlineData || Object.keys(_offlineData.proyectos || {}).length === 0)){
+    const continuar = confirm('Todavía no cargaste ningún archivo offline — vas a ver el dashboard vacío. ¿Activar de todas formas?');
+    if(!continuar) return;
+  }
+
+  try{
+    localStorage.setItem('AUDIOLINK_OFFLINE_OVERRIDE', String(nuevoValor));
+  }catch(err){
+    alert('No se pudo guardar el cambio de modo. Revisa la consola.');
+    console.error(err);
+    return;
+  }
+
+  alert(`Modo cambiado a ${nuevoValor ? 'OFFLINE' : 'ONLINE'}. La página se va a recargar para aplicarlo.`);
+  window.location.reload();
+}
+
+pintarEstadoModoOffline();
 
 // ============ GUARD DE SESIÓN ============
 auth.onAuthStateChanged(async (user) => {
