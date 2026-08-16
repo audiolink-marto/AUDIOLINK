@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Ingeniero</title>
-<!-- AUDIOLINK · ingeniero.html · v1.5
+<!-- AUDIOLINK · ingeniero.html · v1.6
+     v1.6: se agrega el guard "if(estaModoOfflineActivo())" alrededor
+     de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
+     desde v2.23. Sin este cambio, en modo offline (sin señal) el login
+     real nunca confirmaba sesión y esta página redirigía siempre a
+     login.html, sacando al usuario del modo offline al navegar a esta
+     página. No se tocó la lógica interna del guard (qué pasa si hay o
+     no hay usuario), solo se envuelve.
      v1.5: se migra al patrón offline Fase 1 (mismo cambio que
      index.html v2.21, proyecto.html v5.34, logistica.html v2.72) — se
      agrega <script src="offline-mock.js"> en el <head> (antes de
@@ -217,59 +224,70 @@ const urlParams = new URLSearchParams(window.location.search);
 const previewEmail = urlParams.get('preview');
 let modoPreview = false;
 let proyectosAsignados = [];
-auth.onAuthStateChanged(async (user) => {
-  if(!user){
-    if(previewEmail){
-      document.getElementById('vistaListado').innerHTML =
-        '<div class="msg-panel">Esta es una vista previa de staff. Inicia sesión como equipo interno en otra pestaña primero.</div>';
+// v-NEXT: el guard de sesión (auth.onAuthStateChanged) se salta por
+// completo cuando estaModoOfflineActivo() es true (firebase-config.js
+// v1.3) — mismo patrón ya usado en index.html v2.23. Sin señal,
+// onAuthStateChanged nunca confirma el usuario y esto mandaba siempre
+// a login.html sin poder continuar en modo offline. No protege datos
+// que ya están cargados en este mismo dispositivo, así que pedir login
+// contra un servidor inalcanzable no agregaba seguridad real.
+if(estaModoOfflineActivo()){
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){
+      if(previewEmail){
+        document.getElementById('vistaListado').innerHTML =
+          '<div class="msg-panel">Esta es una vista previa de staff. Inicia sesión como equipo interno en otra pestaña primero.</div>';
+        return;
+      }
+      location.href = 'login.html?next=' + encodeURIComponent(location.href);
       return;
     }
-    location.href = 'login.html?next=' + encodeURIComponent(location.href);
-    return;
-  }
-  try{
-    const staffDoc = await db.collection('equipoInterno').doc(user.email).get();
-    if(staffDoc.exists && staffDoc.data().activo === true){
-      if(previewEmail){
-        const ingDoc = await db.collection('ingenieros').doc(previewEmail.toLowerCase()).get();
-        const ing = ingDoc.exists ? ingDoc.data() : null;
-        if(!ing || !Array.isArray(ing.proyectosAsignados) || ing.proyectosAsignados.length === 0){
-          document.getElementById('vistaListado').innerHTML =
-            '<div class="msg-panel">Ese ingeniero no tiene proyectos asignados todavía.</div>';
+    try{
+      const staffDoc = await db.collection('equipoInterno').doc(user.email).get();
+      if(staffDoc.exists && staffDoc.data().activo === true){
+        if(previewEmail){
+          const ingDoc = await db.collection('ingenieros').doc(previewEmail.toLowerCase()).get();
+          const ing = ingDoc.exists ? ingDoc.data() : null;
+          if(!ing || !Array.isArray(ing.proyectosAsignados) || ing.proyectosAsignados.length === 0){
+            document.getElementById('vistaListado').innerHTML =
+              '<div class="msg-panel">Ese ingeniero no tiene proyectos asignados todavía.</div>';
+            return;
+          }
+          modoPreview = true;
+          proyectosAsignados = ing.proyectosAsignados;
+          document.getElementById('previewBanner').style.display = 'block';
+          document.getElementById('btnSalirIng').style.display = 'none';
+          document.getElementById('rolTag').textContent = 'Panel de ' + (ing.nombre || previewEmail);
+          iniciarListado();
           return;
         }
-        modoPreview = true;
-        proyectosAsignados = ing.proyectosAsignados;
-        document.getElementById('previewBanner').style.display = 'block';
-        document.getElementById('btnSalirIng').style.display = 'none';
-        document.getElementById('rolTag').textContent = 'Panel de ' + (ing.nombre || previewEmail);
+        // Staff en modo revisión: no filtra por proyectosAsignados, ve
+        // todos los proyectos (mismo criterio que el resto del ecosistema).
+        const snap = await proyectosRef.get();
+        proyectosAsignados = snap.docs.map(d => d.id);
+        document.getElementById('rolTag').textContent = 'Modo Staff · Revisión';
         iniciarListado();
         return;
       }
-      // Staff en modo revisión: no filtra por proyectosAsignados, ve
-      // todos los proyectos (mismo criterio que el resto del ecosistema).
-      const snap = await proyectosRef.get();
-      proyectosAsignados = snap.docs.map(d => d.id);
-      document.getElementById('rolTag').textContent = 'Modo Staff · Revisión';
+      const ingDoc = await db.collection('ingenieros').doc(user.email).get();
+      const ing = ingDoc.exists ? ingDoc.data() : null;
+      if(!ing || ing.activo !== true || !Array.isArray(ing.proyectosAsignados) || ing.proyectosAsignados.length === 0){
+        document.getElementById('vistaListado').innerHTML =
+          '<div class="msg-panel">Tu cuenta no tiene proyectos asignados todavía. Contacta a producción.</div>';
+        return;
+      }
+      proyectosAsignados = ing.proyectosAsignados;
+      document.getElementById('rolTag').textContent = 'Panel de ' + (ing.nombre || user.email);
       iniciarListado();
-      return;
-    }
-    const ingDoc = await db.collection('ingenieros').doc(user.email).get();
-    const ing = ingDoc.exists ? ingDoc.data() : null;
-    if(!ing || ing.activo !== true || !Array.isArray(ing.proyectosAsignados) || ing.proyectosAsignados.length === 0){
+    } catch(e){
+      console.error('Error validando acceso:', e);
       document.getElementById('vistaListado').innerHTML =
-        '<div class="msg-panel">Tu cuenta no tiene proyectos asignados todavía. Contacta a producción.</div>';
-      return;
+        '<div class="msg-panel">Error validando tu acceso. Intenta de nuevo.</div>';
     }
-    proyectosAsignados = ing.proyectosAsignados;
-    document.getElementById('rolTag').textContent = 'Panel de ' + (ing.nombre || user.email);
-    iniciarListado();
-  } catch(e){
-    console.error('Error validando acceso:', e);
-    document.getElementById('vistaListado').innerHTML =
-      '<div class="msg-panel">Error validando tu acceso. Intenta de nuevo.</div>';
-  }
-});
+  });
+}
 
 // ============ LISTADO DE PROYECTOS ============
 let proyectosCache = [];

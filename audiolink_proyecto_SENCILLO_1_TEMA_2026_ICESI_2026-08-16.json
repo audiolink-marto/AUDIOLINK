@@ -1,0 +1,695 @@
+{
+  "tipoArchivo": "audiolink_proyecto_offline",
+  "version": 1,
+  "fechaDescarga": "2026-08-16T23:45:49.090Z",
+  "proyectoId": "67rMeNQNaIcnh46dE0mJ",
+  "proyecto": {
+    "id": "67rMeNQNaIcnh46dE0mJ",
+    "narrativa": "SALSA CLASICA",
+    "instrumentacionGrupos": {
+      "teclas": {
+        "label": "Teclas",
+        "orden": 4,
+        "piezas": [
+          "Piano",
+          "Teclado/Sintetizador",
+          "Teclado Yamaha MX61"
+        ]
+      },
+      "percusionLatina": {
+        "orden": 0,
+        "piezas": [
+          "Congas",
+          "Bongó",
+          "Timbales",
+          "Campana",
+          "Güiro",
+          "Maracas",
+          "Clave"
+        ],
+        "label": "Percusión latina"
+      },
+      "otros": {
+        "piezas": [],
+        "orden": 3,
+        "label": "Otros"
+      },
+      "bronces": {
+        "label": "Bronces",
+        "orden": 2,
+        "piezas": [
+          "Trompeta",
+          "Trombón",
+          "Saxofón",
+          "Flauta traversa"
+        ]
+      },
+      "bateria": {
+        "orden": 6,
+        "label": "DRUMS",
+        "piezas": [
+          "BD",
+          "REDO",
+          "TOM 1",
+          "TOM 2",
+          "FLOOR TOM",
+          "HI-HAT",
+          "RIDE"
+        ]
+      },
+      "voces": {
+        "piezas": [
+          "Voz principal",
+          "Coro 1",
+          "Coro 2",
+          "Coro 3"
+        ],
+        "label": "Voces",
+        "orden": 5
+      },
+      "cuerdas": {
+        "piezas": [
+          "Bajo eléctrico",
+          "Contrabajo",
+          "Baby bass",
+          "Guitarra eléctrica",
+          "Guitarra acústica",
+          "Tres",
+          "Cuatro"
+        ],
+        "orden": 1,
+        "label": "BASS"
+      }
+    },
+    "fechaInicio": {
+      "seconds": 1784588384,
+      "nanoseconds": 112000000
+    },
+    "equipo": [
+      {
+        "nombre": "GERMAN ALBANO",
+        "rol": "MEZCLA",
+        "tecnicoId": "b0XgHyiiWOxiM74wcon2"
+      }
+    ],
+    "etapaActual": "grabacion",
+    "tipo": "cliente",
+    "clienteArtista": "NEGRO NOVOA",
+    "cantTemas": 1,
+    "productorEjecutivo": "NEGRO NOVOA EJECUTIVO",
+    "visibleCliente": true,
+    "clienteId": "NbAhzqoUEmQJQiYh49z9",
+    "estado": "ok",
+    "instrumentacion": {
+      "otros": [],
+      "bronces": [
+        {
+          "nombre": "Trompeta",
+          "id": "pz_1785196096019_dl09hg",
+          "unidades": [
+            "Trompeta"
+          ],
+          "cantidad": 1
+        },
+        {
+          "nombre": "Saxofón",
+          "cantidad": 1,
+          "unidades": [
+            "Saxofón"
+          ],
+          "id": "pz_1785196096019_pbzyaz"
+        },
+        {
+          "cantidad": 2,
+          "id": "pz_1785196096019_rglljv",
+          "unidades": [
+            "Trombón",
+            "Trombón INVITADO"
+          ],
+          "nombre": "Trombón"
+        }
+      ],
+      "percusionLatina": [
+        {
+          "unidades": [
+            "Conga",
+            "TUMBA",
+            "QUINTO"
+          ],
+          "nombre": "Congas",
+          "cantidad": 3,
+          "id": "pz_1785196096019_ona4lc"
+        },
+        {
+          "id": "pz_1785196096019_j1zpsd",
+          "cantidad": 1,
+          "nombre": "Bongó",
+          "unidades": [
+            "Bongó"
+          ]
+        },
+        {
+          "nombre": "Timbales",
+          "id": "pz_1785196096019_q6y7q1",
+          "cantidad": 1,
+          "unidades": [
+            "Timbales"
+          ]
+        },
+        {
+          "nombre": "Güiro LP Oficial",
+          "unidades": [
+            "Güiro"
+          ],
+          "cantidad": 1,
+          "id": "pz_1785196096019_7m9ji5"
+        }
+      ],
+      "bateria": [
+        {
+          "id": "pz_1785196096019_nytky8",
+          "subgrupo": "",
+          "unidades": [
+            "BD"
+          ],
+          "nombre": "BOMBO",
+          "cantidad": 1
+        },
+        {
+          "nombre": "REDO",
+          "id": "pz_1785245229495_y2ocpi"
+        },
+        {
+          "subgrupo": "TOMS",
+          "id": "pz_1785245233550_vhvvay",
+          "nombre": "TOM 1"
+        },
+        {
+          "subgrupo": "TOMS",
+          "id": "pz_1785245237302_olw66n",
+          "nombre": "FLOOR TOM"
+        },
+        {
+          "id": "pz_1785245249357_7d68c0",
+          "subgrupo": "CYMBAL",
+          "nombre": "HI-HAT"
+        },
+        {
+          "subgrupo": "CYMBAL",
+          "id": "pz_1785245253092_4s66u7",
+          "nombre": "RIDE"
+        }
+      ],
+      "teclas": [
+        {
+          "id": "pz_1785348283675_6fk4vt",
+          "nombre": "Teclado Yamaha MX61"
+        }
+      ],
+      "voces": [
+        {
+          "cantidad": 2,
+          "id": "pz_1785196096019_o19v9u",
+          "unidades": [
+            "Coro 1",
+            "Coro 1 2"
+          ],
+          "nombre": "Coro 1"
+        },
+        {
+          "id": "pz_1785196096019_uhfpx0",
+          "unidades": [
+            "Coro 2",
+            "Coro 2 2"
+          ],
+          "cantidad": 2,
+          "nombre": "Coro 2"
+        }
+      ],
+      "cuerdas": [
+        {
+          "cantidad": 1,
+          "nombre": "BABY",
+          "unidades": [
+            "BABY"
+          ],
+          "id": "pz_1785196096019_dq9tje"
+        }
+      ]
+    },
+    "estadoComercial": "en_curso",
+    "nombre": "SENCILLO 1 TEMA 2026 ICESI",
+    "fechaEntregaEstimada": "2026-07-28",
+    "clienteEmail": "martosalsa@gmail.com",
+    "creadoEn": {
+      "seconds": 1784588384,
+      "nanoseconds": 112000000
+    },
+    "costos": {
+      "presupuesto": 1000000,
+      "notasInternas": "CORTAR GASTOS"
+    }
+  },
+  "sesiones": [
+    {
+      "id": "ezVcERhheiRFjDvG1lU5",
+      "notasInternas": "SECRETOS A VOCES",
+      "estudioId": "icesi",
+      "bitacoraHistorial": {
+        "BABY BASS 2": [
+          {
+            "preamp": "CAMILO SILVA",
+            "gain": "0 DB",
+            "instrumento": "BASS",
+            "canalInterfaz": "12",
+            "mic": "D.I. PARALELO",
+            "orden": 2
+          }
+        ],
+        "MIC TRES": [
+          {
+            "preamp": "MANLEY CORE",
+            "gain": "-9 DB",
+            "instrumento": "TRES CUBANO",
+            "canalInterfaz": "9",
+            "mic": "BETA 81",
+            "orden": 4
+          }
+        ],
+        "Guitarra acústica": [
+          {
+            "gain": "-12",
+            "canalInterfaz": "4",
+            "preamp": "AVALON",
+            "mic": "SM57",
+            "orden": 1,
+            "instrumento": "GUITARRA  ACS"
+          }
+        ],
+        "BABY 2": [
+          {
+            "preamp": "CAMILO SILVA",
+            "instrumento": "BASS",
+            "mic": "D.I. PARALELO",
+            "orden": 2,
+            "gain": "0 ",
+            "canalInterfaz": "1"
+          }
+        ],
+        "Baby bass": [
+          {
+            "gain": "-6 DB",
+            "mic": "D.I",
+            "canalInterfaz": "6",
+            "preamp": "SSL VIOLET",
+            "orden": 2,
+            "instrumento": "BASS "
+          }
+        ],
+        "BABY": [
+          {
+            "mic": "D.I.",
+            "orden": 1,
+            "preamp": "MANLEY CORE 1",
+            "gain": "-6",
+            "instrumento": "",
+            "canalInterfaz": "3"
+          }
+        ],
+        "Tres": [
+          {
+            "canalInterfaz": "8",
+            "preamp": "MANLEY CORE",
+            "gain": "-6 DB",
+            "mic": "SM81",
+            "instrumento": "TRES CUBANO",
+            "orden": 3
+          }
+        ],
+        "CAJA DIRECTA": [
+          {
+            "gain": "0 DB",
+            "canalInterfaz": "12",
+            "orden": 2,
+            "mic": null,
+            "instrumento": "BASS",
+            "preamp": "RADIAL"
+          }
+        ]
+      },
+      "instrumentacionSesionIndividual": {
+        "cuerdas": true
+      },
+      "equipoTecnico": [],
+      "horaFin": "09:00",
+      "actividad": "GRABACION BAJO",
+      "tiempoSetupMin": 30,
+      "creadoEn": {
+        "seconds": 1784771161,
+        "nanoseconds": 455000000
+      },
+      "temaNombre": "TRACK 1",
+      "musicosAsignados": [
+        {
+          "correo": "MARTOSALSA@GMAIL.COM",
+          "tarifa": 300000,
+          "telefono": "3026420801",
+          "nombre": "ALEJANDRO LONDOÑO",
+          "instrumento": "BASS",
+          "musicoId": "asHS0grf3rzmO3c5Ahrp"
+        }
+      ],
+      "horaInicio": "08:00",
+      "temaId": "XNHT2dfc59M89xNk9B1e",
+      "estudioNombre": "Universidad ICESI",
+      "tecnicosAsignados": [
+        {
+          "tarifa": 80000,
+          "nombre": "GERMAN ALBANO",
+          "rol": "INGENIERO DE GRABACION",
+          "tecnicoId": "b0XgHyiiWOxiM74wcon2"
+        },
+        {
+          "rol": "ASISTENTE DE GRABACION",
+          "tecnicoId": "sQimWcJvYYDmB4CasD3f",
+          "nombre": "MARTO",
+          "tarifa": 50000
+        }
+      ],
+      "sala": "Estudio C",
+      "instrumentacionSesion": [
+        "cuerdas"
+      ],
+      "notasGrabacion": "MUY FLUIDO EL MUSICO",
+      "fecha": "2026-08-25",
+      "inputList": [
+        {
+          "instrumento": "",
+          "mic": "D.I.",
+          "grupoCatalogo": "cuerdas",
+          "canalInterfaz": "3",
+          "orden": 1,
+          "subgrupoCatalogo": "",
+          "gain": "-6",
+          "canal": 1,
+          "preamp": "MANLEY CORE 1",
+          "nombre": "BABY"
+        },
+        {
+          "gain": "0 ",
+          "mic": "D.I. PARALELO",
+          "manual": true,
+          "orden": 2,
+          "canalInterfaz": "1",
+          "preampCanal": "1",
+          "canal": 2,
+          "instrumento": "BASS",
+          "nombreInterfaz": "DIGI 001-CONTROL B",
+          "grupoCatalogo": "cuerdas",
+          "preamp": "CAMILO SILVA",
+          "nombre": "BABY 2"
+        }
+      ],
+      "visibleCliente": true,
+      "instrumentacionSesionPiezas": {
+        "cuerdas": [
+          {
+            "id": "pz_1785196096019_dq9tje",
+            "cantidad": 1,
+            "unidades": [
+              "BABY"
+            ],
+            "nombre": "BABY"
+          }
+        ]
+      },
+      "duracionRealMin": 2,
+      "ingenieroAutor": "martowave@gmail.com"
+    },
+    {
+      "id": "kAHCSYw2Yx0HJ4ARUcNB",
+      "notasGrabacion": "BUEN TIMMING",
+      "estudioId": "icesi",
+      "horaFin": "09:00",
+      "horaInicio": "08:00",
+      "fecha": "2026-07-21",
+      "actividad": "GRABACION DRUMS",
+      "temaNombre": "TRACK 1",
+      "sala": "Estudio A",
+      "instrumentacionSesionIndividual": {
+        "bronces": true,
+        "teclas": true,
+        "cuerdas": true,
+        "bateria": true
+      },
+      "estudioNombre": "Universidad ICESI",
+      "visibleCliente": true,
+      "bitacoraHistorial": {
+        "Kick": [
+          {
+            "canalInterfaz": "1",
+            "orden": 1,
+            "instrumento": "BD",
+            "mic": "",
+            "preamp": "CAMILO SILVA",
+            "gain": "-6 DB"
+          }
+        ],
+        "BOMBO": [
+          {
+            "gain": "",
+            "mic": "",
+            "canalInterfaz": "",
+            "preamp": "API",
+            "orden": 1,
+            "instrumento": ""
+          }
+        ],
+        "BD OUT": [
+          {
+            "preamp": "MILLENIA",
+            "instrumento": "BD",
+            "gain": "-6",
+            "canalInterfaz": "2",
+            "mic": "SM57",
+            "orden": 2
+          }
+        ]
+      },
+      "temaId": "XNHT2dfc59M89xNk9B1e",
+      "inputList": [
+        {
+          "orden": 1,
+          "subgrupoCatalogo": "BD",
+          "grupoCatalogo": "bateria",
+          "canalInterfaz": "",
+          "instrumento": "",
+          "mic": "",
+          "gain": "",
+          "canal": 1,
+          "nombre": "BOMBO",
+          "preamp": "API"
+        },
+        {
+          "_preampCustom": false,
+          "grupoCatalogo": "bateria",
+          "instrumento": "BD",
+          "preampCanal": 1,
+          "canalInterfaz": "2",
+          "orden": 2,
+          "gain": "-6",
+          "subgrupoCatalogo": "BD",
+          "manual": true,
+          "mic": "SM57",
+          "canal": 7,
+          "nombre": "BD OUT",
+          "preamp": "MILLENIA"
+        },
+        {
+          "subgrupoCatalogo": "",
+          "orden": 3,
+          "gain": "",
+          "instrumento": "",
+          "canalInterfaz": "",
+          "grupoCatalogo": "bateria",
+          "canal": 2,
+          "preamp": "",
+          "mic": "",
+          "nombre": "REDO"
+        },
+        {
+          "canalInterfaz": "",
+          "gain": "",
+          "mic": "",
+          "grupoCatalogo": "bateria",
+          "orden": 4,
+          "canal": 3,
+          "instrumento": "",
+          "preamp": "",
+          "nombre": "TOM 1",
+          "subgrupoCatalogo": "TOMS"
+        },
+        {
+          "canalInterfaz": "",
+          "subgrupoCatalogo": "TOMS",
+          "grupoCatalogo": "bateria",
+          "mic": "",
+          "canal": 4,
+          "gain": "",
+          "instrumento": "",
+          "orden": 5,
+          "preamp": "",
+          "nombre": "FLOOR TOM"
+        },
+        {
+          "nombre": "HI-HAT",
+          "preamp": "",
+          "canal": 5,
+          "grupoCatalogo": "bateria",
+          "instrumento": "",
+          "gain": "",
+          "canalInterfaz": "",
+          "subgrupoCatalogo": "CYMBAL",
+          "mic": "",
+          "orden": 6
+        },
+        {
+          "instrumento": "",
+          "mic": "",
+          "canal": 6,
+          "subgrupoCatalogo": "CYMBAL",
+          "gain": "",
+          "canalInterfaz": "",
+          "orden": 7,
+          "grupoCatalogo": "bateria",
+          "preamp": "",
+          "nombre": "RIDE"
+        }
+      ],
+      "creadoEn": {
+        "seconds": 1784588689,
+        "nanoseconds": 612000000
+      },
+      "instrumentacionSesionPiezas": {
+        "bateria": [
+          {
+            "nombre": "BOMBO",
+            "unidades": [
+              "BD"
+            ],
+            "id": "pz_1785196096019_nytky8",
+            "cantidad": 1,
+            "subgrupo": ""
+          },
+          {
+            "nombre": "REDO",
+            "id": "pz_1785245229495_y2ocpi"
+          },
+          {
+            "nombre": "TOM 1",
+            "subgrupo": "TOMS",
+            "id": "pz_1785245233550_vhvvay"
+          },
+          {
+            "nombre": "FLOOR TOM",
+            "subgrupo": "TOMS",
+            "id": "pz_1785245237302_olw66n"
+          },
+          {
+            "nombre": "HI-HAT",
+            "id": "pz_1785245249357_7d68c0",
+            "subgrupo": "CYMBAL"
+          },
+          {
+            "nombre": "RIDE",
+            "subgrupo": "CYMBAL",
+            "id": "pz_1785245253092_4s66u7"
+          }
+        ]
+      },
+      "musicosAsignados": [
+        {
+          "instrumento": "BASS",
+          "correo": "MARTOSALSA@GMAIL.COM",
+          "tarifa": null,
+          "nombre": "ALEJANDRO LONDOÑO",
+          "telefono": "3026420801",
+          "musicoId": "asHS0grf3rzmO3c5Ahrp"
+        }
+      ],
+      "tecnicosAsignados": [
+        {
+          "tarifa": 80000,
+          "tecnicoId": "b0XgHyiiWOxiM74wcon2",
+          "nombre": "GERMAN ALBANO",
+          "rol": "INGENIERO DE GRABACION"
+        },
+        {
+          "rol": "ASISTENTE DE GRABACION",
+          "tarifa": 50000,
+          "nombre": "MARTO",
+          "tecnicoId": "sQimWcJvYYDmB4CasD3f"
+        }
+      ],
+      "equipoTecnico": [],
+      "notasInternas": "DEFINIR PRE-AMPS",
+      "instrumentacionSesion": [
+        "bateria"
+      ],
+      "tiempoSetupMin": 30
+    }
+  ],
+  "produccion": [],
+  "temas": [
+    {
+      "id": "XNHT2dfc59M89xNk9B1e",
+      "creadoEn": {
+        "seconds": 1785098062,
+        "nanoseconds": 888000000
+      },
+      "sesionesMezcla": [
+        {
+          "fecha": "2026-07-27",
+          "nota": "NORMALIZAR LUFS DE BAJO",
+          "minutos": 1
+        }
+      ],
+      "sesionesMastering": [
+        {
+          "fecha": "2026-07-27",
+          "minutos": 2,
+          "nota": "EQUALIZACION DEINAMICA"
+        }
+      ],
+      "activo": true,
+      "sesionesEdicion": [
+        {
+          "minutos": 1,
+          "fecha": "2026-07-27",
+          "nota": "AFINACION DE VOCES"
+        }
+      ],
+      "notasEdicion": "TRABAJEN",
+      "orden": 1,
+      "notasMastering": "aja",
+      "nombre": "TRACK 1",
+      "entregablesMastering": {
+        "wav": false
+      }
+    }
+  ],
+  "pagos": [
+    {
+      "id": "wruW0BQEMykdQKILcG7l",
+      "nota": "NEQUI LILIX",
+      "metodo": "transferencia",
+      "monto": 20000,
+      "fecha": "2026-08-02",
+      "cotizacionId": "kofF4iIIyVLkT89a5Gij",
+      "creadoEn": {
+        "seconds": 1785675520,
+        "nanoseconds": 139000000
+      }
+    }
+  ]
+}

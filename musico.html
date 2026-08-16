@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v1.3
+<!-- AUDIOLINK · musico.html · v1.4
+     v1.4: se agrega el guard "if(estaModoOfflineActivo())" alrededor
+     de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
+     desde v2.23. Sin este cambio, en modo offline (sin señal) el login
+     real nunca confirmaba sesión y esta página redirigía siempre a
+     login.html, sacando al usuario del modo offline al navegar a esta
+     página. No se tocó la lógica interna del guard (qué pasa si hay o
+     no hay usuario), solo se envuelve.
      v1.3: se migra al patrón offline Fase 1 (mismo cambio que index.html
      v2.21, proyecto.html v5.34, logistica.html v2.72) — se agrega
      <script src="offline-mock.js"> en el <head> (antes de
@@ -242,54 +249,65 @@ let proyectosAsignados = [];
 let correoActual = null;
 let nombreMusicoActual = '';
 
-auth.onAuthStateChanged(async (user) => {
-  if(!user){
-    if(previewEmail){
-      document.getElementById('listaSesiones').innerHTML = '';
-      document.getElementById('emptyState').style.display = 'none';
-      document.querySelector('main').insertAdjacentHTML('beforeend',
-        '<div class="msg-panel">Esta es una vista previa de staff. Inicia sesión como equipo interno en otra pestaña primero.</div>');
-      return;
-    }
-    location.href = 'login.html?next=' + encodeURIComponent(location.href);
-    return;
-  }
-
-  const correo = user.email.toLowerCase();
-
-  if(previewEmail){
-    const staffDoc = await db.collection('equipoInterno').doc(correo).get();
-    if(!staffDoc.exists || staffDoc.data().activo !== true){
-      document.querySelector('main').insertAdjacentHTML('beforeend',
-        '<div class="msg-panel">No tienes permisos de staff para usar la vista previa.</div>');
-      return;
-    }
-    modoPreview = true;
-    correoActual = previewEmail.toLowerCase();
-    document.getElementById('previewBanner').style.display = 'block';
-    document.getElementById('rolTag').textContent = '👁️ Vista previa: ' + previewEmail;
-  } else {
-    const staffDoc = await db.collection('equipoInterno').doc(correo).get();
-    if(staffDoc.exists && staffDoc.data().activo === true){
-      document.getElementById('rolTag').textContent = 'Staff';
-      correoActual = correo;
-    } else {
-      const musDoc = await db.collection('musicosPortal').doc(correo).get();
-      if(!musDoc.exists || musDoc.data().activo !== true){
+// v-NEXT: el guard de sesión (auth.onAuthStateChanged) se salta por
+// completo cuando estaModoOfflineActivo() es true (firebase-config.js
+// v1.3) — mismo patrón ya usado en index.html v2.23. Sin señal,
+// onAuthStateChanged nunca confirma el usuario y esto mandaba siempre
+// a login.html sin poder continuar en modo offline. No protege datos
+// que ya están cargados en este mismo dispositivo, así que pedir login
+// contra un servidor inalcanzable no agregaba seguridad real.
+if(estaModoOfflineActivo()){
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){
+      if(previewEmail){
+        document.getElementById('listaSesiones').innerHTML = '';
+        document.getElementById('emptyState').style.display = 'none';
         document.querySelector('main').insertAdjacentHTML('beforeend',
-          '<div class="msg-panel">Tu cuenta no tiene sesiones asignadas todavía. Contacta a producción.</div>');
+          '<div class="msg-panel">Esta es una vista previa de staff. Inicia sesión como equipo interno en otra pestaña primero.</div>');
         return;
       }
-      document.getElementById('rolTag').textContent = 'Músico · ' + (musDoc.data().nombre || correo);
-      correoActual = correo;
+      location.href = 'login.html?next=' + encodeURIComponent(location.href);
+      return;
     }
-  }
 
-  const musDocActual = await db.collection('musicosPortal').doc(correoActual).get();
-  proyectosAsignados = musDocActual.exists ? (musDocActual.data().proyectosAsignados || []) : [];
-  nombreMusicoActual = musDocActual.exists ? (musDocActual.data().nombre || '') : '';
-  cargarSesiones();
-});
+    const correo = user.email.toLowerCase();
+
+    if(previewEmail){
+      const staffDoc = await db.collection('equipoInterno').doc(correo).get();
+      if(!staffDoc.exists || staffDoc.data().activo !== true){
+        document.querySelector('main').insertAdjacentHTML('beforeend',
+          '<div class="msg-panel">No tienes permisos de staff para usar la vista previa.</div>');
+        return;
+      }
+      modoPreview = true;
+      correoActual = previewEmail.toLowerCase();
+      document.getElementById('previewBanner').style.display = 'block';
+      document.getElementById('rolTag').textContent = '👁️ Vista previa: ' + previewEmail;
+    } else {
+      const staffDoc = await db.collection('equipoInterno').doc(correo).get();
+      if(staffDoc.exists && staffDoc.data().activo === true){
+        document.getElementById('rolTag').textContent = 'Staff';
+        correoActual = correo;
+      } else {
+        const musDoc = await db.collection('musicosPortal').doc(correo).get();
+        if(!musDoc.exists || musDoc.data().activo !== true){
+          document.querySelector('main').insertAdjacentHTML('beforeend',
+            '<div class="msg-panel">Tu cuenta no tiene sesiones asignadas todavía. Contacta a producción.</div>');
+          return;
+        }
+        document.getElementById('rolTag').textContent = 'Músico · ' + (musDoc.data().nombre || correo);
+        correoActual = correo;
+      }
+    }
+
+    const musDocActual = await db.collection('musicosPortal').doc(correoActual).get();
+    proyectosAsignados = musDocActual.exists ? (musDocActual.data().proyectosAsignados || []) : [];
+    nombreMusicoActual = musDocActual.exists ? (musDocActual.data().nombre || '') : '';
+    cargarSesiones();
+  });
+}
 
 // ============ CARGA DE SESIONES ============
 // Carga única (.get()), no tiempo real — mismo criterio de

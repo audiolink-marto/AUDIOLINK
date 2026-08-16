@@ -3,8 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Estudios (v2.2)</title>
-<!-- AUDIOLINK · estudios.html · v2.2
+<title>Audiolink — Estudios (v2.3)</title>
+<!-- AUDIOLINK · estudios.html · v2.3
+     v2.3: se agrega el guard "if(estaModoOfflineActivo())" alrededor
+     de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
+     desde v2.23. Sin este cambio, en modo offline (sin señal) el login
+     real nunca confirmaba sesión y esta página redirigía siempre a
+     login.html, sacando al usuario del modo offline al navegar a esta
+     página. No se tocó la lógica interna del guard (qué pasa si hay o
+     no hay usuario), solo se envuelve.
      v2.2: se migra al patrón offline Fase 1 (mismo cambio que
      index.html v2.21, proyecto.html v5.34, logistica.html v2.72) — se
      agrega <script src="offline-mock.js"> en el <head> (antes de
@@ -792,24 +799,35 @@ const db = crearDB();
 const auth = firebase.auth();
 
 // ============ GUARD DE SESIÓN ============
-auth.onAuthStateChanged(async (user) => {
-  if(!user){
-    window.location.href = 'login.html';
-    return;
-  }
-  try{
-    const doc = await db.collection('equipoInterno').doc(user.email).get();
-    if(!doc.exists || doc.data().activo !== true){
-      await auth.signOut();
+// v-NEXT: el guard de sesión (auth.onAuthStateChanged) se salta por
+// completo cuando estaModoOfflineActivo() es true (firebase-config.js
+// v1.3) — mismo patrón ya usado en index.html v2.23. Sin señal,
+// onAuthStateChanged nunca confirma el usuario y esto mandaba siempre
+// a login.html sin poder continuar en modo offline. No protege datos
+// que ya están cargados en este mismo dispositivo, así que pedir login
+// contra un servidor inalcanzable no agregaba seguridad real.
+if(estaModoOfflineActivo()){
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){
       window.location.href = 'login.html';
       return;
     }
-    iniciarEstudios();
-  } catch(e){
-    console.error('Error validando sesión:', e);
-    window.location.href = 'login.html';
-  }
-});
+    try{
+      const doc = await db.collection('equipoInterno').doc(user.email).get();
+      if(!doc.exists || doc.data().activo !== true){
+        await auth.signOut();
+        window.location.href = 'login.html';
+        return;
+      }
+      iniciarEstudios();
+    } catch(e){
+      console.error('Error validando sesión:', e);
+      window.location.href = 'login.html';
+    }
+  });
+}
 
 // ============ ESTUDIOS (v2.8) ============
 // Colección Firestore 'estudios'. Alimenta el selector "Entorno Operativo"

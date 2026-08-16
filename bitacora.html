@@ -3,8 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación (v2.73)</title>
-<!-- AUDIOLINK · bitacora.html · v2.73
+<title>Audiolink — Bitácora de Grabación (v2.74)</title>
+<!-- AUDIOLINK · bitacora.html · v2.74
+     v2.74: se agrega el guard "if(estaModoOfflineActivo())" alrededor
+     de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
+     desde v2.23. Sin este cambio, en modo offline (sin señal) el login
+     real nunca confirmaba sesión y esta página redirigía siempre a
+     login.html, sacando al usuario del modo offline al navegar a esta
+     página. No se tocó la lógica interna del guard (qué pasa si hay o
+     no hay usuario), solo se envuelve.
      v2.73: se migra al patrón offline Fase 1 (mismo cambio que index.html
      v2.21, proyecto.html v5.34, logistica.html v2.72) — se agrega
      <script src="offline-mock.js"> en el <head> (antes de
@@ -2648,53 +2655,64 @@ function renderListaTomasLocal(){
 // ajustar cuando toquemos login.html. Mientras tanto, dejamos el link
 // original guardado en sessionStorage por si login.html llega a
 // soportarlo más adelante (no rompe nada si no lo usa).
-auth.onAuthStateChanged(async (user) => {
-  if(!user){
-    // v2.11.1: login.html v1.8 ya soporta ?next= — se usa como método
-    // principal; sessionStorage queda como respaldo (por si el link de
-    // retorno pierde el parámetro en algún flujo futuro).
-    sessionStorage.setItem('audiolink_redirect_after_login', location.href);
-    location.href = 'login.html?next=' + encodeURIComponent(location.href);
-    return;
-  }
-  try{
-    const staffDoc = await db.collection('equipoInterno').doc(user.email).get();
-    const esStaffLocal = staffDoc.exists && staffDoc.data().activo === true;
-    let tieneAcceso = esStaffLocal;
-    let rolIng = null; // v2.69
-    if(!tieneAcceso){
-      const ingDoc = await db.collection('ingenieros').doc(user.email).get();
-      const ing = ingDoc.exists ? ingDoc.data() : null;
-      tieneAcceso = !!ing && ing.activo === true &&
-        Array.isArray(ing.proyectosAsignados) && ing.proyectosAsignados.includes(proyectoId);
-      // v2.69: rolesPorProyecto es un mapa {proyectoId: rol}, agregado
-      // desde proyecto.html v5.24 — puede no existir en asignaciones
-      // viejas o quedar vacío ('') si no se eligió rol específico.
-      if(tieneAcceso){
-        rolIng = (ing.rolesPorProyecto || {})[proyectoId] || null;
-      }
-    }
-    if(!tieneAcceso){
-      document.getElementById('contenido').innerHTML =
-        '<div class="error-box">Tu cuenta no tiene acceso a este proyecto. Si crees que es un error, contacta a producción.</div>';
+// v-NEXT: el guard de sesión (auth.onAuthStateChanged) se salta por
+// completo cuando estaModoOfflineActivo() es true (firebase-config.js
+// v1.3) — mismo patrón ya usado en index.html v2.23. Sin señal,
+// onAuthStateChanged nunca confirma el usuario y esto mandaba siempre
+// a login.html sin poder continuar en modo offline. No protege datos
+// que ya están cargados en este mismo dispositivo, así que pedir login
+// contra un servidor inalcanzable no agregaba seguridad real.
+if(estaModoOfflineActivo()){
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){
+      // v2.11.1: login.html v1.8 ya soporta ?next= — se usa como método
+      // principal; sessionStorage queda como respaldo (por si el link de
+      // retorno pierde el parámetro en algún flujo futuro).
+      sessionStorage.setItem('audiolink_redirect_after_login', location.href);
+      location.href = 'login.html?next=' + encodeURIComponent(location.href);
       return;
     }
-    await cargar();
-    // v2.69: si el ingeniero tiene un rol reconocido para este proyecto,
-    // cae directo en su pestaña en vez de quedarse en Bitácora por
-    // defecto. Sin rol asignado (o staff interno) -> comportamiento
-    // idéntico a antes. 'grabacion' abre el panel "Grabación" (tomas),
-    // que es donde efectivamente se trabaja esa etapa.
-    const MAPA_ROL_TAB = { grabacion: 'tomas', edicion: 'edicion', mezcla: 'mezcla', mastering: 'mastering' };
-    if(rolIng && MAPA_ROL_TAB[rolIng]){
-      cambiarTab(MAPA_ROL_TAB[rolIng]);
+    try{
+      const staffDoc = await db.collection('equipoInterno').doc(user.email).get();
+      const esStaffLocal = staffDoc.exists && staffDoc.data().activo === true;
+      let tieneAcceso = esStaffLocal;
+      let rolIng = null; // v2.69
+      if(!tieneAcceso){
+        const ingDoc = await db.collection('ingenieros').doc(user.email).get();
+        const ing = ingDoc.exists ? ingDoc.data() : null;
+        tieneAcceso = !!ing && ing.activo === true &&
+          Array.isArray(ing.proyectosAsignados) && ing.proyectosAsignados.includes(proyectoId);
+        // v2.69: rolesPorProyecto es un mapa {proyectoId: rol}, agregado
+        // desde proyecto.html v5.24 — puede no existir en asignaciones
+        // viejas o quedar vacío ('') si no se eligió rol específico.
+        if(tieneAcceso){
+          rolIng = (ing.rolesPorProyecto || {})[proyectoId] || null;
+        }
+      }
+      if(!tieneAcceso){
+        document.getElementById('contenido').innerHTML =
+          '<div class="error-box">Tu cuenta no tiene acceso a este proyecto. Si crees que es un error, contacta a producción.</div>';
+        return;
+      }
+      await cargar();
+      // v2.69: si el ingeniero tiene un rol reconocido para este proyecto,
+      // cae directo en su pestaña en vez de quedarse en Bitácora por
+      // defecto. Sin rol asignado (o staff interno) -> comportamiento
+      // idéntico a antes. 'grabacion' abre el panel "Grabación" (tomas),
+      // que es donde efectivamente se trabaja esa etapa.
+      const MAPA_ROL_TAB = { grabacion: 'tomas', edicion: 'edicion', mezcla: 'mezcla', mastering: 'mastering' };
+      if(rolIng && MAPA_ROL_TAB[rolIng]){
+        cambiarTab(MAPA_ROL_TAB[rolIng]);
+      }
+    } catch(e){
+      console.error('Error validando acceso:', e);
+      document.getElementById('contenido').innerHTML =
+        '<div class="error-box">Error validando tu acceso. Intenta de nuevo.</div>';
     }
-  } catch(e){
-    console.error('Error validando acceso:', e);
-    document.getElementById('contenido').innerHTML =
-      '<div class="error-box">Error validando tu acceso. Intenta de nuevo.</div>';
-  }
-});
+  });
+}
 </script>
 
 <!--
