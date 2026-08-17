@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.26
+<!-- AUDIOLINK · index.html · v2.27
+     v2.27: Grupo C ("fin del mundo") — descargarCatalogosOffline() y
+     descargarTodoOffline() ahora también traen equipoInterno,
+     ingenieros y musicosPortal (antes solo musicos/equipoTecnico/
+     estudios). Necesario para que bitacora.html/ingeniero.html/
+     musico.html puedan resolver "quién sos" en modo offline sin
+     Firebase Auth, leyendo estos catálogos del .json en vez de
+     Firestore en vivo (requiere offline-mock.js v1.0+, que ya sabe
+     guardarlos). Mismo patrón de solo lectura que los 3 catálogos
+     existentes — no se tocó nada más de ninguna de las 2 funciones
+     (UI, selector de proyectos, confirm(), descarga del archivo).
+
      v2.26: dos mejoras al panel "MODO OFFLINE" (a pedido, sobre v2.25):
      (1) los 3 botones pasan a ser cards (mismo lenguaje visual que
      .resumen-card ya usado en "Resumen Comercial": fondo surf-light,
@@ -797,10 +808,18 @@ async function descargarCatalogosOffline(){
   if(boton){ boton.disabled = true; boton.innerHTML = '<span class="offline-btn-ico">⏳</span><span>Descargando...</span>'; }
 
   try{
-    const [musicosSnap, equipoTecnicoSnap, estudiosSnap] = await Promise.all([
+    const [musicosSnap, equipoTecnicoSnap, estudiosSnap, equipoInternoSnap, ingenierosSnap, musicosPortalSnap] = await Promise.all([
       db.collection('musicos').get(),
       db.collection('equipoTecnico').get(),
-      db.collection('estudios').get()
+      db.collection('estudios').get(),
+      // v2.27 — Grupo C ("fin del mundo"): estos 3 catálogos permiten
+      // que bitacora.html/ingeniero.html/musico.html resuelvan "quién
+      // sos" en modo offline sin Firebase Auth (offline-mock.js v1.0+
+      // ya sabe leerlos). Mismo patrón de solo-lectura que los 3 de
+      // arriba.
+      db.collection('equipoInterno').get(),
+      db.collection('ingenieros').get(),
+      db.collection('musicosPortal').get()
     ]);
 
     const paquete = {
@@ -809,7 +828,10 @@ async function descargarCatalogosOffline(){
       fechaDescarga: new Date().toISOString(),
       musicos: musicosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       equipoTecnico: equipoTecnicoSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-      estudios: estudiosSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      estudios: estudiosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      equipoInterno: equipoInternoSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      ingenieros: ingenierosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      musicosPortal: musicosPortalSnap.docs.map(d => ({ id: d.id, ...d.data() }))
     };
 
     const fechaArchivo = new Date().toISOString().split('T')[0];
@@ -973,10 +995,15 @@ async function descargarTodoOffline(){
       };
     }));
 
-    const [musicosSnap, equipoTecnicoSnap, estudiosSnap] = await Promise.all([
+    const [musicosSnap, equipoTecnicoSnap, estudiosSnap, equipoInternoSnap, ingenierosSnap, musicosPortalSnap] = await Promise.all([
       db.collection('musicos').get(),
       db.collection('equipoTecnico').get(),
-      db.collection('estudios').get()
+      db.collection('estudios').get(),
+      // v2.27 — mismo agregado que en descargarCatalogosOffline() (ver
+      // comentario ahí).
+      db.collection('equipoInterno').get(),
+      db.collection('ingenieros').get(),
+      db.collection('musicosPortal').get()
     ]);
 
     const paquete = {
@@ -987,7 +1014,10 @@ async function descargarTodoOffline(){
       catalogos: {
         musicos: musicosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
         equipoTecnico: equipoTecnicoSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-        estudios: estudiosSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        estudios: estudiosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        equipoInterno: equipoInternoSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        ingenieros: ingenierosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        musicosPortal: musicosPortalSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       }
     };
 

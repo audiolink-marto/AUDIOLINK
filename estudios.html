@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Estudios (v2.3)</title>
 <!-- AUDIOLINK · estudios.html · v2.3
+     v2.4: el guard offline llamaba solo console.info() y nunca
+     iniciarEstudios() — la página quedaba en blanco en modo offline.
+     Se agrega la llamada dentro de la rama
+     if(estaModoOfflineActivo()), igual que ya hace la rama else tras
+     validar sesión online. No se tocó nada más.
+
      v2.3: se agrega el guard "if(estaModoOfflineActivo())" alrededor
      de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
      desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -808,6 +814,7 @@ const auth = firebase.auth();
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  iniciarEstudios();
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){

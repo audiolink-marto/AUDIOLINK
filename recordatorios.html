@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Recordatorios</title>
 <!-- AUDIOLINK · recordatorios.html · v1.10
+     v1.11: el guard offline llamaba solo console.info() y nunca
+     armaba usuarioActual ni llamaba iniciarListener()/
+     precargarFechaDesdeUrl() — la página quedaba en blanco y
+     autorId/el filtro "mías" hubieran explotado contra usuarioActual
+     null. Se agrega un usuario offline genérico ({uid:'offline',
+     email:'offline@audiolink', nombre:'Modo offline'}) dentro de la
+     rama if(estaModoOfflineActivo()) — "mías" no va a filtrar por
+     vos específicamente sin señal, es limitación conocida. No se
+     tocó nada más.
+
      v1.10: se agrega el guard "if(estaModoOfflineActivo())" alrededor
      de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
      desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -329,6 +339,13 @@ let usuarioActual = null;
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  // Usuario "de mentira" para no romper autorId/filtro "mías" — sin
+  // señal no hay forma de saber quién sos realmente. "mías" no va a
+  // filtrar por vos específicamente en este modo, es una limitación
+  // conocida y aceptada.
+  usuarioActual = { uid: 'offline', email: 'offline@audiolink', nombre: 'Modo offline' };
+  iniciarListener();
+  precargarFechaDesdeUrl();
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){

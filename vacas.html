@@ -4,6 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vacas · AUDIOLINK · v1.83</title>
+  <!-- v1.84: el guard offline llamaba solo console.info() y nunca
+       cargarOrganizador()/cargarVacas() — la página quedaba en blanco
+       en modo offline. Además creadoPor/registradoPor usaban
+       auth.currentUser.email directo, que es null sin Firebase Auth
+       real y hubiera explotado al crear vaca o registrar abono
+       offline. Se agrega la llamada a carga dentro de la rama
+       if(estaModoOfflineActivo()), y una función emailUsuarioActual()
+       que devuelve 'offline@audiolink' solo en modo offline sin
+       currentUser — en modo online sigue usando
+       auth.currentUser.email exactamente igual que antes. No se tocó
+       nada más.
+
   <!-- v1.83: se agrega el guard "if(estaModoOfflineActivo())" alrededor
        de auth.onAuthStateChanged() — mismo patrón que ya usaba
        index.html desde v2.23. Sin este cambio, en modo offline (sin
@@ -1851,6 +1863,10 @@ const CLOUDINARY_UPLOAD_PRESET = 'AUDIOLINK APP';
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+  cargarOrganizador(); // v1.48
+  cargarVacas();
 } else {
   auth.onAuthStateChanged(usuario => {
     if (!usuario) { window.location.href = 'login.html'; return; }
@@ -1859,6 +1875,17 @@ if(estaModoOfflineActivo()){
     cargarOrganizador(); // v1.48
     cargarVacas();
   });
+}
+
+// Usuario "de mentira" para creadoPor/registradoPor cuando no hay
+// Firebase Auth real (modo offline) — sin señal no hay forma de saber
+// quién sos. auth.currentUser.email sigue usándose tal cual en modo
+// online (rama else arriba), esto no lo reemplaza, solo cubre el caso
+// en que sea null.
+function emailUsuarioActual(){
+  return (estaModoOfflineActivo() && !auth.currentUser)
+    ? 'offline@audiolink'
+    : auth.currentUser.email;
 }
 
 // ===== ORGANIZADOR (v1.48) =====
@@ -2574,7 +2601,7 @@ async function guardarVaca() {
     urlProducto, // v1.28
     mostrarEstadoIntegrantes, ordenarPorAporte, ocultarLibresDeLista, // v1.42
     ocultarMontosActividad, // v1.49
-    creadoPor: auth.currentUser.email,
+    creadoPor: emailUsuarioActual(),
     fecha: firebase.firestore.FieldValue.serverTimestamp(),
     estado: 'activa',
     numParticipantes: 0,
@@ -3180,7 +3207,7 @@ async function guardarAbono() {
     fecha,
     nota,
     comprobanteUrl: comprobanteUrl || null,
-    registradoPor: auth.currentUser.email,
+    registradoPor: emailUsuarioActual(),
     creadoEn: firebase.firestore.FieldValue.serverTimestamp()
   });
 

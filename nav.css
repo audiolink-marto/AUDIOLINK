@@ -1,4 +1,16 @@
-/* AUDIOLINK · nav.css · v1.12
+/* AUDIOLINK · nav.css · v1.14
+   v1.14: ver comentario inline junto a ledGlowRojo más abajo — resumen:
+   el estado rojo (conn-offline) gana el mismo efecto de resplandor que
+   ya tenía el lila (v1.13), en vez del pulso simple anterior.
+
+   v1.13: ver comentarios inline junto a ledGlow y la variante del
+   banner más abajo — resumen: el modo offline manual pasa de amarillo
+   (--warn, se confundía con --gold) a lila, y su LED gana un efecto
+   de resplandor real (ledGlow: box-shadow en capas que crecen/atenúan)
+   en vez del pulso simple de escala/opacidad que compartía con
+   conn-offline (rojo, que se deja como estaba). No se tocó ningún
+   otro estilo.
+
    v1.12: el .conn-dot ahora tiene efecto LED pulsante (@keyframes
    ledPulse) en los dos estados que requieren atención — antes era un
    simple cambio de color estático. Se agrega el estado nuevo
@@ -226,12 +238,14 @@
   transform:translateY(120%);transition:transform 0.25s ease,background 0.2s,color 0.2s;
 }
 .offline-banner.show{transform:translateY(0);}
-/* v1.12: variante amarilla — modo offline manual con internet real
-   disponible (no es una falla, es un modo elegido a propósito). El
-   color del banner cambia solo cuando el body tiene conn-modo-offline
-   y NO conn-offline (sin internet real siempre manda el rojo). */
+/* v1.13: variante lila — modo offline manual con internet real
+   disponible (no es una falla, es un modo elegido a propósito). Antes
+   amarilla (ver comentario de ledGlow más abajo, mismo motivo del
+   cambio). El color del banner cambia solo cuando el body tiene
+   conn-modo-offline y NO conn-offline (sin internet real siempre
+   manda el rojo). */
 body.conn-modo-offline:not(.conn-offline) .offline-banner{
-  background:#4a3a12;color:#ffdf9e;
+  background:#2f2555;color:#d9cbff;
 }
 @media (max-width:768px){
   .offline-banner{font-size:0.75rem;padding:8px 10px;}
@@ -251,16 +265,39 @@ body.conn-modo-offline:not(.conn-offline) .offline-banner{
   0%,100%{ opacity:1; transform:scale(1); }
   50%{ opacity:0.45; transform:scale(0.82); }
 }
+/* v1.14: mismo efecto de resplandor (ledGlow) aplicado también al
+   estado rojo (conn-offline, sin internet real) — antes solo tenía el
+   pulso simple ledPulse de escala/opacidad. Se define ledGlowRojo
+   como variante en rojo del mismo mecanismo que ledGlow (lila), no se
+   reutiliza el keyframe directamente porque el color va hardcodeado
+   dentro de cada @keyframes (mismo patrón que ya tenía el archivo). No
+   se tocó ledPulse (queda sin uso pero no se borra, por si algún otro
+   estado lo necesita más adelante) ni ningún otro estilo. */
+@keyframes ledGlowRojo{
+  0%,100%{ box-shadow:0 0 4px 0 rgba(212,87,74,0.55), 0 0 8px 2px rgba(212,87,74,0.25); }
+  50%{ box-shadow:0 0 10px 2px rgba(212,87,74,0.9), 0 0 22px 6px rgba(212,87,74,0.45); }
+}
 body.conn-offline .conn-dot{
   background:var(--err);box-shadow:0 0 6px rgba(212,87,74,0.75);
-  animation:ledPulse 1.4s ease-in-out infinite;
+  animation:ledGlowRojo 1.8s ease-in-out infinite;
 }
 body.conn-offline .vu-brand span{background:var(--err);}
-/* Modo offline manual (switch activado a propósito, con internet real
-   disponible) — amarillo/dorado en vez de rojo, para no confundirlo
-   con una falla de conexión real. */
-body.conn-modo-offline .conn-dot{
-  background:var(--warn);box-shadow:0 0 6px rgba(217,164,65,0.75);
-  animation:ledPulse 1.4s ease-in-out infinite;
+/* v1.13: modo offline manual pasa de amarillo (--warn) a lila — el
+   amarillo se confundía visualmente con --gold (dorado, la marca del
+   tema) en el punto LED del logo. Además, el pulso pasa de ser solo
+   escala/opacidad (ledPulse) a un resplandor real (ledGlow): capas de
+   box-shadow que crecen y se atenúan, para que se sienta como luz y no
+   solo como parpadeo. El estado "sin conexión real" (conn-offline,
+   rojo) se deja con ledPulse tal cual — no se tocó. Colores fijos
+   (no ligados a variables del tema) para consistencia entre modo claro
+   y oscuro, mismo criterio que ya usaba el amarillo anterior y el
+   banner rojo de conn-offline. */
+@keyframes ledGlow{
+  0%,100%{ box-shadow:0 0 4px 0 rgba(167,139,250,0.55), 0 0 8px 2px rgba(167,139,250,0.25); }
+  50%{ box-shadow:0 0 10px 2px rgba(167,139,250,0.9), 0 0 22px 6px rgba(167,139,250,0.45); }
 }
-body.conn-modo-offline .vu-brand span{background:var(--warn);}
+body.conn-modo-offline .conn-dot{
+  background:#a78bfa;
+  animation:ledGlow 1.8s ease-in-out infinite;
+}
+body.conn-modo-offline .vu-brand span{background:#a78bfa;}

@@ -1,4 +1,20 @@
-/* AUDIOLINK · offline-mock.js · v0.8 (Fase 1 — persiste entre páginas)
+/* AUDIOLINK · offline-mock.js · v1.0 (Fase 1 — persiste entre páginas)
+   v1.0: cargarArchivoOffline() ahora también guarda equipoInterno,
+   ingenieros y musicosPortal cuando vienen en el .json de catálogos
+   (tipoArchivo 'audiolink_catalogos_offline' o 'audiolink_todo_offline').
+   Necesario para que bitacora.html/ingeniero.html/musico.html puedan
+   resolver "quién sos" en modo offline (Grupo C) sin depender de
+   Firebase Auth. No cambia el mecanismo de lectura (_mockDoc/
+   _mockColeccionRaiz ya eran genéricos para cualquier colección de
+   catalogos desde el fix de v0.9), solo qué campos se leen del .json
+   al cargarlo. Si el .json no trae estos 3 campos (archivos viejos ya
+   descargados), simplemente quedan como array vacío — no rompe nada.
+
+   (Nota: el título de este archivo decía "v0.8" pero el changelog de
+   abajo ya documentaba un fix aplicado como "v0.9" — desfase que venía
+   de antes. Se corrige acá el número de título para que coincida con
+   el código real; no se tocó ninguna lógica al corregir esto.)
+
    v0.8: dos mejoras, revisadas contra los usos reales en los archivos
    ya migrados (logistica/musicos/equipo-tecnico/clientes/pagos/
    bitacora/vacas/etc):
@@ -116,7 +132,9 @@ const AUDIOLINK_OFFLINE_KEY = 'audiolink_offline_data';
 //       fechaDescarga: "ISO..."
 //     }
 //   },
-//   catalogos: { musicos:[...], equipoTecnico:[...], estudios:[...] , fechaDescarga: "ISO..." }
+//   catalogos: { musicos:[...], equipoTecnico:[...], estudios:[...],
+//                equipoInterno:[...], ingenieros:[...], musicosPortal:[...],
+//                fechaDescarga: "ISO..." }
 // }
 let _offlineData = _restaurarOfflineDataDesdeLocalStorage();
 
@@ -179,6 +197,11 @@ async function cargarArchivoOffline(fileList){
           musicos: json.musicos || [],
           equipoTecnico: json.equipoTecnico || [],
           estudios: json.estudios || [],
+          // v1.0: necesarios para que bitacora/ingeniero/musico puedan
+          // resolver "quién sos" offline (Grupo C) sin Firebase Auth.
+          equipoInterno: json.equipoInterno || [],
+          ingenieros: json.ingenieros || [],
+          musicosPortal: json.musicosPortal || [],
           fechaDescarga: json.fechaDescarga
         };
         resumen.push(`✅ Catálogos — descargados ${_formatearFecha(json.fechaDescarga)}`);
@@ -206,6 +229,10 @@ async function cargarArchivoOffline(fileList){
             musicos: json.catalogos.musicos || [],
             equipoTecnico: json.catalogos.equipoTecnico || [],
             estudios: json.catalogos.estudios || [],
+            // v1.0: mismo agregado que en audiolink_catalogos_offline.
+            equipoInterno: json.catalogos.equipoInterno || [],
+            ingenieros: json.catalogos.ingenieros || [],
+            musicosPortal: json.catalogos.musicosPortal || [],
             fechaDescarga: json.fechaDescarga
           };
         }
@@ -275,14 +302,32 @@ function _mockColeccionRaiz(nombre){
   });
 }
 
+// v0.9: antes solo resolvía datos reales cuando coleccionRaiz==='proyectos'
+// — .doc(id).get() sobre un catálogo (musicos/estudios/ingenieros/etc)
+// SIEMPRE devolvía exists:false, aunque .collection('musicos').get()
+// (la colección completa) sí funcionara. Esto pasaba desapercibido
+// porque hasta ahora nada llamaba .doc(id) sobre un catálogo en modo
+// offline — bitacora.html/ingeniero.html/musico.html sí lo necesitan
+// (buscan ingenieros/{correo} y musicosPortal/{correo} by id) para
+// saber "quién sos" sin Firebase Auth real. Ahora también busca por id
+// dentro de _offlineData.catalogos[coleccionRaiz] si no es 'proyectos'.
 function _mockDoc(coleccionRaiz, id){
-  const proyectoEnMemoria = coleccionRaiz === 'proyectos' ? _offlineData.proyectos[id] : null;
+  let dataEnMemoria = null;
+  let subEnMemoria = {};
+
+  if(coleccionRaiz === 'proyectos'){
+    const p = _offlineData.proyectos[id];
+    if(p){ dataEnMemoria = p.data; subEnMemoria = p.sub; }
+  } else if(_offlineData.catalogos && coleccionRaiz in _offlineData.catalogos){
+    const item = (_offlineData.catalogos[coleccionRaiz] || []).find(d => d.id === id);
+    if(item) dataEnMemoria = item;
+  }
 
   return {
     id,
     async get(){
-      if(proyectoEnMemoria){
-        return { exists: true, id, data: () => ({ ...proyectoEnMemoria.data }) };
+      if(dataEnMemoria){
+        return { exists: true, id, data: () => ({ ...dataEnMemoria }) };
       }
       return { exists: false, id, data: () => undefined };
     },
@@ -295,8 +340,8 @@ function _mockDoc(coleccionRaiz, id){
       // index.html), causando ReferenceError: Cannot access '...'
       // before initialization y cortando la página a mitad de carga.
       setTimeout(() => {
-        if(proyectoEnMemoria){
-          callback({ exists: true, id, data: () => ({ ...proyectoEnMemoria.data }) });
+        if(dataEnMemoria){
+          callback({ exists: true, id, data: () => ({ ...dataEnMemoria }) });
         } else {
           callback({ exists: false, id, data: () => undefined });
         }
@@ -306,7 +351,7 @@ function _mockDoc(coleccionRaiz, id){
     // Subcolección: solo tiene datos reales si coleccionRaiz === 'proyectos'
     // y ese proyecto fue cargado offline (sesiones/produccion/temas/pagos).
     collection(nombreSub){
-      const items = proyectoEnMemoria ? (proyectoEnMemoria.sub[nombreSub] || []) : [];
+      const items = subEnMemoria[nombreSub] || [];
       return _crearQueryEstatica(items.map(d => _crearDocSnapshot(d.id, d, id)));
     }
     // set()/update() — Fase 2, no implementado a propósito.

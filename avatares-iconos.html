@@ -6,6 +6,12 @@
 <title>Avatares & Iconos — AUDIOLINK · v1.9</title>
 <!--
   AUDIOLINK · avatares-iconos.html · v1.9
+  v1.10: el guard offline llamaba solo console.info() y nunca
+  escucharCatalogo() — la página quedaba en blanco en modo offline.
+  Se agrega sesionValidada = true; escucharCatalogo(); dentro de la
+  rama if(estaModoOfflineActivo()), igual que ya hace la rama else
+  tras validar sesión online. No se tocó nada más.
+
   v1.9: se agrega el guard "if(estaModoOfflineActivo())" alrededor de
   auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
   desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -487,6 +493,8 @@ let sesionValidada = false;
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  sesionValidada = true;
+  escucharCatalogo();
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){

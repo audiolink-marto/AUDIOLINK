@@ -3,8 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación (v2.74)</title>
-<!-- AUDIOLINK · bitacora.html · v2.74
+<title>Audiolink — Bitácora de Grabación (v2.75)</title>
+<!-- AUDIOLINK · bitacora.html · v2.75
+     v2.75: Grupo C ("fin del mundo") — el guard offline llamaba solo
+     console.info() y bitacora.html quedaba inaccesible sin señal
+     (necesita saber quién sos para validar acceso al proyecto, y sin
+     Firebase Auth no había forma). Se agrega flujo offline: prompt()
+     pide el correo una vez (se guarda en localStorage para no volver
+     a preguntar en la misma sesión), y se busca en equipoInterno/
+     ingenieros ya descargados (requiere offline-mock.js v1.0+, que
+     ahora guarda esos catálogos). Misma lógica de acceso que el flujo
+     online (staff ve todo, ingeniero solo si tiene el proyecto
+     asignado) — no se tocó la rama else ni ninguna función existente.
+
      v2.74: se agrega el guard "if(estaModoOfflineActivo())" alrededor
      de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
      desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -2664,6 +2675,56 @@ function renderListaTomasLocal(){
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  // Grupo C ("fin del mundo"): sin Firebase Auth no hay forma de saber
+  // quién sos. Se pregunta el correo una vez (prompt nativo) y se busca
+  // en los catálogos ya descargados (equipoInterno/ingenieros, vía
+  // offline-mock.js v1.0) — mismo criterio de acceso que el flujo
+  // online de abajo (staff ve todo; ingeniero solo si tiene este
+  // proyecto asignado), solo que la fuente es el .json ya cargado, no
+  // Firestore en vivo. El correo se guarda en localStorage para no
+  // volver a preguntarlo en la misma sesión offline en este dispositivo.
+  (async () => {
+    let correoOffline = localStorage.getItem('audiolink_correo_offline');
+    if(!correoOffline){
+      correoOffline = prompt('Modo offline: escribe tu correo para identificarte (equipo/ingeniero):');
+      if(!correoOffline){
+        document.getElementById('contenido').innerHTML =
+          '<div class="error-box">Se necesita tu correo para continuar en modo offline.</div>';
+        return;
+      }
+      correoOffline = correoOffline.trim().toLowerCase();
+      localStorage.setItem('audiolink_correo_offline', correoOffline);
+    }
+    try{
+      const staffDoc = await db.collection('equipoInterno').doc(correoOffline).get();
+      const esStaffLocal = staffDoc.exists && staffDoc.data().activo === true;
+      let tieneAcceso = esStaffLocal;
+      let rolIng = null;
+      if(!tieneAcceso){
+        const ingDoc = await db.collection('ingenieros').doc(correoOffline).get();
+        const ing = ingDoc.exists ? ingDoc.data() : null;
+        tieneAcceso = !!ing && ing.activo === true &&
+          Array.isArray(ing.proyectosAsignados) && ing.proyectosAsignados.includes(proyectoId);
+        if(tieneAcceso){
+          rolIng = (ing.rolesPorProyecto || {})[proyectoId] || null;
+        }
+      }
+      if(!tieneAcceso){
+        document.getElementById('contenido').innerHTML =
+          '<div class="error-box">Ese correo no tiene acceso a este proyecto en los datos offline cargados. Verifica el correo o descarga catálogos actualizados.</div>';
+        return;
+      }
+      await cargar();
+      const MAPA_ROL_TAB = { grabacion: 'tomas', edicion: 'edicion', mezcla: 'mezcla', mastering: 'mastering' };
+      if(rolIng && MAPA_ROL_TAB[rolIng]){
+        cambiarTab(MAPA_ROL_TAB[rolIng]);
+      }
+    } catch(e){
+      console.error('Error validando acceso offline:', e);
+      document.getElementById('contenido').innerHTML =
+        '<div class="error-box">Error validando tu acceso offline. Intenta de nuevo.</div>';
+    }
+  })();
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){

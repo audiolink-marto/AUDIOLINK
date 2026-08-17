@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Eventos</title>
 <!-- AUDIOLINK · eventos.html · v1.68
+     v1.69: el guard offline llamaba solo console.info() y nunca
+     initEventos() — la página quedaba en blanco en modo offline. Se
+     agrega la llamada dentro de la rama if(estaModoOfflineActivo()),
+     igual que ya hace la rama else tras validar sesión online. No se
+     tocó nada más.
+
      v1.68: se agrega el guard "if(estaModoOfflineActivo())" alrededor
      de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
      desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -1669,6 +1675,7 @@ const catalogoIconosRef = db.collection('catalogoIconos'); // v1.25: global (no 
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  initEventos();
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){

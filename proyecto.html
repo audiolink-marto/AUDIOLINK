@@ -4,7 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.35
+<!-- AUDIOLINK · proyecto.html · v5.37
+     v5.37: dos ajustes de UI sobre v5.36 (a pedido). (1) Se quita
+     "📅 Ver sesiones" del toolbar de detalle — quedaba redundante con
+     el ícono 📅 que la card del listado ya tenía (mismo destino,
+     logistica.html?id=...). No se borró la función verSesiones(), solo
+     el botón que la llamaba. (2) .btn-ir-sesiones (los 2 íconos de la
+     card, incluido el 📥 nuevo de v5.36) pasa de 28px a 40px — 28px
+     queda muy por debajo del área táctil mínima recomendada (44px en
+     iOS/Android); se eligió 40px como punto medio entre esa
+     recomendación y el espacio real disponible en el header de la
+     card en pantallas angostas (con 44px el título del proyecto queda
+     muy comprimido contra 2 íconos + badge en la misma fila). No se
+     tocó ningún otro estilo ni función.
+
+     v5.36: "Descargar proyecto" se mueve del toolbar de detalle
+     (vistaDetalle, ya tenía 9 botones) a un ícono 📥 en la card del
+     listado, junto al 📅 de sesiones que ya existía ahí — mismo
+     lenguaje visual (.btn-ir-sesiones reutilizada, no se creó CSS
+     nuevo). descargarProyectoOffline() ahora acepta un id explícito
+     (la card lo pasa; si se llama sin argumento, usa proyectoActualId
+     como antes, así que en principio nada más debería llamarla, pero
+     queda retrocompatible por si acaso). Se distingue si el elemento
+     clickeado es <button> o <a> para deshabilitar el click del modo
+     correcto en cada caso (disabled vs pointer-events). No se tocó
+     ninguna otra función ni botón del toolbar.
+
      v5.35: se agrega el guard "if(estaModoOfflineActivo())" alrededor
      de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
      desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -859,7 +884,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .card-top-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .btn-ir-sesiones{
   background:transparent;border:1px solid var(--brd);color:var(--muted);
-  width:28px;height:28px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  width:40px;height:40px;border-radius:8px;font-size:0.95rem;cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   text-decoration:none;
 }
@@ -1388,12 +1413,10 @@ window.NAV_CONFIG = {
       <button class="btn" onclick="exportarPDF('cliente')">📄 PDF Cliente</button>
       <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
       <button class="btn btn-ghost" onclick="editarProyectoActual()">✎ Editar</button>
-      <button class="btn btn-ghost" onclick="verSesiones()">📅 Ver sesiones</button>
       <button class="btn btn-ghost" onclick="window.open('cotizacion-rapida.html?id=' + proyectoActualId, '_blank')">🧾 Cotizador</button>
       <button class="btn btn-ghost" onclick="window.open('produccion.html?id=' + proyectoActualId, '_blank')">🎵 Producción</button>
       <button class="btn btn-ghost" onclick="abrirModalIngenieros()">🎧 Ingenieros</button>
       <button class="btn btn-ghost" onclick="abrirModalMusicos()">🎸 Músicos (portal)</button>
-      <button class="btn btn-ghost" onclick="descargarProyectoOffline()">📥 Descargar proyecto</button>
     </div>
   </div>
 
@@ -2710,6 +2733,7 @@ function renderListado(){
         <div class="card-top-actions">
           <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
           <a href="logistica.html?id=${p.id}" class="btn-ir-sesiones" title="Ver sesiones" onclick="event.stopPropagation()">📅</a>
+          <a href="javascript:void(0)" class="btn-ir-sesiones" title="Descargar proyecto (modo offline)" onclick="event.stopPropagation(); descargarProyectoOffline('${p.id}')">📥</a>
         </div>
       </div>
       <div class="meta">${escapeHtml(p.clienteArtista || '—')}</div>
@@ -3004,31 +3028,43 @@ function verSesiones(){
 // ARQUITECTURA.md sección 1 para este tipo de descarga puntual) y
 // dispara la descarga como archivo .json real. Solo lectura: no
 // modifica nada en Firestore.
-async function descargarProyectoOffline(){
-  if(!proyectoActualId) return;
-  const boton = event?.target;
-  const textoOriginal = boton ? boton.textContent : null;
-  if(boton){ boton.disabled = true; boton.textContent = '⏳ Descargando...'; }
+// v5.36: ahora acepta un idProyecto explícito (llamada desde el ícono
+// 📥 de la card en el listado, sin pasar por vistaDetalle) — si no se
+// pasa nada, sigue usando proyectoActualId como antes (llamada desde
+// el toolbar de detalle). boton pasa de textContent a innerHTML para
+// funcionar igual de bien en el botón de texto del toolbar que en el
+// ícono solo de la card; se detecta si es <button> o <a> para
+// deshabilitar clicks del modo correcto en cada caso.
+async function descargarProyectoOffline(idProyecto){
+  const idParaDescargar = idProyecto || proyectoActualId;
+  if(!idParaDescargar) return;
+  const boton = event?.currentTarget || event?.target;
+  const htmlOriginal = boton ? boton.innerHTML : null;
+  const esBoton = boton && boton.tagName === 'BUTTON';
+  if(boton){
+    if(esBoton) boton.disabled = true; else boton.style.pointerEvents = 'none';
+    boton.innerHTML = esBoton ? '⏳ Descargando...' : '⏳';
+  }
 
   try{
-    const docProyecto = await proyectosRef.doc(proyectoActualId).get();
+    const docProyecto = await proyectosRef.doc(idParaDescargar).get();
     if(!docProyecto.exists){
       alert('No se pudo descargar: el proyecto no existe.');
       return;
     }
 
     const [sesionesSnap, produccionSnap, temasSnap, pagosSnap] = await Promise.all([
-      proyectosRef.doc(proyectoActualId).collection('sesiones').get(),
-      proyectosRef.doc(proyectoActualId).collection('produccion').get(),
-      proyectosRef.doc(proyectoActualId).collection('temas').get(),
-      proyectosRef.doc(proyectoActualId).collection('pagos').get()
+      proyectosRef.doc(idParaDescargar).collection('sesiones').get(),
+      proyectosRef.doc(idParaDescargar).collection('produccion').get(),
+      proyectosRef.doc(idParaDescargar).collection('temas').get(),
+      proyectosRef.doc(idParaDescargar).collection('pagos').get()
     ]);
 
     const paquete = {
       tipoArchivo: 'audiolink_proyecto_offline',
       version: 1,
       fechaDescarga: new Date().toISOString(),
-      proyectoId: proyectoActualId,
+      proyectoId: idParaDescargar,
       proyecto: { id: docProyecto.id, ...docProyecto.data() },
       sesiones: sesionesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       produccion: produccionSnap.docs.map(d => ({ id: d.id, ...d.data() })),
@@ -3036,7 +3072,7 @@ async function descargarProyectoOffline(){
       pagos: pagosSnap.docs.map(d => ({ id: d.id, ...d.data() }))
     };
 
-    const nombreProyecto = (docProyecto.data().nombre || docProyecto.data().cliente || proyectoActualId)
+    const nombreProyecto = (docProyecto.data().nombre || docProyecto.data().cliente || idParaDescargar)
       .toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_');
     const fechaArchivo = new Date().toISOString().split('T')[0];
     const nombreArchivo = `audiolink_proyecto_${nombreProyecto}_${fechaArchivo}.json`;
@@ -3054,7 +3090,10 @@ async function descargarProyectoOffline(){
     console.error('Error descargando proyecto para offline:', err);
     alert('No se pudo descargar el proyecto. Revisa la consola para más detalle.');
   }finally{
-    if(boton){ boton.disabled = false; boton.textContent = textoOriginal; }
+    if(boton){
+      if(esBoton) boton.disabled = false; else boton.style.pointerEvents = '';
+      boton.innerHTML = htmlOriginal;
+    }
   }
 }
 

@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Ingeniero</title>
-<!-- AUDIOLINK · ingeniero.html · v1.6
+<!-- AUDIOLINK · ingeniero.html · v1.7
+     v1.7: Grupo C ("fin del mundo") — el guard offline llamaba solo
+     console.info() y ingeniero.html quedaba inaccesible sin señal
+     (necesita saber quién sos para filtrar proyectosAsignados, y sin
+     Firebase Auth no había forma). Se agrega flujo offline: prompt()
+     pide el correo una vez (se guarda en localStorage), y se busca en
+     equipoInterno/ingenieros ya descargados (requiere offline-mock.js
+     v1.0+). Staff ve todos los proyectos, ingeniero solo los suyos —
+     mismo criterio que el flujo online. El modo "vista previa"
+     (?preview=) no se soporta offline por ahora. No se tocó la rama
+     else ni ninguna función existente.
+
      v1.6: se agrega el guard "if(estaModoOfflineActivo())" alrededor
      de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
      desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -233,6 +244,50 @@ let proyectosAsignados = [];
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  // Grupo C ("fin del mundo"): sin Firebase Auth no hay forma de saber
+  // quién sos. Se pregunta el correo una vez (prompt nativo) y se busca
+  // en equipoInterno/ingenieros ya descargados (offline-mock.js v1.0+).
+  // Simplificación a propósito: el modo "vista previa" de staff
+  // (?preview=correo) no se soporta offline — no se encontró caso de
+  // uso real de esa función sin señal; si hace falta más adelante, se
+  // agrega aparte.
+  (async () => {
+    let correoOffline = localStorage.getItem('audiolink_correo_offline');
+    if(!correoOffline){
+      correoOffline = prompt('Modo offline: escribe tu correo para identificarte (equipo/ingeniero):');
+      if(!correoOffline){
+        document.getElementById('vistaListado').innerHTML =
+          '<div class="msg-panel">Se necesita tu correo para continuar en modo offline.</div>';
+        return;
+      }
+      correoOffline = correoOffline.trim().toLowerCase();
+      localStorage.setItem('audiolink_correo_offline', correoOffline);
+    }
+    try{
+      const staffDoc = await db.collection('equipoInterno').doc(correoOffline).get();
+      if(staffDoc.exists && staffDoc.data().activo === true){
+        const snap = await proyectosRef.get();
+        proyectosAsignados = snap.docs.map(d => d.id);
+        document.getElementById('rolTag').textContent = 'Modo Staff · Revisión (offline)';
+        iniciarListado();
+        return;
+      }
+      const ingDoc = await db.collection('ingenieros').doc(correoOffline).get();
+      const ing = ingDoc.exists ? ingDoc.data() : null;
+      if(!ing || ing.activo !== true || !Array.isArray(ing.proyectosAsignados) || ing.proyectosAsignados.length === 0){
+        document.getElementById('vistaListado').innerHTML =
+          '<div class="msg-panel">Ese correo no tiene proyectos asignados en los datos offline cargados. Verifica el correo o descarga catálogos actualizados.</div>';
+        return;
+      }
+      proyectosAsignados = ing.proyectosAsignados;
+      document.getElementById('rolTag').textContent = 'Panel de ' + (ing.nombre || correoOffline) + ' (offline)';
+      iniciarListado();
+    } catch(e){
+      console.error('Error validando acceso offline:', e);
+      document.getElementById('vistaListado').innerHTML =
+        '<div class="msg-panel">Error validando tu acceso offline. Intenta de nuevo.</div>';
+    }
+  })();
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){

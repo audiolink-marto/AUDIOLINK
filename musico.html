@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v1.4
+<!-- AUDIOLINK · musico.html · v1.5
+     v1.5: Grupo C ("fin del mundo") — el guard offline llamaba solo
+     console.info() y musico.html quedaba inaccesible sin señal
+     (necesita saber quién sos para filtrar proyectosAsignados, y sin
+     Firebase Auth no había forma). Se agrega flujo offline: prompt()
+     pide el correo una vez (se guarda en localStorage), y se busca en
+     equipoInterno/musicosPortal ya descargados (requiere
+     offline-mock.js v1.0+). Mismo criterio que el flujo online. Modo
+     "vista previa" (?preview=) no se soporta offline. No se tocó la
+     rama else ni ninguna función existente.
+
      v1.4: se agrega el guard "if(estaModoOfflineActivo())" alrededor
      de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
      desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -258,6 +268,49 @@ let nombreMusicoActual = '';
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  // Grupo C ("fin del mundo") — el más "nice to have" de los 3 (portal
+  // externo para músicos, caso de uso raro sin señal), pero se agrega
+  // igual por consistencia con bitacora/ingeniero. Mismo mecanismo:
+  // prompt() pide el correo, se busca en equipoInterno/musicosPortal
+  // ya descargados (offline-mock.js v1.0+). Modo "vista previa" de
+  // staff (?preview=) no se soporta offline, igual que en ingeniero.html.
+  (async () => {
+    let correoOffline = localStorage.getItem('audiolink_correo_offline');
+    if(!correoOffline){
+      correoOffline = prompt('Modo offline: escribe tu correo para identificarte (equipo/músico):');
+      if(!correoOffline){
+        document.querySelector('main').insertAdjacentHTML('beforeend',
+          '<div class="msg-panel">Se necesita tu correo para continuar en modo offline.</div>');
+        return;
+      }
+      correoOffline = correoOffline.trim().toLowerCase();
+      localStorage.setItem('audiolink_correo_offline', correoOffline);
+    }
+    try{
+      const staffDoc = await db.collection('equipoInterno').doc(correoOffline).get();
+      if(staffDoc.exists && staffDoc.data().activo === true){
+        document.getElementById('rolTag').textContent = 'Staff (offline)';
+        correoActual = correoOffline;
+      } else {
+        const musDoc = await db.collection('musicosPortal').doc(correoOffline).get();
+        if(!musDoc.exists || musDoc.data().activo !== true){
+          document.querySelector('main').insertAdjacentHTML('beforeend',
+            '<div class="msg-panel">Ese correo no tiene sesiones asignadas en los datos offline cargados. Verifica el correo o descarga catálogos actualizados.</div>');
+          return;
+        }
+        document.getElementById('rolTag').textContent = 'Músico · ' + (musDoc.data().nombre || correoOffline) + ' (offline)';
+        correoActual = correoOffline;
+      }
+      const musDocActual = await db.collection('musicosPortal').doc(correoActual).get();
+      proyectosAsignados = musDocActual.exists ? (musDocActual.data().proyectosAsignados || []) : [];
+      nombreMusicoActual = musDocActual.exists ? (musDocActual.data().nombre || '') : '';
+      cargarSesiones();
+    } catch(e){
+      console.error('Error validando acceso offline:', e);
+      document.querySelector('main').insertAdjacentHTML('beforeend',
+        '<div class="msg-panel">Error validando tu acceso offline. Intenta de nuevo.</div>');
+    }
+  })();
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){
