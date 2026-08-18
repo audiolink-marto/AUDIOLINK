@@ -3,8 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Equipo Técnico</title>
-<!-- AUDIOLINK · equipo-tecnico.html · v1.8
+<title>Audiolink — Equipo Técnico (v1.11)</title>
+<!-- AUDIOLINK · equipo-tecnico.html · v1.11
+     v1.11: se agrega campo "Correo" opcional al formulario del técnico.
+     Antes no había forma de cargar el correo que ingeniero.html necesita
+     para identificar a un ingeniero (login real o el prompt de modo
+     offline, Grupo C — ver offline-mock.js), y la colección 'ingenieros'
+     que usa esa página no tenía ningún formulario propio para crearse.
+     Ahora, al guardar un técnico con correo, guardarTecnico() llama a
+     sincronizarIngenieroDesdeTecnico() (función nueva) que escribe/
+     actualiza un doc espejo en ingenieros/{correo} con {nombre, activo}.
+     Si el correo cambia o se borra, se elimina el doc viejo en
+     'ingenieros' (su id ES el correo, no se puede renombrar un doc en
+     Firestore). eliminarTecnico() también borra ese doc espejo si el
+     técnico tenía correo cargado. El campo se muestra para TODOS los
+     técnicos por igual (no solo los que tengan "ingeniero" en el rol,
+     que es texto libre y poco confiable para detectar esto) — se deja
+     vacío si no lo necesitan. No se tocó ingeniero.html, offline-mock.js,
+     tarifas, egresos ni ninguna otra lógica existente.
+
+     v1.10: fix del ReferenceError por TDZ en modo offline — ver detalle
+     junto al setTimeout(initEquipoTecnico, 0) más abajo, en el guard de
+     sesión. Confirmado con el mismo patrón de bug ya corregido en
+     logistica.html v2.75. No se tocó nada más.
+
      v1.9: el guard offline llamaba solo console.info() y nunca
      initEquipoTecnico() — la página quedaba en blanco en modo
      offline. Se agrega la llamada dentro de la rama
@@ -330,6 +352,10 @@ window.NAV_CONFIG = { activo: 'equipo-tecnico' };
           <input type="number" id="fTarifa" min="0" placeholder="Ej: 80000">
         </div>
       </div>
+      <div class="field">
+        <label>Correo (opcional — solo si necesita entrar a su Panel de Ingeniero)</label>
+        <input type="email" id="fCorreo" placeholder="Ej: ingeniero@correo.com">
+      </div>
       <div class="checkbox-field">
         <input type="checkbox" id="fActivo" checked>
         <label for="fActivo">Activo (aparece en el catálogo del Cotizador)</label>
@@ -375,7 +401,19 @@ const egresosRefTec = db.collection('egresos'); // v1.3: solo lectura, para "Tot
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
-  initEquipoTecnico();
+  // v1.10: initEquipoTecnico() ahora se llama vía setTimeout(...,0) en vez
+  // de directo. Antes se llamaba sincrónicamente acá mismo, en medio de
+  // este bloque de script, ANTES de que el motor llegara a ejecutar los
+  // "let" de más abajo (unsubscribeTecnicos, tecnicos, etc. — línea
+  // ~404). initEquipoTecnico() asigna a unsubscribeTecnicos de entrada,
+  // que queda en TDZ hasta su propia declaración — eso tiraba
+  // "ReferenceError: Cannot access 'unsubscribeTecnicos' before
+  // initialization" y cortaba el script ahí, dejando la página en blanco
+  // (mismo bug ya identificado y corregido en logistica.html v2.75). En
+  // el camino online no pasaba porque auth.onAuthStateChanged() es
+  // asíncrono por naturaleza. No se tocó el guard, initEquipoTecnico() ni
+  // ninguna otra función.
+  setTimeout(initEquipoTecnico, 0);
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){
@@ -522,6 +560,7 @@ function abrirPanelNuevo(){
   document.getElementById('fNombre').value = '';
   document.getElementById('fRol').value = '';
   document.getElementById('fTarifa').value = '';
+  document.getElementById('fCorreo').value = '';
   document.getElementById('fActivo').checked = true;
   document.getElementById('btnEliminar').style.display = 'none';
   document.getElementById('campoTotalPagadoTec').style.display = 'none';
@@ -538,6 +577,7 @@ function abrirPanelEditar(id){
   document.getElementById('fNombre').value = t.nombre || '';
   document.getElementById('fRol').value = t.rol || '';
   document.getElementById('fTarifa').value = t.tarifa || '';
+  document.getElementById('fCorreo').value = t.correo || '';
   document.getElementById('fActivo').checked = t.activo !== false;
   document.getElementById('btnEliminar').style.display = 'inline-block';
   document.getElementById('campoTotalPagadoTec').style.display = 'block';
@@ -631,13 +671,22 @@ async function guardarTecnico(){
   const rol = document.getElementById('fRol').value.trim();
   const tarifa = Number(document.getElementById('fTarifa').value) || 0;
   const activo = document.getElementById('fActivo').checked;
+  const correo = document.getElementById('fCorreo').value.trim().toLowerCase();
 
   if(!nombre){
     alert('Ingresa el nombre del técnico.');
     return;
   }
 
-  const data = { nombre, rol, tarifa, activo };
+  const data = { nombre, rol, tarifa, activo, correo: correo || null };
+
+  // v1.11: correo anterior (si estamos editando), tomado del array
+  // `tecnicos` ya cargado en memoria — necesario para saber si el correo
+  // cambió y hay que borrar el doc viejo en 'ingenieros' antes de crear
+  // el nuevo (ver sincronizarIngenieroDesdeTecnico() más abajo).
+  const correoAnterior = tecnicoActualId
+    ? ((tecnicos.find(t => t.id === tecnicoActualId) || {}).correo || '')
+    : '';
 
   try{
     if(tecnicoActualId){
@@ -645,6 +694,7 @@ async function guardarTecnico(){
     } else {
       await equipoTecnicoRef.add(data);
     }
+    await sincronizarIngenieroDesdeTecnico(correoAnterior, correo, nombre, activo);
     cerrarPanel();
   } catch(e){
     console.error('Error guardando técnico:', e);
@@ -652,11 +702,41 @@ async function guardarTecnico(){
   }
 }
 
+// v1.11 — mantiene la colección 'ingenieros' (la usan ingeniero.html y
+// el modo offline, Grupo C — ver offline-mock.js) sincronizada con el
+// correo cargado acá en Equipo Técnico. Un solo formulario, dos
+// colecciones espejo. El id de un doc en 'ingenieros' ES el correo, así
+// que si el correo cambió o se borró hay que eliminar el doc viejo (no
+// se puede "renombrar" un doc en Firestore) antes de crear/actualizar el
+// nuevo. No se toca ningún otro campo de 'ingenieros' aparte de
+// nombre/activo — si en el futuro ingeniero.html necesita más campos acá
+// (ej. foto, teléfono), hay que sumarlos también en este objeto.
+async function sincronizarIngenieroDesdeTecnico(correoAnterior, correoNuevo, nombre, activo){
+  try{
+    if(correoAnterior && correoAnterior !== correoNuevo){
+      await db.collection('ingenieros').doc(correoAnterior).delete();
+    }
+    if(correoNuevo){
+      await db.collection('ingenieros').doc(correoNuevo).set({ nombre, activo }, { merge: true });
+    }
+  } catch(e){
+    console.error('Error sincronizando correo con la colección ingenieros:', e);
+    alert('El técnico se guardó, pero hubo un error sincronizando su acceso al Panel de Ingeniero (colección ingenieros). Revisa la consola.');
+  }
+}
+
 async function eliminarTecnico(){
   if(!tecnicoActualId) return;
   if(!confirm('¿Eliminar este técnico del catálogo? Esta acción no se puede deshacer.')) return;
+  // v1.11: se guarda el correo (si lo tenía) ANTES de borrar el doc de
+  // equipoTecnico, para poder limpiar también su acceso en 'ingenieros'.
+  const t = tecnicos.find(x => x.id === tecnicoActualId);
+  const correoDelTecnico = t?.correo || '';
   try{
     await equipoTecnicoRef.doc(tecnicoActualId).delete();
+    if(correoDelTecnico){
+      await db.collection('ingenieros').doc(correoDelTecnico).delete();
+    }
     cerrarPanel();
   } catch(e){
     console.error('Error eliminando técnico:', e);

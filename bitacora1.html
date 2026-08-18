@@ -3,99 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación (v2.94)</title>
-<!-- AUDIOLINK · bitacora.html · v2.94
-     v2.94: la card de cada sesión en el listado "Sesiones de Grabación
-     del tema" (dashboard, v2.32) daba poca info — solo fecha/sala/
-     duración/autor. Se agregan 2 líneas nuevas, SIN ninguna lectura
-     nueva a Firestore (se arman con datos que ya venían incluidos en
-     doc.data() de ese mismo query, sx.inputList y sx.notasGrabacion):
-     (1) resumen de canales — "🎚️ N canales — Instrumento1, Instrumento2,
-     ... +N más", usando it.instrumento (o it.nombre si no hay
-     instrumento) de cada item de sx.inputList, sin duplicados, primeros
-     4 + contador. (2) si la sesión tiene notas de grabación, un
-     extracto corto (90 caracteres, con "…" y title con el texto
-     completo al pasar el mouse). La fila original (fecha/sala/duración/
-     autor + botón Abrir) se mantiene igual, solo se reorganiza dentro
-     de un contenedor .fila-top. No se tocó cargarSesionesGrabacionTema()
-     más allá del armado del HTML, ni ninguna otra función, dato o
-     lógica.
-     v2.93: (1) se generaliza el mecanismo de persistencia local que
-     v2.92 había armado solo para gruposColapsados — ahora son 2
-     funciones genéricas, leerEstadoLocal(nombre, porDefecto) y
-     guardarEstadoLocal(nombre, valor), que arman la clave de
-     localStorage como 'audiolink_bitacora_' + nombre + '_' + sesionId.
-     gruposColapsados pasa a usarlas sin cambiar de comportamiento.
-     (2) el dashboard resumen (dashCerrado, #dashBox, v2.31) ahora
-     también persiste con este mismo mecanismo: arranca colapsado o
-     abierto según haya quedado la última vez, y dashToggle() guarda el
-     estado en cada clic. (3) el patchbay (renderPatchbay(), v2.86) pasa
-     a ser colapsable — nuevo estado patchbayColapsado + función
-     togglePatchbay(), mismo criterio visual (flechita ▾ que rota -90°,
-     misma clase .colapsar-flecha que ya usaban los grupos) en el título
-     "Patch de preamps — sesión activa", clickeable. También persiste
-     con leerEstadoLocal/guardarEstadoLocal. Los 3 estados (grupos,
-     dashboard, patchbay) son solo preferencia visual del dispositivo —
-     ninguno toca Firestore ni viaja entre dispositivos/usuarios. No se
-     tocó ninguna otra clase, función, dato ni lógica.
-     v2.92: el estado de los colapsables (gruposColapsados, v2.31/v2.91)
-     ahora persiste en localStorage en vez de perderse al recargar.
-     Clave por sesión: 'audiolink_bitacora_colapsados_' + sesionId, así
-     no se mezcla entre sesiones de grabación distintas. Se lee una vez
-     al cargar el script (cargarGruposColapsados(), con try/catch por si
-     el JSON guardado estuviera corrupto o localStorage no estuviera
-     disponible — en ese caso sigue igual que antes, arranca en {}) y se
-     escribe cada vez que se colapsa/expande un grupo (toggleGrupo()
-     llama a guardarGruposColapsados() antes de renderizar). Es solo
-     preferencia visual del dispositivo — NO se guarda en Firestore ni
-     viaja entre dispositivos/usuarios. No se tocó ninguna otra clase,
-     función, dato ni lógica.
-     v2.91: los grupos horizontales de Vista Consola (.consola-grupo-col)
-     ahora son colapsables, igual que los grupos verticales de Vista
-     editar (v2.31). Se reutiliza el mismo estado (gruposColapsados) y
-     la misma función (toggleGrupo(etiqueta)) — clic en el título del
-     grupo (.consola-grupo-titulo) oculta/muestra su .consola-grupo-fila
-     y rota la flechita ▾, mismo criterio visual que en editar. Como el
-     estado es compartido, un grupo colapsado en Vista editar aparece
-     colapsado también al pasar a Vista consola (y viceversa) — mismo
-     comportamiento coherente en ambas vistas. Los grupos "sin etiqueta"
-     (sin-grupo) siguen sin poder colapsarse, igual que antes. No se
-     tocó ninguna otra clase, función, dato ni lógica.
-     v2.90: el aviso de "cambios sin guardar" (v2.89) chocaba con el
-     botón "Guardar bitácora" al estar abajo a la derecha en texto
-     largo. Se reemplaza por un ícono circular chico (💾, 34px,
-     #avisoSinGuardar) arriba a la izquierda — esquina libre, no pisa
-     ni el botón de guardar ni la píldora del cronómetro (que está
-     arriba a la derecha). Mismo comportamiento de fondo (misma
-     variable sinGuardarCambios, mismos listeners, mismo
-     marcarSinGuardar()/limpiarSinGuardar()), solo cambia el
-     contenedor visual: de píldora con texto a círculo con ícono +
-     title="Cambios sin guardar" (tooltip nativo al pasar el mouse). No
-     se tocó ninguna otra clase, variable, dato ni lógica.
-     v2.89: dos avisos nuevos, pedidos por el usuario, ninguno toca
-     Firestore ni el modelo de datos existente:
-     (1) aviso de conexión perdida — franja fija arriba (#avisoOffline),
-     se muestra/oculta con los eventos nativos online/offline del
-     navegador (window.addEventListener). Distinto del "modo offline"
-     manual de offline-mock.js (esa es una elección explícita del
-     usuario; esto es "se cayó la señal ahora mismo"). Empieza oculta
-     (display:none) y actualizarAvisoOffline() la sincroniza al cargar
-     y en cada cambio de estado de red.
-     (2) aviso de cambios sin guardar — píldora fija (#avisoSinGuardar,
-     esquina inferior derecha). Variable global sinGuardarCambios se
-     activa desde: un único listener delegado sobre #contenido
-     (input/change) que solo reacciona si el target está dentro de un
-     .strip-row — así no hace falta tocar los ~20 oninput/onchange que
-     ya tenía cada campo del inputList — y desde anadirCanal(),
-     moverCanal() y borrarCanal(), que cambian la estructura sin pasar
-     por un <input>. guardar() la apaga (limpiarSinGuardar()) al
-     terminar con éxito. Los campos que se autoguardan solos (notas de
-     Edición/Mezcla/Mastering, plataforma/loudness/entregables de
-     Mastering) NO viven dentro de #contenido, así que no disparan este
-     aviso — siguen exactamente igual que antes. Se agrega también un
-     confirm nativo del navegador (beforeunload) si se intenta cerrar o
-     recargar con cambios pendientes. No se tocó ninguna otra función,
-     dato, Firestore ni lógica existente.
+<title>Audiolink — Bitácora de Grabación (v2.88)</title>
+<!-- AUDIOLINK · bitacora.html · v2.88
      v2.88: dos ajustes sobre el patchbay y la consola:
      (1) patchbay ahora muestra TODOS los preamps del catálogo de la sala,
      estén en uso o no — panorama completo del rack. Los preamps externos
@@ -682,25 +591,6 @@ h1{
   font-size:0.75rem;padding:3px 8px;cursor:pointer;line-height:1;
 }
 .btn-mover:active{opacity:0.7;background:var(--surf2);}
-/* v2.89: botón toggle editar/consola — clase propia para distinguirlo
-   de los botones ▲▼ de reordenar (que siguen usando .btn-mover). */
-.btn-toggle-vista{
-  flex-shrink:0; cursor:pointer; border-radius:8px;
-  font-size:0.8rem; font-weight:600; padding:0 14px; height:38px;
-  letter-spacing:0.02em; transition:background 0.15s, border-color 0.15s, color 0.15s;
-  white-space:nowrap;
-}
-/* en modo editar → el botón dice "🎚️ Vista consola": fondo dorado tenue */
-.btn-toggle-vista.modo-editar{
-  background:var(--gold-bg); border:1.5px solid var(--gold); color:var(--gold);
-}
-.btn-toggle-vista.modo-editar:hover{ background:rgba(201,162,75,0.22); }
-/* en modo consola → el botón dice "✏️ Editar": fondo azul tenue */
-.btn-toggle-vista.modo-consola{
-  background:var(--accent2-bg); border:1.5px solid var(--accent2); color:var(--accent2);
-}
-.btn-toggle-vista.modo-consola:hover{ background:rgba(111,159,191,0.22); }
-.btn-toggle-vista:active{ opacity:0.75; }
 /* v2.64: fix mobile — .nombre-input dentro de .strip-top (flex) no
    tenía min-width:0, así que su ancho mínimo intrínseco empujaba a
    .mover-btns/.btn-borrar-canal fuera del contenedor visible en
@@ -784,16 +674,7 @@ h1{
 .consola-grupo-titulo{
   font-family:var(--T);color:var(--gc,var(--gold));font-size:0.88rem;font-weight:700;
   margin-bottom:6px;padding:2px 4px;white-space:nowrap;
-  cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;
 }
-/* v2.91: colapsables horizontales (Vista consola) — mismo criterio que
-   .grupo-header/.colapsar-flecha de Vista editar (v2.31), reutilizando
-   el mismo gruposColapsados/toggleGrupo(). La flecha rota -90° cuando
-   está colapsado y .consola-grupo-fila del grupo se oculta. */
-.consola-grupo-titulo .colapsar-flecha{font-size:0.72rem;transition:transform 0.15s;flex-shrink:0;}
-.consola-grupo-col.colapsado .colapsar-flecha{transform:rotate(-90deg);}
-.consola-grupo-col.colapsado > .consola-grupo-fila{display:none;}
-.consola-grupo-titulo .consola-grupo-count{font-size:0.62rem;font-weight:600;opacity:0.75;text-transform:none;}
 /* v2.63: los subgrupos (y las tiras sueltas sin subgrupo) ahora quedan en
    fila horizontal uno al lado del otro (nowrap) en vez de envolver hacia
    abajo — antes .consola-grupo-col tenía ancho fijo (230px) y forzaba a
@@ -933,13 +814,7 @@ h1{
 .patchbay-titulo{
   font-size:0.72rem; color:var(--muted); text-transform:uppercase;
   letter-spacing:0.08em; margin-bottom:2px;
-  cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px;
 }
-/* v2.93: patchbay colapsable — mismo criterio que .colapsar-flecha de
-   los grupos (v2.31/v2.91), reutilizando la misma clase de flecha. */
-.patchbay-titulo .colapsar-flecha{font-size:0.72rem;transition:transform 0.15s;flex-shrink:0;}
-.patchbay-wrap.colapsado .colapsar-flecha{transform:rotate(-90deg);}
-.patchbay-wrap.colapsado .patchbay-unidad{display:none;}
 .patchbay-unidad{
   display:flex; flex-direction:column; gap:6px;
 }
@@ -989,25 +864,6 @@ h1{
 }
 .patchbay-dot.ext[onclick]:hover{
   box-shadow:0 0 10px rgba(111,159,191,0.6);
-}
-/* v2.89: aviso fijo de conexión perdida (arriba de todo) y píldora de
-   cambios sin guardar (esquina, junto al cronómetro flotante). Ambos
-   ocultos por defecto vía display:none inline en el HTML; JS los
-   muestra/oculta cambiando ese mismo style.display. No tocan --gold,
-   --ok ni ninguna otra variable, solo reutilizan --err/--gold ya
-   existentes. */
-.aviso-offline{
-  position:fixed; top:0; left:0; right:0; z-index:60;
-  background:var(--err); color:#fff; text-align:center;
-  font-size:0.85rem; font-weight:600; padding:8px 12px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.3);
-}
-.aviso-sin-guardar{
-  position:fixed; top:16px; left:16px; z-index:55;
-  width:34px; height:34px; border-radius:50%;
-  background:var(--gold-bg); color:var(--gold); border:1px solid var(--gold);
-  display:flex; align-items:center; justify-content:center; font-size:1rem;
-  box-shadow:0 2px 10px rgba(0,0,0,0.35);
 }
 .btn-guardar{
   position:sticky; bottom:14px; width:100%; background:var(--gold); color:#151109;
@@ -1218,6 +1074,7 @@ h1{
 .dash-grabacion-item{
   border:1px solid var(--brd);border-radius:8px;padding:8px 10px;
   margin-bottom:8px;font-size:0.85rem;line-height:1.4;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
 }
 .dash-grabacion-item.actual{border-color:var(--gold);}
 .dash-grabacion-item .fecha{color:var(--gold);font-weight:600;}
@@ -1226,27 +1083,9 @@ h1{
   font-size:0.75rem;color:var(--gold);text-decoration:none;font-weight:600;
   border:1px solid var(--gold);border-radius:6px;padding:3px 8px;white-space:nowrap;
 }
-/* v2.94: fila superior (fecha/sala/dur/autor + abrir) y 2 líneas nuevas
-   debajo: resumen de canales (lo que se va/vino a grabar) y, si hay,
-   un extracto de las notas de grabación. */
-.dash-grabacion-item .fila-top{
-  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
-}
-.dash-grabacion-item .canales{margin-top:6px;font-size:0.78rem;color:var(--txt);}
-.dash-grabacion-item .canales b{color:var(--gold);font-weight:600;}
-.dash-grabacion-item .nota-snippet{
-  margin-top:4px;font-size:0.76rem;color:var(--muted);font-style:italic;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-
 </style>
 </head>
 <body>
-<!-- v2.89: aviso de conexión perdida y de cambios sin guardar. Ambos
-     arrancan ocultos (display:none) y JS los muestra/oculta según
-     navigator.onLine y sinGuardarCambios respectivamente. -->
-<div id="avisoOffline" class="aviso-offline" style="display:none;">📡 Sin conexión — los cambios no se están guardando</div>
-<div id="avisoSinGuardar" class="aviso-sin-guardar" style="display:none;" title="Cambios sin guardar">💾</div>
 <div class="crono-flotante" id="cronoFlotante">⏱ <span id="cronoFlotanteTiempo">00:00:00</span></div>
 <div class="wrap">
   <span class="volver-link" id="volverLink" style="display:none;" onclick="location.href='ingeniero.html'">← Volver a mis proyectos</span>
@@ -1669,14 +1508,9 @@ function actualizarHoraReal(duracionRealMin){
 // escritura nueva a Firestore. Se llama desde cargar() (datos de
 // sesión/tema) y desde suscribirTomas()/cargarNotasTema() cada vez que
 // esos datos cambian, para que el resumen quede siempre actualizado.
-// v2.93: dashCerrado ahora persiste en localStorage (leerEstadoLocal/
-// guardarEstadoLocal, mismo mecanismo de gruposColapsados) — arranca
-// como haya quedado la última vez en este dispositivo/sesión, en vez de
-// siempre abierto.
-let dashCerrado = leerEstadoLocal('dashCerrado', false);
+let dashCerrado = false;
 function dashToggle(){
   dashCerrado = !dashCerrado;
-  guardarEstadoLocal('dashCerrado', dashCerrado); // v2.93
   document.getElementById('dashBox').classList.toggle('cerrado', dashCerrado);
   document.getElementById('dashToggleIcon').textContent = dashCerrado ? '▸' : '▾';
 }
@@ -1684,11 +1518,6 @@ function renderDashboard(){
   const box = document.getElementById('dashBox');
   if(!sesionData){ box.style.display = 'none'; return; }
   box.style.display = 'block';
-  // v2.93: aplica el estado colapsado/abierto persistido apenas el box
-  // se hace visible (renderDashboard puede correr varias veces; el
-  // toggle de clases es idempotente así que no hay problema en repetirlo).
-  box.classList.toggle('cerrado', dashCerrado);
-  document.getElementById('dashToggleIcon').textContent = dashCerrado ? '▸' : '▾';
 
   // duración planeada (mismo cálculo que actualizarHoraSetup) vs real.
   // v2.68: ya NO se suma setupMin — el setup va dentro del rango
@@ -2056,7 +1885,6 @@ function anadirCanal(){
   const ultimoCanal = inputListActual.reduce((max, it) => Math.max(max, Number(it.canal) || 0), 0);
   const ultimoOrden = inputListActual.reduce((max, it) => Math.max(max, Number(it.orden) || 0), 0);
   inputListActual.push({ canal: ultimoCanal + 1, orden: ultimoOrden + 1, nombre: '', preamp: '', gain: '', canalInterfaz: '', mic: '', instrumento: '', grupoCatalogo: '', manual: true });
-  marcarSinGuardar(); // v2.89
   renderInputList();
 }
 
@@ -2085,14 +1913,12 @@ function moverCanal(it, direccion){
   vecino.orden = tmp;
   ordenados.sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
   ordenados.forEach((canalItem, idx) => { canalItem.orden = idx + 1; });
-  marcarSinGuardar(); // v2.89
   renderInputList();
 }
 
 function borrarCanal(i){
   if(!inputListActual[i] || !inputListActual[i].manual) return;
   inputListActual.splice(i, 1);
-  marcarSinGuardar(); // v2.89
   renderInputList();
 }
 
@@ -2121,36 +1947,9 @@ function hexToRgba(hex, alpha){
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
 }
 
-// gruposColapsados: qué grupos están colapsados en esta pantalla.
-// filtroTexto: buscador en vivo.
-// v2.93: helpers genéricos de persistencia local, por sesión (generaliza
-// el mecanismo que v2.92 usaba solo para gruposColapsados, para que
-// dashCerrado y patchbayColapsado lo reutilicen). Solo preferencias
-// visuales del dispositivo — nunca tocan Firestore. Clave incluye
-// sesionId para que abrir otra sesión no arrastre el estado de otra.
-// leerEstadoLocal() tiene try/catch por si el JSON guardado estuviera
-// corrupto o localStorage no estuviera disponible (no rompe la carga de
-// la página en ese caso, sigue con el valor por defecto).
-function claveEstadoLocal(nombre){
-  return 'audiolink_bitacora_' + nombre + '_' + sesionId;
-}
-function leerEstadoLocal(nombre, porDefecto){
-  try{
-    const raw = localStorage.getItem(claveEstadoLocal(nombre));
-    return raw !== null ? JSON.parse(raw) : porDefecto;
-  } catch(e){
-    console.warn('No se pudo leer "' + nombre + '" de localStorage:', e);
-    return porDefecto;
-  }
-}
-function guardarEstadoLocal(nombre, valor){
-  try{
-    localStorage.setItem(claveEstadoLocal(nombre), JSON.stringify(valor));
-  } catch(e){
-    console.warn('No se pudo guardar "' + nombre + '" en localStorage:', e);
-  }
-}
-let gruposColapsados = leerEstadoLocal('colapsados', {});
+// gruposColapsados: estado local (no se guarda), qué grupos están
+// colapsados en esta pantalla. filtroTexto: buscador en vivo.
+let gruposColapsados = {};
 let filtroTexto = '';
 // v2.8: modoVista alterna entre 'editar' (grilla ancha con inputs, la de
 // siempre) y 'consola' (tiras angostas de solo lectura, tipo channel
@@ -2212,7 +2011,6 @@ function armarSubgruposVisuales(items){
 
 function toggleGrupo(etiqueta){
   gruposColapsados[etiqueta] = !gruposColapsados[etiqueta];
-  guardarEstadoLocal('colapsados', gruposColapsados); // v2.93
   renderInputList();
 }
 
@@ -2231,7 +2029,7 @@ function renderToolbar(gruposUnicos, hayNoAgrupados){
   box.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <input type="text" class="bitacora-buscador" style="flex:1;margin-bottom:0;" placeholder="🔍 Buscar por nombre, Ch, interfaz, mic, preamp o gain…" value="${escapeHtml(filtroTexto)}" oninput="filtroTexto = this.value; renderInputList();">
-      <button type="button" class="btn-toggle-vista ${modoVista === 'editar' ? 'modo-editar' : 'modo-consola'}" onclick="modoVista = (modoVista === 'editar' ? 'consola' : 'editar'); renderInputList();">${modoVista === 'editar' ? '🎚️ Vista consola' : '✏️ Editar'}</button>
+      <button type="button" class="btn-mover" style="flex-shrink:0;padding:0 12px;" onclick="modoVista = (modoVista === 'editar' ? 'consola' : 'editar'); renderInputList();">${modoVista === 'editar' ? '🎚️ Vista consola' : '✏️ Editar'}</button>
     </div>
     ${chips ? `<div class="chips-nav">${chips}</div>` : ''}
   `;
@@ -2335,10 +2133,9 @@ function renderInputList(){
       }).join('');
       if(!grupo.etiqueta) return `<div class="consola-grupo-col sin-grupo"><div class="consola-grupo-fila">${tiras}</div></div>`;
       const c = colorParaGrupo(grupo.etiqueta);
-      const colapsado = !!gruposColapsados[grupo.etiqueta]; // v2.91: mismo estado que Vista editar
       return `
-        <div class="consola-grupo-col${colapsado ? ' colapsado' : ''}" style="--gc:${c};--gc-bg:${hexToRgba(c,0.05)};">
-          <div class="consola-grupo-titulo" onclick="toggleGrupo('${grupo.etiqueta.replace(/'/g,"\\'")}')"><span class="colapsar-flecha">▾</span> 🎚️ ${escapeHtml(grupo.etiqueta)} <span class="consola-grupo-count">${grupo.items.length}</span></div>
+        <div class="consola-grupo-col" style="--gc:${c};--gc-bg:${hexToRgba(c,0.05)};">
+          <div class="consola-grupo-titulo">🎚️ ${escapeHtml(grupo.etiqueta)}</div>
           <div class="consola-grupo-fila">${tiras}</div>
         </div>`;
     }).join('');
@@ -2546,23 +2343,10 @@ function renderPatchbay(interactivo){
     </div>`;
   }).join('');
 
-  // v2.93: patchbay colapsable, mismo criterio visual (flechita ▾) que
-  // los grupos. Estado global patchbayColapsado, persistido en
-  // localStorage vía leerEstadoLocal/guardarEstadoLocal.
-  return `<div class="patchbay-wrap${patchbayColapsado ? ' colapsado' : ''}">
-    <div class="patchbay-titulo" onclick="togglePatchbay()"><span class="colapsar-flecha">▾</span> Patch de preamps — sesión activa</div>
+  return `<div class="patchbay-wrap">
+    <div class="patchbay-titulo">Patch de preamps — sesión activa</div>
     ${bloques}
   </div>`;
-}
-
-// v2.93: toggle del patchbay. Vuelve a renderizar la lista completa
-// (mismo patrón que toggleGrupo) porque renderPatchbay() se llama desde
-// adentro de renderInputList() tanto en modo editar como en consola.
-let patchbayColapsado = leerEstadoLocal('patchbayColapsado', false);
-function togglePatchbay(){
-  patchbayColapsado = !patchbayColapsado;
-  guardarEstadoLocal('patchbayColapsado', patchbayColapsado);
-  renderInputList();
 }
 
 // v2.87: desde consola — cambia a modo editar y luego hace scroll al strip
@@ -2594,58 +2378,6 @@ function patchbayScrollAInput(idx){
   }
 }
 
-// ============ AVISO OFFLINE + CAMBIOS SIN GUARDAR (v2.89) ============
-// v2.89: dos avisos independientes, ninguno toca Firestore ni el modelo
-// de datos.
-// (1) aviso de conexión: se apoya en los eventos nativos online/offline
-// del navegador (distinto del "modo offline" manual de offline-mock.js,
-// que es una decisión explícita del usuario, no una caída de señal).
-// (2) aviso de cambios sin guardar: sinGuardarCambios se pone en true
-// desde 3 lugares puntuales — (a) un único listener delegado sobre
-// #contenido que detecta cualquier input/change dentro de un .strip-row
-// (así no hace falta tocar los ~20 oninput/onchange de los campos del
-// inputList), y (b) anadirCanal()/moverCanal()/borrarCanal(), que
-// cambian la estructura sin pasar por un <input>. guardar() la apaga al
-// terminar con éxito. Los campos que ya se autoguardan solos (notas de
-// Edición/Mezcla/Mastering, etc.) NO viven dentro de #contenido, así
-// que no activan este aviso.
-let sinGuardarCambios = false;
-
-function marcarSinGuardar(){
-  if(sinGuardarCambios) return;
-  sinGuardarCambios = true;
-  const el = document.getElementById('avisoSinGuardar');
-  if(el) el.style.display = 'flex';
-}
-
-function limpiarSinGuardar(){
-  sinGuardarCambios = false;
-  const el = document.getElementById('avisoSinGuardar');
-  if(el) el.style.display = 'none';
-}
-
-document.getElementById('contenido').addEventListener('input', (e) => {
-  if(e.target.closest('.strip-row')) marcarSinGuardar();
-});
-document.getElementById('contenido').addEventListener('change', (e) => {
-  if(e.target.closest('.strip-row')) marcarSinGuardar();
-});
-
-window.addEventListener('beforeunload', (e) => {
-  if(!sinGuardarCambios) return;
-  e.preventDefault();
-  e.returnValue = '';
-});
-
-function actualizarAvisoOffline(){
-  const el = document.getElementById('avisoOffline');
-  if(!el) return;
-  el.style.display = navigator.onLine ? 'none' : 'block';
-}
-window.addEventListener('online', actualizarAvisoOffline);
-window.addEventListener('offline', actualizarAvisoOffline);
-actualizarAvisoOffline();
-
 async function guardar(){
   const estado = document.getElementById('estado');
   estado.textContent = 'Guardando…';
@@ -2656,7 +2388,6 @@ async function guardar(){
     await sesionRef.update({ inputList: inputListActual, actualizadoEn: firebase.firestore.FieldValue.serverTimestamp() });
     estado.textContent = '✓ Guardado';
     estado.className = 'estado ok';
-    limpiarSinGuardar(); // v2.89
   } catch(err){
     console.error(err);
     estado.textContent = 'Error guardando. Intenta de nuevo.';
@@ -2983,34 +2714,14 @@ async function cargarSesionesGrabacionTema(temaId){
       const esActual = sx.id === sesionId;
       const dur = sx.duracionRealMin ? minutosATexto(sx.duracionRealMin) : 'Sin cronómetro guardado';
       const link = `bitacora.html?p=${encodeURIComponent(proyectoId)}&s=${encodeURIComponent(sx.id)}`;
-      // v2.94: resumen de "qué se grabó/graba" — se arma solo con
-      // sx.inputList, que ya viene incluido en doc.data() de este mismo
-      // query (no agrega ninguna lectura nueva a Firestore). Se toma
-      // instrumento (o nombre si no hay instrumento) de cada canal,
-      // se sacan duplicados y se muestran los primeros 4 + "+N más".
-      const items = Array.isArray(sx.inputList) ? sx.inputList : [];
-      const totalCanales = items.length;
-      const etiquetas = [...new Set(items.map(it => (it.instrumento || it.nombre || '').trim()).filter(Boolean))];
-      const resumenCanales = totalCanales
-        ? `<div class="canales">🎚️ <b>${totalCanales} canal${totalCanales !== 1 ? 'es' : ''}</b>${etiquetas.length ? ' — ' + escapeHtml(etiquetas.slice(0, 4).join(', ')) + (etiquetas.length > 4 ? ` +${etiquetas.length - 4} más` : '') : ''}</div>`
-        : '<div class="canales">Sin canales cargados aún</div>';
-      // extracto corto de notas de grabación, si hay
-      const notas = (sx.notasGrabacion || '').trim();
-      const notaSnippet = notas
-        ? `<div class="nota-snippet" title="${escapeHtml(notas)}">📝 ${escapeHtml(notas.length > 90 ? notas.slice(0, 90) + '…' : notas)}</div>`
-        : '';
       return `
         <div class="dash-grabacion-item ${esActual ? 'actual' : ''}">
-          <div class="fila-top">
-            <div>
-              <span class="fecha">${escapeHtml(sx.fecha || '')}</span>
-              · ${escapeHtml(sx.sala || sx.estudioNombre || 'Sin sala')} · ${dur}
-              ${sx.ingenieroAutor ? `<span class="autor">${escapeHtml(sx.ingenieroAutor)}</span>` : ''}
-            </div>
-            ${esActual ? '<span class="autor">Esta sesión</span>' : `<a class="abrir" href="${link}">Abrir →</a>`}
+          <div>
+            <span class="fecha">${escapeHtml(sx.fecha || '')}</span>
+            · ${escapeHtml(sx.sala || sx.estudioNombre || 'Sin sala')} · ${dur}
+            ${sx.ingenieroAutor ? `<span class="autor">${escapeHtml(sx.ingenieroAutor)}</span>` : ''}
           </div>
-          ${resumenCanales}
-          ${notaSnippet}
+          ${esActual ? '<span class="autor">Esta sesión</span>' : `<a class="abrir" href="${link}">Abrir →</a>`}
         </div>`;
     }).join('');
   } catch(err){

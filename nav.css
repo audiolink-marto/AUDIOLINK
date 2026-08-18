@@ -1,4 +1,7 @@
-/* AUDIOLINK · nav.css · v1.14
+/* AUDIOLINK · nav.css · v1.15
+   v1.15: estilo .sync-badge para el contador de "N pendientes" de
+   nav.js v1.16 (Fase 2 offline). No se tocó ningún estilo existente.
+
    v1.14: ver comentario inline junto a ledGlowRojo más abajo — resumen:
    el estado rojo (conn-offline) gana el mismo efecto de resplandor que
    ya tenía el lila (v1.13), en vez del pulso simple anterior.
@@ -301,3 +304,16 @@ body.conn-modo-offline .conn-dot{
   animation:ledGlow 1.8s ease-in-out infinite;
 }
 body.conn-modo-offline .vu-brand span{background:#a78bfa;}
+
+/* v1.13 (nav.css) — badge de "N pendientes" (Fase 2 offline, nav.js
+   v1.16). Mismo criterio visual que .conn-dot: color de alerta
+   (--warn), pequeño, junto al logo. display:none por defecto se
+   controla desde JS (actualizarBadgeSync()), no desde CSS. */
+.sync-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:16px;height:16px;padding:0 4px;border-radius:8px;
+  background:var(--warn);color:#1a1a1a;
+  font-size:0.62rem;font-weight:700;line-height:1;
+  cursor:pointer;flex-shrink:0;
+}
+

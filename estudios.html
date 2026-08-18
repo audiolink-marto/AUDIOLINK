@@ -3,8 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Estudios (v2.3)</title>
-<!-- AUDIOLINK · estudios.html · v2.3
+<title>Audiolink — Estudios (v2.5)</title>
+<!-- AUDIOLINK · estudios.html · v2.5
+     v2.5: fix del ReferenceError por TDZ en modo offline — ver detalle
+     junto al setTimeout(iniciarEstudios, 0) más abajo, en el guard de
+     sesión. Mismo patrón de bug ya corregido en logistica.html v2.75 y
+     equipo-tecnico.html v1.10. No se tocó nada más.
+
      v2.4: el guard offline llamaba solo console.info() y nunca
      iniciarEstudios() — la página quedaba en blanco en modo offline.
      Se agrega la llamada dentro de la rama
@@ -814,7 +819,19 @@ const auth = firebase.auth();
 // contra un servidor inalcanzable no agregaba seguridad real.
 if(estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
-  iniciarEstudios();
+  // v2.4: iniciarEstudios() ahora se llama vía setTimeout(...,0) en vez
+  // de directo. Antes se llamaba sincrónicamente acá mismo, en medio de
+  // este bloque de script, ANTES de que el motor llegara a ejecutar los
+  // "let" de más abajo (preampsEditorState, backlineEditorState — línea
+  // ~857). iniciarEstudios() llama a cancelarEdicionEstudio(), que
+  // asigna a esas dos variables de entrada — quedaban en TDZ hasta su
+  // propia declaración, tirando "ReferenceError: Cannot access
+  // 'preampsEditorState' before initialization" y cortando el script ahí
+  // (mismo patrón de bug ya corregido en logistica.html v2.75 y
+  // equipo-tecnico.html v1.10). En el camino online no pasaba porque
+  // auth.onAuthStateChanged() es asíncrono por naturaleza. No se tocó el
+  // guard, iniciarEstudios() ni ninguna otra función.
+  setTimeout(iniciarEstudios, 0);
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){

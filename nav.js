@@ -1,4 +1,14 @@
-/* AUDIOLINK · nav.js · v1.15
+/* AUDIOLINK · nav.js · v1.16
+   V1.16: badge de "N cambios pendientes" (Fase 2 offline), junto al
+   conn-dot en sidebar y topbar. Lee obtenerColaCambiosOffline() +
+   obtenerConflictosOffline() de offline-mock.js (si no está cargado en
+   la página, se asume 0, sin romper nada). Tocar el badge fuerza
+   sincronizarColaOffline() manualmente (botón de respaldo); además, al
+   detectar el evento 'online' del navegador se intenta sincronizar
+   solo, salvo que el modo offline manual esté activo a propósito. No
+   se tocó actualizarEstadoConexion() ni la lógica de conn-dot/banner
+   ya existente.
+
    V1.15: el indicador de conexión (.conn-dot) ahora distingue DOS
    casos que antes se mezclaban en uno solo ("sin conexión"): (1) sin
    internet real (navigator.onLine), y (2) modo offline ACTIVADO A
@@ -201,6 +211,10 @@
   // secas, arriba).
   const vuBrand = `<div class="vu vu-brand"><span></span><span></span><span></span><span></span><span></span></div>`;
   const connDot = `<span class="conn-dot" title="Estado de conexión"></span>`;
+  // v1.16: badge de cambios pendientes de sincronizar (Fase 2 offline).
+  // Oculto por defecto (display:none inline, ver actualizarBadgeSync());
+  // onclick fuerza sincronizarColaOffline() manualmente.
+  const syncBadge = `<span class="sync-badge" id="syncBadge" title="Cambios pendientes de sincronizar — tocar para sincronizar ahora" style="display:none;" onclick="_navForzarSincronizacion()"></span>`;
 
   function grupoColapsado(nombre){
     return localStorage.getItem('audiolink_sb_grupo_' + nombre) === '1';
@@ -290,6 +304,7 @@
     ${vuBrand}
     <h1>AUDIOLINK</h1>
     ${connDot}
+    ${syncBadge}
   </div>
   <nav class="sb-nav">
     ${sbNavGroupedHtml()}
@@ -308,6 +323,7 @@
     ${vuBrand}
     <h1>AUDIOLINK</h1>
     ${connDot}
+    ${syncBadge}
   </div>
   <div class="mobile-topbar-actions">
     <button class="btn-menu-vu" onclick="toggleMasMobile()" title="Más opciones">${vu}</button>
@@ -445,4 +461,58 @@
   });
   setInterval(actualizarEstadoConexion, 5000);
   actualizarEstadoConexion();
+
+  // v1.16 — badge de "N pendientes" (Fase 2 offline). Lee la cola con
+  // obtenerColaCambiosOffline() (vive en offline-mock.js — si esa
+  // función no existe todavía en la página, se asume 0 sin romper
+  // nada). Se actualiza cada 5s junto con el chequeo de conexión, y
+  // también justo después de sincronizar.
+  function actualizarBadgeSync(){
+    const badge = document.getElementById('syncBadge');
+    if(!badge) return;
+    let n = 0;
+    try{
+      if(typeof obtenerColaCambiosOffline === 'function') n += obtenerColaCambiosOffline().length;
+      if(typeof obtenerConflictosOffline === 'function') n += obtenerConflictosOffline().length;
+    }catch(err){ /* offline-mock.js no cargado en esta página, se ignora */ }
+    if(n > 0){
+      badge.textContent = n;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  // Botón manual (tocar el badge) — de respaldo, por si el evento
+  // 'online' del navegador no dispara (pasa a veces, ver v1.14).
+  window._navForzarSincronizacion = async function(){
+    if(typeof sincronizarColaOffline !== 'function'){
+      alert('⚠️ La sincronización no está disponible en esta página.');
+      return;
+    }
+    const res = await sincronizarColaOffline();
+    actualizarBadgeSync();
+    if(!res.ok){
+      if(res.motivo === 'sin_internet') alert('🔴 Sin conexión — no se puede sincronizar todavía.');
+      else if(res.motivo === 'ya_en_progreso') return; // silencioso, ya está sincronizando
+      else alert('⚠️ No se pudo sincronizar: ' + res.motivo);
+      return;
+    }
+    let msg = `✅ ${res.sincronizados} cambio(s) sincronizado(s).`;
+    if(res.conflictos > 0) msg += `\n⚠️ ${res.conflictos} conflicto(s) — alguien más editó lo mismo mientras estabas offline. Revisar con obtenerConflictosOffline().`;
+    if(res.errores > 0) msg += `\n❌ ${res.errores} con error, se reintentan solos más adelante.`;
+    if(res.sincronizados > 0 || res.conflictos > 0 || res.errores > 0) alert(msg);
+  };
+
+  // Automático: al recuperar señal real (evento 'online'), intenta
+  // sincronizar solo. No se dispara si el modo offline manual está
+  // activo (estaModoOfflineActivo()) — ahí el usuario sigue trabajando
+  // offline a propósito, aunque haya señal.
+  window.addEventListener('online', () => {
+    if(typeof sincronizarColaOffline !== 'function') return;
+    if(_modoOfflineManualActivo()) return;
+    sincronizarColaOffline().then(actualizarBadgeSync);
+  });
+  setInterval(actualizarBadgeSync, 5000);
+  actualizarBadgeSync();
 })();

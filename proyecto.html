@@ -4,7 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.37
+<!-- AUDIOLINK · proyecto.html · v5.39
+     v5.39: el backLink "← Volver a Logística" (v5.38) ahora reenvía
+     también el parámetro &sesion={id} si vino en la URL (logistica.html
+     lo manda desde v2.82), para volver exactamente a la sesión de
+     origen en vez de solo al proyecto. No se tocó nada más.
+
+     v5.38: dos ajustes de navegación a pedido, para el viaje ida y
+     vuelta con logistica.html (link "✏️ Editar instrumentación del
+     proyecto" que ya existía ahí). (1) Si la URL trae
+     ?abrir=instrumentacion, al cargar el detalle del proyecto se abre
+     automáticamente el modal "🎚️ Gestionar Instrumentación"
+     (abrirModalInstrumentacion()) — una sola vez, con el flag
+     abrirModalInstrumentacionAuto. (2) Se reusa el mecanismo YA
+     EXISTENTE de origenDetalle/backLink (el mismo que ya manejaba
+     "← Volver a Pagos"): si la URL trae &from=logistica, el backLink
+     dice "← Volver a Logística" y apunta a
+     logistica.html?id={proyectoActualId}. No se agregó ningún botón
+     nuevo en el modal ni se tocó guardarInstrumentacion(),
+     instrumentacion.js, ni ninguna otra lógica de Firestore.
+
      v5.37: dos ajustes de UI sobre v5.36 (a pedido). (1) Se quita
      "📅 Ver sesiones" del toolbar de detalle — quedaba redundante con
      el ícono 📅 que la card del listado ya tenía (mismo destino,
@@ -1779,6 +1798,9 @@ function desuscribirEgresosProyecto(){
 // pagos.html en vez de al listado de proyectos. Sin ?from, comportamiento
 // intacto de siempre.
 const origenDetalle = new URLSearchParams(window.location.search).get('from');
+// v5.38: evita que el modal de instrumentación se reabra en cada
+// onSnapshot de proyectos (que puede disparar varias veces).
+let abrirModalInstrumentacionAuto = false;
 
 const ETAPAS_LABEL = {
   preproduccion: "Preproducción",
@@ -1858,6 +1880,14 @@ proyectosRef.orderBy('creadoEn', 'desc').onSnapshot(snap => {
   const idParam = urlParams.get('id');
   if(idParam && proyectoActualId === null && document.getElementById('vistaDetalle').classList.contains('active') === false){
     verDetalle(idParam);
+    // v5.38: si se llegó desde logistica.html con ?abrir=instrumentacion,
+    // se abre el modal "Gestionar Instrumentación" automáticamente (una
+    // sola vez, con abrirModalInstrumentacionAuto ya consumido) para no
+    // tener que buscarlo en el Dashboard.
+    if(urlParams.get('abrir') === 'instrumentacion' && !abrirModalInstrumentacionAuto){
+      abrirModalInstrumentacionAuto = true;
+      setTimeout(() => abrirModalInstrumentacion(), 0);
+    }
   }
 }, err => {
   console.error("Error cargando proyectos:", err);
@@ -2931,6 +2961,10 @@ function verDetalle(id){
   if(origenDetalle === 'pagos'){
     backLink.textContent = '← Volver a Pagos';
     backLink.onclick = () => window.location.href = 'pagos.html';
+  } else if(origenDetalle === 'logistica'){
+    const sesionQuery = new URLSearchParams(window.location.search).get('sesion');
+    backLink.textContent = '← Volver a Logística';
+    backLink.onclick = () => window.location.href = `logistica.html?id=${id}${sesionQuery ? `&sesion=${sesionQuery}` : ''}`;
   } else {
     backLink.textContent = '← Volver a proyectos';
     backLink.onclick = volverListado;

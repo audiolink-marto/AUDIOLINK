@@ -3,19 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.96)</title>
+<title>Audiolink — Logística (v2.95)</title>
 <!-- AUDIOLINK · logistica.html · v2.78
-     v2.96: fix de carga de imágenes del header PDF — v2.95 usaba fetch()
-     que el navegador bloquea en file:// (local sin servidor). Se reemplaza
-     por dos <img> ocultos al final del body (img/DIFFUSER.jpg e
-     img/logo_1.png); su onload llama a imgElToB64() que convierte cada
-     imagen a base64 vía canvas y la guarda en _hdrDiffuserB64 /
-     _hdrLogoB64 (globals declarados junto al estado). exportarPDF() y
-     exportarPDFSesion() vuelven a ser síncronas — leen esas variables
-     directamente. Funciona en local (file://), con servidor local y en
-     Netlify. Si la imagen no carga, la variable queda null y pintarHeader()
-     cae al rect oscuro de siempre. No se tocó ninguna otra función.
-
      v2.95: header visual de ambos PDFs rediseñado con imagen real —
      exportarPDF() y exportarPDFSesion() pasan a async; ambas pre-fetchen
      img/DIFFUSER.jpg (fondo del header, con overlay oscuro semitransparente)
@@ -2024,22 +2013,6 @@ if(estaModoOfflineActivo()){
 // cerrarSesion(), toggleTema(), toggleMasMobile() y el colapsar del sidebar
 // ahora viven en nav.js (compartido por todo el ecosistema).
 
-// ============ IMÁGENES HEADER PDF (v2.96) ============
-// Las variables se llenan desde el onload de los <img> ocultos al final
-// del body. exportarPDF/exportarPDFSesion las leen directamente (sync).
-let _hdrDiffuserB64 = null;
-let _hdrLogoB64 = null;
-function imgElToB64(el, varName){
-  try{
-    const c = document.createElement('canvas');
-    c.width  = el.naturalWidth;
-    c.height = el.naturalHeight;
-    c.getContext('2d').drawImage(el, 0, 0);
-    const fmt = /\.(jpg|jpeg)$/i.test(el.src) ? 'image/jpeg' : 'image/png';
-    window[varName] = c.toDataURL(fmt, 0.88);
-  } catch(e){ console.warn('imgElToB64:', varName, e); }
-}
-
 // ============ ESTADO ============
 let proyectoId = null;
 let origenAgenda = false; // true si se llegó aquí desde la agenda global (?origen=agenda)
@@ -3785,12 +3758,22 @@ function colorParaSubgrupoLog(etiqueta){
 }
 
 
-function exportarPDF(modo){
+async function exportarPDF(modo){
   if(!proyectoId || !proyectoData) return;
 
-  // v2.96: imágenes pre-cargadas por <img> ocultos al inicio (funciona en local y Netlify)
-  const diffuserB64 = _hdrDiffuserB64;
-  const logoB64     = _hdrLogoB64;
+  // v2.95: pre-fetch de imágenes para el header (DIFFUSER + logo)
+  let diffuserB64 = null, logoB64 = null;
+  try{
+    const blobToB64 = b => new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = e => res(e.target.result);
+      fr.onerror = () => rej();
+      fr.readAsDataURL(b);
+    });
+    const [r1, r2] = await Promise.all([fetch('img/DIFFUSER.jpg'), fetch('img/logo_1.png')]);
+    const [b1, b2] = await Promise.all([r1.blob(), r2.blob()]);
+    [diffuserB64, logoB64] = await Promise.all([blobToB64(b1), blobToB64(b2)]);
+  } catch(e){ console.warn('exportarPDF: no se pudo cargar imagen del header:', e); }
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -3947,14 +3930,24 @@ function exportarPDF(modo){
 // con fondo, jerarquía tipográfica real, instrumentos como lista con
 // bullet, separadores dorados, badge CONFIDENCIAL en modo interno.
 // modo 'cliente' oculta notas internas Y tarifas; modo 'interno' todo.
-function exportarPDFSesion(sesionId, modo){
+async function exportarPDFSesion(sesionId, modo){
   if(!proyectoId || !proyectoData || !sesionId) return;
   const s = sesiones.find(x => x.id === sesionId);
   if(!s) return;
 
-  // v2.96: imágenes pre-cargadas por <img> ocultos al inicio (funciona en local y Netlify)
-  const diffuserB64 = _hdrDiffuserB64;
-  const logoB64     = _hdrLogoB64;
+  // v2.95: pre-fetch de imágenes para el header (DIFFUSER + logo)
+  let diffuserB64 = null, logoB64 = null;
+  try{
+    const blobToB64 = b => new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = e => res(e.target.result);
+      fr.onerror = () => rej();
+      fr.readAsDataURL(b);
+    });
+    const [r1, r2] = await Promise.all([fetch('img/DIFFUSER.jpg'), fetch('img/logo_1.png')]);
+    const [b1, b2] = await Promise.all([r1.blob(), r2.blob()]);
+    [diffuserB64, logoB64] = await Promise.all([blobToB64(b1), blobToB64(b2)]);
+  } catch(e){ console.warn('exportarPDFSesion: no se pudo cargar imagen del header:', e); }
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -4287,16 +4280,6 @@ function exportarPDFSesion(sesionId, modo){
   window.open(doc.output('bloburl'), '_blank');
 }
 </script>
-
-<!-- v2.96: imágenes del header PDF pre-cargadas vía <img> (funciona en
-     local file://, Netlify y cualquier protocolo). onload convierte cada
-     imagen a base64 con canvas y la guarda en la variable global
-     correspondiente. Si no carga (imagen ausente), la variable queda null
-     y pintarHeader() cae al rect oscuro de siempre. -->
-<img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none"
-     onload="imgElToB64(this,'_hdrDiffuserB64')">
-<img id="hdrLogo" src="img/logo_1.png" style="display:none"
-     onload="imgElToB64(this,'_hdrLogoB64')">
 
 </body>
 </html>

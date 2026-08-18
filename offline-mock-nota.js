@@ -1,68 +1,4 @@
-/* AUDIOLINK · offline-mock.js · v1.5 (Fase 2 — sincronización real)
-   v1.5: sincronizarColaOffline() sube de verdad la cola de cambios
-   pendientes a Firestore real (firebase.firestore(), no crearDB()).
-   Para add() de tomas no hay conflicto posible (siempre crea un doc
-   nuevo). Para update() de sesiones: se guarda un baseActualizadoEn
-   (el que el usuario tenía offline antes de editar) en cada cambio
-   encolado; al sincronizar se compara contra el actualizadoEn real en
-   Firestore — si difieren, alguien más cambió la sesión mientras
-   estabas offline → conflicto, no se sobreescribe solo, se guarda en
-   _conflictosOffline (localStorage AUDIOLINK_CONFLICTOS_KEY) para que
-   el usuario decida con resolverConflictoOffline(indice,'mio'|'firestore').
-   Nada de esto se dispara solo todavía — falta engancharlo desde
-   nav.js (evento 'online' + botón manual), que es el siguiente paso.
-
-   v1.4: onSnapshot() de tomas ahora se refresca solo cuando add()
-   agrega una toma nueva (antes quedaba congelado hasta salir y volver
-   a entrar de bitacora.html). Se agregó un registro de "listeners
-   vivos" (_listenersVivos/_registrarListenerVivo/_notificarListenersVivos):
-   el onSnapshot() puntual de la query de tomas (dentro de
-   sesiones/{id}/tomas) se registra ahí, y tomasQuery.add() avisa a esos
-   listeners después de guardar. Acotado 100% a tomas — no toca
-   onSnapshot() genérico de _crearQueryEstatica ni ninguna otra
-   colección/subcolección.
-
-   v1.3: Parte 2 — primera escritura offline real, whitelist estricta
-   (solo 'sesiones' y 'tomas'), más un fix de un bug de v1.2.
-   (a) FIX bug v1.2: dentro de .doc(sesionId).collection('tomas'), la
-       condición comparaba coleccionRaiz==='sesiones' (que en ese punto
-       SIEMPRE vale 'proyectos', el padre) en vez de nombreSub==='sesiones'
-       (el nombre real de la subcolección). Nunca daba true — el fix de
-       v1.2 no leía tomas aunque no tirara error. Corregido.
-   (b) sesionRef.collection('tomas').add(datos) ya funciona offline:
-       genera un id temporal 'offline_<timestamp>_<random>', guarda la
-       toma de inmediato en memoria (subEnMemoria.tomasPorSesion) para
-       que la UI la vea sin esperar sync, y encola el cambio.
-   (c) sesionRef.update(datos) también funciona offline (whitelist:
-       solo si la subcolección es 'sesiones'), mismo mecanismo de cola.
-   (d) Cola de cambios pendientes: nueva clave de localStorage
-       AUDIOLINK_COLA_KEY (separada de AUDIOLINK_OFFLINE_KEY). Funciones
-       obtenerColaCambiosOffline() / limpiarColaCambiosOffline() quedan
-       expuestas para que la UI muestre "N cambios pendientes" a futuro.
-       La sincronización real contra Firestore (subir la cola cuando
-       vuelve la señal, resolver conflictos) NO está implementada
-       todavía — es el siguiente paso, después de confirmar que grabar
-       tomas offline ya no tira error.
-   Cualquier colección fuera de 'sesiones'/'tomas' (equipoTecnico,
-   estudios, clientes, pagos, musicos, etc.) sigue sin add()/update()/
-   delete() — no se toca esa whitelist sin confirmarlo antes.
-
-   v1.2: Parte 1.5 completa — bitacora.html ya puede LEER tomas offline
-   (la escritura sigue para la Parte 2, más adelante).
-   (a) cargarArchivoOffline() ahora también guarda tomasPorSesion
-       (objeto { sesionId: [tomas...] }) tanto para
-       audiolink_proyecto_offline como para audiolink_todo_offline —
-       viene del .json si proyecto.html/descargarTodoOffline ya lo
-       incluyen (fetch extra por sesión, cambio hecho aparte en
-       proyecto.html/index.html, no en este archivo).
-   (b) .doc(sesionId).collection('tomas') dentro de la subcolección
-       'sesiones' ya NO devuelve siempre vacío — ahora lee de verdad
-       desde subEnMemoria.tomasPorSesion[subId]. Cualquier otra
-       combinación (otra colección padre, otro nombre de sub-sub)
-       sigue devolviendo vacío igual que antes, no rompe nada más.
-   Con esto, abrir bitácora offline de una sesión que ya tenía tomas
-   grabadas muestra la lista real en vez de vacía.
-
+/* AUDIOLINK · offline-mock.js · v1.1 (Fase 1 — persiste entre páginas)
    v1.1: se agrega .doc(subId) sobre las subcolecciones que devuelve
    _mockDoc().collection(nombreSub) — ver el comentario junto al fix,
    dentro de _mockDoc() más abajo. Antes esa subcolección solo servía
@@ -197,11 +133,6 @@
 */
 
 const AUDIOLINK_OFFLINE_KEY = 'audiolink_offline_data';
-// v1.3: cola de cambios pendientes de sincronizar (Parte 2 — escritura
-// offline). Clave de localStorage separada de AUDIOLINK_OFFLINE_KEY a
-// propósito: los datos descargados y los cambios pendientes tienen
-// ciclos de vida distintos (limpiar uno no debe limpiar el otro).
-const AUDIOLINK_COLA_KEY = 'audiolink_offline_cola_cambios';
 
 // Estructura en memoria, se llena con cargarArchivoOffline() o se
 // restaura sola desde localStorage al cargar este script:
@@ -249,201 +180,6 @@ function limpiarDatosOffline(){
   catch(err){ console.error('AUDIOLINK offline-mock: error limpiando localStorage.', err); }
 }
 
-// v1.3 — cola de cambios pendientes (Parte 2, escritura offline).
-let _colaCambiosOffline = _restaurarColaDesdeLocalStorage();
-
-function _restaurarColaDesdeLocalStorage(){
-  try{
-    const guardado = localStorage.getItem(AUDIOLINK_COLA_KEY);
-    if(guardado) return JSON.parse(guardado);
-  }catch(err){
-    console.error('AUDIOLINK offline-mock: no se pudo restaurar la cola de cambios, se arranca vacía.', err);
-  }
-  return [];
-}
-
-function _guardarColaEnLocalStorage(){
-  try{
-    localStorage.setItem(AUDIOLINK_COLA_KEY, JSON.stringify(_colaCambiosOffline));
-  }catch(err){
-    console.error('AUDIOLINK offline-mock: no se pudo guardar la cola de cambios (¿cuota excedida?).', err);
-    alert('⚠️ No se pudo guardar el cambio en la cola de sincronización local (puede que sea muy pesado).');
-  }
-}
-
-// Id temporal para docs creados offline — se reemplaza por el id real
-// de Firestore cuando se implemente la sincronización.
-function _generarIdOffline(){
-  return 'offline_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-}
-
-// Agrega un cambio pendiente a la cola. Solo lo llaman los puntos de
-// escritura ya habilitados por whitelist (sesiones/tomas) — ver
-// _mockDoc más abajo. No sincroniza nada todavía, solo registra.
-function _encolarCambio(cambio){
-  _colaCambiosOffline.push({ ...cambio, fecha: new Date().toISOString() });
-  _guardarColaEnLocalStorage();
-}
-
-// Expuestas para que la UI (ej. futuro botón "Sincronizar" o badge de
-// "N cambios pendientes") pueda consultar/vaciar la cola. La lógica de
-// sincronización real contra Firestore es un paso aparte, todavía no
-// construido — esto solo deja la cola armada y consultable.
-function obtenerColaCambiosOffline(){
-  return [..._colaCambiosOffline];
-}
-
-function limpiarColaCambiosOffline(){
-  _colaCambiosOffline = [];
-  try{ localStorage.removeItem(AUDIOLINK_COLA_KEY); }
-  catch(err){ console.error('AUDIOLINK offline-mock: error limpiando cola de cambios.', err); }
-}
-
-// v1.5 — Fase 2: sincronización real de la cola contra Firestore.
-// Toma lo que dejó _encolarCambio() y lo escribe de verdad. Antes de
-// aplicar un update() de sesiones, compara el actualizadoEn real en
-// Firestore contra baseActualizadoEn (lo que el usuario tenía offline
-// al momento de editar) — si difieren, es conflicto: no se sobreescribe
-// solo, se guarda aparte en _conflictosOffline para que el usuario
-// decida. Los add() de tomas no tienen conflicto posible (siempre
-// crean un doc nuevo), se aplican directo.
-const AUDIOLINK_CONFLICTOS_KEY = 'audiolink_offline_conflictos';
-let _conflictosOffline = _restaurarConflictosDesdeLocalStorage();
-
-function _restaurarConflictosDesdeLocalStorage(){
-  try{
-    const guardado = localStorage.getItem(AUDIOLINK_CONFLICTOS_KEY);
-    if(guardado) return JSON.parse(guardado);
-  }catch(err){
-    console.error('AUDIOLINK offline-mock: no se pudo restaurar conflictos, se arranca vacío.', err);
-  }
-  return [];
-}
-function _guardarConflictosEnLocalStorage(){
-  try{
-    localStorage.setItem(AUDIOLINK_CONFLICTOS_KEY, JSON.stringify(_conflictosOffline));
-  }catch(err){
-    console.error('AUDIOLINK offline-mock: no se pudo guardar conflictos.', err);
-  }
-}
-function obtenerConflictosOffline(){
-  return [..._conflictosOffline];
-}
-
-// Compara dos valores de actualizadoEn que pueden venir en formatos
-// distintos (Firestore Timestamp real con .toMillis(), objeto plano
-// {seconds,nanoseconds} tras pasar por JSON, o null si nunca se guardó).
-function _mismoValorActualizacion(a, b){
-  if(a == null && b == null) return true;
-  if(a == null || b == null) return false;
-  const aMs = typeof a.toMillis === 'function' ? a.toMillis() : (a.seconds != null ? a.seconds * 1000 : a);
-  const bMs = typeof b.toMillis === 'function' ? b.toMillis() : (b.seconds != null ? b.seconds * 1000 : b);
-  return aMs === bMs;
-}
-
-let _sincronizandoOffline = false;
-
-// Recorre la cola y sube cada cambio a Firestore real (firebase.firestore(),
-// NUNCA crearDB() — necesitamos el real sin importar qué diga el switch
-// de modo offline). Devuelve un resumen; no tira si algo falla, deja
-// ese cambio en la cola para reintentar después.
-async function sincronizarColaOffline(){
-  if(_sincronizandoOffline) return { ok: false, motivo: 'ya_en_progreso' };
-  if(!navigator.onLine) return { ok: false, motivo: 'sin_internet' };
-  if(typeof firebase === 'undefined' || !firebase.firestore){
-    console.error('AUDIOLINK offline-mock: firebase no está cargado, no se puede sincronizar.');
-    return { ok: false, motivo: 'firebase_no_cargado' };
-  }
-  _sincronizandoOffline = true;
-  let sincronizados = 0, conflictos = 0, errores = 0;
-  try{
-    const db = firebase.firestore();
-    const colaActual = [..._colaCambiosOffline];
-    const pendientes = [];
-    for(const cambio of colaActual){
-      try{
-        if(cambio.coleccion === 'tomas' && cambio.tipo === 'add'){
-          await db.collection('proyectos').doc(cambio.proyectoId)
-            .collection('sesiones').doc(cambio.sesionId)
-            .collection('tomas').add(cambio.datos);
-          sincronizados++;
-        } else if(cambio.coleccion === 'sesiones' && cambio.tipo === 'update'){
-          const ref = db.collection('proyectos').doc(cambio.proyectoId).collection('sesiones').doc(cambio.sesionId);
-          const snap = await ref.get();
-          const actualReal = snap.exists ? snap.data().actualizadoEn : null;
-          if(!_mismoValorActualizacion(actualReal, cambio.baseActualizadoEn)){
-            _conflictosOffline.push({ ...cambio, detectadoEn: new Date().toISOString() });
-            _guardarConflictosEnLocalStorage();
-            conflictos++;
-            continue; // no se aplica ni se deja en la cola normal — queda en conflictos hasta que el usuario decida.
-          }
-          await ref.update(cambio.datos);
-          sincronizados++;
-        } else {
-          console.warn('AUDIOLINK offline-mock: cambio en cola con tipo/colección no reconocido, se deja pendiente.', cambio);
-          pendientes.push(cambio);
-        }
-      }catch(err){
-        console.error('AUDIOLINK offline-mock: error sincronizando un cambio, se deja pendiente para reintentar.', cambio, err);
-        errores++;
-        pendientes.push(cambio);
-      }
-    }
-    _colaCambiosOffline = pendientes;
-    _guardarColaEnLocalStorage();
-  } finally {
-    _sincronizandoOffline = false;
-  }
-  return { ok: true, sincronizados, conflictos, errores };
-}
-
-// El usuario decide qué gana: 'mio' vuelve a aplicar el update que
-// tenía offline (sobreescribe lo que haya ahora en Firestore);
-// 'firestore' descarta el cambio offline y deja lo que ya está en
-// Firestore tal cual. Cualquiera de los dos casos saca el conflicto
-// de la lista.
-async function resolverConflictoOffline(indice, decision){
-  const conflicto = _conflictosOffline[indice];
-  if(!conflicto) return { ok: false, motivo: 'no_encontrado' };
-  if(decision === 'mio'){
-    try{
-      const db = firebase.firestore();
-      await db.collection('proyectos').doc(conflicto.proyectoId)
-        .collection('sesiones').doc(conflicto.sesionId)
-        .update(conflicto.datos);
-    }catch(err){
-      console.error('AUDIOLINK offline-mock: error aplicando "mio" al resolver conflicto.', err);
-      return { ok: false, motivo: 'error_firestore' };
-    }
-  }
-  _conflictosOffline.splice(indice, 1);
-  _guardarConflictosEnLocalStorage();
-  return { ok: true };
-}
-
-// v1.4 — listeners onSnapshot "vivos". Antes, un onSnapshot() del mock
-// disparaba el callback UNA sola vez al registrarse y quedaba congelado
-// ahí para siempre — a diferencia de Firestore real, que vuelve a
-// disparar el callback cada vez que los datos cambian (incluidos los
-// cambios propios). Esto se notó en bitacora.html: suscribirTomas()
-// usa onSnapshot() sobre tomas, y al agregar una toma con add() la
-// lista no se refrescaba sola (solo al salir y volver a entrar, que
-// vuelve a registrar el listener desde cero). Con este registro, add()
-// avisa a los listeners activos de esa sesión para que se re-emitan.
-const _listenersVivos = {};
-
-function _registrarListenerVivo(pathKey, fnReemitir){
-  if(!_listenersVivos[pathKey]) _listenersVivos[pathKey] = new Set();
-  _listenersVivos[pathKey].add(fnReemitir);
-  return function quitar(){
-    if(_listenersVivos[pathKey]) _listenersVivos[pathKey].delete(fnReemitir);
-  };
-}
-
-function _notificarListenersVivos(pathKey){
-  (_listenersVivos[pathKey] || new Set()).forEach(fn => fn());
-}
-
 // Llamar desde el input file (ver botón en index.html). Acepta un
 // FileList (uno o varios .json a la vez). Devuelve un resumen de texto
 // para mostrar al usuario (qué se cargó, de cuándo).
@@ -462,9 +198,10 @@ async function cargarArchivoOffline(fileList){
             produccion: json.produccion || [],
             temas: json.temas || [],
             pagos: json.pagos || [],
-            // v1.2: tomas por sesión (proyecto.html ya las incluye en
-            // el .json). Objeto { sesionId: [tomas...] }, no un array
-            // plano — cada sesión tiene las suyas.
+            // v1.2: tomas por sesión (proyecto.html v5.38 /
+            // descargarTodoOffline v2.76 ya las incluyen en el .json).
+            // Objeto { sesionId: [tomas...] }, no un array plano — cada
+            // sesión tiene las suyas.
             tomasPorSesion: json.tomasPorSesion || {}
           },
           fechaDescarga: json.fechaDescarga
@@ -633,13 +370,7 @@ function _mockDoc(coleccionRaiz, id){
     // Subcolección: solo tiene datos reales si coleccionRaiz === 'proyectos'
     // y ese proyecto fue cargado offline (sesiones/produccion/temas/pagos).
     collection(nombreSub){
-      // v1.3: si la subcolección todavía no existe en memoria, se crea
-      // vacía DENTRO de subEnMemoria (no una copia suelta) — necesario
-      // para que .add()/.update() de más abajo escriban sobre el mismo
-      // objeto que después se guarda en localStorage, no sobre un array
-      // desconectado.
-      if(!subEnMemoria[nombreSub]) subEnMemoria[nombreSub] = [];
-      const items = subEnMemoria[nombreSub];
+      const items = subEnMemoria[nombreSub] || [];
       const query = _crearQueryEstatica(items.map(d => _crearDocSnapshot(d.id, d, id)));
       // v1.1: se agrega .doc(subId) sobre la subcolección. Antes esta
       // solo servía para consultar TODA la subcolección de una vez
@@ -650,113 +381,42 @@ function _mockDoc(coleccionRaiz, id){
       // not a function" al armar sesionRef. Reutiliza los mismos `items`
       // ya resueltos en memoria arriba — no trae nada nuevo del .json.
       query.doc = function(subId){
-        const docRef = {
+        const item = items.find(d => d.id === subId);
+        const { id: _omit, ...resto } = item || {};
+        return {
           id: subId,
           async get(){
-            const actual = items.find(d => d.id === subId);
-            const { id: _o, ...r } = actual || {};
-            return actual
-              ? { exists: true, id: subId, data: () => ({ ...r }) }
+            return item
+              ? { exists: true, id: subId, data: () => ({ ...resto }) }
               : { exists: false, id: subId, data: () => undefined };
           },
           onSnapshot(callback){
             // Mismo motivo de asincronía forzada que el resto del mock
             // (ver comentario en _mockDoc.onSnapshot más arriba).
             setTimeout(() => {
-              const actual = items.find(d => d.id === subId);
-              const { id: _o, ...r } = actual || {};
-              callback(actual
-                ? { exists: true, id: subId, data: () => ({ ...r }) }
+              callback(item
+                ? { exists: true, id: subId, data: () => ({ ...resto }) }
                 : { exists: false, id: subId, data: () => undefined });
             }, 0);
             return function unsubscribe(){};
           },
-          collection(nombreSubSub){
-            // v1.2 (con fix v1.3): única sub-sub-colección real hoy es
-            // sesiones/{sesionId}/tomas — se lee de tomasPorSesion[subId].
-            // BUG v1.2 corregido acá: la condición comparaba contra
-            // coleccionRaiz (que en este punto siempre vale 'proyectos',
-            // el padre) en vez de nombreSub (que es el nombre real de
-            // esta subcolección, 'sesiones') — nunca daba true, por eso
-            // el fix anterior no leía nada aunque no tirara error.
-            if(nombreSub === 'sesiones' && nombreSubSub === 'tomas'){
-              if(!subEnMemoria.tomasPorSesion) subEnMemoria.tomasPorSesion = {};
-              if(!subEnMemoria.tomasPorSesion[subId]) subEnMemoria.tomasPorSesion[subId] = [];
-              const tomas = subEnMemoria.tomasPorSesion[subId];
-              const _pathKeyTomas = `tomas:${id}:${subId}`;
-              const tomasQuery = _crearQueryEstatica(tomas.map(d => _crearDocSnapshot(d.id, d, subId)));
-              // v1.4 — se sobreescribe onSnapshot puntualmente para esta
-              // query de tomas: además del disparo async normal, registra
-              // el callback en _listenersVivos bajo _pathKeyTomas, para
-              // que add() (más abajo) pueda re-emitirlo cuando cambian
-              // los datos. No toca el onSnapshot genérico de
-              // _crearQueryEstatica (sigue igual para cualquier otro uso).
-              tomasQuery.onSnapshot = function(callback){
-                function _emitirTomas(){
-                  const fresca = _crearQueryEstatica(tomas.map(d => _crearDocSnapshot(d.id, d, subId)));
-                  fresca.get().then(callback);
-                }
-                setTimeout(_emitirTomas, 0);
-                return _registrarListenerVivo(_pathKeyTomas, _emitirTomas);
-              };
-              // v1.3 — Parte 2: whitelist de escritura offline. add()
-              // genera un id temporal 'offline_...', guarda la toma YA
-              // en memoria (para que la UI la vea sin esperar sync) y
-              // encola el cambio para cuando vuelva la señal. No hay
-              // update()/delete() de tomas todavía — no se pidió, se
-              // agrega cuando haga falta un caso real.
-              tomasQuery.add = async function(datos){
-                const nuevoId = _generarIdOffline();
-                const nuevoDoc = { id: nuevoId, ...datos };
-                tomas.push(nuevoDoc);
-                _encolarCambio({ tipo: 'add', coleccion: 'tomas', proyectoId: id, sesionId: subId, docId: nuevoId, datos });
-                _guardarOfflineDataEnLocalStorage();
-                // v1.4 — avisa a cualquier onSnapshot() activo sobre esta
-                // misma sesión/tomas para que se refresque solo, sin
-                // esperar a salir y volver a entrar.
-                _notificarListenersVivos(_pathKeyTomas);
-                return { id: nuevoId };
-              };
-              return tomasQuery;
-            }
+          collection(){
+            // No hay sub-sub-colecciones reales usadas hoy (Fase 1) —
+            // se devuelve una query vacía en vez de tronar, por si algún
+            // archivo futuro la llama sin datos que perder.
             return _crearQueryEstatica([]);
           }
-          // set() — Fase 2, no implementado a propósito. update() de
-          // sesiones sí, más abajo (whitelist explícita).
+          // set()/update() — Fase 2, no implementado a propósito (mismo
+          // criterio que _mockDoc de más arriba).
         };
-        // v1.3 — Parte 2: update() de la sesión misma, whitelist
-        // estricta (solo nombreSub === 'sesiones'). Cualquier otra
-        // colección (equipoTecnico, estudios, clientes, pagos, musicos,
-        // etc.) sigue sin update()/add()/delete() — no agregarla sin
-        // confirmarlo antes con el usuario.
-        if(nombreSub === 'sesiones'){
-          docRef.update = async function(datos){
-            const idx = items.findIndex(d => d.id === subId);
-            if(idx === -1){
-              throw new Error(`AUDIOLINK offline-mock: no se puede actualizar la sesión "${subId}" porque no está cargada en memoria offline.`);
-            }
-            // v1.5 — se guarda el actualizadoEn que el usuario tenía
-            // ANTES de aplicar este cambio (el que vio la última vez
-            // que se descargó/leyó offline). Al sincronizar, se compara
-            // contra el actualizadoEn real en Firestore en ese momento:
-            // si difieren, alguien más (ej. Alejo) cambió la sesión
-            // mientras estabas offline → conflicto, no se sobreescribe
-            // solo.
-            const baseActualizadoEn = items[idx].actualizadoEn ?? null;
-            Object.assign(items[idx], datos);
-            _encolarCambio({ tipo: 'update', coleccion: 'sesiones', proyectoId: id, sesionId: subId, docId: subId, datos, baseActualizadoEn });
-            _guardarOfflineDataEnLocalStorage();
-          };
-        }
-        return docRef;
       };
       return query;
     }
-    // set()/add()/update() genérico sobre esta colección (no un doc
-    // puntual) — Fase 2, no implementado a propósito. La whitelist real
-    // (sesiones/tomas) vive en query.doc() de más arriba, sobre el doc
-    // puntual — ahí es donde bitacora.html realmente escribe. Cualquier
-    // otra colección (equipoTecnico, estudios, clientes, pagos, musicos,
+    // set()/update() — Fase 2, no implementado a propósito. CUANDO SE
+    // IMPLEMENTE: solo para 'sesiones' y 'tomas' (whitelist explícita,
+    // acordado en conversación con el usuario — NO un set()/update()
+    // genérico que funcione en cualquier colección). Cualquier otra
+    // colección (equipoTecnico, estudios, clientes, pagos, musicos,
     // etc.) debe seguir bloqueada y tirar error claro si alguien intenta
     // escribir offline — no agregarla a la whitelist sin confirmarlo
     // antes con el usuario.

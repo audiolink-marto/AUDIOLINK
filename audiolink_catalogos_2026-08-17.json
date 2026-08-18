@@ -1,0 +1,297 @@
+{
+  "tipoArchivo": "audiolink_catalogos_offline",
+  "version": 1,
+  "fechaDescarga": "2026-08-17T01:22:01.782Z",
+  "musicos": [
+    {
+      "id": "3GVAvRiFNOOLzJmRmJm4",
+      "nombre": "MILTON",
+      "telefono": "123456",
+      "tarifaReferencia": 150000,
+      "instrumento": "GUITARRA",
+      "cedula": "123456",
+      "creadoEn": "2026-08-02T14:23:52.481Z",
+      "activo": true,
+      "correo": "MARTOSALSA@GMAIL.COM"
+    },
+    {
+      "id": "8eu99JKkb3ulm0Q40gAN",
+      "activo": true,
+      "correo": "MARTOWAVE@GMAIL.COM",
+      "cedula": "123456789",
+      "creadoEn": "2026-07-21T12:46:25.312Z",
+      "instrumento": "BASS",
+      "documentos": [
+        {
+          "nombre": "b482bca8-1e3d-4e90-aafa-00f3e91094cc_RIDER_TECNICO_Descripcion_del_Servicio.pdf",
+          "subidoEn": "2026-07-21T18:26:33.176Z",
+          "url": "https://res.cloudinary.com/dv7lelmoy/image/upload/v1784658469/eczlq0ren6nouf5j2vee.pdf"
+        },
+        {
+          "nombre": "3280f7fc94c4707627846d7754414fb4.jpg",
+          "url": "https://res.cloudinary.com/dv7lelmoy/image/upload/v1784755985/kpj8itqwaaetp9ln2htg.jpg",
+          "subidoEn": "2026-07-22T21:31:45.456Z"
+        }
+      ],
+      "telefono": "300 123456789",
+      "nombre": "martox"
+    },
+    {
+      "id": "asHS0grf3rzmO3c5Ahrp",
+      "correo": "MARTOSALSA@GMAIL.COM",
+      "activo": true,
+      "cedula": "123456789",
+      "creadoEn": "2026-07-23T11:58:13.773Z",
+      "telefono": "3026420801",
+      "instrumento": "BASS",
+      "tarifaReferencia": 150000,
+      "nombre": "ALEJANDRO LONDOÑO"
+    }
+  ],
+  "equipoTecnico": [
+    {
+      "id": "b0XgHyiiWOxiM74wcon2",
+      "activo": true,
+      "tarifa": 80000,
+      "nombre": "GERMAN ALBANO",
+      "rol": "INGENIERO DE GRABACION"
+    },
+    {
+      "id": "sQimWcJvYYDmB4CasD3f",
+      "tarifa": 50000,
+      "rol": "ASISTENTE DE GRABACION",
+      "activo": true,
+      "nombre": "MARTO"
+    }
+  ],
+  "estudios": [
+    {
+      "id": "externo",
+      "nombre": "Estudio Externo (Variable)",
+      "salaA": {
+        "tarifa": 0,
+        "nombre": "Estudio 1"
+      },
+      "salaB": {
+        "nombre": "Estudio 2",
+        "tarifa": 0
+      },
+      "creadoEn": "2026-07-19T23:06:39.063Z",
+      "specsVisibles": false,
+      "salaC": {
+        "tarifa": 0,
+        "nombre": "Estudio 3"
+      },
+      "activo": false
+    },
+    {
+      "id": "home_studio",
+      "salaA": {
+        "tarifa": 50000,
+        "specs": "Mi PC\nInterfaz\nAudifonos Beyer Dinamyc",
+        "nombre": "Estudio en Casa 1"
+      },
+      "nombre": "Home Studio / Línea Directa",
+      "salaB": {
+        "nombre": "Sala B",
+        "tarifa": 0,
+        "specs": ""
+      },
+      "salaC": {
+        "nombre": "Sala C",
+        "tarifa": 0,
+        "specs": ""
+      },
+      "activo": true,
+      "creadoEn": "2026-07-19T23:06:39.063Z",
+      "specsVisibles": true
+    },
+    {
+      "id": "icesi",
+      "activo": true,
+      "backlineGeneral": [
+        {
+          "descripcion": "quinto",
+          "categoria": "Percusión",
+          "subgrupo": "congas",
+          "calidad": "sirve"
+        },
+        {
+          "calidad": "sirve",
+          "descripcion": "Guiro LP Oficial",
+          "categoria": "Percusión",
+          "subgrupo": ""
+        },
+        {
+          "subgrupo": "",
+          "descripcion": "Taclado Yamaha MX61",
+          "calidad": "sirve",
+          "categoria": "Teclados"
+        }
+      ],
+      "creadoEn": "2026-07-19T23:06:39.062Z",
+      "salaC": {
+        "nombre": "Estudio C",
+        "preamps": [
+          {
+            "nombre": "CAMILO SILVA",
+            "canales": 2
+          },
+          {
+            "canales": 1,
+            "nombre": "MANLEY CORE 1"
+          },
+          {
+            "nombre": "YAMAHA",
+            "canales": 16
+          }
+        ],
+        "tarifa": 160000,
+        "backline": [],
+        "specs": "Control C + Live Room independiente en otro piso\nEspacio acústico controlado para tomas independientes y procesamiento de señales directas.\nPreamps: 2 Camilo Silva, 1 Manley Core, 16 Yamaha."
+      },
+      "specsVisibles": true,
+      "salaA": {
+        "specs": "Control A + Iso Booths A1 y A2 + Live Room compartido con Control B\nEntorno de alta gama con alta versatilidad de ruteo y captura multi-ambientes.\nPreamps: 24 API, 8 Millenia, 2 BAE 1073, 4 Manley Force.",
+        "backline": [
+          {
+            "categoria": "Percusión",
+            "subgrupo": "CONGASX",
+            "descripcion": "QUINTO",
+            "calidad": "sirve"
+          }
+        ],
+        "preamps": [
+          {
+            "nombre": "API",
+            "canales": 24
+          },
+          {
+            "canales": 8,
+            "nombre": "MILLENIA"
+          },
+          {
+            "canales": 2,
+            "nombre": "BAE"
+          },
+          {
+            "nombre": "MANLEY FORCE",
+            "canales": 4
+          }
+        ],
+        "tarifa": 270000,
+        "nombre": "Estudio A"
+      },
+      "nombre": "Universidad ICESI",
+      "salaB": {
+        "specs": "Control B + Iso Booth B1 + Live Room\nDiseño acústico calibrado para respuesta controlada y grabaciones en bloque.\nPreamps: 8 ISA828 modificados, 8 Yamaha, 2 Camilo Silva, 1 Avalon 737.",
+        "tarifa": 230000,
+        "preamps": [
+          {
+            "nombre": "ISA 828",
+            "canales": 8
+          },
+          {
+            "canales": 8,
+            "nombre": "YAMAHA"
+          },
+          {
+            "nombre": "CAMILO SILVA",
+            "canales": 2
+          },
+          {
+            "nombre": "AVALON 737",
+            "canales": 1
+          }
+        ],
+        "nombre": "Estudio B",
+        "backline": []
+      }
+    },
+    {
+      "id": "szAj13a7bCKOjheO3htw",
+      "activo": true,
+      "creadoEn": "2026-07-22T21:13:47.749Z",
+      "specsVisibles": true,
+      "salaA": {
+        "preamps": [],
+        "backline": [
+          {
+            "calidad": "sirve",
+            "subgrupo": "CONGAS",
+            "categoria": "Percusión",
+            "descripcion": "QUINTO"
+          }
+        ],
+        "specs": "",
+        "tarifa": 200000,
+        "nombre": "SALA PRUEBA"
+      },
+      "salaB": {
+        "specs": "",
+        "backline": [],
+        "preamps": [],
+        "tarifa": 0,
+        "nombre": "Sala B"
+      },
+      "nombre": "PRUEBA",
+      "salaC": {
+        "specs": "COMPRESOR API",
+        "preamps": [],
+        "tarifa": 0,
+        "nombre": "Sala C",
+        "backline": []
+      }
+    }
+  ],
+  "equipoInterno": [
+    {
+      "id": "martowave@gmail.com",
+      "activo": true,
+      "rol": "admin",
+      "nombre": "marto"
+    }
+  ],
+  "ingenieros": [
+    {
+      "id": "au@test.com",
+      "activo": true,
+      "agregadoEn": "2026-07-25T12:13:04.142Z",
+      "proyectosAsignados": [],
+      "nombre": "AURERLIO HERNANDEZ"
+    },
+    {
+      "id": "inge@test.com",
+      "agregadoEn": "2026-07-25T11:38:24.179Z",
+      "activo": true,
+      "proyectosAsignados": []
+    },
+    {
+      "id": "martocoin@gmail.com",
+      "nombre": "MARTOX",
+      "proyectosAsignados": [],
+      "agregadoEn": "2026-07-25T12:32:32.825Z",
+      "activo": true
+    },
+    {
+      "id": "martosalsa@gmail.com",
+      "activo": true,
+      "agregadoEn": "2026-07-25T12:53:29.776Z",
+      "proyectosAsignados": [
+        "67rMeNQNaIcnh46dE0mJ"
+      ],
+      "nombre": "marto inge"
+    }
+  ],
+  "musicosPortal": [
+    {
+      "id": "martosalsa@gmail.com",
+      "proyectosAsignados": [
+        "67rMeNQNaIcnh46dE0mJ"
+      ],
+      "nombre": "ALEJANDRO LONDOÑO",
+      "activo": true,
+      "agregadoEn": "2026-08-14T00:25:34.392Z"
+    }
+  ]
+}
