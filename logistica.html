@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.103)</title>
-<!-- AUDIOLINK · logistica.html · v2.103
+<title>Audiolink — Logística (v2.104)</title>
+<!-- AUDIOLINK · logistica.html · v2.104
+     v2.104: FIX del logo del header de ambos PDFs (exportarPDF() y
+     exportarPDFSesion()) — con el logo ya cargando bien (v2.103), se
+     veía estirado horizontalmente porque el código lo dibujaba siempre
+     en una caja fija de 40×16mm sin importar la proporción real de
+     "logo 1.png". Ahora logoW se calcula como
+     logoH * (imgLogo.naturalWidth / imgLogo.naturalHeight) — se
+     mantiene la altura fija de 16mm (mismo tamaño visual de antes) y el
+     ancho se ajusta a la proporción real de la imagen. No se tocó
+     DIFFUSER.jpg, pintarHeader() en lo demás, ni ninguna otra función.
      v2.103: FIX del logo del header de ambos PDFs — el archivo real en
      el repo se llama "logo 1.png" (con espacio), no "logo_1.png" (guión
      bajo) como estaba escrito en el <img id="hdrLogo"> oculto; por eso
@@ -4059,10 +4068,12 @@ function exportarPDF(modo){
     doc.setDrawColor(...goldRGB);
     doc.setLineWidth(0.6);
     doc.line(0, headerH, pageW, headerH);
-    // Logo izquierda (pequeño, centrado verticalmente)
+    // Logo izquierda (pequeño, centrado verticalmente) — v2.104: ancho
+    // calculado a partir de la proporción real de la imagen (antes 40×16
+    // fijo, estiraba el logo si su relación de aspecto no era 2.5:1)
     if(logoOk){
       const logoH = 16;
-      const logoW = 40;
+      const logoW = logoH * (imgLogo.naturalWidth / imgLogo.naturalHeight);
       const logoY = (headerH - logoH) / 2;
       doc.addImage(imgLogo, 'PNG', marginX, logoY, logoW, logoH);
     }
@@ -4272,10 +4283,11 @@ function exportarPDFSesion(sesionId, modo){
     doc.setDrawColor(...gold);
     doc.setLineWidth(0.7);
     doc.line(0, headerHSesion, pageW, headerHSesion);
-    // Logo izquierda (pequeño, centrado verticalmente)
+    // Logo izquierda (pequeño, centrado verticalmente) — v2.104: mismo
+    // fix de proporción real que exportarPDF()
     if(logoOk){
       const logoH = 16;
-      const logoW = 40;
+      const logoW = logoH * (imgLogo.naturalWidth / imgLogo.naturalHeight);
       const logoY = (headerHSesion - logoH) / 2;
       doc.addImage(imgLogo, 'PNG', mX, logoY, logoW, logoH);
     }
