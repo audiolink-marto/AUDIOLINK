@@ -3,8 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.111)</title>
-<!-- AUDIOLINK · logistica.html · v2.111
+<title>Audiolink — Logística (v2.112)</title>
+<!-- AUDIOLINK · logistica.html · v2.112
+     v2.112: pintarHeader() (dentro de exportarPDF() y exportarPDFSesion())
+     ahora posiciona el logo horizontalmente según LOGO_ALIGN
+     ('izquierda'|'centro'|'derecha', viene de header-config.js v1.1) en
+     vez del offset libre en mm LOGO_OFFSET_X (removido — el panel de
+     ajuste en header-config.html ahora usa 3 botones en vez de slider).
+     Constante RESERVA_DERECHA=62mm en ambas funciones reserva espacio
+     para que el logo en modo "derecha" no choque con el subtítulo de
+     texto de la esquina superior derecha del header. No se tocó nada
+     más de pintarHeader(), pintarFooter(), ni el resto de exportarPDF()/
+     exportarPDFSesion().
      v2.111: se quita de acá el panel visual de ajustes del header
      (inputs de logo/diffuser/color/opacidades/tamaño/posición + preview)
      — ahora vive centralizado en header-config.html (nuevo, accesible
@@ -4168,10 +4178,19 @@ function exportarPDF(modo){
     if(logoOk){
       // v2.109: alto y posición configurables (antes logoH=16 fijo,
       // logoY siempre centrado, X siempre en marginX)
+      // v2.111: posición X ahora por alineación (LOGO_ALIGN, desde
+      // header-config.js v1.1) en vez de offset libre en mm. RESERVA_DERECHA
+      // deja espacio para no chocar con el subtítulo de texto de la esquina
+      // derecha del header (ver pintarHeader() más abajo).
+      const RESERVA_DERECHA = 62;
       const logoH = LOGO_SIZE;
       const logoW = logoH * (imgLogo.naturalWidth / imgLogo.naturalHeight);
       const logoY = (headerH - logoH) / 2 + LOGO_OFFSET_Y;
-      doc.addImage(imgLogo, 'PNG', marginX + LOGO_OFFSET_X, logoY, logoW, logoH);
+      let logoX;
+      if(LOGO_ALIGN === 'centro') logoX = (pageW - logoW) / 2;
+      else if(LOGO_ALIGN === 'derecha') logoX = pageW - marginX - RESERVA_DERECHA - logoW;
+      else logoX = marginX;
+      doc.addImage(imgLogo, 'PNG', logoX, logoY, logoW, logoH);
     }
     // Subtítulo derecha
     doc.setFontSize(8.5);
@@ -4393,10 +4412,17 @@ function exportarPDFSesion(sesionId, modo){
     // fix de proporción real que exportarPDF()
     if(logoOk){
       // v2.109: alto y posición configurables, mismo criterio que exportarPDF()
+      // v2.111: posición X por alineación (LOGO_ALIGN), mismo criterio que
+      // exportarPDF() — ver comentario ahí para detalle de RESERVA_DERECHA.
+      const RESERVA_DERECHA = 62;
       const logoH = LOGO_SIZE;
       const logoW = logoH * (imgLogo.naturalWidth / imgLogo.naturalHeight);
       const logoY = (headerHSesion - logoH) / 2 + LOGO_OFFSET_Y;
-      doc.addImage(imgLogo, 'PNG', mX + LOGO_OFFSET_X, logoY, logoW, logoH);
+      let logoX;
+      if(LOGO_ALIGN === 'centro') logoX = (pageW - logoW) / 2;
+      else if(LOGO_ALIGN === 'derecha') logoX = pageW - mX - RESERVA_DERECHA - logoW;
+      else logoX = mX;
+      doc.addImage(imgLogo, 'PNG', logoX, logoY, logoW, logoH);
     }
     // Badge CONFIDENCIAL solo en modo interno
     if(modo === 'interno'){
