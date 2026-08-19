@@ -3,8 +3,118 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.96)</title>
-<!-- AUDIOLINK · logistica.html · v2.78
+<title>Audiolink — Logística (v2.103)</title>
+<!-- AUDIOLINK · logistica.html · v2.103
+     v2.103: FIX del logo del header de ambos PDFs — el archivo real en
+     el repo se llama "logo 1.png" (con espacio), no "logo_1.png" (guión
+     bajo) como estaba escrito en el <img id="hdrLogo"> oculto; por eso
+     nunca cargaba y pintarHeader() caía siempre al rectángulo oscuro de
+     respaldo, aunque el archivo sí existía y era accesible por URL
+     directa. Se corrige el src a "img/logo%201.png" (espacio codificado
+     como %20). No se tocó DIFFUSER.jpg (su nombre sí coincidía), ni
+     pintarHeader(), exportarPDF(), exportarPDFSesion() ni ninguna otra
+     función.
+     v2.102: rediseño definitivo del checklist de instrumentación de la
+     sesión (#instrSesionContainer), a pedido del usuario, tras dos
+     rondas de confusión con el esquema "tarjeta completa = marcar +
+     flechita aparte = colapsar" (v2.100/v2.101): un toque en el cuerpo
+     de la tarjeta creyendo que solo la "abría" en realidad la
+     marcaba/desmarcaba. Se invierten los roles: el ícono ✓/☐
+     (.instr-card-check, con su propia área de toque) es ahora la
+     ÚNICA zona que marca/desmarca (toggleGrupoSesion); el resto del
+     encabezado —nombre + badge de piezas— (.instr-card-abrir) es la
+     zona que colapsa/expande (toggleInstrGrupoColapsado). La flecha ▾
+     pasa a vivir dentro de .instr-card-abrir, ahora puramente
+     decorativa (ya no tiene onclick propio, solo rota con
+     .instr-colapsada). No se tocó toggleGrupoSesion(), instrSesionKeys,
+     el switch "Ver solo los que van a intervenir", el snapshot v2.99 ni
+     el Input List — mismo alcance de v2.100/v2.101, solo cambia qué
+     zona dispara cada acción.
+     v2.101: fix del colapso de instr-card (v2.100) — el usuario reportó
+     que al tocar la flechita ▾ igual se desmarcaba el grupo (perdía el
+     check, desaparecía del Input List de abajo, y si era el único
+     marcado se apagaba el switch "Ver solo los que van a intervenir" y
+     aparecían todos). Causa: la flechita vivía DENTRO del mismo
+     contenedor con onclick de marcar, y stopPropagation() no bastó en
+     el navegador del usuario. Se reestructura sin depender de
+     stopPropagation: el onclick de marcar/desmarcar ahora vive en un
+     wrapper propio (.instr-card-marcar, ícono+nombre+badge), y la
+     flechita queda como HERMANA de ese wrapper (fuera de él) dentro de
+     .instr-card-head — ya no hay ruta de burbujeo posible entre ambos.
+     También se agranda el área de toque de la flechita. No se tocó
+     toggleGrupoSesion(), instrSesionKeys, el switch, el snapshot v2.99
+     ni el Input List — mismo alcance que v2.100, solo se corrige el
+     cableado del clic.
+     v2.100: nuevo colapso VISUAL independiente para cada tarjeta del
+     checklist de instrumentación (#instrSesionContainer) — pedido por el
+     usuario tras confundir "cerrar/colapsar una tarjeta" con
+     "desmarcarla" (antes eran la misma acción: el único clic disponible
+     marcaba/desmarcaba el grupo, así que cerrar visualmente el último
+     grupo marcado apagaba el switch "Ver solo los que van a intervenir"
+     y mostraba todos los grupos sin aviso). Se agrega una flechita ▾
+     propia en la cabecera de cada instr-card (clase .instr-card-colapsar,
+     mismo criterio visual que .colapsar-flecha-log de bitácora/v2.98) que
+     colapsa/expande SOLO la vista, con event.stopPropagation() para no
+     disparar toggleGrupoSesion(). Colapsada: se ve nombre + badge de
+     piezas (igual que antes). Expandida + marcada: se ve además "Grabar
+     por pieza individual" + piezas. Nuevo estado
+     instrGruposColapsadosSesion, persistido en localStorage por sesión
+     (misma clave por sesionActualId que gruposColapsadosLog, pero
+     independiente: audiolink_log_instr_colapsados_<id>). No se tocó
+     instrSesionKeys, toggleGrupoSesion(), el switch "Ver solo los que
+     van a intervenir", instrGruposVisiblesSnapshot (v2.99) ni ningún
+     cálculo/guardado — el colapso es puramente visual.
+     v2.99: fix de UX en el checklist de instrumentación (#instrSesionContainer,
+     no el input list) — con el switch "Ver solo los que van a intervenir"
+     prendido, desmarcar un grupo lo sacaba de la vista al instante y
+     había que apagar el switch para volver a encontrarlo y re-marcarlo.
+     Se agrega instrGruposVisiblesSnapshot: al PRENDER el switch (o abrir
+     una sesión con el switch ya prendido) se congela la lista de grupos
+     marcados en ese momento; renderChecklistInstrumentacion() filtra
+     contra ese snapshot en vez de contra instrSesionKeys en vivo, así
+     que desmarcar un grupo después lo deja en el mismo lugar (solo con
+     el check apagado) en vez de hacerlo desaparecer. Marcar un grupo
+     nuevo sí se agrega al snapshot al toque (para que aparezca sin
+     esperar). El snapshot se recalcula (se "limpia" de los ya
+     desmarcados) solo al apagar y volver a prender el switch, o al
+     abrir/crear otra sesión. No se tocó el filtro en sí (instrSoloMarcados,
+     localStorage), instrSesionKeys, ni ninguna otra lógica de guardado.
+     v2.98: preview de input list del editor de sesión (#inputListBox /
+     renderInputListSesion(), v2.79) — pedido por el usuario, "dejar el
+     input list de logística idéntico al de bitácora, con los
+     colapsables". Se agrega:
+     (1) cada grupo horizontal (.grupo-instrumento-log) ahora es
+     colapsable con clic en su título — mismo criterio visual que
+     bitacora.html (v2.31/v2.91): flechita ▾ que rota -90° (clase
+     .colapsar-flecha-log, que ya existía en CSS para otro uso de
+     .grupo-header-log/.colapsado-log en la pestaña Reportes; se agrega
+     la regla puntual `.grupo-instrumento-log.colapsado-log >
+     .consola-grupo-fila{display:none;}` para este uso específico, sin
+     tocar la regla existente de .toma-agrupada). Nueva función
+     toggleGrupoInputLog(etiqueta) + estado gruposColapsadosLog. Los
+     grupos "sin etiqueta" siguen sin poder colapsarse, igual que en
+     bitácora.
+     (2) el estado de esos colapsables persiste en localStorage, mismo
+     mecanismo que ya usaba este archivo para el sidebar
+     (audiolink_sb_colapsado) y las secciones del formulario
+     (audiolink_fs_*, v2.86): clave 'audiolink_log_inputlist_colapsados_'
+     + sesionActualId (o 'nueva' mientras se crea una sesión sin id
+     todavía). Se lee en abrirModalNuevo()/abrirModalEditar() (así cada
+     sesión recuerda SU propio estado, no se mezcla entre sesiones) y se
+     escribe en cada clic sobre un título de grupo.
+     No se tocó calcularInputListSesion(), moverCanalLog(), Firestore, ni
+     ninguna otra lógica de guardado.
+
+     v2.78
+     v2.97: fix de carga de imágenes del header PDF — el canvas de v2.96
+     también falla en algunos entornos de localhost. Se elimina por completo
+     el paso canvas/base64: los <img> ocultos (hdrDiffuser/hdrLogo) se pasan
+     directamente a doc.addImage() como HTMLImageElement — jsPDF 2.5.1
+     acepta este tipo de argumento de forma nativa. Se eliminan
+     imgElToB64, _hdrDiffuserB64 y _hdrLogoB64. Los <img> quedan sin
+     onload. diffuserOk/logoOk verifican .complete && .naturalWidth > 0
+     antes de llamar addImage. No se tocó ninguna otra función.
+
      v2.96: fix de carga de imágenes del header PDF — v2.95 usaba fetch()
      que el navegador bloquea en file:// (local sin servidor). Se reemplaza
      por dos <img> ocultos al final del body (img/DIFFUSER.jpg e
@@ -1441,6 +1551,23 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .instr-card.marcado .instr-card-nombre{font-weight:600;}
 .instr-card-badge{font-size:0.7rem;color:var(--muted);background:var(--surf);border-radius:10px;padding:2px 8px;flex-shrink:0;}
 .instr-card.marcado .instr-card-badge{color:var(--gold);background:rgba(212,175,55,0.14);}
+/* v2.100: flechita de colapso propia de cada instr-card, independiente
+   del marcado/checklist — mismo criterio visual que .colapsar-flecha-log
+   (bitacora.html/#inputListBox), clase propia para no interferir. */
+/* v2.102: rediseño definitivo a pedido del usuario — se invierten los
+   roles para eliminar la confusión recurrente entre "abrir/cerrar" y
+   "marcar". Ahora: (1) el ícono ✓/☐ (.instr-card-check) es la ÚNICA
+   zona que marca/desmarca (toggleGrupoSesion), con su propio padding
+   para área de toque; (2) el resto del encabezado —nombre + badge—
+   (.instr-card-abrir) es la zona que colapsa/expande
+   (toggleInstrGrupoColapsado). Ya no hay flechita aparte: la flecha
+   ▾ vive DENTRO de .instr-card-abrir, es decorativa (rota según
+   .instr-colapsada), no tiene onclick propio. Reemplaza el esquema de
+   v2.100/v2.101 (tarjeta completa = marcar, flechita aparte = colapsar).*/
+.instr-card-check{padding:10px 8px 10px 4px;margin:-10px 0 -10px -6px;cursor:pointer;flex-shrink:0;}
+.instr-card-abrir{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-width:0;}
+.instr-card-flecha{font-size:0.78rem;color:var(--muted);transition:transform 0.15s;flex-shrink:0;}
+.instr-card.instr-colapsada .instr-card-flecha{transform:rotate(-90deg);}
 .instr-individual-row{display:flex;align-items:center;gap:6px;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--brd);cursor:default;}
 .instr-individual-row input{width:auto;}
 .instr-individual-row label{margin:0;font-size:0.76rem;color:var(--muted);}
@@ -1514,6 +1641,13 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .grupo-instrumento-log .toma-agrupada{margin-bottom:8px;border-left:3px solid var(--gc,var(--gold));}
 .grupo-instrumento-log .toma-agrupada:last-child{margin-bottom:0;}
 .grupo-instrumento-log.colapsado-log .toma-agrupada{display:none;}
+/* v2.98: mismo colapso aplicado al preview de input list del editor de
+   sesión (#inputListBox / renderInputListSesion(), v2.79) — acá cada
+   grupo tiene un único <div class="consola-grupo-fila"> hijo directo en
+   vez de .toma-agrupada, así que se agrega esta regla específica sin
+   tocar la de arriba (que sigue sirviendo para el otro uso de
+   .grupo-instrumento-log/.colapsado-log en Reportes). */
+.grupo-instrumento-log.colapsado-log > .consola-grupo-fila{display:none;}
 
 /* v2.46: tiras horizontales de solo lectura para el input list del
    editor de sesión — mismo look del modo consola de bitacora.html
@@ -2024,22 +2158,6 @@ if(estaModoOfflineActivo()){
 // cerrarSesion(), toggleTema(), toggleMasMobile() y el colapsar del sidebar
 // ahora viven en nav.js (compartido por todo el ecosistema).
 
-// ============ IMÁGENES HEADER PDF (v2.96) ============
-// Las variables se llenan desde el onload de los <img> ocultos al final
-// del body. exportarPDF/exportarPDFSesion las leen directamente (sync).
-let _hdrDiffuserB64 = null;
-let _hdrLogoB64 = null;
-function imgElToB64(el, varName){
-  try{
-    const c = document.createElement('canvas');
-    c.width  = el.naturalWidth;
-    c.height = el.naturalHeight;
-    c.getContext('2d').drawImage(el, 0, 0);
-    const fmt = /\.(jpg|jpeg)$/i.test(el.src) ? 'image/jpeg' : 'image/png';
-    window[varName] = c.toDataURL(fmt, 0.88);
-  } catch(e){ console.warn('imgElToB64:', varName, e); }
-}
-
 // ============ ESTADO ============
 let proyectoId = null;
 let origenAgenda = false; // true si se llegó aquí desde la agenda global (?origen=agenda)
@@ -2350,13 +2468,15 @@ function abrirModalNuevo(){
   document.getElementById('btnPdfSesionInterno').style.display = 'none';
   limpiarFormulario();
   instrSesionKeys = [];
+  instrGruposVisiblesSnapshot = instrSoloMarcados ? [] : null; // v2.99 — sesión nueva, arranca sin nada marcado
   instrSesionIndividual = {};
   instrSesionPiezasSel = {};
   instrSesionCanalesManuales = [];
   instrSesionBitacoraInfo = {};
   ordenOverrideLog = {}; // v2.77
   filtroTextoLog = ''; // v2.77
-  renderChecklistInstrumentacion();
+  gruposColapsadosLog = cargarGruposColapsadosLog(); // v2.98 — sesionActualId ya es null acá
+  instrGruposColapsadosSesion = cargarInstrGruposColapsados(); // v2.100 — ídem, sesionActualId ya es null acá
   musicosAsignadosSesion = [];
   renderMusicosAsignados();
   cargarCatalogoMusicosSesion();
@@ -2403,6 +2523,7 @@ async function abrirModalEditar(id){
   document.getElementById('fNotasInternas').value = s.notasInternas || '';
   document.getElementById('fVisibleCliente').checked = s.visibleCliente !== false;
   instrSesionKeys = Array.isArray(s.instrumentacionSesion) ? [...s.instrumentacionSesion] : [];
+  instrGruposVisiblesSnapshot = instrSoloMarcados ? [...instrSesionKeys] : null; // v2.99
   instrSesionIndividual = (s.instrumentacionSesionIndividual && typeof s.instrumentacionSesionIndividual === 'object') ? {...s.instrumentacionSesionIndividual} : {};
   instrSesionPiezasSel = {};
   if(s.instrumentacionSesionPiezas && typeof s.instrumentacionSesionPiezas === 'object'){
@@ -2415,6 +2536,8 @@ async function abrirModalEditar(id){
   instrSesionBitacoraInfo = {};
   ordenOverrideLog = {}; // v2.77 — sesión distinta, no arrastrar overrides de otra
   filtroTextoLog = ''; // v2.77
+  gruposColapsadosLog = cargarGruposColapsadosLog(); // v2.98 — sesionActualId ya apunta a esta sesión
+  instrGruposColapsadosSesion = cargarInstrGruposColapsados(); // v2.100 — ídem, sesionActualId ya apunta a esta sesión
   {
     const actualPorNombre = {};
     if(Array.isArray(s.inputList)){
@@ -3005,6 +3128,20 @@ let instrSesionKeys = [];
 // sobreviva a recargas — es una preferencia de visualización, no un
 // dato de la sesión/proyecto, por eso es global y no por sesionId.
 let instrSoloMarcados = localStorage.getItem('audiolink_instr_solo_marcados') === '1';
+// v2.99: snapshot de qué grupos quedan visibles mientras el switch
+// "Ver solo los que van a intervenir" está activo. Antes, el filtro
+// (instrSesionKeys.includes(key)) se recalculaba en cada render, así
+// que desmarcar un grupo lo sacaba de la vista al instante y había que
+// apagar el switch para volver a encontrarlo. Ahora, al PRENDER el
+// switch (o al abrir la sesión con el switch ya prendido) se congela la
+// lista de grupos marcados en ese momento; desmarcar un grupo después
+// NO lo saca de esta lista — el grupo se queda ahí mismo, solo que su
+// checkbox aparece apagado, así se puede volver a marcar sin buscarlo.
+// Si se marca un grupo nuevo que no estaba en el snapshot, se agrega.
+// El snapshot se recalcula (se "limpia" de los que quedaron desmarcados)
+// solo si se apaga y se vuelve a prender el switch, o al abrir otra
+// sesión (null = "sin snapshot", cae al comportamiento normal).
+let instrGruposVisiblesSnapshot = null;
 // instrSesionIndividual: { [grupoKey]: true|false } — marca si ese grupo,
 // dentro de esta sesión, se graba/registra por pieza individual (ej.
 // Guitarra, Bajo) en vez de como grupo completo (ej. "Cuerdas"). Todavía
@@ -3041,6 +3178,76 @@ let ordenOverrideLog = {};
 // que filtroTexto en bitacora.html, pero con su propia variable para no
 // pisar nada de otras pantallas de este archivo).
 let filtroTextoLog = '';
+// v2.98: colapsables del preview de input list (#inputListBox), mismo
+// criterio visual que bitacora.html (v2.31/v2.91) y misma idea de
+// persistencia local que ya usaba este archivo para el sidebar
+// (audiolink_sb_colapsado) y las secciones del formulario
+// (audiolink_fs_*, v2.86) — acá con clave POR SESIÓN, para que abrir
+// otra sesión no arrastre los colapsables de una distinta. 'nueva' es
+// la clave mientras se crea una sesión todavía sin id (sesionActualId
+// null). Se lee al abrir el editor (abrirModalNuevo/abrirModalEditar) y
+// se escribe en cada clic sobre el título de un grupo.
+let gruposColapsadosLog = {};
+function claveGruposColapsadosLog(){
+  return 'audiolink_log_inputlist_colapsados_' + (sesionActualId || 'nueva');
+}
+function cargarGruposColapsadosLog(){
+  try{
+    const raw = localStorage.getItem(claveGruposColapsadosLog());
+    return raw ? JSON.parse(raw) : {};
+  } catch(e){
+    console.warn('No se pudo leer gruposColapsadosLog de localStorage:', e);
+    return {};
+  }
+}
+function guardarGruposColapsadosLog(){
+  try{
+    localStorage.setItem(claveGruposColapsadosLog(), JSON.stringify(gruposColapsadosLog));
+  } catch(e){
+    console.warn('No se pudo guardar gruposColapsadosLog en localStorage:', e);
+  }
+}
+function toggleGrupoInputLog(etiqueta){
+  gruposColapsadosLog[etiqueta] = !gruposColapsadosLog[etiqueta];
+  guardarGruposColapsadosLog();
+  renderInputListSesion();
+}
+
+// v2.100: colapso VISUAL de cada instr-card del checklist de
+// instrumentación (#instrSesionContainer), totalmente independiente del
+// marcado (instrSesionKeys/toggleGrupoSesion). Antes, el único clic
+// disponible en la tarjeta la marcaba/desmarcaba; ahora ese clic se
+// mantiene igual, y se agrega una flechita aparte solo para
+// colapsar/expandir la vista. Colapsada: se ve nombre + badge de piezas
+// (igual que hoy). Expandida (si además está marcada): se ve el bloque
+// "Grabar por pieza individual" + piezas. Mismo mecanismo de persistencia
+// por sesión que gruposColapsadosLog (v2.98), pero con su propia clave
+// para no mezclarse con el colapso del input list.
+let instrGruposColapsadosSesion = {};
+function claveInstrGruposColapsados(){
+  return 'audiolink_log_instr_colapsados_' + (sesionActualId || 'nueva');
+}
+function cargarInstrGruposColapsados(){
+  try{
+    const raw = localStorage.getItem(claveInstrGruposColapsados());
+    return raw ? JSON.parse(raw) : {};
+  } catch(e){
+    console.warn('No se pudo leer instrGruposColapsadosSesion de localStorage:', e);
+    return {};
+  }
+}
+function guardarInstrGruposColapsados(){
+  try{
+    localStorage.setItem(claveInstrGruposColapsados(), JSON.stringify(instrGruposColapsadosSesion));
+  } catch(e){
+    console.warn('No se pudo guardar instrGruposColapsadosSesion en localStorage:', e);
+  }
+}
+function toggleInstrGrupoColapsado(key){
+  instrGruposColapsadosSesion[key] = !instrGruposColapsadosSesion[key];
+  guardarInstrGruposColapsados();
+  renderChecklistInstrumentacion();
+}
 
 // v2.60: el orden de los grupos ya no depende de Object.keys(instr) —
 // Firestore no garantiza preservar el orden de campos de un mapa entre
@@ -3087,14 +3294,20 @@ function renderChecklistInstrumentacion(){
         <span>Ver solo los que van a intervenir</span>
       </label>`;
   }
-  const grupos = (instrSoloMarcados && hayMarcados) ? gruposTodos.filter(key => instrSesionKeys.includes(key)) : gruposTodos;
+  const grupos = (instrSoloMarcados && hayMarcados)
+    ? gruposTodos.filter(key => (instrGruposVisiblesSnapshot || instrSesionKeys).includes(key))
+    : gruposTodos;
   const instr = proyectoData.instrumentacion;
   cont.innerHTML = grupos.map(key => {
     const n = instr[key].length;
     const checked = instrSesionKeys.includes(key) ? 'checked' : '';
     const marcado = instrSesionKeys.includes(key);
     const indivChecked = instrSesionIndividual[key] ? 'checked' : '';
-    const mostrarPiezas = marcado && instrSesionIndividual[key];
+    const colapsada = !!instrGruposColapsadosSesion[key];
+    // v2.100: el bloque de "Grabar por pieza individual" + piezas ahora
+    // depende también de que la tarjeta NO esté colapsada (colapsar es
+    // puramente visual, no toca instrSesionIndividual/instrSesionPiezasSel).
+    const mostrarPiezas = marcado && !colapsada && instrSesionIndividual[key];
     const piezasHtml = mostrarPiezas ? `
       <div class="instr-piezas-list" id="instrPiezasList_${key}">
         ${instr[key].map((p, idx) => {
@@ -3107,14 +3320,19 @@ function renderChecklistInstrumentacion(){
         }).join('')}
       </div>` : '';
     return `
-      <div class="instr-card${marcado ? ' marcado' : ''}" onclick="toggleGrupoSesion('${key}', !${marcado ? 'true' : 'false'})">
+      <div class="instr-card${marcado ? ' marcado' : ''}${colapsada ? ' instr-colapsada' : ''}">
         <div class="instr-card-head">
-          <i class="ti ${marcado ? 'ti-check' : 'ti-square'}" aria-hidden="true"></i>
-          <span class="instr-card-nombre">${labelGrupo(key)}</span>
-          <span class="instr-card-badge">${n} pieza${n === 1 ? '' : 's'}</span>
+          <span class="instr-card-check" onclick="toggleGrupoSesion('${key}', !${marcado ? 'true' : 'false'})">
+            <i class="ti ${marcado ? 'ti-check' : 'ti-square'}" aria-hidden="true"></i>
+          </span>
+          <div class="instr-card-abrir" onclick="toggleInstrGrupoColapsado('${key}')">
+            <span class="instr-card-nombre">${labelGrupo(key)}</span>
+            <span class="instr-card-badge">${n} pieza${n === 1 ? '' : 's'}</span>
+            <span class="instr-card-flecha">▾</span>
+          </div>
         </div>
-        ${marcado ? `
-        <div class="instr-individual-row" id="instrIndivRow_${key}" onclick="event.stopPropagation()">
+        ${marcado && !colapsada ? `
+        <div class="instr-individual-row" id="instrIndivRow_${key}">
           <input type="checkbox" id="instrIndiv_${key}" ${indivChecked} onchange="toggleGrupoIndividual('${key}', this.checked)">
           <label for="instrIndiv_${key}">Grabar por pieza individual</label>
         </div>
@@ -3127,12 +3345,26 @@ function renderChecklistInstrumentacion(){
 function toggleInstrSoloMarcados(v){
   instrSoloMarcados = v;
   localStorage.setItem('audiolink_instr_solo_marcados', v ? '1' : '0');
+  // v2.99: al prender el switch, se congela el snapshot con los grupos
+  // marcados EN ESE MOMENTO. Al apagarlo, se limpia (null) para que la
+  // próxima vez que se prenda arranque de cero con lo que esté marcado
+  // entonces — así es como se "limpia" la lista sin tener que buscar
+  // nada: apagar y prender de nuevo.
+  instrGruposVisiblesSnapshot = v ? [...instrSesionKeys] : null;
   renderChecklistInstrumentacion();
 }
 
 function toggleGrupoSesion(key, marcado){
   if(marcado && !instrSesionKeys.includes(key)) instrSesionKeys.push(key);
   if(!marcado) instrSesionKeys = instrSesionKeys.filter(k => k !== key);
+  // v2.99: si se está marcando un grupo nuevo mientras el snapshot ya
+  // existe (switch prendido), se agrega también al snapshot para que
+  // aparezca sin tener que apagar/prender el switch. Si se desmarca, NO
+  // se saca del snapshot — se queda visible con el check apagado (ver
+  // nota en la declaración de instrGruposVisiblesSnapshot).
+  if(marcado && instrGruposVisiblesSnapshot && !instrGruposVisiblesSnapshot.includes(key)){
+    instrGruposVisiblesSnapshot.push(key);
+  }
   renderChecklistInstrumentacion();
 }
 
@@ -3378,7 +3610,11 @@ function renderInputListSesion(){
     // bitacora.html y la pestaña Bitácora de Reportes — heredado vía
     // colorParaGrupoLog()/hexToRgbaLog(), mismas funciones de esa pestaña.
     const c = colorParaGrupoLog(grupo.etiqueta);
-    return `<div class="grupo-instrumento-log" style="--gc:${c};--gc-bg:${hexToRgbaLog(c,0.05)};"><div class="grupo-header-log" style="font-size:0.78rem;">🎚️ ${escapeHtml(grupo.etiqueta)}</div>${fila}</div>`;
+    // v2.98: colapsable, mismo criterio visual que bitacora.html
+    // (flechita ▾ que rota -90°, misma clase .colapsar-flecha-log que ya
+    // existía en CSS para otro uso de .grupo-header-log).
+    const colapsadoLog = !!gruposColapsadosLog[grupo.etiqueta];
+    return `<div class="grupo-instrumento-log${colapsadoLog ? ' colapsado-log' : ''}" style="--gc:${c};--gc-bg:${hexToRgbaLog(c,0.05)};"><div class="grupo-header-log${colapsadoLog ? ' colapsado-log' : ''}" style="font-size:0.78rem;" onclick="toggleGrupoInputLog('${grupo.etiqueta.replace(/'/g,"\\'")}')"><span><span class="colapsar-flecha-log">▾</span> 🎚️ ${escapeHtml(grupo.etiqueta)}</span><span class="grupo-count-log">${grupo.items.length}</span></div>${fila}</div>`;
   }).join('');
   // v2.79: los grupos se envuelven en una fila horizontal con scroll-x
   // (mismo criterio que .consola-grupos-fila de bitacora.html) en vez
@@ -3788,9 +4024,11 @@ function colorParaSubgrupoLog(etiqueta){
 function exportarPDF(modo){
   if(!proyectoId || !proyectoData) return;
 
-  // v2.96: imágenes pre-cargadas por <img> ocultos al inicio (funciona en local y Netlify)
-  const diffuserB64 = _hdrDiffuserB64;
-  const logoB64     = _hdrLogoB64;
+  // v2.97: <img> pasados directo a jsPDF — sin canvas ni base64
+  const imgDiffuser = document.getElementById('hdrDiffuser');
+  const imgLogo     = document.getElementById('hdrLogo');
+  const diffuserOk  = imgDiffuser && imgDiffuser.complete && imgDiffuser.naturalWidth > 0;
+  const logoOk      = imgLogo    && imgLogo.complete     && imgLogo.naturalWidth     > 0;
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -3805,9 +4043,9 @@ function exportarPDF(modo){
   const sesionesFiltradas = modo === 'interno' ? sesiones : sesiones.filter(s => s.visibleCliente !== false);
 
   function pintarHeader(){
-    // Fondo: DIFFUSER.jpg o rect oscuro como fallback
-    if(diffuserB64){
-      doc.addImage(diffuserB64, 'JPEG', 0, 0, pageW, headerH);
+    // Fondo: img DIFFUSER pasado directo a jsPDF, o rect oscuro como fallback
+    if(diffuserOk){
+      doc.addImage(imgDiffuser, 'JPEG', 0, 0, pageW, headerH);
       doc.saveGraphicsState();
       doc.setGState(new doc.GState({ opacity: 0.62 }));
       doc.setFillColor(...darkRGB);
@@ -3822,11 +4060,11 @@ function exportarPDF(modo){
     doc.setLineWidth(0.6);
     doc.line(0, headerH, pageW, headerH);
     // Logo izquierda (pequeño, centrado verticalmente)
-    if(logoB64){
+    if(logoOk){
       const logoH = 16;
       const logoW = 40;
       const logoY = (headerH - logoH) / 2;
-      doc.addImage(logoB64, 'PNG', marginX, logoY, logoW, logoH);
+      doc.addImage(imgLogo, 'PNG', marginX, logoY, logoW, logoH);
     }
     // Subtítulo derecha
     doc.setFontSize(8.5);
@@ -3952,9 +4190,11 @@ function exportarPDFSesion(sesionId, modo){
   const s = sesiones.find(x => x.id === sesionId);
   if(!s) return;
 
-  // v2.96: imágenes pre-cargadas por <img> ocultos al inicio (funciona en local y Netlify)
-  const diffuserB64 = _hdrDiffuserB64;
-  const logoB64     = _hdrLogoB64;
+  // v2.97: <img> pasados directo a jsPDF — sin canvas ni base64
+  const imgDiffuser = document.getElementById('hdrDiffuser');
+  const imgLogo     = document.getElementById('hdrLogo');
+  const diffuserOk  = imgDiffuser && imgDiffuser.complete && imgDiffuser.naturalWidth > 0;
+  const logoOk      = imgLogo    && imgLogo.complete     && imgLogo.naturalWidth     > 0;
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -4013,12 +4253,12 @@ function exportarPDFSesion(sesionId, modo){
     }
   }
 
-  // ---- Header (v2.95: DIFFUSER.jpg + logo_1.png) ----
+  // ---- Header (v2.97: img element directo a jsPDF) ----
   const headerHSesion = 40;
   function pintarHeader(){
-    // Fondo: DIFFUSER.jpg o rect oscuro como fallback
-    if(diffuserB64){
-      doc.addImage(diffuserB64, 'JPEG', 0, 0, pageW, headerHSesion);
+    // Fondo: img DIFFUSER pasado directo a jsPDF, o rect oscuro como fallback
+    if(diffuserOk){
+      doc.addImage(imgDiffuser, 'JPEG', 0, 0, pageW, headerHSesion);
       doc.saveGraphicsState();
       doc.setGState(new doc.GState({ opacity: 0.62 }));
       doc.setFillColor(...dark);
@@ -4033,11 +4273,11 @@ function exportarPDFSesion(sesionId, modo){
     doc.setLineWidth(0.7);
     doc.line(0, headerHSesion, pageW, headerHSesion);
     // Logo izquierda (pequeño, centrado verticalmente)
-    if(logoB64){
+    if(logoOk){
       const logoH = 16;
       const logoW = 40;
       const logoY = (headerHSesion - logoH) / 2;
-      doc.addImage(logoB64, 'PNG', mX, logoY, logoW, logoH);
+      doc.addImage(imgLogo, 'PNG', mX, logoY, logoW, logoH);
     }
     // Badge CONFIDENCIAL solo en modo interno
     if(modo === 'interno'){
@@ -4293,10 +4533,8 @@ function exportarPDFSesion(sesionId, modo){
      imagen a base64 con canvas y la guarda en la variable global
      correspondiente. Si no carga (imagen ausente), la variable queda null
      y pintarHeader() cae al rect oscuro de siempre. -->
-<img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none"
-     onload="imgElToB64(this,'_hdrDiffuserB64')">
-<img id="hdrLogo" src="img/logo_1.png" style="display:none"
-     onload="imgElToB64(this,'_hdrLogoB64')">
+<img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none">
+<img id="hdrLogo"     src="img/logo%201.png"   style="display:none">
 
 </body>
 </html>

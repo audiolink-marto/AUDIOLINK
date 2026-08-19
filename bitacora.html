@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación (v2.94)</title>
-<!-- AUDIOLINK · bitacora.html · v2.94
+<title>Audiolink — Bitácora de Grabación (v2.95)</title>
+<!-- AUDIOLINK · bitacora.html · v2.95
+     v2.95: fix — el listado de sesiones de Grabación del tema (dashboard,
+     v2.32/v2.94) no mostraba el título de cada sesión (campo `actividad`
+     del doc de sesión, el mismo que se ve arriba de todo en
+     #actividadTitulo al abrir una sesión, con fallback "Sesión" — ver
+     cargar() ~línea 2012). Se agrega sx.actividad en la fila superior de
+     cada card, en negrita, entre la fecha y la sala: "12/08/2026 ·
+     Batería Base · Estudio A · 1h 20m". Si el doc no tiene `actividad`
+     guardado (sesiones viejas), simplemente no se muestra ese segmento,
+     igual que antes. No se tocó ninguna otra función, dato ni lógica.
      v2.94: la card de cada sesión en el listado "Sesiones de Grabación
      del tema" (dashboard, v2.32) daba poca info — solo fecha/sala/
      duración/autor. Se agregan 2 líneas nuevas, SIN ninguna lectura
@@ -3004,6 +3013,7 @@ async function cargarSesionesGrabacionTema(temaId){
           <div class="fila-top">
             <div>
               <span class="fecha">${escapeHtml(sx.fecha || '')}</span>
+              ${sx.actividad ? ` · <b>${escapeHtml(sx.actividad)}</b>` : ''}
               · ${escapeHtml(sx.sala || sx.estudioNombre || 'Sin sala')} · ${dur}
               ${sx.ingenieroAutor ? `<span class="autor">${escapeHtml(sx.ingenieroAutor)}</span>` : ''}
             </div>
