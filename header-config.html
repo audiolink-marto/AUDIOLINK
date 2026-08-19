@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Header PDF (v1.1)</title>
+<!-- AUDIOLINK · header-config.html · v1.1
+     Panel centralizado de configuración del header de PDF (logo,
+     diffuser, color, opacidades, tamaño/alineación del logo). Antes este
+     panel vivía duplicado dentro de logistica.html; ahora es la única
+     pantalla del ecosistema donde se ajustan estos valores — el resto
+     de páginas (proyecto.html, cotizador.html, egresos.html, etc.)
+     solo necesitan cargar header-config.js + llamar
+     inicializarHeaderConfig() en su DOMContentLoaded para LEER estos
+     mismos valores (guardados en localStorage) al construir su propio
+     pintarHeader(). Esta página no genera PDF ni contiene pintarHeader()
+     — es puramente de ajuste/preview. Estructura de navegación (sidebar
+     desktop + mobile topbar/bottomnav/panel "···") y estilos base
+     (paleta, tipografía) replicados de logistica.html v2.110 /
+     nav.js v1.17, sin alterar ninguno de los dos archivos compartidos.
+
+     v1.1: (1) el slider "Posición X" del logo se reemplazó por 3 botones
+     de alineación (Izquierda/Centro/Derecha) — más simple y consistente
+     con cómo se calcula la posición real en pintarHeader() de cada
+     página (ver logistica.html v2.111). (2) Se agregó un botón "Subir a
+     Cloudinary" junto a cada campo de ruta (logo/diffuser) — sube el
+     archivo con el mismo mecanismo unsigned que avatares-iconos.html
+     (cloud_name dv7lelmoy, preset ICONOS, folder propio HEADER) y
+     autocompleta el input de ruta con la URL resultante; seguir
+     escribiendo una ruta local a mano sigue funcionando igual que antes. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<script src="header-config.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --ok-bg:rgba(76,175,125,0.12);
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --ok-bg:rgba(58,143,99,0.10);
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+}
+main{padding:28px;max-width:900px;margin:0 auto;}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.card{
+  background:var(--surf);
+  border:1px solid var(--brd);
+  border-radius:10px;
+  padding:24px;
+  margin-bottom:20px;
+}
+.card h3{font-size:1.05rem;font-weight:600;color:var(--gold);margin-bottom:4px;}
+.card .sub{font-size:0.82rem;color:var(--muted);margin-bottom:18px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;letter-spacing:0.02em;}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);
+  padding:10px 12px;border-radius:6px;font-size:0.9rem;font-family:inherit;
+}
+.field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+.field-row{display:flex;align-items:center;gap:10px;}
+.field-row label{margin:0;font-size:0.82rem;color:var(--muted);flex:0 0 140px;}
+.field-row input[type="range"]{flex:1;}
+.field-row input[type="color"]{width:44px;height:36px;padding:2px;cursor:pointer;}
+.field-row input[type="checkbox"]{width:18px;height:18px;cursor:pointer;}
+.field-row + .field-row{margin-top:14px;}
+.btn{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  transition:all 0.2s;font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+#headerPreviewBox{
+  width:100%;max-width:800px;aspect-ratio:210/38;position:relative;overflow:hidden;
+  border-radius:4px;border:1px solid var(--brd);margin-top:6px;background:#0b0b0d;
+}
+#headerPreviewDiffuser{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+#headerPreviewColor{position:absolute;inset:0;}
+#headerPreviewLogo{position:absolute;left:4%;top:50%;transform:translateY(-50%);height:42%;width:auto;max-width:28%;object-fit:contain;}
+@media (max-width:640px){
+  .field-row{flex-wrap:wrap;}
+  .field-row label{flex:0 0 100%;}
+}
+/* v1.1: botones de alineación del logo (reemplazan slider Posición X) */
+.align-group{display:flex;gap:8px;flex:1;}
+.align-btn{
+  flex:1;background:var(--surf-light);border:1px solid var(--brd);color:var(--muted);
+  padding:9px 10px;border-radius:6px;font-size:0.82rem;cursor:pointer;
+  transition:all 0.2s;font-family:inherit;
+}
+.align-btn:hover{border-color:var(--gold);color:var(--txt);}
+.align-btn.activo{background:var(--gold-bg);border-color:var(--gold);color:var(--gold);font-weight:600;}
+/* v1.1: widget de subida a Cloudinary junto a cada campo de ruta */
+.upload-row{display:flex;gap:8px;margin-top:8px;align-items:center;}
+.upload-row input[type="file"]{display:none;}
+.upload-btn{
+  background:var(--surf-light);border:1px solid var(--brd);color:var(--muted);
+  padding:8px 14px;border-radius:6px;font-size:0.8rem;cursor:pointer;
+  transition:all 0.2s;font-family:inherit;white-space:nowrap;
+}
+.upload-btn:hover{border-color:var(--gold);color:var(--gold);}
+.upload-status{font-size:0.78rem;color:var(--muted);}
+.upload-status.ok{color:var(--ok);}
+.upload-status.err{color:var(--err);}
+</style>
+</head>
+<body>
+
+<script>
+window.NAV_CONFIG = { activo: 'header-config' };
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<main>
+
+  <div class="top-actions">
+    <h2>AJUSTES — HEADER PDF</h2>
+  </div>
+
+  <div class="card">
+    <h3>Logo y textura</h3>
+    <div class="sub">Rutas de las imágenes usadas en el header de todos los PDF del ecosistema.</div>
+
+    <div class="field">
+      <label for="logoPathInput">Ruta del logo</label>
+      <input type="text" id="logoPathInput" placeholder="ej: img/logo 1.png" title="Ruta/nombre del archivo del logo usado en el header de los PDF. Si cambias el logo, escribe acá su nueva ruta (tal cual, con espacios si los tiene) y se actualiza sin tocar código, o súbelo directo a Cloudinary con el botón de abajo." onchange="actualizarLogoPath(this.value)">
+      <div class="upload-row">
+        <input type="file" id="logoFileInput" accept="image/*" onchange="manejarSubidaHeader(this, 'logo')">
+        <button type="button" class="upload-btn" onclick="document.getElementById('logoFileInput').click()" title="Sube el logo directo a Cloudinary (carpeta HEADER) y autocompleta la ruta de arriba con la URL resultante.">☁️ Subir a Cloudinary</button>
+        <span class="upload-status" id="logoUploadStatus"></span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="diffuserPathInput">Ruta del diffuser</label>
+      <input type="text" id="diffuserPathInput" placeholder="ej: img/DIFFUSER.jpg" title="Ruta/nombre del archivo de textura de fondo (DIFFUSER) usado en el header de los PDF. Si cambias la textura, escribe acá su nueva ruta y se actualiza sin tocar código, o súbela directo a Cloudinary con el botón de abajo." onchange="actualizarDiffuserPath(this.value)">
+      <div class="upload-row">
+        <input type="file" id="diffuserFileInput" accept="image/*" onchange="manejarSubidaHeader(this, 'diffuser')">
+        <button type="button" class="upload-btn" onclick="document.getElementById('diffuserFileInput').click()" title="Sube el diffuser directo a Cloudinary (carpeta HEADER) y autocompleta la ruta de arriba con la URL resultante.">☁️ Subir a Cloudinary</button>
+        <span class="upload-status" id="diffuserUploadStatus"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Color y opacidades</h3>
+    <div class="sub">Fondo del header en ambos PDF (Cliente e Interno).</div>
+
+    <div class="field-row">
+      <label for="headerColorInput">Color header PDF</label>
+      <input type="color" id="headerColorInput" title="Color de fondo del header en ambos PDF. Si cambias el logo y no combina con el dorado/oscuro, ajusta acá el color de fondo." onchange="actualizarHeaderColor(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="headerColorOpacityInput">Opacidad color</label>
+      <input type="range" id="headerColorOpacityInput" min="0" max="1" step="0.05" title="Opacidad del overlay de color que va ENCIMA de la textura del header. 0 = invisible, 1 = totalmente sólido." onchange="actualizarHeaderColorOpacity(this.value)" oninput="actualizarHeaderColorOpacity(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="headerDiffuserOpacityInput">Opacidad diffuser</label>
+      <input type="range" id="headerDiffuserOpacityInput" min="0" max="1" step="0.05" title="Opacidad de la textura de fondo (DIFFUSER) en sí, antes del overlay de color. 0 = invisible, 1 = totalmente visible." onchange="actualizarHeaderDiffuserOpacity(this.value)" oninput="actualizarHeaderDiffuserOpacity(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="headerSinFondoInput">Sin fondo (ahorra tinta)</label>
+      <input type="checkbox" id="headerSinFondoInput" title="Exporta el header de ambos PDF sin el fondo de color (queda blanco) — ahorra tinta al imprimir. Logo, línea dorada y textos se mantienen igual." onchange="actualizarHeaderSinFondo(this.checked)">
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Tamaño y posición del logo</h3>
+    <div class="sub">Medidas en milímetros, sobre el header real de 210×38mm.</div>
+
+    <div class="field-row">
+      <label for="logoSizeInput">Tamaño logo</label>
+      <input type="range" id="logoSizeInput" min="8" max="30" step="0.5" title="Alto del logo en el header de ambos PDF, en milímetros. El ancho se ajusta automáticamente según la proporción real de la imagen." onchange="actualizarLogoSize(this.value)" oninput="actualizarLogoSize(this.value)">
+    </div>
+    <div class="field-row">
+      <label>Alineación</label>
+      <div class="align-group">
+        <button type="button" class="align-btn" data-logo-align="izquierda" title="Logo pegado al margen izquierdo del header." onclick="actualizarLogoAlign('izquierda')">⬅ Izquierda</button>
+        <button type="button" class="align-btn" data-logo-align="centro" title="Logo centrado horizontalmente en el header." onclick="actualizarLogoAlign('centro')">⬌ Centro</button>
+        <button type="button" class="align-btn" data-logo-align="derecha" title="Logo pegado al margen derecho, dejando espacio para no chocar con el subtítulo de texto." onclick="actualizarLogoAlign('derecha')">➡ Derecha</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <label for="logoOffsetYInput">Posición Y</label>
+      <input type="range" id="logoOffsetYInput" min="-10" max="10" step="0.5" title="Desplazamiento vertical del logo (en mm) respecto al centro del header." onchange="actualizarLogoOffsetY(this.value)" oninput="actualizarLogoOffsetY(this.value)">
+    </div>
+
+    <button type="button" class="btn" style="margin-top:6px;" title="Restablece color, opacidades, tamaño y posición del logo a sus valores por defecto (no toca las rutas de logo/diffuser)." onclick="resetearHeaderDefaults()">↺ Restablecer</button>
+  </div>
+
+  <div class="card">
+    <h3>Preview</h3>
+    <div class="sub">Proporción real del header del PDF (210×38mm) — puramente visual, no genera PDF.</div>
+    <div id="headerPreviewBox">
+      <img id="headerPreviewDiffuser" src="" alt="">
+      <div id="headerPreviewColor"></div>
+      <img id="headerPreviewLogo" src="" alt="">
+      <div style="position:absolute;left:0;right:0;bottom:0;height:2.5%;background:var(--gold);"></div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  inicializarHeaderConfig();
+});
+
+// v1.1: conecta el <input type="file"> con subirImagenHeaderACloudinary()
+// de header-config.js — solo maneja el estado visual (texto de progreso),
+// toda la lógica de subida/guardado vive en el .js.
+function manejarSubidaHeader(inputFile, tipo){
+  const file = inputFile.files && inputFile.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById(tipo === 'logo' ? 'logoUploadStatus' : 'diffuserUploadStatus');
+  if(statusEl){ statusEl.textContent = 'Subiendo…'; statusEl.className = 'upload-status'; }
+
+  subirImagenHeaderACloudinary(file, tipo)
+    .then(() => {
+      if(statusEl){ statusEl.textContent = '✓ Subido'; statusEl.className = 'upload-status ok'; }
+    })
+    .catch(err => {
+      if(statusEl){ statusEl.textContent = 'Error al subir'; statusEl.className = 'upload-status err'; }
+      alert('No se pudo subir la imagen: ' + err.message + '\n\nVerifica que el upload preset "ICONOS" exista y sea de tipo Unsigned en Cloudinary.');
+    })
+    .finally(() => { inputFile.value = ''; });
+}
+</script>
+
+</body>
+</html>

@@ -103,6 +103,28 @@ se agrega .sb-grupo-label — encabezado de sección para el sidebar de
 escritorio agrupado (ver nav.js v1.7). Solo aplica al sidebar;
 mobile-bottomnav y panel "···" no se tocaron.
 
+## header-config.js
+
+### v1.0
+archivo nuevo — extraído de logistica.html v2.109. Centraliza la lógica
+compartida de configuración del header de PDF (logo, diffuser, color,
+opacidades, tamaño/posición del logo) para reutilizar en todo el
+ecosistema (proyecto.html, cotizador.html, egresos.html, etc.) cuando
+exporten PDF con el mismo tipo de header. Expone las constantes/
+variables globales (LOGO_SIZE, HEADER_COLOR_RGB, etc.), las funciones
+actualizar*() de cada input, actualizarHeaderPreview() (preview visual
+en CSS, no genera PDF), inicializarHeaderConfig() (restaura todo desde
+localStorage — cada página consumidora la llama en su propio
+DOMContentLoaded) y resetearHeaderDefaults() (nueva, restablece color/
+opacidades/tamaño/posición a sus valores por defecto y limpia esas
+claves de localStorage; no toca las rutas de logo/diffuser). No incluye
+pintarHeader() en sí (la función jsPDF que dibuja el PDF) — esa se
+queda en cada página consumidora, leyendo estas variables globales
+igual que antes, porque cada PDF puede tener detalles propios (tamaños
+de página, textos, badges). Requiere en el HTML consumidor los inputs
+con los IDs documentados en la cabecera del archivo, y opcionalmente el
+preview (#headerPreviewBox y sus hijos).
+
 ## proyecto.html
 
 ### v4.22
@@ -863,6 +885,25 @@ no migrado a este changelog).
 ---
 
 ## logistica.html
+
+### v2.110
+se extrae el bloque de configuración del header de PDF (logo, diffuser,
+color, opacidades, tamaño/posición del logo — constantes, variables
+globales, funciones actualizar*(), actualizarHeaderPreview() y la
+restauración desde localStorage) a un archivo nuevo, header-config.js
+v1.0, para reutilizarlo en el resto del ecosistema sin duplicar la
+lógica en cada HTML que exporte PDF con el mismo tipo de header. Se
+agrega `<script src="header-config.js">` y el DOMContentLoaded propio
+ahora solo llama a inicializarHeaderConfig(). pintarHeader() (la lógica
+jsPDF que realmente dibuja el PDF, dentro de exportarPDF() y
+exportarPDFSesion()) no se tocó — sigue en este archivo, leyendo las
+mismas variables globales que ahora provee header-config.js. Se agrega
+también el botón "↺ Restablecer" en el panel de configuración,
+enganchado a la función nueva resetearHeaderDefaults() (restablece
+color/opacidades/tamaño/posición del logo a sus valores por defecto y
+limpia esas claves de localStorage; no toca las rutas de logo/diffuser,
+eso se considera contenido, no aspecto). No se tocó el resto del
+archivo.
 
 ### v2.40
 se quita la copia local de escapeHtml() — ya se cargaba

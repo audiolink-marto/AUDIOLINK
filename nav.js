@@ -1,4 +1,14 @@
-/* AUDIOLINK · nav.js · v1.16
+/* AUDIOLINK · nav.js · v1.17
+   V1.17: nuevo grupo colapsable "Ajustes" en el acordeón (sidebar
+   desktop + panel "···" móvil), junto a Gestión/Catálogos/Operación/
+   Finanzas. Se agrega el ítem "Header PDF" (header-config.html, panel
+   centralizado de logo/diffuser/color/opacidades — ver header-config.js
+   v1.0) y se mueve "Avatar / Icono" (antes grupo:null, suelto al
+   final) a este mismo grupo nuevo. Ambos se suman a idsFueraBottomnav
+   (avatares ya estaba) para no saturar la barra inferior móvil de 4
+   accesos — quedan accesibles por sidebar desktop y panel "···" móvil.
+   No se tocó ninguna otra función, ítem ni la lógica de
+   inyección/colapsar/tema existente.
    V1.16: badge de "N cambios pendientes" (Fase 2 offline), junto al
    conn-dot en sidebar y topbar. Lee obtenerColaCambiosOffline() +
    obtenerConflictosOffline() de offline-mock.js (si no está cargado en
@@ -195,7 +205,8 @@
     { id:'eventos',   href:'eventos.html',   icon:'🎤', label:'Eventos',   grupo:'Operación' },
     { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador',  grupo:'Finanzas' },
     { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas',     grupo:'Operación' },
-    { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono', grupo:null }
+    { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono', grupo:'Ajustes' },
+    { id:'header-config', href:'header-config.html', icon:'🖼️', label:'Header PDF', grupo:'Ajustes' }
   ];
 
   // Ítems que se sacan del mobile-bottomnav (para no saturar la barra de 4
@@ -203,7 +214,7 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares', 'cotizador'];
+  const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares', 'cotizador', 'header-config'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
   // v1.13: mismo ícono, clase extra para poder cambiarle el color según
@@ -237,7 +248,7 @@
   // filtra ITEMS conservando su orden original — no se reordena ni
   // se toca la lista plana ITEMS (de la que dependen el mobile-bottomnav
   // y el panel "···", que siguen exactamente igual que antes).
-  const GRUPOS_ORDEN = ['Gestión', 'Catálogos', 'Operación', 'Finanzas'];
+  const GRUPOS_ORDEN = ['Gestión', 'Catálogos', 'Operación', 'Finanzas', 'Ajustes'];
   function sbNavGroupedHtml(){
     let html = '';
     // Dashboard (primer ítem sin grupo) va suelto arriba, en su lugar original

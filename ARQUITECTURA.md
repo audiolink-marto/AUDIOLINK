@@ -149,7 +149,61 @@ fuente antes de copiar este patrón a un catálogo nuevo.
 
 ---
 
-## 5. Modo offline (planeado — no implementado aún, agosto 2026)
+## 5. Patrón: lógica de header de PDF compartida entre páginas (agosto 2026)
+
+Implementado por primera vez al extraer el bloque de configuración del
+header de PDF de `logistica.html` (v2.109 → v2.110) a un archivo nuevo,
+`header-config.js` v1.0. Queda documentado acá porque es el primer caso
+de lógica de UI/config (no solo utilidades puras como `escapeHtml()` en
+`utils.js`) que se comparte entre páginas — el próximo archivo que
+exporte PDF con un header parecido (`proyecto.html`, `cotizador.html`,
+`egresos.html`, etc.) puede copiar este patrón en vez de reinventarlo.
+
+### Qué se centraliza y qué no
+`header-config.js` contiene todo lo que es **configuración del
+aspecto** del header: constantes por defecto, variables globales
+(`LOGO_SIZE`, `HEADER_COLOR_RGB`, etc.), las funciones `actualizar*()`
+de cada input, el preview visual en CSS (`actualizarHeaderPreview()` —
+no genera PDF), la restauración desde `localStorage`
+(`inicializarHeaderConfig()`) y el reset a valores por defecto
+(`resetearHeaderDefaults()`).
+
+`pintarHeader()` — la función jsPDF que realmente dibuja el header
+dentro del PDF — **no se centraliza**, queda en cada página consumidora.
+Razón: cada PDF puede tener detalles propios (tamaño de página, textos,
+badges) que no vale la pena forzar a un molde común; `pintarHeader()`
+simplemente lee las mismas variables globales que antes, ahora provistas
+por el archivo compartido en vez de definidas localmente.
+
+### Cómo conectar una página nueva a este patrón
+1. Agregar `<script src="header-config.js"></script>` en el `<head>`,
+   junto a `utils.js`/`firebase-config.js`.
+2. Reproducir en el HTML los inputs con los IDs que `header-config.js`
+   espera (documentados en su propia cabecera): `logoPathInput`,
+   `diffuserPathInput`, `headerColorInput`, `headerSinFondoInput`,
+   `headerColorOpacityInput`, `headerDiffuserOpacityInput`,
+   `logoSizeInput`, `logoOffsetXInput`, `logoOffsetYInput` — solo los
+   que apliquen a esa página. El preview (`#headerPreviewBox` y sus
+   hijos) es opcional.
+3. Llamar `inicializarHeaderConfig()` dentro del propio
+   `DOMContentLoaded` de la página consumidora (no antes — los inputs
+   deben existir ya en el DOM).
+4. Adaptar el `pintarHeader()` propio de esa página para leer las
+   variables globales (`LOGO_SIZE`, `HEADER_COLOR_RGB`, etc.) en vez de
+   sus propias constantes locales — sin duplicar la lógica de
+   configuración.
+
+### Por qué importa
+Antes de este patrón, cada página que exportara PDF con header
+hubiera reinventado su propio bloque de constantes/inputs/localStorage
+(como ya pasaba con `escapeHtml()` antes de migrarse a `utils.js`).
+Centralizar solo la parte de configuración —sin forzar a centralizar el
+dibujo del PDF, que sí varía por página— evita esa duplicación sin
+perder la flexibilidad de cada `pintarHeader()`.
+
+---
+
+## 6. Modo offline (planeado — no implementado aún, agosto 2026)
 
 Necesidad: poder trabajar en entornos remotos sin señal (uso frecuente,
 no solo viajes ocasionales). Diseño acordado antes de tocar código, para
