@@ -3,8 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.104)</title>
-<!-- AUDIOLINK · logistica.html · v2.104
+<title>Audiolink — Logística (v2.106)</title>
+<!-- AUDIOLINK · logistica.html · v2.106
+     v2.106: nuevo checkbox #headerSinFondoInput ("Sin fondo — ahorra
+     tinta"), junto a logo/color. actualizarHeaderSinFondo() guarda en
+     localStorage (audiolink_header_sin_fondo) y setea HEADER_SIN_FONDO;
+     se restaura al cargar. Cuando está activo, pintarHeader() (en
+     exportarPDF() y exportarPDFSesion()) se salta por completo el bloque
+     de fondo (color HEADER_COLOR_RGB Y textura DIFFUSER.jpg) — header
+     queda blanco, logo + línea dorada + textos igual que siempre. No se
+     tocó el resto de pintarHeader() ni pintarFooter().
+
+     v2.105: logo y color de fondo del header del PDF ahora configurables
+     desde la UI, sin tocar código. Nuevo #logoPathInput funcional
+     (actualizarLogoPath) y nuevo #headerColorInput (actualizarHeaderColor),
+     junto a los botones de PDF. Ambos persisten en localStorage
+     (audiolink_logo_path / audiolink_header_color) y se restauran al
+     cargar la página. darkRGB/dark en pintarHeader() (exportarPDF() y
+     exportarPDFSesion()) ahora leen HEADER_COLOR_RGB en vez de estar fijos
+     en [11,11,13]; si no hay color guardado, cae al mismo dark de
+     siempre. No se tocó el logo de DIFFUSER.jpg, la textura/opacidad del
+     header, ni ninguna otra lógica de exportarPDF()/exportarPDFSesion().
+
      v2.104: FIX del logo del header de ambos PDFs (exportarPDF() y
      exportarPDFSesion()) — con el logo ya cargando bien (v2.103), se
      veía estirado horizontalmente porque el código lo dibujaba siempre
@@ -1241,6 +1261,60 @@
   document.documentElement.setAttribute('data-tema', tema);
 })();
 </script>
+<script>
+// v2.105: logo y color de header del PDF configurables sin tocar código.
+// Persisten en localStorage (audiolink_logo_path / audiolink_header_color,
+// mismo criterio que audiolink_tema). No afectan exportarPDF() ni
+// exportarPDFSesion() directamente: esas funciones siguen leyendo
+// #hdrLogo.src y HEADER_COLOR_RGB tal cual estaban, solo cambia el origen
+// del valor.
+const LOGO_PATH_DEFAULT = 'img/logo%201.png';
+const HEADER_COLOR_DEFAULT = '#0b0b0d';
+let HEADER_COLOR_RGB = [11, 11, 13]; // se recalcula abajo desde localStorage
+let HEADER_SIN_FONDO = false; // v2.106: se recalcula abajo desde localStorage
+
+function hexToRgbArray(hex){
+  const n = parseInt(hex.replace('#',''), 16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
+
+function actualizarLogoPath(valor){
+  const ruta = (valor || '').trim();
+  localStorage.setItem('audiolink_logo_path', ruta);
+  const imgLogo = document.getElementById('hdrLogo');
+  if(imgLogo) imgLogo.src = ruta || LOGO_PATH_DEFAULT;
+}
+
+function actualizarHeaderColor(valor){
+  const hex = valor || HEADER_COLOR_DEFAULT;
+  localStorage.setItem('audiolink_header_color', hex);
+  HEADER_COLOR_RGB = hexToRgbArray(hex);
+}
+
+function actualizarHeaderSinFondo(activo){
+  localStorage.setItem('audiolink_header_sin_fondo', activo ? '1' : '0');
+  HEADER_SIN_FONDO = !!activo;
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  const rutaGuardada = localStorage.getItem('audiolink_logo_path');
+  const inputLogo = document.getElementById('logoPathInput');
+  if(rutaGuardada){
+    if(inputLogo) inputLogo.value = rutaGuardada;
+    const imgLogo = document.getElementById('hdrLogo');
+    if(imgLogo) imgLogo.src = rutaGuardada;
+  }
+  const colorGuardado = localStorage.getItem('audiolink_header_color') || HEADER_COLOR_DEFAULT;
+  const inputColor = document.getElementById('headerColorInput');
+  if(inputColor) inputColor.value = colorGuardado;
+  HEADER_COLOR_RGB = hexToRgbArray(colorGuardado);
+
+  const sinFondoGuardado = localStorage.getItem('audiolink_header_sin_fondo') === '1';
+  const inputSinFondo = document.getElementById('headerSinFondoInput');
+  if(inputSinFondo) inputSinFondo.checked = sinFondoGuardado;
+  HEADER_SIN_FONDO = sinFondoGuardado;
+});
+</script>
 <style>
 :root{
   --bg:#0b0b0d;
@@ -1819,9 +1893,20 @@ window.NAV_CONFIG = { activo: 'logistica' };
     <button class="btn" onclick="abrirModalNuevo()" id="btnNueva" style="display:none;">+ Nueva sesión</button>
   </div>
 
-  <div class="pdf-actions" id="pdfActionsTop" style="display:none;margin-top:-14px;margin-bottom:20px;">
+  <div class="pdf-actions" id="pdfActionsTop" style="display:none;margin-top:-14px;margin-bottom:20px;align-items:center;gap:10px;flex-wrap:wrap;">
     <button class="btn btn-ghost" onclick="exportarPDF('cliente')">📄 PDF Cliente</button>
     <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
+    <div class="field" style="margin:0;min-width:220px;flex:0 1 260px;">
+      <input type="text" id="logoPathInput" placeholder="Ruta del logo — ej: img/logo 1.png" title="Ruta/nombre del archivo del logo usado en el header de los PDF. Si cambias el logo, escribe acá su nueva ruta (tal cual, con espacios si los tiene) y se actualiza sin tocar código." onchange="actualizarLogoPath(this.value)">
+    </div>
+    <div class="field" style="margin:0;display:flex;align-items:center;gap:6px;">
+      <label for="headerColorInput" style="margin:0;font-size:12px;">Color header PDF</label>
+      <input type="color" id="headerColorInput" title="Color de fondo del header en ambos PDF (Cliente e Interno). Si cambias el logo y no combina con el dorado/oscuro, ajusta acá el color de fondo." onchange="actualizarHeaderColor(this.value)">
+    </div>
+    <div class="field" style="margin:0;display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" id="headerSinFondoInput" title="Exporta el header de ambos PDF sin el fondo de color (queda blanco) — ahorra tinta al imprimir. Logo, línea dorada y textos se mantienen igual." onchange="actualizarHeaderSinFondo(this.checked)">
+      <label for="headerSinFondoInput" style="margin:0;font-size:12px;">Sin fondo (ahorra tinta)</label>
+    </div>
   </div>
 
   <div class="sesiones-dash" id="sesionesDash" style="display:none;"></div>
@@ -4042,7 +4127,7 @@ function exportarPDF(modo){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   const goldRGB = [201, 162, 75];
-  const darkRGB = [11, 11, 13];
+  const darkRGB = HEADER_COLOR_RGB; // v2.105: antes fijo [11,11,13], ahora configurable
   const mutedRGB = [154, 151, 143];
   const pageW = 210;
   const pageHFull = 297;
@@ -4052,17 +4137,22 @@ function exportarPDF(modo){
   const sesionesFiltradas = modo === 'interno' ? sesiones : sesiones.filter(s => s.visibleCliente !== false);
 
   function pintarHeader(){
-    // Fondo: img DIFFUSER pasado directo a jsPDF, o rect oscuro como fallback
-    if(diffuserOk){
-      doc.addImage(imgDiffuser, 'JPEG', 0, 0, pageW, headerH);
-      doc.saveGraphicsState();
-      doc.setGState(new doc.GState({ opacity: 0.62 }));
-      doc.setFillColor(...darkRGB);
-      doc.rect(0, 0, pageW, headerH, 'F');
-      doc.restoreGraphicsState();
-    } else {
-      doc.setFillColor(...darkRGB);
-      doc.rect(0, 0, pageW, headerH, 'F');
+    // v2.106: si HEADER_SIN_FONDO está activo, se omite el fondo (color y
+    // textura DIFFUSER) para ahorrar tinta al imprimir — header queda
+    // blanco, con logo + línea dorada + textos igual que siempre.
+    if(!HEADER_SIN_FONDO){
+      // Fondo: img DIFFUSER pasado directo a jsPDF, o rect oscuro como fallback
+      if(diffuserOk){
+        doc.addImage(imgDiffuser, 'JPEG', 0, 0, pageW, headerH);
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.62 }));
+        doc.setFillColor(...darkRGB);
+        doc.rect(0, 0, pageW, headerH, 'F');
+        doc.restoreGraphicsState();
+      } else {
+        doc.setFillColor(...darkRGB);
+        doc.rect(0, 0, pageW, headerH, 'F');
+      }
     }
     // Línea dorada inferior
     doc.setDrawColor(...goldRGB);
@@ -4213,7 +4303,7 @@ function exportarPDFSesion(sesionId, modo){
   // --- Paleta ---
   const gold    = [201, 162, 75];
   const goldBg  = [252, 248, 238];   // fondo suave dorado
-  const dark    = [11, 11, 13];
+  const dark    = HEADER_COLOR_RGB; // v2.105: antes fijo [11,11,13], ahora configurable
   const muted   = [154, 151, 143];
   const ink     = [30, 30, 30];
   const inkMid  = [80, 80, 80];
@@ -4267,17 +4357,22 @@ function exportarPDFSesion(sesionId, modo){
   // ---- Header (v2.97: img element directo a jsPDF) ----
   const headerHSesion = 40;
   function pintarHeader(){
-    // Fondo: img DIFFUSER pasado directo a jsPDF, o rect oscuro como fallback
-    if(diffuserOk){
-      doc.addImage(imgDiffuser, 'JPEG', 0, 0, pageW, headerHSesion);
-      doc.saveGraphicsState();
-      doc.setGState(new doc.GState({ opacity: 0.62 }));
-      doc.setFillColor(...dark);
-      doc.rect(0, 0, pageW, headerHSesion, 'F');
-      doc.restoreGraphicsState();
-    } else {
-      doc.setFillColor(...dark);
-      doc.rect(0, 0, pageW, headerHSesion, 'F');
+    // v2.106: si HEADER_SIN_FONDO está activo, se omite el fondo (color y
+    // textura DIFFUSER) para ahorrar tinta al imprimir — header queda
+    // blanco, con logo + línea dorada + textos igual que siempre.
+    if(!HEADER_SIN_FONDO){
+      // Fondo: img DIFFUSER pasado directo a jsPDF, o rect oscuro como fallback
+      if(diffuserOk){
+        doc.addImage(imgDiffuser, 'JPEG', 0, 0, pageW, headerHSesion);
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.62 }));
+        doc.setFillColor(...dark);
+        doc.rect(0, 0, pageW, headerHSesion, 'F');
+        doc.restoreGraphicsState();
+      } else {
+        doc.setFillColor(...dark);
+        doc.rect(0, 0, pageW, headerHSesion, 'F');
+      }
     }
     // Línea dorada inferior
     doc.setDrawColor(...gold);
