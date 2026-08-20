@@ -1,4 +1,4 @@
-// AUDIOLINK · header-config.js · v1.1
+// AUDIOLINK · header-config.js · v1.2
 // Lógica compartida de configuración del header de PDF (logo, diffuser,
 // color, opacidades, tamaño/alineación del logo) — extraída de logistica.html
 // v2.109 para reutilizar en todo el ecosistema (proyecto.html, cotizador.html,
@@ -13,6 +13,14 @@
 // que avatares-iconos.html, folder propio 'HEADER') — al subir, se guarda la
 // URL resultante en el mismo input de ruta de siempre, sin tocar el resto
 // del flujo (localStorage, preview, pintarHeader() de cada página).
+//
+// v1.2: cada subida a Cloudinary ahora también registra un documento en
+// Firestore (colección 'headerImagenes') y se agregó escucharGaleriaHeader()
+// para listar en tiempo real las imágenes ya subidas — ver
+// header-config.html v1.2 para los contenedores #logoGaleria/#diffuserGaleria
+// y la carga de Firebase que esto requiere. Si la página consumidora no
+// carga Firebase (no define `db`), todo lo demás sigue funcionando igual,
+// solo se omite la galería.
 //
 // Requiere en el HTML consumidor:
 //   - Inputs con estos IDs (los que apliquen): logoPathInput,
@@ -244,6 +252,8 @@ function inicializarHeaderConfig(){
   if(inputLogoOffsetY) inputLogoOffsetY.value = LOGO_OFFSET_Y;
 
   actualizarHeaderPreview();
+  // v1.1: enciende la galería de imágenes ya subidas (si `db` existe)
+  escucharGaleriaHeader();
 }
 
 function resetearHeaderDefaults(){
@@ -294,6 +304,17 @@ function resetearHeaderDefaults(){
 // mismo flujo de siempre (localStorage + preview + imagen oculta que lee
 // pintarHeader() de cada página) — no se crea ningún mecanismo nuevo de
 // guardado, solo se autocompleta el input existente.
+//
+// v1.1 (galería): además guarda un registro en Firestore (colección
+// 'headerImagenes', separada de 'avataresIconos' de avatares-iconos.html)
+// para poder listar y reutilizar imágenes ya subidas — ver
+// escucharGaleriaHeader() más abajo. Requiere que el HTML consumidor
+// (header-config.html) cargue Firebase antes de header-config.js y
+// exponga una variable global `db`; si no existe (ej. una página
+// consumidora que no cargue Firebase), la subida a Cloudinary sigue
+// funcionando igual, solo se omite el guardado en la galería.
+const HEADER_IMG_COLLECTION = 'headerImagenes';
+
 function subirImagenHeaderACloudinary(file, tipo){
   // tipo: 'logo' | 'diffuser'
   return new Promise((resolve, reject) => {
@@ -321,6 +342,16 @@ function subirImagenHeaderACloudinary(file, tipo){
           if(input) input.value = data.secure_url;
           actualizarDiffuserPath(data.secure_url);
         }
+        // v1.1: registro en Firestore para la galería de reutilización.
+        // Solo si `db` existe (evita romper páginas que no cargan Firebase).
+        if(typeof db !== 'undefined' && db){
+          db.collection(HEADER_IMG_COLLECTION).add({
+            nombre: file.name || 'imagen',
+            url: data.secure_url,
+            tipo: tipo,
+            fecha: new Date().toISOString()
+          }).catch(err => console.error('No se pudo registrar en la galería (headerImagenes):', err));
+        }
         resolve(data.secure_url);
       })
       .catch(err => {
@@ -328,4 +359,48 @@ function subirImagenHeaderACloudinary(file, tipo){
         reject(err);
       });
   });
+}
+
+// v1.1: galería de imágenes ya subidas (lee Firestore en tiempo real,
+// igual patrón que escucharCatalogo() de avatares-iconos.html). Requiere
+// contenedores #logoGaleria / #diffuserGaleria en el HTML consumidor.
+// Si `db` no existe, no hace nada (no rompe nada).
+function escucharGaleriaHeader(){
+  if(typeof db === 'undefined' || !db) return;
+  db.collection(HEADER_IMG_COLLECTION).orderBy('fecha', 'desc').onSnapshot(snap => {
+    const logos = [];
+    const diffusers = [];
+    snap.forEach(doc => {
+      const it = { id: doc.id, ...doc.data() };
+      if(it.tipo === 'logo') logos.push(it);
+      else if(it.tipo === 'diffuser') diffusers.push(it);
+    });
+    renderGaleriaHeader('logoGaleria', logos, 'logo');
+    renderGaleriaHeader('diffuserGaleria', diffusers, 'diffuser');
+  }, err => console.error('No se pudo leer la galería (headerImagenes):', err));
+}
+
+function renderGaleriaHeader(contenedorId, items, tipo){
+  const cont = document.getElementById(contenedorId);
+  if(!cont) return;
+  if(!items.length){
+    cont.innerHTML = '<span class="galeria-vacia">Aún no has subido imágenes acá.</span>';
+    return;
+  }
+  cont.innerHTML = items.map(it => `
+    <img src="${it.url}" title="${(it.nombre||'').replace(/"/g,'&quot;')}" class="galeria-thumb"
+      onclick="seleccionarDeGaleriaHeader('${tipo}', '${it.url.replace(/'/g,"\\'")}')">
+  `).join('');
+}
+
+function seleccionarDeGaleriaHeader(tipo, url){
+  if(tipo === 'logo'){
+    const input = document.getElementById('logoPathInput');
+    if(input) input.value = url;
+    actualizarLogoPath(url);
+  } else {
+    const input = document.getElementById('diffuserPathInput');
+    if(input) input.value = url;
+    actualizarDiffuserPath(url);
+  }
 }

@@ -1961,6 +1961,11 @@ window.NAV_CONFIG = { activo: 'logistica' };
       <button class="btn btn-ghost" style="display:none;" id="btnLinkConsentimiento" onclick="abrirPromptConsentimiento()">📝 Generar link de consentimiento</button>
       <button class="btn btn-ghost" style="display:none;" id="btnPdfSesionCliente" onclick="exportarPDFSesion(sesionActualId, 'cliente')">📄 PDF Sesión (Cliente)</button>
       <button class="btn btn-ghost" style="display:none;" id="btnPdfSesionInterno" onclick="exportarPDFSesion(sesionActualId, 'interno')">📄 PDF Sesión (Interno)</button>
+      <!-- v2.112: PILOTO — genera el mismo PDF vía HTML/CSS + window.print()
+           en vez de jsPDF, para comparar resultados (ver
+           exportarPDFSesionHTML() más abajo). No afecta a los 2 botones
+           de arriba. -->
+      <button class="btn btn-ghost" style="display:none;" id="btnPdfSesionPiloto" onclick="exportarPDFSesionHTML(sesionActualId, 'cliente')" title="Piloto: genera el PDF con el método HTML/CSS + impresión del navegador, en vez de jsPDF">🧪 PDF Sesión (piloto HTML)</button>
       <button class="btn btn-ghost" style="color:var(--err);border-color:var(--err);display:none;" id="btnEliminar" onclick="eliminarSesion()">Eliminar</button>
     </div>
     <div style="margin-bottom:8px;"></div>
@@ -2569,6 +2574,7 @@ function abrirModalNuevo(){
   document.getElementById('btnLinkConsentimiento').style.display = 'none';
   document.getElementById('btnPdfSesionCliente').style.display = 'none';
   document.getElementById('btnPdfSesionInterno').style.display = 'none';
+  document.getElementById('btnPdfSesionPiloto').style.display = 'none';
   limpiarFormulario();
   instrSesionKeys = [];
   instrGruposVisiblesSnapshot = instrSoloMarcados ? [] : null; // v2.99 — sesión nueva, arranca sin nada marcado
@@ -2612,6 +2618,7 @@ async function abrirModalEditar(id){
   document.getElementById('btnLinkConsentimiento').style.display = 'inline-block';
   document.getElementById('btnPdfSesionCliente').style.display = 'inline-block';
   document.getElementById('btnPdfSesionInterno').style.display = 'inline-block';
+  document.getElementById('btnPdfSesionPiloto').style.display = 'inline-block';
   document.getElementById('fFecha').value = s.fecha || '';
   await cargarCatalogoEstudiosSesion();
   document.getElementById('fEstudio').value = s.estudioId || '';
@@ -4671,7 +4678,241 @@ function exportarPDFSesion(sesionId, modo){
   pintarFooter();
   window.open(doc.output('bloburl'), '_blank');
 }
+
+// ============================================================
+// v2.112: PILOTO — PDF de sesión vía HTML/CSS (window.print())
+// ============================================================
+// Alternativa a exportarPDFSesion() (jsPDF) para evaluar el método
+// "imprimir desde el navegador" en este ecosistema. NO reemplaza ni
+// toca exportarPDFSesion() de arriba — es una función 100% aparte,
+// pensada para comparar resultados lado a lado. Reutiliza los mismos
+// datos (sesiones, proyectoData) y los mismos globals de header-config.js
+// (LOGO_SIZE, LOGO_ALIGN, LOGO_OFFSET_Y, HEADER_COLOR_RGB, HEADER_SIN_FONDO,
+// HEADER_COLOR_OPACITY, HEADER_DIFFUSER_OPACITY) para que el header se vea
+// consistente con el de jsPDF. Arma un <div> oculto con el contenido +
+// CSS de impresión (@media print) y dispara window.print(); el usuario
+// elige "Guardar como PDF" en el diálogo nativo del navegador.
+function exportarPDFSesionHTML(sesionId, modo){
+  if(!proyectoId || !proyectoData || !sesionId) return;
+  const s = sesiones.find(x => x.id === sesionId);
+  if(!s) return;
+
+  const rutaLogo = localStorage.getItem('audiolink_logo_path') || LOGO_PATH_DEFAULT;
+  const rutaDiffuser = localStorage.getItem('audiolink_diffuser_path') || DIFFUSER_PATH_DEFAULT;
+  const colorHeaderCss = `rgb(${HEADER_COLOR_RGB.join(',')})`;
+
+  const fechaLegible = s.fecha
+    ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'})
+    : '—';
+  const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  // Alineación del logo → mismo criterio que pintarHeader() de jsPDF
+  let logoJustify = 'flex-start';
+  if(LOGO_ALIGN === 'centro') logoJustify = 'center';
+  else if(LOGO_ALIGN === 'derecha') logoJustify = 'flex-end';
+
+  function esc(str){
+    return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---- Músicos ----
+  let htmlMusicos = '';
+  if(s.musicosAsignados && s.musicosAsignados.length){
+    htmlMusicos = `<div class="ph-seccion">
+      <div class="ph-titulo-seccion">Músicos asignados</div>
+      ${s.musicosAsignados.map(m => `
+        <div class="ph-fila">
+          <span class="ph-fila-label">${esc((m.instrumento||'MÚSICO').toUpperCase())}</span>
+          <span class="ph-fila-nombre">${esc(m.nombre || '—')}</span>
+          ${(modo === 'interno' && m.tarifa) ? `<span class="ph-fila-tarifa">${esc(formatCOP(m.tarifa))} × ${esc(m.canales || 1)} canal(es)</span>` : ''}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // ---- Técnicos ----
+  let htmlTecnicos = '';
+  if(s.tecnicosAsignados && s.tecnicosAsignados.length){
+    htmlTecnicos = `<div class="ph-seccion">
+      <div class="ph-titulo-seccion">Técnicos asignados</div>
+      ${s.tecnicosAsignados.map(t => `
+        <div class="ph-fila">
+          <span class="ph-fila-label">${esc((t.rol||'TÉCNICO').toUpperCase())}</span>
+          <span class="ph-fila-nombre">${esc(t.nombre || '—')}</span>
+          ${(modo === 'interno' && t.tarifa) ? `<span class="ph-fila-tarifa">${esc(formatCOP(t.tarifa))}</span>` : ''}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // ---- Instrumentación ----
+  let htmlInstrumentacion = '';
+  const gruposInstr = Array.isArray(s.instrumentacionSesion) ? s.instrumentacionSesion : [];
+  if(gruposInstr.length){
+    htmlInstrumentacion = `<div class="ph-seccion">
+      <div class="ph-titulo-seccion">Instrumentación</div>
+      ${gruposInstr.map(key => {
+        const piezas = (s.instrumentacionSesionPiezas && s.instrumentacionSesionPiezas[key]) || [];
+        const items = piezas.map(p => (p && typeof p === 'object') ? (p.nombre||'') : p).filter(Boolean);
+        return `<div class="ph-grupo-instr">
+          <div class="ph-grupo-nombre">${esc(labelGrupo(key).toUpperCase())}</div>
+          ${items.length ? `<ul class="ph-lista">${items.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : `<div class="ph-sin-piezas">Sin piezas registradas</div>`}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // ---- Nota interna ----
+  let htmlNota = '';
+  if(modo === 'interno' && s.notasInternas){
+    htmlNota = `<div class="ph-nota-interna">⚠ NOTA INTERNA<br>${esc(s.notasInternas).replace(/\n/g,'<br>')}</div>`;
+  }
+
+  // ---- Extras (estudio / tema) ----
+  let htmlExtras = '';
+  if(s.estudioNombre) htmlExtras += `<div class="ph-extra"><span>ESTUDIO</span>${esc(s.estudioNombre)}</div>`;
+  if(s.temaNombre) htmlExtras += `<div class="ph-extra"><span>TEMA</span>${esc(s.temaNombre)}</div>`;
+
+  const setupMin = Number(s.tiempoSetupMin) || 0;
+
+  const htmlDoc = `
+  <div class="ph-page">
+    <div class="ph-header" style="background:${HEADER_SIN_FONDO ? '#ffffff' : colorHeaderCss};">
+      ${(!HEADER_SIN_FONDO) ? `<img class="ph-header-diffuser" src="${esc(rutaDiffuser)}" style="opacity:${HEADER_DIFFUSER_OPACITY}">
+      <div class="ph-header-overlay" style="background:${colorHeaderCss};opacity:${HEADER_COLOR_OPACITY};"></div>` : ''}
+      <div class="ph-header-logo-wrap" style="justify-content:${logoJustify};">
+        <img class="ph-header-logo" src="${esc(rutaLogo)}" style="height:${LOGO_SIZE}mm;transform:translateY(${LOGO_OFFSET_Y}mm);">
+      </div>
+      ${modo === 'interno' ? `<div class="ph-badge-confidencial">CONFIDENCIAL</div>` : ''}
+      <div class="ph-header-textos">
+        <div>LOGÍSTICA · FICHA DE SESIÓN</div>
+        <div>${esc(fechaGeneracion)}</div>
+      </div>
+    </div>
+
+    <div class="ph-hero">
+      <div class="ph-hero-actividad">${esc(s.actividad || 'Sesión')}</div>
+      <div class="ph-hero-label">PROYECTO</div>
+      <div class="ph-hero-proyecto">${esc((proyectoData.nombre || '—').toUpperCase())}</div>
+      ${proyectoData.clienteArtista ? `<div class="ph-hero-cliente">${esc(proyectoData.clienteArtista.toUpperCase())}</div>` : ''}
+    </div>
+
+    <div class="ph-datos">
+      <div class="ph-horario">${esc(s.horaInicio || '--:--')} – ${esc(s.horaFin || '--:--')}
+        ${setupMin > 0 ? `<span class="ph-setup-pill">⏱ ${esc(setupMin)} min</span>` : ''}
+      </div>
+      <div class="ph-fecha-sala">${esc(fechaLegible)} · Sala: ${esc(s.sala || '—')}</div>
+      ${htmlExtras}
+    </div>
+
+    ${htmlMusicos}
+    ${htmlTecnicos}
+    ${htmlInstrumentacion}
+    ${htmlNota}
+
+    <div class="ph-footer">
+      <span>AUDIOLINK — Producción y Logística Musical</span>
+      <span>${modo === 'interno' ? 'Documento confidencial — uso interno' : 'Documento generado automáticamente'}</span>
+    </div>
+  </div>`;
+
+  let contenedor = document.getElementById('printPilotoSesion');
+  if(!contenedor){
+    contenedor = document.createElement('div');
+    contenedor.id = 'printPilotoSesion';
+    document.body.appendChild(contenedor);
+  }
+  contenedor.innerHTML = htmlDoc;
+  contenedor.classList.add('ph-activo');
+  window.print();
+  // Quita el bloque de impresión del flujo normal después de imprimir/cancelar
+  window.onafterprint = () => { contenedor.classList.remove('ph-activo'); };
+}
 </script>
+
+<!-- v2.112: PILOTO — estilos de impresión para exportarPDFSesionHTML().
+     #printPilotoSesion está oculto (display:none) fuera de @media print;
+     al imprimir, se oculta TODO lo demás de la página y solo se muestra
+     este bloque, con dimensiones tipo carta/A4 y saltos de página
+     controlados por CSS. No modifica ningún estilo existente del resto
+     del sitio (todas las reglas van prefijadas .ph-* / #printPilotoSesion). -->
+<style>
+#printPilotoSesion{ display:none; }
+#printPilotoSesion.ph-activo{ display:block; }
+@media print{
+  body *{ visibility:hidden; }
+  #printPilotoSesion, #printPilotoSesion *{ visibility:visible; }
+  #printPilotoSesion{ display:block; position:absolute; left:0; top:0; width:100%; }
+  @page{ size:A4; margin:0; }
+}
+.ph-page{
+  width:210mm; min-height:297mm; margin:0 auto; position:relative;
+  font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;
+  color:#1e1e1e; box-sizing:border-box; padding-bottom:20mm;
+}
+.ph-header{
+  position:relative; width:210mm; height:40mm; overflow:hidden;
+  border-bottom:0.7mm solid #c9a24b; box-sizing:border-box;
+}
+.ph-header-diffuser{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.ph-header-overlay{ position:absolute; inset:0; }
+.ph-header-logo-wrap{
+  position:absolute; inset:0; display:flex; align-items:center;
+  padding:0 18mm; box-sizing:border-box;
+}
+.ph-header-logo{ width:auto; object-fit:contain; }
+.ph-badge-confidencial{
+  position:absolute; top:9mm; right:18mm; background:#a03228; color:#fff;
+  font-size:6.5pt; font-weight:700; padding:2.5mm 4mm; border-radius:1.5mm;
+  letter-spacing:0.03em;
+}
+.ph-header-textos{
+  position:absolute; right:18mm; bottom:5mm; text-align:right;
+  font-size:7.5pt; color:#9a978f; line-height:1.7;
+}
+.ph-hero{
+  margin:8mm 18mm 0; background:#fcf8ee; border-radius:2.5mm; padding:5mm;
+}
+.ph-hero-actividad{ font-size:16pt; font-weight:700; color:#1e1e1e; margin-bottom:3mm; }
+.ph-hero-label{ font-size:7.5pt; color:#9a978f; margin-bottom:1mm; }
+.ph-hero-proyecto{ font-size:9pt; color:#a8823a; font-weight:500; }
+.ph-hero-cliente{ font-size:8pt; color:#9a978f; margin-top:2mm; }
+.ph-datos{
+  margin:4mm 18mm 0; background:#f6f4ef; border-radius:2.5mm; padding:5mm;
+}
+.ph-horario{ font-size:26pt; font-weight:700; color:#c9a24b; }
+.ph-setup-pill{
+  display:inline-block; background:#c9a24b; color:#fff; font-size:7pt; font-weight:700;
+  padding:1.5mm 3mm; border-radius:1.5mm; margin-left:3mm; vertical-align:middle;
+}
+.ph-fecha-sala{ font-size:9pt; color:#505050; margin-top:3mm; }
+.ph-extra{ font-size:8.5pt; color:#505050; margin-top:3mm; }
+.ph-extra span{ display:block; font-size:7pt; font-weight:700; color:#9a978f; margin-bottom:0.5mm; }
+.ph-seccion{ margin:6mm 18mm 0; }
+.ph-titulo-seccion{
+  font-size:7.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.04em;
+  text-transform:uppercase; border-bottom:0.4mm solid #c9a24b; padding-bottom:2mm; margin-bottom:3mm;
+}
+.ph-fila{
+  display:flex; align-items:center; gap:4mm; padding:2mm 3mm; font-size:9pt;
+}
+.ph-fila:nth-child(even){ background:#fffffe; }
+.ph-fila:nth-child(odd){ background:#faf9f6; }
+.ph-fila-label{ font-size:8pt; font-weight:700; color:#c9a24b; min-width:32mm; }
+.ph-fila-nombre{ flex:1; color:#1e1e1e; }
+.ph-fila-tarifa{ font-size:8pt; color:#787878; }
+.ph-grupo-instr{ margin-bottom:4mm; }
+.ph-grupo-nombre{ font-size:9pt; font-weight:700; color:#c9a24b; margin-bottom:1.5mm; }
+.ph-lista{ margin:0; padding-left:6mm; font-size:8.5pt; color:#505050; line-height:1.6; }
+.ph-sin-piezas{ font-size:8pt; color:#9a978f; padding-left:2mm; }
+.ph-nota-interna{
+  margin:6mm 18mm 0; background:#faebe8; color:#a03228; border-radius:2.5mm;
+  padding:5mm; font-size:8.5pt; line-height:1.6;
+}
+.ph-nota-interna{ font-weight:700; }
+.ph-footer{
+  position:absolute; bottom:0; left:18mm; right:18mm; display:flex; justify-content:space-between;
+  font-size:7pt; color:#9a978f; border-top:0.15mm solid #9a978f; padding-top:3mm;
+}
+</style>
 
 <!-- v2.96: imágenes del header PDF pre-cargadas vía <img> (funciona en
      local file://, Netlify y cualquier protocolo). onload convierte cada

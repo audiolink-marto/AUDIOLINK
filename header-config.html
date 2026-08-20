@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Header PDF (v1.1)</title>
+<title>Audiolink — Header PDF (v1.2)</title>
 <!-- AUDIOLINK · header-config.html · v1.1
      Panel centralizado de configuración del header de PDF (logo,
      diffuser, color, opacidades, tamaño/alineación del logo). Antes este
@@ -27,10 +27,30 @@
      archivo con el mismo mecanismo unsigned que avatares-iconos.html
      (cloud_name dv7lelmoy, preset ICONOS, folder propio HEADER) y
      autocompleta el input de ruta con la URL resultante; seguir
-     escribiendo una ruta local a mano sigue funcionando igual que antes. -->
+     escribiendo una ruta local a mano sigue funcionando igual que antes.
+
+     v1.2: se agrega Firebase/Firestore (mismos scripts y firebase-config.js
+     que logistica.html/avatares-iconos.html) para alimentar la galería de
+     "imágenes ya subidas" — colección Firestore 'headerImagenes', separada
+     de 'avataresIconos'. Cada imagen subida por Cloudinary queda ahí
+     registrada; debajo de cada campo de ruta aparecen sus miniaturas y un
+     clic la selecciona (ver escucharGaleriaHeader() en header-config.js). -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="nav.css">
+<!-- v1.2: mismo set de scripts Firebase que logistica.html / avatares-iconos.html,
+     necesarios para la galería de imágenes ya subidas (colección headerImagenes).
+     Nada de esto se toca ni se reconfigura — son los archivos compartidos
+     del ecosistema tal cual. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+firebase.initializeApp(firebaseConfig);
+const db = crearDB();
+</script>
 <script src="header-config.js"></script>
 <script>
 (function(){
@@ -142,6 +162,14 @@ main{padding:28px;max-width:900px;margin:0 auto;}
 .upload-status{font-size:0.78rem;color:var(--muted);}
 .upload-status.ok{color:var(--ok);}
 .upload-status.err{color:var(--err);}
+/* v1.2: galería de imágenes ya subidas (Firestore headerImagenes) */
+.galeria-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.galeria-thumb{
+  width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--brd);
+  cursor:pointer;transition:all 0.2s;background:var(--surf-light);
+}
+.galeria-thumb:hover{border-color:var(--gold);transform:scale(1.05);}
+.galeria-vacia{font-size:0.78rem;color:var(--faint);}
 </style>
 </head>
 <body>
@@ -171,6 +199,7 @@ window.NAV_CONFIG = { activo: 'header-config' };
         <button type="button" class="upload-btn" onclick="document.getElementById('logoFileInput').click()" title="Sube el logo directo a Cloudinary (carpeta HEADER) y autocompleta la ruta de arriba con la URL resultante.">☁️ Subir a Cloudinary</button>
         <span class="upload-status" id="logoUploadStatus"></span>
       </div>
+      <div class="galeria-row" id="logoGaleria"></div>
     </div>
     <div class="field">
       <label for="diffuserPathInput">Ruta del diffuser</label>
@@ -180,6 +209,7 @@ window.NAV_CONFIG = { activo: 'header-config' };
         <button type="button" class="upload-btn" onclick="document.getElementById('diffuserFileInput').click()" title="Sube el diffuser directo a Cloudinary (carpeta HEADER) y autocompleta la ruta de arriba con la URL resultante.">☁️ Subir a Cloudinary</button>
         <span class="upload-status" id="diffuserUploadStatus"></span>
       </div>
+      <div class="galeria-row" id="diffuserGaleria"></div>
     </div>
   </div>
 
