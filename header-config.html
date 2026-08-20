@@ -34,7 +34,16 @@
      "imágenes ya subidas" — colección Firestore 'headerImagenes', separada
      de 'avataresIconos'. Cada imagen subida por Cloudinary queda ahí
      registrada; debajo de cada campo de ruta aparecen sus miniaturas y un
-     clic la selecciona (ver escucharGaleriaHeader() en header-config.js). -->
+     clic la selecciona (ver escucharGaleriaHeader() en header-config.js).
+     También se agrega el GUARD DE SESIÓN (auth.onAuthStateChanged, mismo
+     patrón que avatares-iconos.html) — SIN ESTO, request.auth siempre
+     llegaba null a Firestore y la galería fallaba con "Missing or
+     insufficient permissions" sin importar las Rules. EFECTO COLATERAL a
+     tener en cuenta: antes de v1.2, header-config.html se podía abrir sin
+     login (no cargaba Firebase); desde v1.2, si no hay sesión de equipo
+     interno activa, redirige a login.html — igual que el resto de páginas
+     del ecosistema. El resto del panel (rutas, sliders, preview, subida a
+     Cloudinary) NO depende de la sesión y sigue funcionando igual. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="nav.css">
@@ -50,6 +59,7 @@
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = crearDB();
+const auth = firebase.auth();
 </script>
 <script src="header-config.js"></script>
 <script>
@@ -277,6 +287,37 @@ window.NAV_CONFIG = { activo: 'header-config' };
 document.addEventListener('DOMContentLoaded', function(){
   inicializarHeaderConfig();
 });
+
+// ============ GUARD DE SESIÓN (v1.2 — mismo patrón que avatares-iconos.html) ============
+// Sin esto, request.auth siempre llegaba null a Firestore (aunque las
+// Rules estuvieran bien) y la galería fallaba con "Missing or
+// insufficient permissions" — el resto del panel (rutas, sliders,
+// preview, subida a Cloudinary) no depende de esto y sigue funcionando
+// igual sin sesión; SOLO la galería de imágenes ya subidas requiere
+// estar logueado como equipo interno.
+if(typeof estaModoOfflineActivo === 'function' && estaModoOfflineActivo()){
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  escucharGaleriaHeader();
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){
+      window.location.href = 'login.html';
+      return;
+    }
+    try{
+      const doc = await db.collection('equipoInterno').doc(user.email).get();
+      if(!doc.exists || doc.data().activo !== true){
+        await auth.signOut();
+        window.location.href = 'login.html';
+        return;
+      }
+      escucharGaleriaHeader();
+    } catch(e){
+      console.error('Error validando sesión:', e);
+      window.location.href = 'login.html';
+    }
+  });
+}
 
 // v1.1: conecta el <input type="file"> con subirImagenHeaderACloudinary()
 // de header-config.js — solo maneja el estado visual (texto de progreso),

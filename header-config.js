@@ -1,4 +1,4 @@
-// AUDIOLINK · header-config.js · v1.2
+// AUDIOLINK · header-config.js · v1.3
 // Lógica compartida de configuración del header de PDF (logo, diffuser,
 // color, opacidades, tamaño/alineación del logo) — extraída de logistica.html
 // v2.109 para reutilizar en todo el ecosistema (proyecto.html, cotizador.html,
@@ -21,6 +21,13 @@
 // y la carga de Firebase que esto requiere. Si la página consumidora no
 // carga Firebase (no define `db`), todo lo demás sigue funcionando igual,
 // solo se omite la galería.
+//
+// v1.3: fix de folder — CLOUDINARY_UPLOAD_PRESET pasa de 'ICONOS' a
+// 'HEADER' (preset unsigned ya existente en Cloudinary con Asset folder
+// fijo = HEADER). El preset 'ICONOS' tiene su propio Asset folder fijo
+// (ICONOS), que Cloudinary prioriza sobre el parámetro `folder` del
+// FormData — por eso todas las subidas caían ahí sin importar
+// CLOUDINARY_FOLDER_HEADER. No se toca ningún otro flujo.
 //
 // Requiere en el HTML consumidor:
 //   - Inputs con estos IDs (los que apliquen): logoPathInput,
@@ -47,10 +54,10 @@ const LOGO_SIZE_DEFAULT = 16;
 const LOGO_ALIGN_DEFAULT = 'izquierda';
 const LOGO_OFFSET_Y_DEFAULT = 0;
 
-// v1.1: config Cloudinary — mismo cloud_name/preset unsigned que
-// avatares-iconos.html (CLOUDINARY_UPLOAD_PRESET 'ICONOS'), folder propio.
+// v1.3: config Cloudinary — preset unsigned propio 'HEADER' (antes
+// 'ICONOS', compartido con avatares-iconos.html; ver changelog v1.3).
 const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
-const CLOUDINARY_UPLOAD_PRESET = 'ICONOS';
+const CLOUDINARY_UPLOAD_PRESET = 'HEADER';
 const CLOUDINARY_FOLDER_HEADER = 'HEADER';
 
 let HEADER_COLOR_RGB = [11, 11, 13];
@@ -252,8 +259,10 @@ function inicializarHeaderConfig(){
   if(inputLogoOffsetY) inputLogoOffsetY.value = LOGO_OFFSET_Y;
 
   actualizarHeaderPreview();
-  // v1.1: enciende la galería de imágenes ya subidas (si `db` existe)
-  escucharGaleriaHeader();
+  // v1.2: la galería (escucharGaleriaHeader) YA NO se llama acá — necesita
+  // que la sesión de Firebase ya esté confirmada (ver guard de sesión en
+  // header-config.html), así que ese archivo la dispara directamente
+  // después de validar auth, no en cada inicializarHeaderConfig().
 }
 
 function resetearHeaderDefaults(){
@@ -297,9 +306,10 @@ function resetearHeaderDefaults(){
   actualizarHeaderPreview();
 }
 
-// ============ CLOUDINARY (v1.1) ============
-// Mismo mecanismo que avatares-iconos.html (fetch directo a la API,
-// unsigned preset 'ICONOS'), folder propio 'HEADER'. Al terminar, guarda
+// ============ CLOUDINARY (v1.3) ============
+// Mismo mecanismo que avatares-iconos.html (fetch directo a la API),
+// ahora con preset unsigned propio 'HEADER' (ver changelog v1.3), folder
+// propio 'HEADER'. Al terminar, guarda
 // la URL resultante en el input de ruta correspondiente y dispara el
 // mismo flujo de siempre (localStorage + preview + imagen oculta que lee
 // pintarHeader() de cada página) — no se crea ningún mecanismo nuevo de

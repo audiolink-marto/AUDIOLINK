@@ -3,8 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.112)</title>
-<!-- AUDIOLINK · logistica.html · v2.112
+<title>Audiolink — Logística (v2.124)</title>
+<!-- AUDIOLINK · logistica.html · v2.124
+     v2.124: ventana emergente de preview/impresión bajada a 700px de alto
+     (antes 760) y con resizable=yes,scrollbars=yes — el diálogo nativo de
+     "Imprimir" quedaba tapado por la barra de tareas de Windows en
+     pantallas más chicas; ahora se puede redimensionar/hacer scroll si
+     igual no cabe.
+     v2.123: ventana emergente de preview/impresión del PDF piloto de
+     760px de alto (antes 820) — mismo ancho (640), solo un poco más baja.
+     v2.122: el checkbox "Modo interno" pasa a clase .chk-pdf-modo (chip
+     con borde, acorde a los btn-ghost de al lado) en vez de estilos
+     inline sueltos; en mobile (@media max-width:640px) ocupa el 100% del
+     ancho como los botones, con más padding para mejor tap target.
+     También se reduce el tamaño de la ventana emergente de preview/
+     impresión del PDF piloto (de 880×1120 a 640×820).
+     v2.121: en el modal de sesión se ocultan definitivamente los 2 botones
+     jsPDF (PDF Sesión Cliente/Interno) — quedan en el código con
+     display:none fijo, ya no se reactivan en abrirModalEditar(). El botón
+     piloto HTML (exportarPDFSesionHTML) pasa a ser el único botón de PDF
+     de sesión, ahora acompañado de un checkbox "Modo interno" que decide
+     el modo ('cliente' si está desmarcado, 'interno' si está marcado) en
+     vez de necesitar 2 botones separados.
+     v2.120: @media print resetea el margin negativo de .ph-header (que en
+     pantalla sangra contra el padding de .ph-page) — al imprimir ese
+     padding lo reemplaza @page y el header quedaba recortado arriba.
      v2.112: pintarHeader() (dentro de exportarPDF() y exportarPDFSesion())
      ahora posiciona el logo horizontalmente según LOGO_ALIGN
      ('izquierda'|'centro'|'derecha', viene de header-config.js v1.1) en
@@ -1406,6 +1429,10 @@ header{
   .modal-actions-top button{flex:1 1 auto;}
   #btnEliminar{flex:1 1 100%;order:3;}
   .modal-actions.float-chip button{flex:0 0 auto;}
+  /* v2.122: el checkbox "Modo interno" del PDF piloto se comporta como
+     los botones de al lado en mobile — ancho completo, mismo alto/tap
+     target, para que no quede angosto ni descuadrado en la fila. */
+  .chk-pdf-modo{flex:1 1 100% !important;justify-content:center !important;padding:10px 14px !important;font-size:0.95rem !important;}
   /* v2.37: se aumenta un poco tipografía/área táctil de botones y
      campos de formulario en mobile — no toca botones chicos de utilidad
      (item-row, btn-mover-bitacora, etc.) ni el .field dentro de
@@ -1827,6 +1854,14 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   border-radius:6px;padding:0 12px;cursor:pointer;
 }
 .modal-actions-top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+/* v2.122: chip del checkbox "Modo interno" — mismo alto/borde/radio que
+   .btn-ghost de al lado para que no desentone en la fila de acciones. */
+.chk-pdf-modo{
+  display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;
+  border:1px solid var(--brd);border-radius:8px;padding:0 12px;
+  font-size:0.85rem;color:var(--txt-dim,#9a978f);white-space:nowrap;
+}
+.chk-pdf-modo input{width:16px;height:16px;cursor:pointer;accent-color:var(--acc,#c9a24b);}
 .modal-actions{
   display:flex;gap:10px;justify-content:flex-end;margin-top:24px;
 }
@@ -1959,13 +1994,20 @@ window.NAV_CONFIG = { activo: 'logistica' };
       <button class="btn btn-ghost" style="display:none;" id="btnAbrirBitacora" onclick="abrirBitacoraReportes(sesionActualId)">📋 Ir a bitácora</button>
       <button class="btn btn-ghost" style="display:none;" id="btnLinkBitacora" onclick="copiarLinkBitacora()">🔗 Copiar link bitácora</button>
       <button class="btn btn-ghost" style="display:none;" id="btnLinkConsentimiento" onclick="abrirPromptConsentimiento()">📝 Generar link de consentimiento</button>
+      <!-- v2.121: los 2 botones jsPDF (Cliente/Interno) quedan ocultos
+           permanentemente (display:none fijo, ya no se reactivan en
+           abrirModalEditar) — el botón piloto de abajo los reemplaza,
+           ahora con un checkbox "Modo interno" en vez de 2 botones. -->
       <button class="btn btn-ghost" style="display:none;" id="btnPdfSesionCliente" onclick="exportarPDFSesion(sesionActualId, 'cliente')">📄 PDF Sesión (Cliente)</button>
       <button class="btn btn-ghost" style="display:none;" id="btnPdfSesionInterno" onclick="exportarPDFSesion(sesionActualId, 'interno')">📄 PDF Sesión (Interno)</button>
       <!-- v2.112: PILOTO — genera el mismo PDF vía HTML/CSS + window.print()
-           en vez de jsPDF, para comparar resultados (ver
-           exportarPDFSesionHTML() más abajo). No afecta a los 2 botones
-           de arriba. -->
-      <button class="btn btn-ghost" style="display:none;" id="btnPdfSesionPiloto" onclick="exportarPDFSesionHTML(sesionActualId, 'cliente')" title="Piloto: genera el PDF con el método HTML/CSS + impresión del navegador, en vez de jsPDF">🧪 PDF Sesión (piloto HTML)</button>
+           en vez de jsPDF (ver exportarPDFSesionHTML() más abajo).
+           v2.121: único botón de PDF de sesión — el modo (cliente/interno)
+           ahora lo decide el checkbox #chkPdfSesionInterno de al lado. -->
+      <button class="btn btn-ghost" style="display:none;" id="btnPdfSesionPiloto" onclick="exportarPDFSesionHTML(sesionActualId, document.getElementById('chkPdfSesionInterno').checked ? 'interno' : 'cliente')" title="Genera el PDF de la sesión (HTML/CSS + impresión del navegador)">🧪 PDF Sesión</button>
+      <label class="chk-pdf-modo" style="display:none;" id="wrapChkPdfSesionInterno" title="Marca esta opción para incluir tarifas y notas internas en el PDF">
+        <input type="checkbox" id="chkPdfSesionInterno"> Modo interno
+      </label>
       <button class="btn btn-ghost" style="color:var(--err);border-color:var(--err);display:none;" id="btnEliminar" onclick="eliminarSesion()">Eliminar</button>
     </div>
     <div style="margin-bottom:8px;"></div>
@@ -2575,6 +2617,7 @@ function abrirModalNuevo(){
   document.getElementById('btnPdfSesionCliente').style.display = 'none';
   document.getElementById('btnPdfSesionInterno').style.display = 'none';
   document.getElementById('btnPdfSesionPiloto').style.display = 'none';
+  document.getElementById('wrapChkPdfSesionInterno').style.display = 'none';
   limpiarFormulario();
   instrSesionKeys = [];
   instrGruposVisiblesSnapshot = instrSoloMarcados ? [] : null; // v2.99 — sesión nueva, arranca sin nada marcado
@@ -2616,9 +2659,8 @@ async function abrirModalEditar(id){
   document.getElementById('btnAbrirBitacora').style.display = 'inline-block';
   document.getElementById('btnLinkBitacora').style.display = 'inline-block';
   document.getElementById('btnLinkConsentimiento').style.display = 'inline-block';
-  document.getElementById('btnPdfSesionCliente').style.display = 'inline-block';
-  document.getElementById('btnPdfSesionInterno').style.display = 'inline-block';
   document.getElementById('btnPdfSesionPiloto').style.display = 'inline-block';
+  document.getElementById('wrapChkPdfSesionInterno').style.display = 'inline-flex';
   document.getElementById('fFecha').value = s.fecha || '';
   await cargarCatalogoEstudiosSesion();
   document.getElementById('fEstudio').value = s.estudioId || '';
@@ -4511,15 +4553,19 @@ function exportarPDFSesion(sesionId, modo){
   doc.text(horario, mX + 5, y + 14);
 
   // Setup pill junto al horario si existe
+  // v2.118: fondo oscuro (ink, mismo tono del header) + texto dorado —
+  // antes era fondo dorado + texto blanco, que quedaba monocromático al
+  // lado del horario grande (también dorado). Mismos colores ya
+  // definidos arriba (gold/ink), no se agrega ningún color nuevo.
   const setupMin = Number(s.tiempoSetupMin) || 0;
   if(setupMin > 0){
     const horarioW = doc.getTextWidth(horario);
     doc.setFontSize(7);
-    doc.setFillColor(...gold);
+    doc.setFillColor(...ink);
     doc.roundedRect(mX + 5 + horarioW + 4, y + 6, 28, 8, 2, 2, 'F');
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(...gold);
     doc.setFont(undefined, 'bold');
-    doc.text(`⏱ ${setupMin} min`, mX + 5 + horarioW + 18, y + 11.5, { align:'center' });
+    doc.text(`Setup ${setupMin} min`, mX + 5 + horarioW + 18, y + 11.5, { align:'center' });
   }
 
   // Fecha y sala
@@ -4666,7 +4712,7 @@ function exportarPDFSesion(sesionId, modo){
     doc.setFontSize(7.5);
     doc.setTextColor(...redInk);
     doc.setFont(undefined, 'bold');
-    doc.text('⚠  NOTA INTERNA', mX + 5, y + 8);
+    doc.text('NOTA INTERNA', mX + 5, y + 8);
 
     doc.setFontSize(8.5);
     doc.setFont(undefined, 'normal');
@@ -4814,43 +4860,106 @@ function exportarPDFSesionHTML(sesionId, modo){
     </div>
   </div>`;
 
-  let contenedor = document.getElementById('printPilotoSesion');
-  if(!contenedor){
-    contenedor = document.createElement('div');
-    contenedor.id = 'printPilotoSesion';
-    document.body.appendChild(contenedor);
-  }
-  contenedor.innerHTML = htmlDoc;
-  contenedor.classList.add('ph-activo');
-  window.print();
-  // Quita el bloque de impresión del flujo normal después de imprimir/cancelar
-  window.onafterprint = () => { contenedor.classList.remove('ph-activo'); };
-}
-</script>
+  // v2.116: PILOTO abre una VENTANA NUEVA de preview en vez de ocultar
+  // toda la página actual con visibility:hidden. Ya NO dispara print()
+  // automáticamente al abrir — el usuario ve la ficha primero y decide
+  // cuándo imprimir con el botón "🖨️ Imprimir / Guardar PDF" dentro de
+  // esa misma ventana (barra fija arriba, oculta en el PDF final vía
+  // @media print). La ventana se cierra sola al terminar de imprimir
+  // (o con el botón "Cerrar"). PH_PRINT_CSS trae las reglas .ph-* de
+  // siempre — se inyecta solo dentro de esa ventana.
+  const fechaArchivo = s.fecha
+    ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'})
+    : '';
+  const tituloVentana = `Ficha de sesion - ${s.actividad || 'Sesion'}${fechaArchivo ? ' - ' + fechaArchivo : ''}`;
 
-<!-- v2.112: PILOTO — estilos de impresión para exportarPDFSesionHTML().
-     #printPilotoSesion está oculto (display:none) fuera de @media print;
-     al imprimir, se oculta TODO lo demás de la página y solo se muestra
-     este bloque, con dimensiones tipo carta/A4 y saltos de página
-     controlados por CSS. No modifica ningún estilo existente del resto
-     del sitio (todas las reglas van prefijadas .ph-* / #printPilotoSesion). -->
-<style>
-#printPilotoSesion{ display:none; }
-#printPilotoSesion.ph-activo{ display:block; }
+  const winPreview = window.open('', '_blank', 'width=640,height=700,resizable=yes,scrollbars=yes');
+  if(!winPreview){
+    alert('El navegador bloqueó la ventana de preview. Habilita popups para este sitio e inténtalo de nuevo.');
+    return;
+  }
+  winPreview.document.open();
+  winPreview.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <title>${esc(tituloVentana)}</title>
+    <style>${PH_PRINT_CSS}
+      /* v2.116: barra flotante con botón de imprimir — solo visible en
+         pantalla (screen), se oculta automáticamente al imprimir vía
+         @media print más abajo, así nunca sale dibujada en el PDF. */
+      .ph-barra-preview{
+        position:fixed; top:0; left:0; right:0; z-index:999;
+        display:flex; justify-content:center; gap:10px;
+        background:#1e1e1e; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,.3);
+      }
+      .ph-barra-preview button{
+        font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;
+        font-size:13px; font-weight:700; border:none; border-radius:5px;
+        padding:9px 20px; cursor:pointer;
+      }
+      #phBtnImprimir{ background:#c9a24b; color:#1e1e1e; }
+      #phBtnCerrar{ background:transparent; color:#cfcfcf; border:1px solid #555 !important; }
+      .ph-preview-espaciador{ height:52px; }
+      @media print{ .ph-barra-preview, .ph-preview-espaciador{ display:none !important; } }
+    </style>
+  </head><body>
+    <div class="ph-barra-preview">
+      <button id="phBtnImprimir">🖨️ Imprimir / Guardar PDF</button>
+      <button id="phBtnCerrar">Cerrar</button>
+    </div>
+    <div class="ph-preview-espaciador"></div>
+    ${htmlDoc}
+    <script>
+      document.getElementById('phBtnImprimir').addEventListener('click', () => window.print());
+      document.getElementById('phBtnCerrar').addEventListener('click', () => window.close());
+      window.onafterprint = () => window.close();
+    <\/script>
+  </body></html>`);
+  winPreview.document.close();
+}
+
+// v2.115: CSS de impresión del PILOTO, extraído del <style> que antes
+// vivía siempre cargado en logistica.html (ver historial v2.112–v2.114
+// para el detalle de cada ajuste de margen/tamaño) — ahora solo se
+// inyecta dentro de la ventana de preview nueva, así no pesa en la
+// página principal cuando no se está exportando. Mismas reglas .ph-*,
+// sin cambios de diseño.
+const PH_PRINT_CSS = `
+@page{ size:letter; margin:20mm 18mm; }
+/* v2.119: fondo gris + centrado, para que la ventana de preview simule
+   una hoja de papel real en pantalla (antes era blanco plano, sin
+   contexto visual). Se anula por completo al imprimir. */
+body{
+  margin:0; background:#3a3a3a; padding:32px 0;
+}
 @media print{
-  body *{ visibility:hidden; }
-  #printPilotoSesion, #printPilotoSesion *{ visibility:visible; }
-  #printPilotoSesion{ display:block; position:absolute; left:0; top:0; width:100%; }
-  @page{ size:A4; margin:0; }
+  body{ background:none; padding:0; }
 }
 .ph-page{
-  width:210mm; min-height:297mm; margin:0 auto; position:relative;
+  width:100%; position:relative;
   font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;
-  color:#1e1e1e; box-sizing:border-box; padding-bottom:20mm;
+  color:#1e1e1e; box-sizing:border-box;
+  /* v2.119: max-width tipo carta + padding 20mm/18mm — simula en pantalla
+     el mismo margen que @page aplicará al imprimir. Antes .ph-page no
+     tenía padding alguno en pantalla, así que el margin-top:-20mm del
+     header (pensado para sangrar CONTRA ese margen) no tenía nada contra
+     qué sangrar y quedaba recortado/desbordado. Con este padding, el
+     header sangra correctamente tanto en pantalla como al imprimir
+     (donde el padding se anula y el margen real ya lo da @page). */
+  max-width:215.9mm; margin:0 auto; background:#fff;
+  padding:20mm 18mm 16mm; box-shadow:0 10px 40px rgba(0,0,0,.35);
+}
+@media print{
+  .ph-page{ max-width:none; margin:0; padding:0; box-shadow:none; }
+  /* v2.120: en pantalla el header sangra con margin negativo contra el
+     padding de .ph-page (20mm/18mm) para simular la hoja. Al imprimir,
+     .ph-page pierde ese padding (arriba) porque el margen real ya lo da
+     @page — pero nadie reseteaba el margin negativo del header, así que
+     seguía "sangrando" contra un padding que ya no existe y terminaba
+     recortado por el navegador. Se resetea aquí solo para impresión. */
+  .ph-header{ width:100% !important; margin:0 0 8mm 0 !important; }
 }
 .ph-header{
-  position:relative; width:210mm; height:40mm; overflow:hidden;
-  border-bottom:0.7mm solid #c9a24b; box-sizing:border-box;
+  position:relative; width:calc(100% + 36mm); margin:-20mm -18mm 8mm -18mm;
+  height:40mm; overflow:hidden; border-bottom:0.7mm solid #c9a24b; box-sizing:border-box;
 }
 .ph-header-diffuser{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .ph-header-overlay{ position:absolute; inset:0; }
@@ -4869,50 +4978,66 @@ function exportarPDFSesionHTML(sesionId, modo){
   font-size:7.5pt; color:#9a978f; line-height:1.7;
 }
 .ph-hero{
-  margin:8mm 18mm 0; background:#fcf8ee; border-radius:2.5mm; padding:5mm;
+  margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm;
 }
 .ph-hero-actividad{ font-size:16pt; font-weight:700; color:#1e1e1e; margin-bottom:3mm; }
 .ph-hero-label{ font-size:7.5pt; color:#9a978f; margin-bottom:1mm; }
 .ph-hero-proyecto{ font-size:9pt; color:#a8823a; font-weight:500; }
 .ph-hero-cliente{ font-size:8pt; color:#9a978f; margin-top:2mm; }
 .ph-datos{
-  margin:4mm 18mm 0; background:#f6f4ef; border-radius:2.5mm; padding:5mm;
+  margin:0 0 6mm; background:#f6f4ef; border-radius:2.5mm; padding:6mm;
+  break-inside:avoid;
 }
 .ph-horario{ font-size:26pt; font-weight:700; color:#c9a24b; }
 .ph-setup-pill{
-  display:inline-block; background:#c9a24b; color:#fff; font-size:7pt; font-weight:700;
+  display:inline-block; background:#1e1e1e; color:#c9a24b; font-size:7pt; font-weight:700;
   padding:1.5mm 3mm; border-radius:1.5mm; margin-left:3mm; vertical-align:middle;
 }
 .ph-fecha-sala{ font-size:9pt; color:#505050; margin-top:3mm; }
 .ph-extra{ font-size:8.5pt; color:#505050; margin-top:3mm; }
 .ph-extra span{ display:block; font-size:7pt; font-weight:700; color:#9a978f; margin-bottom:0.5mm; }
-.ph-seccion{ margin:6mm 18mm 0; }
+.ph-seccion{
+  margin:0 0 8mm; background:#f6f4ef; border-radius:2.5mm; padding:6mm;
+  break-inside:avoid;
+}
 .ph-titulo-seccion{
   font-size:7.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.04em;
-  text-transform:uppercase; border-bottom:0.4mm solid #c9a24b; padding-bottom:2mm; margin-bottom:3mm;
+  text-transform:uppercase; border-bottom:0.4mm solid #c9a24b; padding-bottom:2mm; margin-bottom:4mm;
 }
 .ph-fila{
-  display:flex; align-items:center; gap:4mm; padding:2mm 3mm; font-size:9pt;
+  display:flex; align-items:center; gap:4mm; padding:2.5mm 3mm; font-size:9pt;
 }
-.ph-fila:nth-child(even){ background:#fffffe; }
-.ph-fila:nth-child(odd){ background:#faf9f6; }
+.ph-fila:nth-child(even){ background:#ffffff; }
+.ph-fila:nth-child(odd){ background:transparent; }
 .ph-fila-label{ font-size:8pt; font-weight:700; color:#c9a24b; min-width:32mm; }
 .ph-fila-nombre{ flex:1; color:#1e1e1e; }
 .ph-fila-tarifa{ font-size:8pt; color:#787878; }
-.ph-grupo-instr{ margin-bottom:4mm; }
-.ph-grupo-nombre{ font-size:9pt; font-weight:700; color:#c9a24b; margin-bottom:1.5mm; }
-.ph-lista{ margin:0; padding-left:6mm; font-size:8.5pt; color:#505050; line-height:1.6; }
+.ph-grupo-instr{
+  margin-bottom:5mm; padding-left:4mm; border-left:0.6mm solid #c9a24b;
+  break-inside:avoid;
+}
+.ph-grupo-instr:last-child{ margin-bottom:0; }
+.ph-grupo-nombre{ font-size:9pt; font-weight:700; color:#c9a24b; margin-bottom:2mm; }
+.ph-lista{ margin:0; padding-left:6mm; font-size:8.5pt; color:#505050; line-height:1.7; }
 .ph-sin-piezas{ font-size:8pt; color:#9a978f; padding-left:2mm; }
 .ph-nota-interna{
-  margin:6mm 18mm 0; background:#faebe8; color:#a03228; border-radius:2.5mm;
-  padding:5mm; font-size:8.5pt; line-height:1.6;
+  margin:0 0 8mm; background:#faebe8; color:#a03228; border-radius:2.5mm;
+  padding:6mm; font-size:8.5pt; line-height:1.6; font-weight:700; break-inside:avoid;
 }
-.ph-nota-interna{ font-weight:700; }
 .ph-footer{
-  position:absolute; bottom:0; left:18mm; right:18mm; display:flex; justify-content:space-between;
+  margin-top:10mm; display:flex; justify-content:space-between;
   font-size:7pt; color:#9a978f; border-top:0.15mm solid #9a978f; padding-top:3mm;
 }
-</style>
+`;
+
+</script>
+
+<!-- v2.115: el <style> de impresión del PILOTO (antes fijo acá) ahora
+     vive como constante JS (PH_PRINT_CSS, dentro de exportarPDFSesionHTML)
+     y se inyecta solo en la ventana de preview nueva que abre esa función
+     — así la página principal no carga permanentemente CSS que solo se
+     usa al exportar. Ver historial v2.112–v2.114 para el detalle de cada
+     ajuste de margen/tamaño ya incorporado a esas reglas. -->
 
 <!-- v2.96: imágenes del header PDF pre-cargadas vía <img> (funciona en
      local file://, Netlify y cualquier protocolo). onload convierte cada
