@@ -3,8 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.14)</title>
-<!-- AUDIOLINK · cocina.html · v1.14
+<title>Audiolink — Cocina (v1.15)</title>
+<!-- AUDIOLINK · cocina.html · v1.15
+     v1.15: (a pedido) "Editar receta" + sistema de toast, replicando el
+     mismo patrón ya usado en RECETARIO.html (proyecto Sagrada Delicia)
+     para mantener consistencia entre proyectos del ecosistema:
+     (1) Toast de confirmación: función mostrarToast(msg, tipo, dur),
+     contenedor #toast-cocina, clases .toast-item t-ok/t-warn/t-error/
+     t-info — mismo criterio visual que _mostrarToast() de RECETARIO.html
+     pero con las variables de color propias de cocina.html.
+     (2) Editar receta: botón ✏️ nuevo en cada tarjeta (junto a 🖨️/🧾/🗑️).
+     Nueva variable de estado recetaEnEdicionId (equivalente a
+     _recetaEnEdicionId de RECETARIO.html). habilitarEdicionReceta(id)
+     llena el formulario con los datos de la receta (nombre, imagen,
+     filas de insumos, unidades, precio), cambia el título a "✏️
+     Editando receta", muestra un badge y el botón "Cancelar edición",
+     y hace scroll al formulario. guardarReceta() ahora usa .update()
+     si hay una edición en curso (en vez de .add()); el costo se
+     recalcula con los precios ACTUALES del catálogo de insumos al
+     guardar la edición (confirmado con el usuario: mismo criterio ya
+     usado en RECETARIO.html, el snapshot viejo se reemplaza por
+     completo). eliminarReceta() cancela la edición en curso si se
+     borra la receta que se estaba editando, para no dejar el
+     formulario en un estado inconsistente.
      v1.14: (a pedido) se aumentó el tamaño de todos los textos chicos
      de la interfaz (labels, hints, chips, badges, subtítulos) — solo
      CSS, valores en rem, aprox. +1-2px cada uno, manteniendo la
@@ -518,6 +539,28 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   display:inline-block; width:7px; height:7px; border-radius:50%;
   margin-right:5px; vertical-align:middle;
 }
+/* v1.15: toast de confirmación, mismo patrón visual usado en RECETARIO.html */
+#toast-cocina{
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  display:flex; flex-direction:column; gap:8px; pointer-events:none;
+}
+.toast-item{
+  padding:10px 16px; border-radius:10px; font-size:0.85rem; font-weight:600;
+  border:1px solid; backdrop-filter:blur(8px); animation:coc-toast-in 0.28s ease;
+  pointer-events:none; max-width:320px; box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+.toast-item.t-ok{ color:var(--ok); border-color:var(--ok); background:rgba(10,25,15,0.94); }
+.toast-item.t-warn{ color:var(--warn); border-color:var(--warn); background:rgba(22,18,4,0.94); }
+.toast-item.t-error{ color:var(--danger); border-color:var(--danger); background:rgba(28,8,8,0.94); }
+.toast-item.t-info{ color:var(--gold); border-color:var(--gold); background:rgba(20,16,4,0.94); }
+.toast-item.saliendo{ animation:coc-toast-out 0.4s ease forwards; }
+@keyframes coc-toast-in{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+@keyframes coc-toast-out{ from{opacity:1; transform:translateY(0);} to{opacity:0; transform:translateY(10px);} }
+/* v1.15: badge de modo edición en el formulario de receta */
+.badge-edicion{
+  font-size:0.78rem; font-weight:600; color:var(--gold); background:var(--gold-soft);
+  border:1px solid var(--gold); border-radius:20px; padding:2px 10px; vertical-align:middle;
+}
 
 /* Compras (v1.7) */
 .receta-check-row{
@@ -588,6 +631,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   window.NAV_CONFIG = { activo: 'cocina' };
 </script>
 <div id="nav-mount"></div>
+<div id="toast-cocina"></div>
 <main class="main-wrap" id="mainWrap">
 <div class="wrap">
   <div class="header-top">
@@ -767,7 +811,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   <!-- ============ TAB RECETAS (nuevo v1.2) ============ -->
   <div class="tab-panel" id="tabRecetas">
     <div class="card">
-      <h3>🧮 Nueva receta</h3>
+      <h3 id="tituloFormReceta">🧮 Nueva receta <span class="badge-edicion" id="badgeModoEdicion" style="display:none;">✏️ Editando</span></h3>
       <div class="card-sub">Arma la receta con insumos del catálogo — el costo se calcula solo, igual que en la hoja original.</div>
 
       <div class="field" style="margin-bottom:14px;">
@@ -819,7 +863,8 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
       </div>
 
       <div class="btn-row" style="margin-top:16px;">
-        <button type="button" class="btn" onclick="guardarReceta()">Guardar receta</button>
+        <button type="button" class="btn" id="btnGuardarReceta" onclick="guardarReceta()">Guardar receta</button>
+        <button type="button" class="btn-ghost" id="btnCancelarEdicionReceta" style="display:none;" onclick="cancelarEdicionReceta()">Cancelar edición</button>
       </div>
     </div>
 
@@ -904,6 +949,18 @@ let filtroCategoriaActual = ''; // v1.11: reemplaza el .value del select de filt
 let filtroCategoriaCompras = ''; // v1.12: mismo patrón, para la Lista de compras
 let checkComprasCache = { items: [] };
 let filasRecetaEnConstruccion = [];
+let recetaEnEdicionId = null; // v1.15: id de la receta que se está editando (null = modo "nueva")
+
+// v1.15: toast de confirmación, mismo patrón que RECETARIO.html
+function mostrarToast(msg, tipo = 'info', dur = 3500){
+  const cont = document.getElementById('toast-cocina');
+  if(!cont) return;
+  const el = document.createElement('div');
+  el.className = `toast-item t-${tipo}`;
+  el.textContent = msg;
+  cont.appendChild(el);
+  setTimeout(() => { el.classList.add('saliendo'); setTimeout(() => el.remove(), 400); }, dur);
+}
 
 // v1.13: imagen de receta vía Cloudinary Upload Widget (unsigned preset)
 const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
@@ -1448,6 +1505,65 @@ function recalcularMargenReceta(){
   margenEl.className = 'val ' + (ganancia >= 0 ? 'ok' : 'warn');
 }
 
+// ══════════════════════════════════════
+// EDITAR RECETA (v1.15, mismo patrón usado en RECETARIO.html)
+// ══════════════════════════════════════
+function habilitarEdicionReceta(id){
+  const r = recetasCache.find(x => x.id === id);
+  if(!r) return;
+  recetaEnEdicionId = id;
+
+  document.getElementById('inputRecetaNombre').value = r.nombre || '';
+  document.getElementById('inputRecetaUnidadesVendidas').value = r.unidadesPorLote || '';
+  document.getElementById('inputRecetaPrecioVenta').value = r.precioVenta || '';
+
+  imagenRecetaEnConstruccion = r.imagenUrl || '';
+  renderPreviewImagenReceta();
+
+  document.getElementById('filasInsumosReceta').innerHTML = '';
+  filasRecetaEnConstruccion = [];
+  (r.insumos || []).forEach(ins => {
+    agregarFilaInsumoReceta();
+    const filaAgregada = filasRecetaEnConstruccion[filasRecetaEnConstruccion.length - 1];
+    filaAgregada.insumoId = ins.insumoId;
+    filaAgregada.cantidad = ins.cantidad;
+    const filaEl = document.getElementById(filaAgregada.filaId);
+    if(filaEl){
+      const sel = filaEl.querySelector('select');
+      const inp = filaEl.querySelector('input[type="number"]');
+      if(sel) sel.value = ins.insumoId;
+      if(inp) inp.value = ins.cantidad;
+    }
+  });
+  recalcularCostoReceta();
+
+  document.getElementById('tituloFormReceta').firstChild.textContent = '✏️ Editando receta ';
+  document.getElementById('badgeModoEdicion').style.display = '';
+  document.getElementById('btnGuardarReceta').textContent = 'Guardar cambios';
+  document.getElementById('btnCancelarEdicionReceta').style.display = '';
+
+  document.getElementById('tabRecetas').scrollIntoView({ behavior:'smooth', block:'start' });
+  mostrarToast('✏️ Receta cargada en el formulario para editar', 'info');
+}
+
+function cancelarEdicionReceta(){
+  recetaEnEdicionId = null;
+  document.getElementById('inputRecetaNombre').value = '';
+  document.getElementById('inputRecetaUnidadesVendidas').value = '';
+  document.getElementById('inputRecetaPrecioVenta').value = '';
+  document.getElementById('filasInsumosReceta').innerHTML = '';
+  filasRecetaEnConstruccion = [];
+  imagenRecetaEnConstruccion = '';
+  renderPreviewImagenReceta();
+  recalcularCostoReceta();
+
+  document.getElementById('tituloFormReceta').firstChild.textContent = '🧮 Nueva receta ';
+  document.getElementById('badgeModoEdicion').style.display = 'none';
+  document.getElementById('btnGuardarReceta').textContent = 'Guardar receta';
+  document.getElementById('btnCancelarEdicionReceta').style.display = 'none';
+  mostrarToast('Edición cancelada', 'warn');
+}
+
 function guardarReceta(){
   const nombre = document.getElementById('inputRecetaNombre').value.trim().toUpperCase();
   if(!nombre){ alert('Escribe el nombre del producto (ej: LASAÑA).'); return; }
@@ -1479,13 +1595,14 @@ function guardarReceta(){
   const ganancia = ingresos - costoTotal;
   const margenPct = ingresos > 0 ? (ganancia / ingresos) * 100 : 0;
 
-  db.collection('cocinaRecetas').add({
+  const datosReceta = {
     nombre,
     insumos: insumosSnapshot,
     imagenUrl: imagenRecetaEnConstruccion || '',
-    costoTotal, unidadesPorLote, precioVenta, ingresos, ganancia, margenPct,
-    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(() => {
+    costoTotal, unidadesPorLote, precioVenta, ingresos, ganancia, margenPct
+  };
+
+  const limpiarFormularioReceta = () => {
     document.getElementById('inputRecetaNombre').value = '';
     document.getElementById('inputRecetaUnidadesVendidas').value = '';
     document.getElementById('inputRecetaPrecioVenta').value = '';
@@ -1494,12 +1611,37 @@ function guardarReceta(){
     imagenRecetaEnConstruccion = '';
     renderPreviewImagenReceta();
     recalcularCostoReceta();
-  }).catch(err => { console.error(err); alert('No se pudo guardar la receta.'); });
+  };
+
+  if(recetaEnEdicionId){
+    db.collection('cocinaRecetas').doc(recetaEnEdicionId).update(datosReceta)
+      .then(() => {
+        recetaEnEdicionId = null;
+        document.getElementById('tituloFormReceta').firstChild.textContent = '🧮 Nueva receta ';
+        document.getElementById('badgeModoEdicion').style.display = 'none';
+        document.getElementById('btnGuardarReceta').textContent = 'Guardar receta';
+        document.getElementById('btnCancelarEdicionReceta').style.display = 'none';
+        limpiarFormularioReceta();
+        mostrarToast('✅ Receta actualizada', 'ok');
+      }).catch(err => { console.error(err); alert('No se pudo actualizar la receta.'); });
+  } else {
+    db.collection('cocinaRecetas').add({
+      ...datosReceta,
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      limpiarFormularioReceta();
+      mostrarToast('✅ Receta guardada', 'ok');
+    }).catch(err => { console.error(err); alert('No se pudo guardar la receta.'); });
+  }
 }
 
 function eliminarReceta(id){
   if(!confirm('¿Eliminar esta receta? Esta acción no se puede deshacer.')) return;
   db.collection('cocinaRecetas').doc(id).delete()
+    .then(() => {
+      if(recetaEnEdicionId === id) cancelarEdicionReceta(); // v1.15: evita quedar "editando" algo que ya no existe
+      mostrarToast('🗑️ Receta eliminada', 'warn');
+    })
     .catch(err => { console.error(err); alert('No se pudo eliminar la receta.'); });
 }
 
@@ -1553,6 +1695,7 @@ function renderListaRecetas(){
           </div>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
+          <button type="button" class="btn-ghost" title="Editar receta" onclick="event.stopPropagation(); habilitarEdicionReceta('${r.id}')">✏️</button>
           <button type="button" class="btn-ghost" title="Imprimir / PDF interno de esta receta" onclick="event.stopPropagation(); imprimirRecetaHTML('${r.id}')">🖨️</button>
           <button type="button" class="btn-ghost" title="PDF para el cliente (sin costos)" onclick="event.stopPropagation(); imprimirRecetaClienteHTML('${r.id}')">🧾</button>
           <button type="button" class="btn-del" title="Eliminar receta" onclick="event.stopPropagation(); eliminarReceta('${r.id}')">🗑️</button>
