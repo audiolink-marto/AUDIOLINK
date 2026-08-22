@@ -1,4 +1,45 @@
-// AUDIOLINK · header-config.js · v1.3
+// AUDIOLINK · header-config.js · v1.7
+// v1.7: (1) Nuevo checkbox LOGO_SIN_LOGO — oculta el logo por completo
+// (display:none, no solo opacity) tanto en el preview (#headerPreviewLogo)
+// como en la imagen oculta que usa pintarHeader() de cada página
+// (#hdrLogo). Antes, si el campo de ruta quedaba vacío o inválido,
+// aparecía el ícono "alt" roto del navegador — con display:none eso ya
+// no puede pasar. (2) HEADER_SIN_FONDO ahora también aplica display:none
+// al diffuser (antes solo opacity:0) — mismo blindaje contra el ícono
+// roto, sin cambiar el resto de su comportamiento (fondo blanco sólido
+// se mantiene igual). Ningún otro flujo se toca. Falta: que cada
+// pintarHeader() real (jsPDF) de logistica.html y demás consumidores
+// lea LOGO_SIN_LOGO para omitir el logo en el PDF exportado — pendiente,
+// se hace por separado en cada módulo.
+//
+// v1.6: 5 nuevos efectos CSS del FONDO del header (imagen diffuser) —
+// DIFFUSER_BLUR, DIFFUSER_GRAYSCALE, DIFFUSER_CONTRAST, DIFFUSER_SOMBRA
+// (checkbox), DIFFUSER_ROTACION. Mismo patrón que los efectos del logo
+// (v1.4): se aplican al diffuser del preview (acá) y al header HTML del
+// PDF piloto (logistica.html exportarPDFSesionHTML()) vía
+// construirFiltroDiffuser(). HEADER_DIFFUSER_OPACITY ya existía desde
+// antes de v1.4, se reutiliza tal cual. Rangos más libres que los del
+// logo: blur 0–20px, grises 0–100%, contraste 0–200%, rotación -45°/45°.
+// En los PDF jsPDF ningún efecto nuevo tiene efecto real (documentado
+// igual que con el logo) — el diffuser en jsPDF solo usa su ruta/imagen
+// tal cual, sin filtros.
+//
+// v1.5: 3 nuevos efectos de COLOR del logo — LOGO_HUE (hue-rotate,
+// -180°/180°), LOGO_SATURATE (0–300%), LOGO_SEPIA (0–100%). Se suman a
+// construirFiltroLogo() junto a los 4 de v1.4. Rangos deliberadamente
+// más amplios/libres que blur/contraste (pedido explícito: "menos
+// estricto y más libre con sliders"). Solo modo piloto/preview, igual
+// que el resto de efectos del logo salvo LOGO_OPACITY.
+//
+// v1.4: 6 nuevos efectos CSS del logo — LOGO_OPACITY, LOGO_BLUR,
+// LOGO_GRAYSCALE, LOGO_CONTRAST, LOGO_SOMBRA (checkbox), LOGO_ROTACION.
+// Se aplican al logo del preview (acá) y al header HTML del PDF piloto
+// (logistica.html exportarPDFSesionHTML()) vía construirFiltroLogo().
+// En los PDF jsPDF (exportarPDF()/exportarPDFSesion()) SOLO LOGO_OPACITY
+// tiene efecto real (vía doc.setGState) — jsPDF no soporta blur/grises/
+// contraste/sombra/rotación de imagen sin reprocesarla a canvas, así que
+// esos 5 quedan "solo modo piloto" por ahora, documentado en cada
+// *_DEFAULT de abajo.
 // Lógica compartida de configuración del header de PDF (logo, diffuser,
 // color, opacidades, tamaño/alineación del logo) — extraída de logistica.html
 // v2.109 para reutilizar en todo el ecosistema (proyecto.html, cotizador.html,
@@ -53,6 +94,34 @@ const HEADER_DIFFUSER_OPACITY_DEFAULT = 1.0;
 const LOGO_SIZE_DEFAULT = 16;
 const LOGO_ALIGN_DEFAULT = 'izquierda';
 const LOGO_OFFSET_Y_DEFAULT = 0;
+// v1.7: oculta el logo por completo (display:none) — ver nota de v1.7 arriba.
+const LOGO_SIN_LOGO_DEFAULT = false;
+// v1.4: efectos CSS del logo — solo afectan preview y el header HTML del
+// PDF piloto (ver logistica.html exportarPDFSesionHTML()). En los PDF
+// jsPDF (exportarPDF()/exportarPDFSesion()) SOLO se aplica LOGO_OPACITY,
+// vía doc.setGState() — blur/grises/contraste/sombra/rotación no tienen
+// equivalente nativo en jsPDF sin reprocesar la imagen a canvas, así que
+// ahí se ignoran.
+const LOGO_OPACITY_DEFAULT = 1;
+const LOGO_BLUR_DEFAULT = 0;
+const LOGO_GRAYSCALE_DEFAULT = 0;
+const LOGO_CONTRAST_DEFAULT = 100;
+const LOGO_SOMBRA_DEFAULT = false;
+const LOGO_ROTACION_DEFAULT = 0;
+// v1.5: efectos de color del logo — solo modo piloto/preview, mismo
+// alcance que blur/grises/contraste/sombra/rotación de v1.4.
+const LOGO_HUE_DEFAULT = 0;
+const LOGO_SATURATE_DEFAULT = 100;
+const LOGO_SEPIA_DEFAULT = 0;
+
+// v1.6: efectos del FONDO del header (diffuser) — solo modo
+// piloto/preview, igual alcance que los del logo salvo la opacidad
+// (HEADER_DIFFUSER_OPACITY, que ya existía y sí aplica en todos lados).
+const DIFFUSER_BLUR_DEFAULT = 0;
+const DIFFUSER_GRAYSCALE_DEFAULT = 0;
+const DIFFUSER_CONTRAST_DEFAULT = 100;
+const DIFFUSER_SOMBRA_DEFAULT = false;
+const DIFFUSER_ROTACION_DEFAULT = 0;
 
 // v1.3: config Cloudinary — preset unsigned propio 'HEADER' (antes
 // 'ICONOS', compartido con avatares-iconos.html; ver changelog v1.3).
@@ -67,6 +136,22 @@ let HEADER_DIFFUSER_OPACITY = HEADER_DIFFUSER_OPACITY_DEFAULT;
 let LOGO_SIZE = LOGO_SIZE_DEFAULT;
 let LOGO_ALIGN = LOGO_ALIGN_DEFAULT;
 let LOGO_OFFSET_Y = LOGO_OFFSET_Y_DEFAULT;
+let LOGO_SIN_LOGO = LOGO_SIN_LOGO_DEFAULT;
+let LOGO_OPACITY = LOGO_OPACITY_DEFAULT;
+let LOGO_BLUR = LOGO_BLUR_DEFAULT;
+let LOGO_GRAYSCALE = LOGO_GRAYSCALE_DEFAULT;
+let LOGO_CONTRAST = LOGO_CONTRAST_DEFAULT;
+let LOGO_SOMBRA = LOGO_SOMBRA_DEFAULT;
+let LOGO_ROTACION = LOGO_ROTACION_DEFAULT;
+let LOGO_HUE = LOGO_HUE_DEFAULT;
+let LOGO_SATURATE = LOGO_SATURATE_DEFAULT;
+let LOGO_SEPIA = LOGO_SEPIA_DEFAULT;
+
+let DIFFUSER_BLUR = DIFFUSER_BLUR_DEFAULT;
+let DIFFUSER_GRAYSCALE = DIFFUSER_GRAYSCALE_DEFAULT;
+let DIFFUSER_CONTRAST = DIFFUSER_CONTRAST_DEFAULT;
+let DIFFUSER_SOMBRA = DIFFUSER_SOMBRA_DEFAULT;
+let DIFFUSER_ROTACION = DIFFUSER_ROTACION_DEFAULT;
 
 function hexToRgbArray(hex){
   const n = parseInt(hex.replace('#',''), 16);
@@ -145,6 +230,148 @@ function actualizarLogoOffsetY(valor){
   actualizarHeaderPreview();
 }
 
+// v1.7: oculta el logo por completo con display:none (no opacity) para
+// evitar el ícono "alt" roto cuando la ruta queda vacía/inválida.
+// Afecta tanto el preview (#headerPreviewLogo) como #hdrLogo (la imagen
+// oculta que lee pintarHeader() de cada página consumidora).
+function actualizarLogoSinLogo(activo){
+  LOGO_SIN_LOGO = !!activo;
+  localStorage.setItem('audiolink_logo_sin_logo', LOGO_SIN_LOGO ? '1' : '0');
+  const imgLogoOculto = document.getElementById('hdrLogo');
+  if(imgLogoOculto) imgLogoOculto.style.display = LOGO_SIN_LOGO ? 'none' : '';
+  actualizarHeaderPreview();
+}
+
+// v1.4: efectos CSS del logo — mismo patrón que el resto (set var, guarda
+// en localStorage, repinta preview). Ver nota junto a los *_DEFAULT sobre
+// el alcance real en jsPDF (solo LOGO_OPACITY aplica ahí).
+function actualizarLogoOpacity(valor){
+  const n = parseFloat(valor);
+  LOGO_OPACITY = isNaN(n) ? LOGO_OPACITY_DEFAULT : n;
+  localStorage.setItem('audiolink_logo_opacity', String(LOGO_OPACITY));
+  actualizarHeaderPreview();
+}
+
+function actualizarLogoBlur(valor){
+  const n = parseFloat(valor);
+  LOGO_BLUR = isNaN(n) ? LOGO_BLUR_DEFAULT : n;
+  localStorage.setItem('audiolink_logo_blur', String(LOGO_BLUR));
+  actualizarHeaderPreview();
+}
+
+function actualizarLogoGrayscale(valor){
+  const n = parseFloat(valor);
+  LOGO_GRAYSCALE = isNaN(n) ? LOGO_GRAYSCALE_DEFAULT : n;
+  localStorage.setItem('audiolink_logo_grayscale', String(LOGO_GRAYSCALE));
+  actualizarHeaderPreview();
+}
+
+function actualizarLogoContrast(valor){
+  const n = parseFloat(valor);
+  LOGO_CONTRAST = isNaN(n) ? LOGO_CONTRAST_DEFAULT : n;
+  localStorage.setItem('audiolink_logo_contrast', String(LOGO_CONTRAST));
+  actualizarHeaderPreview();
+}
+
+function actualizarLogoSombra(activo){
+  LOGO_SOMBRA = !!activo;
+  localStorage.setItem('audiolink_logo_sombra', LOGO_SOMBRA ? '1' : '0');
+  actualizarHeaderPreview();
+}
+
+function actualizarLogoRotacion(valor){
+  const n = parseFloat(valor);
+  LOGO_ROTACION = isNaN(n) ? LOGO_ROTACION_DEFAULT : n;
+  localStorage.setItem('audiolink_logo_rotacion', String(LOGO_ROTACION));
+  actualizarHeaderPreview();
+}
+
+// v1.5: efectos de color del logo — mismo patrón (set var, guarda en
+// localStorage, repinta preview), rangos más libres (ver header-config.html).
+function actualizarLogoHue(valor){
+  const n = parseFloat(valor);
+  LOGO_HUE = isNaN(n) ? LOGO_HUE_DEFAULT : n;
+  localStorage.setItem('audiolink_logo_hue', String(LOGO_HUE));
+  actualizarHeaderPreview();
+}
+
+function actualizarLogoSaturate(valor){
+  const n = parseFloat(valor);
+  LOGO_SATURATE = isNaN(n) ? LOGO_SATURATE_DEFAULT : n;
+  localStorage.setItem('audiolink_logo_saturate', String(LOGO_SATURATE));
+  actualizarHeaderPreview();
+}
+
+function actualizarLogoSepia(valor){
+  const n = parseFloat(valor);
+  LOGO_SEPIA = isNaN(n) ? LOGO_SEPIA_DEFAULT : n;
+  localStorage.setItem('audiolink_logo_sepia', String(LOGO_SEPIA));
+  actualizarHeaderPreview();
+}
+
+// v1.4: arma el filter/transform CSS combinado del logo a partir de las
+// variables de efectos — lo usan tanto el preview (acá) como
+// logistica.html al pintar el header HTML del PDF piloto, para no
+// duplicar la fórmula en dos archivos. v1.5: se suman los 3 de color.
+function construirFiltroLogo(){
+  const partes = [];
+  if(LOGO_BLUR > 0) partes.push(`blur(${LOGO_BLUR}px)`);
+  if(LOGO_GRAYSCALE > 0) partes.push(`grayscale(${LOGO_GRAYSCALE}%)`);
+  if(LOGO_CONTRAST !== 100) partes.push(`contrast(${LOGO_CONTRAST}%)`);
+  if(LOGO_SATURATE !== 100) partes.push(`saturate(${LOGO_SATURATE}%)`);
+  if(LOGO_HUE !== 0) partes.push(`hue-rotate(${LOGO_HUE}deg)`);
+  if(LOGO_SEPIA > 0) partes.push(`sepia(${LOGO_SEPIA}%)`);
+  if(LOGO_SOMBRA) partes.push(`drop-shadow(0 2px 4px rgba(0,0,0,0.5))`);
+  return partes.length ? partes.join(' ') : 'none';
+}
+
+// v1.6: efectos del fondo del header (diffuser) — mismo patrón que el logo.
+function actualizarDiffuserBlur(valor){
+  const n = parseFloat(valor);
+  DIFFUSER_BLUR = isNaN(n) ? DIFFUSER_BLUR_DEFAULT : n;
+  localStorage.setItem('audiolink_diffuser_blur', String(DIFFUSER_BLUR));
+  actualizarHeaderPreview();
+}
+
+function actualizarDiffuserGrayscale(valor){
+  const n = parseFloat(valor);
+  DIFFUSER_GRAYSCALE = isNaN(n) ? DIFFUSER_GRAYSCALE_DEFAULT : n;
+  localStorage.setItem('audiolink_diffuser_grayscale', String(DIFFUSER_GRAYSCALE));
+  actualizarHeaderPreview();
+}
+
+function actualizarDiffuserContrast(valor){
+  const n = parseFloat(valor);
+  DIFFUSER_CONTRAST = isNaN(n) ? DIFFUSER_CONTRAST_DEFAULT : n;
+  localStorage.setItem('audiolink_diffuser_contrast', String(DIFFUSER_CONTRAST));
+  actualizarHeaderPreview();
+}
+
+function actualizarDiffuserSombra(activo){
+  DIFFUSER_SOMBRA = !!activo;
+  localStorage.setItem('audiolink_diffuser_sombra', DIFFUSER_SOMBRA ? '1' : '0');
+  actualizarHeaderPreview();
+}
+
+function actualizarDiffuserRotacion(valor){
+  const n = parseFloat(valor);
+  DIFFUSER_ROTACION = isNaN(n) ? DIFFUSER_ROTACION_DEFAULT : n;
+  localStorage.setItem('audiolink_diffuser_rotacion', String(DIFFUSER_ROTACION));
+  actualizarHeaderPreview();
+}
+
+// v1.6: arma el filter CSS del diffuser — mismo mecanismo que
+// construirFiltroLogo(), usado por el preview (acá) y por
+// logistica.html al pintar el header HTML del PDF piloto.
+function construirFiltroDiffuser(){
+  const partes = [];
+  if(DIFFUSER_BLUR > 0) partes.push(`blur(${DIFFUSER_BLUR}px)`);
+  if(DIFFUSER_GRAYSCALE > 0) partes.push(`grayscale(${DIFFUSER_GRAYSCALE}%)`);
+  if(DIFFUSER_CONTRAST !== 100) partes.push(`contrast(${DIFFUSER_CONTRAST}%)`);
+  if(DIFFUSER_SOMBRA) partes.push(`drop-shadow(0 2px 4px rgba(0,0,0,0.5))`);
+  return partes.length ? partes.join(' ') : 'none';
+}
+
 function actualizarHeaderPreview(){
   // Refleja visualmente (CSS, no jsPDF) las mismas variables que
   // pintarHeader() de cada página usa para exportar — puramente
@@ -190,15 +417,32 @@ function actualizarHeaderPreview(){
     imgLogo.style.left = (logoXmm / pageWmm * 100) + '%';
     imgLogo.style.width = 'auto';
     imgLogo.style.maxWidth = 'none';
-    imgLogo.style.transform = 'none';
+    // v1.4: rotación se suma al transform (antes solo 'none'); opacidad y
+    // el resto de efectos (blur/grises/contraste/sombra) van en filter.
+    imgLogo.style.transform = LOGO_ROTACION !== 0 ? `rotate(${LOGO_ROTACION}deg)` : 'none';
+    imgLogo.style.opacity = String(LOGO_OPACITY);
+    imgLogo.style.filter = construirFiltroLogo();
+    // v1.7: display:none (no solo opacity) para que nunca aparezca el
+    // ícono "alt" roto si la ruta está vacía/inválida.
+    imgLogo.style.display = LOGO_SIN_LOGO ? 'none' : '';
+  }
+
+  // v1.6: efectos del diffuser (filter + rotación) — se aplican siempre
+  // que la imagen esté visible; si HEADER_SIN_FONDO está activo, el
+  // bloque de abajo ya la oculta con opacity:0, así que no importa.
+  if(imgDiffuser){
+    imgDiffuser.style.filter = construirFiltroDiffuser();
+    imgDiffuser.style.transform = DIFFUSER_ROTACION !== 0 ? `rotate(${DIFFUSER_ROTACION}deg)` : 'none';
   }
 
   if(HEADER_SIN_FONDO){
-    if(imgDiffuser) imgDiffuser.style.opacity = '0';
+    // v1.7: display:none (no solo opacity:0) — blindaje contra el ícono
+    // "alt" roto si la ruta del diffuser está vacía/inválida.
+    if(imgDiffuser){ imgDiffuser.style.opacity = '0'; imgDiffuser.style.display = 'none'; }
     if(capaColor) capaColor.style.background = '#ffffff';
     if(capaColor) capaColor.style.opacity = '1';
   } else {
-    if(imgDiffuser) imgDiffuser.style.opacity = String(HEADER_DIFFUSER_OPACITY);
+    if(imgDiffuser){ imgDiffuser.style.opacity = String(HEADER_DIFFUSER_OPACITY); imgDiffuser.style.display = ''; }
     if(capaColor) capaColor.style.background = `rgb(${HEADER_COLOR_RGB.join(',')})`;
     if(capaColor) capaColor.style.opacity = String(HEADER_COLOR_OPACITY);
   }
@@ -258,6 +502,87 @@ function inicializarHeaderConfig(){
   const inputLogoOffsetY = document.getElementById('logoOffsetYInput');
   if(inputLogoOffsetY) inputLogoOffsetY.value = LOGO_OFFSET_Y;
 
+  // v1.7: LOGO_SIN_LOGO
+  const logoSinLogoGuardado = localStorage.getItem('audiolink_logo_sin_logo') === '1';
+  LOGO_SIN_LOGO = logoSinLogoGuardado;
+  const inputLogoSinLogo = document.getElementById('logoSinLogoInput');
+  if(inputLogoSinLogo) inputLogoSinLogo.checked = LOGO_SIN_LOGO;
+  const imgLogoOcultoInit = document.getElementById('hdrLogo');
+  if(imgLogoOcultoInit) imgLogoOcultoInit.style.display = LOGO_SIN_LOGO ? 'none' : '';
+
+  // v1.4: efectos del logo (opacidad/blur/grises/contraste/sombra/rotación)
+  const logoOpacityGuardada = localStorage.getItem('audiolink_logo_opacity');
+  LOGO_OPACITY = logoOpacityGuardada !== null ? parseFloat(logoOpacityGuardada) : LOGO_OPACITY_DEFAULT;
+  const inputLogoOpacity = document.getElementById('logoOpacityInput');
+  if(inputLogoOpacity) inputLogoOpacity.value = LOGO_OPACITY;
+
+  const logoBlurGuardado = localStorage.getItem('audiolink_logo_blur');
+  LOGO_BLUR = logoBlurGuardado !== null ? parseFloat(logoBlurGuardado) : LOGO_BLUR_DEFAULT;
+  const inputLogoBlur = document.getElementById('logoBlurInput');
+  if(inputLogoBlur) inputLogoBlur.value = LOGO_BLUR;
+
+  const logoGrayscaleGuardado = localStorage.getItem('audiolink_logo_grayscale');
+  LOGO_GRAYSCALE = logoGrayscaleGuardado !== null ? parseFloat(logoGrayscaleGuardado) : LOGO_GRAYSCALE_DEFAULT;
+  const inputLogoGrayscale = document.getElementById('logoGrayscaleInput');
+  if(inputLogoGrayscale) inputLogoGrayscale.value = LOGO_GRAYSCALE;
+
+  const logoContrastGuardado = localStorage.getItem('audiolink_logo_contrast');
+  LOGO_CONTRAST = logoContrastGuardado !== null ? parseFloat(logoContrastGuardado) : LOGO_CONTRAST_DEFAULT;
+  const inputLogoContrast = document.getElementById('logoContrastInput');
+  if(inputLogoContrast) inputLogoContrast.value = LOGO_CONTRAST;
+
+  const logoSombraGuardada = localStorage.getItem('audiolink_logo_sombra') === '1';
+  LOGO_SOMBRA = logoSombraGuardada;
+  const inputLogoSombra = document.getElementById('logoSombraInput');
+  if(inputLogoSombra) inputLogoSombra.checked = LOGO_SOMBRA;
+
+  const logoRotacionGuardada = localStorage.getItem('audiolink_logo_rotacion');
+  LOGO_ROTACION = logoRotacionGuardada !== null ? parseFloat(logoRotacionGuardada) : LOGO_ROTACION_DEFAULT;
+  const inputLogoRotacion = document.getElementById('logoRotacionInput');
+  if(inputLogoRotacion) inputLogoRotacion.value = LOGO_ROTACION;
+
+  // v1.5: efectos de color del logo
+  const logoHueGuardado = localStorage.getItem('audiolink_logo_hue');
+  LOGO_HUE = logoHueGuardado !== null ? parseFloat(logoHueGuardado) : LOGO_HUE_DEFAULT;
+  const inputLogoHue = document.getElementById('logoHueInput');
+  if(inputLogoHue) inputLogoHue.value = LOGO_HUE;
+
+  const logoSaturateGuardado = localStorage.getItem('audiolink_logo_saturate');
+  LOGO_SATURATE = logoSaturateGuardado !== null ? parseFloat(logoSaturateGuardado) : LOGO_SATURATE_DEFAULT;
+  const inputLogoSaturate = document.getElementById('logoSaturateInput');
+  if(inputLogoSaturate) inputLogoSaturate.value = LOGO_SATURATE;
+
+  const logoSepiaGuardado = localStorage.getItem('audiolink_logo_sepia');
+  LOGO_SEPIA = logoSepiaGuardado !== null ? parseFloat(logoSepiaGuardado) : LOGO_SEPIA_DEFAULT;
+  const inputLogoSepia = document.getElementById('logoSepiaInput');
+  if(inputLogoSepia) inputLogoSepia.value = LOGO_SEPIA;
+
+  // v1.6: efectos del fondo (diffuser)
+  const diffuserBlurGuardado = localStorage.getItem('audiolink_diffuser_blur');
+  DIFFUSER_BLUR = diffuserBlurGuardado !== null ? parseFloat(diffuserBlurGuardado) : DIFFUSER_BLUR_DEFAULT;
+  const inputDiffuserBlur = document.getElementById('diffuserBlurInput');
+  if(inputDiffuserBlur) inputDiffuserBlur.value = DIFFUSER_BLUR;
+
+  const diffuserGrayscaleGuardado = localStorage.getItem('audiolink_diffuser_grayscale');
+  DIFFUSER_GRAYSCALE = diffuserGrayscaleGuardado !== null ? parseFloat(diffuserGrayscaleGuardado) : DIFFUSER_GRAYSCALE_DEFAULT;
+  const inputDiffuserGrayscale = document.getElementById('diffuserGrayscaleInput');
+  if(inputDiffuserGrayscale) inputDiffuserGrayscale.value = DIFFUSER_GRAYSCALE;
+
+  const diffuserContrastGuardado = localStorage.getItem('audiolink_diffuser_contrast');
+  DIFFUSER_CONTRAST = diffuserContrastGuardado !== null ? parseFloat(diffuserContrastGuardado) : DIFFUSER_CONTRAST_DEFAULT;
+  const inputDiffuserContrast = document.getElementById('diffuserContrastInput');
+  if(inputDiffuserContrast) inputDiffuserContrast.value = DIFFUSER_CONTRAST;
+
+  const diffuserSombraGuardada = localStorage.getItem('audiolink_diffuser_sombra') === '1';
+  DIFFUSER_SOMBRA = diffuserSombraGuardada;
+  const inputDiffuserSombra = document.getElementById('diffuserSombraInput');
+  if(inputDiffuserSombra) inputDiffuserSombra.checked = DIFFUSER_SOMBRA;
+
+  const diffuserRotacionGuardada = localStorage.getItem('audiolink_diffuser_rotacion');
+  DIFFUSER_ROTACION = diffuserRotacionGuardada !== null ? parseFloat(diffuserRotacionGuardada) : DIFFUSER_ROTACION_DEFAULT;
+  const inputDiffuserRotacion = document.getElementById('diffuserRotacionInput');
+  if(inputDiffuserRotacion) inputDiffuserRotacion.value = DIFFUSER_ROTACION;
+
   actualizarHeaderPreview();
   // v1.2: la galería (escucharGaleriaHeader) YA NO se llama acá — necesita
   // que la sesión de Firebase ya esté confirmada (ver guard de sesión en
@@ -277,7 +602,21 @@ function resetearHeaderDefaults(){
     'audiolink_header_diffuser_opacity',
     'audiolink_logo_size',
     'audiolink_logo_align',
-    'audiolink_logo_offset_y'
+    'audiolink_logo_offset_y',
+    'audiolink_logo_opacity',
+    'audiolink_logo_blur',
+    'audiolink_logo_grayscale',
+    'audiolink_logo_contrast',
+    'audiolink_logo_sombra',
+    'audiolink_logo_rotacion',
+    'audiolink_logo_hue',
+    'audiolink_logo_saturate',
+    'audiolink_logo_sepia',
+    'audiolink_diffuser_blur',
+    'audiolink_diffuser_grayscale',
+    'audiolink_diffuser_contrast',
+    'audiolink_diffuser_sombra',
+    'audiolink_diffuser_rotacion'
   ];
   claves.forEach(k => localStorage.removeItem(k));
 
@@ -288,6 +627,20 @@ function resetearHeaderDefaults(){
   LOGO_SIZE = LOGO_SIZE_DEFAULT;
   LOGO_ALIGN = LOGO_ALIGN_DEFAULT;
   LOGO_OFFSET_Y = LOGO_OFFSET_Y_DEFAULT;
+  LOGO_OPACITY = LOGO_OPACITY_DEFAULT;
+  LOGO_BLUR = LOGO_BLUR_DEFAULT;
+  LOGO_GRAYSCALE = LOGO_GRAYSCALE_DEFAULT;
+  LOGO_CONTRAST = LOGO_CONTRAST_DEFAULT;
+  LOGO_SOMBRA = LOGO_SOMBRA_DEFAULT;
+  LOGO_ROTACION = LOGO_ROTACION_DEFAULT;
+  LOGO_HUE = LOGO_HUE_DEFAULT;
+  LOGO_SATURATE = LOGO_SATURATE_DEFAULT;
+  LOGO_SEPIA = LOGO_SEPIA_DEFAULT;
+  DIFFUSER_BLUR = DIFFUSER_BLUR_DEFAULT;
+  DIFFUSER_GRAYSCALE = DIFFUSER_GRAYSCALE_DEFAULT;
+  DIFFUSER_CONTRAST = DIFFUSER_CONTRAST_DEFAULT;
+  DIFFUSER_SOMBRA = DIFFUSER_SOMBRA_DEFAULT;
+  DIFFUSER_ROTACION = DIFFUSER_ROTACION_DEFAULT;
 
   const inputColor = document.getElementById('headerColorInput');
   if(inputColor) inputColor.value = HEADER_COLOR_DEFAULT;
@@ -302,6 +655,43 @@ function resetearHeaderDefaults(){
   actualizarBotonesAlign();
   const inputLogoOffsetY = document.getElementById('logoOffsetYInput');
   if(inputLogoOffsetY) inputLogoOffsetY.value = LOGO_OFFSET_Y_DEFAULT;
+
+  // v1.7: reset de LOGO_SIN_LOGO
+  LOGO_SIN_LOGO = LOGO_SIN_LOGO_DEFAULT;
+  const inputLogoSinLogoReset = document.getElementById('logoSinLogoInput');
+  if(inputLogoSinLogoReset) inputLogoSinLogoReset.checked = false;
+  const imgLogoOcultoReset = document.getElementById('hdrLogo');
+  if(imgLogoOcultoReset) imgLogoOcultoReset.style.display = '';
+
+  const inputLogoOpacity = document.getElementById('logoOpacityInput');
+  if(inputLogoOpacity) inputLogoOpacity.value = LOGO_OPACITY_DEFAULT;
+  const inputLogoBlur = document.getElementById('logoBlurInput');
+  if(inputLogoBlur) inputLogoBlur.value = LOGO_BLUR_DEFAULT;
+  const inputLogoGrayscale = document.getElementById('logoGrayscaleInput');
+  if(inputLogoGrayscale) inputLogoGrayscale.value = LOGO_GRAYSCALE_DEFAULT;
+  const inputLogoContrast = document.getElementById('logoContrastInput');
+  if(inputLogoContrast) inputLogoContrast.value = LOGO_CONTRAST_DEFAULT;
+  const inputLogoSombra = document.getElementById('logoSombraInput');
+  if(inputLogoSombra) inputLogoSombra.checked = false;
+  const inputLogoRotacion = document.getElementById('logoRotacionInput');
+  if(inputLogoRotacion) inputLogoRotacion.value = LOGO_ROTACION_DEFAULT;
+  const inputLogoHue = document.getElementById('logoHueInput');
+  if(inputLogoHue) inputLogoHue.value = LOGO_HUE_DEFAULT;
+  const inputLogoSaturate = document.getElementById('logoSaturateInput');
+  if(inputLogoSaturate) inputLogoSaturate.value = LOGO_SATURATE_DEFAULT;
+  const inputLogoSepia = document.getElementById('logoSepiaInput');
+  if(inputLogoSepia) inputLogoSepia.value = LOGO_SEPIA_DEFAULT;
+
+  const inputDiffuserBlur = document.getElementById('diffuserBlurInput');
+  if(inputDiffuserBlur) inputDiffuserBlur.value = DIFFUSER_BLUR_DEFAULT;
+  const inputDiffuserGrayscale = document.getElementById('diffuserGrayscaleInput');
+  if(inputDiffuserGrayscale) inputDiffuserGrayscale.value = DIFFUSER_GRAYSCALE_DEFAULT;
+  const inputDiffuserContrast = document.getElementById('diffuserContrastInput');
+  if(inputDiffuserContrast) inputDiffuserContrast.value = DIFFUSER_CONTRAST_DEFAULT;
+  const inputDiffuserSombra = document.getElementById('diffuserSombraInput');
+  if(inputDiffuserSombra) inputDiffuserSombra.checked = false;
+  const inputDiffuserRotacion = document.getElementById('diffuserRotacionInput');
+  if(inputDiffuserRotacion) inputDiffuserRotacion.value = DIFFUSER_ROTACION_DEFAULT;
 
   actualizarHeaderPreview();
 }

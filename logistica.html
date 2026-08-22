@@ -3,8 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.124)</title>
-<!-- AUDIOLINK · logistica.html · v2.124
+<title>Audiolink — Logística (v2.129)</title>
+<!-- AUDIOLINK · logistica.html · v2.129
+     v2.129: unificado el tamaño de página a Carta (215.9×279.4mm) en
+     TODOS los PDF — antes exportarPDF() y exportarPDFSesion() (jsPDF)
+     estaban en A4 (210×297mm) mientras exportarPDFSesionHTML() (piloto)
+     ya usaba Carta vía @page. Cambio: new jsPDF({format:'letter'}) +
+     constantes pageW/pageHFull/pageH actualizadas en las 3 funciones.
+     exportarPDFSesion() sigue con sus botones en display:none (dormida)
+     pero se actualizó igual para no dejar el ecosistema inconsistente
+     si se reactiva. No se tocó ningún otro cálculo (todo el resto ya
+     usaba las constantes de página, no valores sueltos).
+
+     v2.128: fix de contraste — el texto "LOGÍSTICA · FICHA DE SESIÓN" +
+     fecha del header piloto (.ph-header-textos) usaba #9a978f (gris
+     beige), casi invisible sobre el fondo oscuro/texturizado. Ahora
+     rgba(250,247,238,0.85) — blanco/crema con opacidad, legible sin
+     competir con el dorado de otros elementos. Solo CSS, no se tocó
+     el jsPDF (doc.text del subtítulo en exportarPDF()/exportarPDFSesion()
+     ya usa mutedRGB, que es un gris distinto pensado para PDF, fuera de
+     alcance de este pedido).
+
+     v2.127: soporte para LOGO_SIN_LOGO (nuevo en header-config.js v1.7).
+     Cuando está activo, se omite el dibujo del logo tanto en pintarHeader()
+     de exportarPDF() (jsPDF, botones PDF Cliente/Interno del proyecto)
+     como en el header HTML de exportarPDFSesionHTML() (PDF piloto,
+     window.print()). HEADER_SIN_FONDO ya funcionaba en ambas rutas, no se
+     tocó. NO se modificó exportarPDFSesion() (jsPDF de sesión) por estar
+     con sus botones en display:none (dormida, reemplazada por la piloto).
+
+     v2.126: exportarPDFSesionHTML() (PDF piloto) ahora también aplica
+     los efectos del FONDO del header (imagen diffuser) agregados en
+     header-config.js v1.6 — filter vía construirFiltroDiffuser()
+     (blur/grises/contraste/sombra) + rotate() en transform. El logo ya
+     quedaba conectado desde v2.125 con construirFiltroLogo(), que en
+     header-config.js v1.5 sumó matiz/saturación/sepia — como el logo ya
+     usaba la función completa, esos 3 nuevos quedan conectados sin
+     tocar nada más acá. No se tocó pintarHeader() de jsPDF
+     (exportarPDF()/exportarPDFSesion()), que sigue sin aplicar ninguno
+     de estos efectos, como documentado en header-config.js.
+     v2.125: exportarPDFSesionHTML() (PDF piloto) ahora aplica los 6
+     efectos CSS del logo agregados en header-config.js v1.4 (LOGO_OPACITY,
+     LOGO_BLUR, LOGO_GRAYSCALE, LOGO_CONTRAST, LOGO_SOMBRA, LOGO_ROTACION)
+     — antes el <img class="ph-header-logo"> del template solo leía
+     LOGO_SIZE/LOGO_OFFSET_Y, por eso los sliders nuevos del header-config
+     no se veían reflejados en el PDF. Se usa construirFiltroLogo() de
+     header-config.js (ya existente, sin duplicar la fórmula) para el
+     filter, y se suma opacity + rotate() al transform. No se tocó
+     pintarHeader() de jsPDF (exportarPDF()/exportarPDFSesion()), que
+     sigue solo con LOGO_OPACITY vía setGState como documentado en
+     header-config.js.
      v2.124: ventana emergente de preview/impresión bajada a 700px de alto
      (antes 760) y con resizable=yes,scrollbars=yes — el diálogo nativo de
      "Imprimir" quedaba tapado por la barra de tareas de Windows en
@@ -4183,12 +4231,14 @@ function exportarPDF(modo){
   const logoOk      = imgLogo    && imgLogo.complete     && imgLogo.naturalWidth     > 0;
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({ format: 'letter' });
   const goldRGB = [201, 162, 75];
   const darkRGB = HEADER_COLOR_RGB; // v2.105: antes fijo [11,11,13], ahora configurable
   const mutedRGB = [154, 151, 143];
-  const pageW = 210;
-  const pageHFull = 297;
+  // v2.129: Carta (215.9×279.4mm) en vez de A4 (210×297mm), para igualar
+  // el @page:size:letter que ya usa exportarPDFSesionHTML() (piloto).
+  const pageW = 215.9;
+  const pageHFull = 279.4;
   const marginX = 18;
   const headerH = 38;
 
@@ -4224,13 +4274,15 @@ function exportarPDF(modo){
     // Logo izquierda (pequeño, centrado verticalmente) — v2.104: ancho
     // calculado a partir de la proporción real de la imagen (antes 40×16
     // fijo, estiraba el logo si su relación de aspecto no era 2.5:1)
-    if(logoOk){
+    if(logoOk && !LOGO_SIN_LOGO){
       // v2.109: alto y posición configurables (antes logoH=16 fijo,
       // logoY siempre centrado, X siempre en marginX)
       // v2.111: posición X ahora por alineación (LOGO_ALIGN, desde
       // header-config.js v1.1) en vez de offset libre en mm. RESERVA_DERECHA
       // deja espacio para no chocar con el subtítulo de texto de la esquina
       // derecha del header (ver pintarHeader() más abajo).
+      // v2.127: si LOGO_SIN_LOGO está activo (header-config.js v1.7), se
+      // omite el dibujo del logo por completo.
       const RESERVA_DERECHA = 62;
       const logoH = LOGO_SIZE;
       const logoW = logoH * (imgLogo.naturalWidth / imgLogo.naturalHeight);
@@ -4372,7 +4424,7 @@ function exportarPDFSesion(sesionId, modo){
   const logoOk      = imgLogo    && imgLogo.complete     && imgLogo.naturalWidth     > 0;
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({ format: 'letter' });
 
   // --- Paleta ---
   const gold    = [201, 162, 75];
@@ -4385,8 +4437,10 @@ function exportarPDFSesion(sesionId, modo){
   const redBg   = [250, 235, 232];
   const redInk  = [160, 50, 40];
 
-  const pageW     = 210;
-  const pageH     = 297;
+  // v2.129: Carta (215.9×279.4mm) en vez de A4, igualando el resto del
+  // ecosistema (ver exportarPDF() y @page de exportarPDFSesionHTML()).
+  const pageW     = 215.9;
+  const pageH     = 279.4;
   const mX        = 18;          // margen X
   const colW      = pageW - mX*2;
 
@@ -4822,10 +4876,10 @@ function exportarPDFSesionHTML(sesionId, modo){
   const htmlDoc = `
   <div class="ph-page">
     <div class="ph-header" style="background:${HEADER_SIN_FONDO ? '#ffffff' : colorHeaderCss};">
-      ${(!HEADER_SIN_FONDO) ? `<img class="ph-header-diffuser" src="${esc(rutaDiffuser)}" style="opacity:${HEADER_DIFFUSER_OPACITY}">
+      ${(!HEADER_SIN_FONDO) ? `<img class="ph-header-diffuser" src="${esc(rutaDiffuser)}" style="opacity:${HEADER_DIFFUSER_OPACITY};filter:${construirFiltroDiffuser()};transform:${DIFFUSER_ROTACION !== 0 ? `rotate(${DIFFUSER_ROTACION}deg)` : 'none'};">
       <div class="ph-header-overlay" style="background:${colorHeaderCss};opacity:${HEADER_COLOR_OPACITY};"></div>` : ''}
       <div class="ph-header-logo-wrap" style="justify-content:${logoJustify};">
-        <img class="ph-header-logo" src="${esc(rutaLogo)}" style="height:${LOGO_SIZE}mm;transform:translateY(${LOGO_OFFSET_Y}mm);">
+        ${!LOGO_SIN_LOGO ? `<img class="ph-header-logo" src="${esc(rutaLogo)}" style="height:${LOGO_SIZE}mm;transform:translateY(${LOGO_OFFSET_Y}mm)${LOGO_ROTACION !== 0 ? ` rotate(${LOGO_ROTACION}deg)` : ''};opacity:${LOGO_OPACITY};filter:${construirFiltroLogo()};">` : ''}
       </div>
       ${modo === 'interno' ? `<div class="ph-badge-confidencial">CONFIDENCIAL</div>` : ''}
       <div class="ph-header-textos">
@@ -4974,8 +5028,12 @@ body{
   letter-spacing:0.03em;
 }
 .ph-header-textos{
+  /* v2.128: contraste mejorado — antes #9a978f (gris beige) casi
+     invisible sobre el fondo oscuro/texturizado del header. Ahora
+     blanco/crema con opacidad para mantenerse legible sin competir
+     con el dorado de otros elementos (línea inferior, cifras). */
   position:absolute; right:18mm; bottom:5mm; text-align:right;
-  font-size:7.5pt; color:#9a978f; line-height:1.7;
+  font-size:7.5pt; color:rgba(250,247,238,0.85); line-height:1.7;
 }
 .ph-hero{
   margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm;

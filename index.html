@@ -4,7 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.27
+<!-- AUDIOLINK · index.html · v2.29
+     v2.29: descargarCatalogosOffline() y descargarTodoOffline() ahora
+     también traen categoriasCocina (mismo patrón array que
+     cocinaInsumos/etc. de v2.28) y checkCompras (cocina.html v1.7).
+     checkCompras es DISTINTO a los demás: es un doc único fijo
+     ('activa'), no una colección con muchos ítems, así que se trae
+     con .doc('activa').get() aparte del Promise.all de arriba, y se
+     guarda como objeto suelto (o null si todavía no existe) en vez de
+     array. Requiere offline-mock.js v1.9+ (ya sabe leer estos 2
+     campos nuevos del .json y darles escritura offline). No se tocó
+     nada más de ninguna de las 2 funciones.
+
+     v2.28: descargarCatalogosOffline() y descargarTodoOffline() ahora
+     también traen cocinaInsumos, cocinaRecetas, cocinaProductos y
+     ventasCocina (mismo patrón de solo-lectura que equipoInterno/
+     ingenieros/musicosPortal de v2.27). Son las 4 colecciones raíz que
+     usa cocina.html. Necesario para que cocina.html pueda leerlas
+     offline (requiere offline-mock.js v1.6+, que ya sabe guardarlas
+     en _offlineData.catalogos). No se tocó nada más de ninguna de las
+     2 funciones (UI, selector de proyectos, confirm(), descarga del
+     archivo, ni los catálogos ya existentes).
+
      v2.27: Grupo C ("fin del mundo") — descargarCatalogosOffline() y
      descargarTodoOffline() ahora también traen equipoInterno,
      ingenieros y musicosPortal (antes solo musicos/equipoTecnico/
@@ -808,7 +829,7 @@ async function descargarCatalogosOffline(){
   if(boton){ boton.disabled = true; boton.innerHTML = '<span class="offline-btn-ico">⏳</span><span>Descargando...</span>'; }
 
   try{
-    const [musicosSnap, equipoTecnicoSnap, estudiosSnap, equipoInternoSnap, ingenierosSnap, musicosPortalSnap] = await Promise.all([
+    const [musicosSnap, equipoTecnicoSnap, estudiosSnap, equipoInternoSnap, ingenierosSnap, musicosPortalSnap, cocinaInsumosSnap, cocinaRecetasSnap, cocinaProductosSnap, ventasCocinaSnap, categoriasCocinaSnap] = await Promise.all([
       db.collection('musicos').get(),
       db.collection('equipoTecnico').get(),
       db.collection('estudios').get(),
@@ -819,8 +840,26 @@ async function descargarCatalogosOffline(){
       // arriba.
       db.collection('equipoInterno').get(),
       db.collection('ingenieros').get(),
-      db.collection('musicosPortal').get()
+      db.collection('musicosPortal').get(),
+      // v2.28 — catálogos de cocina.html (colecciones raíz, mismo
+      // patrón de solo-lectura que los de arriba). offline-mock.js
+      // v1.6+ ya sabe guardarlos en _offlineData.catalogos.
+      db.collection('cocinaInsumos').get(),
+      db.collection('cocinaRecetas').get(),
+      db.collection('cocinaProductos').get(),
+      db.collection('ventasCocina').get(),
+      // v2.29 — categoriasCocina (colección de cocina.html v1.7, mismo
+      // patrón array que las 4 de arriba). offline-mock.js v1.9+ ya
+      // sabe darle escritura offline (add/update/delete).
+      db.collection('categoriasCocina').get()
     ]);
+
+    // v2.29 — checkCompras (cocina.html v1.7) NO sigue el patrón de
+    // arriba: es un solo doc fijo ('activa'), no una colección con
+    // muchos ítems. Se trae aparte con .doc('activa').get() en vez de
+    // .collection().get(). offline-mock.js v1.9+ ya sabe darle
+    // set() offline sobre ese doc puntual.
+    const checkComprasSnap = await db.collection('checkCompras').doc('activa').get();
 
     const paquete = {
       tipoArchivo: 'audiolink_catalogos_offline',
@@ -831,7 +870,17 @@ async function descargarCatalogosOffline(){
       estudios: estudiosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       equipoInterno: equipoInternoSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       ingenieros: ingenierosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-      musicosPortal: musicosPortalSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      musicosPortal: musicosPortalSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      cocinaInsumos: cocinaInsumosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      cocinaRecetas: cocinaRecetasSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      cocinaProductos: cocinaProductosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      ventasCocina: ventasCocinaSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      categoriasCocina: categoriasCocinaSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      // v2.29 — doc único, no array. Si todavía no existe (nadie usó
+      // Compras aún), checkComprasSnap.exists es false y se guarda
+      // null; offline-mock.js v1.9+ lo trata como "sin datos" sin
+      // romper (mismo criterio que cualquier doc no cargado).
+      checkCompras: checkComprasSnap.exists ? { id: checkComprasSnap.id, ...checkComprasSnap.data() } : null
     };
 
     const fechaArchivo = new Date().toISOString().split('T')[0];
@@ -995,7 +1044,7 @@ async function descargarTodoOffline(){
       };
     }));
 
-    const [musicosSnap, equipoTecnicoSnap, estudiosSnap, equipoInternoSnap, ingenierosSnap, musicosPortalSnap] = await Promise.all([
+    const [musicosSnap, equipoTecnicoSnap, estudiosSnap, equipoInternoSnap, ingenierosSnap, musicosPortalSnap, cocinaInsumosSnap, cocinaRecetasSnap, cocinaProductosSnap, ventasCocinaSnap, categoriasCocinaSnap] = await Promise.all([
       db.collection('musicos').get(),
       db.collection('equipoTecnico').get(),
       db.collection('estudios').get(),
@@ -1003,8 +1052,21 @@ async function descargarTodoOffline(){
       // comentario ahí).
       db.collection('equipoInterno').get(),
       db.collection('ingenieros').get(),
-      db.collection('musicosPortal').get()
+      db.collection('musicosPortal').get(),
+      // v2.28 — mismo agregado que en descargarCatalogosOffline() (ver
+      // comentario ahí).
+      db.collection('cocinaInsumos').get(),
+      db.collection('cocinaRecetas').get(),
+      db.collection('cocinaProductos').get(),
+      db.collection('ventasCocina').get(),
+      // v2.29 — mismo agregado que en descargarCatalogosOffline() (ver
+      // comentario ahí).
+      db.collection('categoriasCocina').get()
     ]);
+
+    // v2.29 — checkCompras es doc único, no colección array. Mismo
+    // motivo que en descargarCatalogosOffline() (ver comentario ahí).
+    const checkComprasSnap = await db.collection('checkCompras').doc('activa').get();
 
     const paquete = {
       tipoArchivo: 'audiolink_todo_offline',
@@ -1017,7 +1079,13 @@ async function descargarTodoOffline(){
         estudios: estudiosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
         equipoInterno: equipoInternoSnap.docs.map(d => ({ id: d.id, ...d.data() })),
         ingenieros: ingenierosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-        musicosPortal: musicosPortalSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        musicosPortal: musicosPortalSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        cocinaInsumos: cocinaInsumosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        cocinaRecetas: cocinaRecetasSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        cocinaProductos: cocinaProductosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        ventasCocina: ventasCocinaSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        categoriasCocina: categoriasCocinaSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        checkCompras: checkComprasSnap.exists ? { id: checkComprasSnap.id, ...checkComprasSnap.data() } : null
       }
     };
 

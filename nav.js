@@ -1,4 +1,11 @@
-/* AUDIOLINK · nav.js · v1.17
+/* AUDIOLINK · nav.js · v1.18
+   V1.18: se agrega el ítem "Cocina" (cocina.html) a ITEMS, en el grupo
+   'Operación' junto a Vacas/Eventos — sistema de costeo interno
+   (insumos→recetas→ventas) migrado a la navegación estándar. Se suma
+   también a idsFueraBottomnav para no saturar la barra inferior móvil
+   (queda accesible por sidebar desktop y panel "···" móvil). No se
+   tocó ninguna otra función, ítem existente ni la lógica de
+   inyección/colapsar/tema.
    V1.17: nuevo grupo colapsable "Ajustes" en el acordeón (sidebar
    desktop + panel "···" móvil), junto a Gestión/Catálogos/Operación/
    Finanzas. Se agrega el ítem "Header PDF" (header-config.html, panel
@@ -205,6 +212,7 @@
     { id:'eventos',   href:'eventos.html',   icon:'🎤', label:'Eventos',   grupo:'Operación' },
     { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador',  grupo:'Finanzas' },
     { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas',     grupo:'Operación' },
+    { id:'cocina',    href:'cocina.html',    icon:'🍱', label:'Cocina',    grupo:'Operación' },
     { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono', grupo:'Ajustes' },
     { id:'header-config', href:'header-config.html', icon:'🖼️', label:'Header PDF', grupo:'Ajustes' }
   ];
@@ -214,7 +222,7 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'avatares', 'cotizador', 'header-config'];
+  const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'cocina', 'avatares', 'cotizador', 'header-config'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
   // v1.13: mismo ícono, clase extra para poder cambiarle el color según

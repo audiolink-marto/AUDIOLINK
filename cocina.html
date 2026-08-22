@@ -1,0 +1,2107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Cocina (v1.13)</title>
+<!-- AUDIOLINK · cocina.html · v1.13
+     v1.13: (a pedido) imagen de receta + PDF versión cliente.
+     (1) Imagen de receta: widget de subida de Cloudinary (unsigned
+     upload preset "RECETAS", cloud "dv7lelmoy", carpeta "RECETAS"),
+     con miniatura de preview y botón "Quitar" en el formulario de
+     Nueva receta. Se guarda como campo imagenUrl en el doc de
+     cocinaRecetas. También se muestra como thumbnail chico en la
+     tarjeta de la lista de recetas.
+     (2) PDF cliente: nueva función imprimirRecetaClienteHTML(),
+     deliberadamente separada de imprimirRecetaHTML() (no un "modo"
+     condicional dentro de la misma plantilla, para no arriesgar filtrar
+     costos/margen por error). Muestra nombre, imagen (si hay),
+     ingredientes con cantidades (sin precio unitario ni subtotal) y
+     precio de venta — NO incluye costoTotal/ganancia/margenPct. Botón
+     nuevo 🧾 en cada tarjeta de receta, junto al 🖨️ interno existente.
+     No se tocó guardarReceta() en su lógica de costeo, ni Firebase/
+     Firestore más allá de agregar el campo imagenUrl.
+     v1.12: (a pedido) 2 mejoras sobre categorías:
+     (1) Chips de filtro por categoría en Compras, mismo patrón que
+     Insumos (v1.11): #filtroCategoriaComprasChips, estado
+     filtroCategoriaCompras, renderFiltroCategoriaComprasChips()/
+     seleccionarFiltroCategoriaCompras(), renderListaCompras() ahora
+     filtra por categoría (solo filtra, no toca la lógica de
+     comprado/pendiente). Mensaje de "vacío" diferenciado si es la
+     lista completa o solo el filtro sin resultados.
+     (2) Color determinístico por categoría (colorCategoria(), paleta
+     CATEGORIA_COLORES, misma posición que categoriasCache): se ve como
+     un punto de color (.chip-dot) en los chips de filtro (Insumos y
+     Compras) y en los badges .chip-categoria existentes (tabla de
+     Insumos y lista de Compras). No se tocó Firebase ni otras pestañas.
+     v1.11: el filtro de categoría de la tabla de Insumos deja de ser un
+     <select> y pasa a ser chips clickeables (a pedido), reutilizando el
+     mismo lenguaje visual de .chip-categoria ya usado en la app. Cambios:
+     (1) HTML: se reemplaza #selectFiltroCategoria por un contenedor
+     #filtroCategoriaChips; (2) JS: nueva variable de estado
+     filtroCategoriaActual (reemplaza el .value del select),
+     renderSelectFiltroCategoria() → renderFiltroCategoriaChips() (pinta
+     los chips y su estado activo) + nueva seleccionarFiltroCategoria(),
+     renderTablaInsumos() ahora lee filtroCategoriaActual; (3) CSS: nuevas
+     clases .filtro-chips/.chip-filtro (con estado .activo) + ajuste de
+     tamaño táctil en móvil. No se tocó ninguna otra pestaña ni Firebase.
+     v1.10: estilización móvil de selects y checkboxes (a pedido). Solo
+     CSS, sin tocar JS/HTML ni lógica de cálculo: (1) checkboxes con
+     tamaño 20px y accent-color dorado de marca en cualquier pantalla;
+     (2) en móvil (<600px): selects/inputs de .field y de la fila de
+     insumo de receta pasan a font-size:16px (evita el zoom automático
+     de iOS al enfocar) y min-height:46px; checkboxes crecen a 24px;
+     la fila de "lista de compras" (.compra-item) y la fila de insumo
+     de receta (.receta-insumo-row) se reorganizan en 2-3 líneas en vez
+     de apretar columnas en una sola fila.
+     v1.9: PDF vía HTML/CSS + window.print() (a pedido, mismo método
+     que exportarPDFSesionHTML()/PH_PRINT_CSS de logistica.html —
+     ventana de preview nueva, barra flotante "Imprimir/Guardar PDF",
+     @media print, se cierra sola tras imprimir). Prefijo de clases
+     ".coc-" (no ".ph-") para no chocar si algún día se comparte CSS
+     entre módulos. Diferencia real con logistica.html: cocina.html no
+     carga header-config.js, así que el header es texto simple, sin
+     logo/diffuser.
+     (1) imprimirRecetaHTML(id) — botón 🖨️ nuevo junto al 🗑️ de cada
+     receta en renderListaRecetas(). Usa el snapshot GUARDADO de la
+     receta (precios al momento de guardar), no precios vigentes —
+     intencional, es el costeo del pedido tal como se cotizó.
+     (2) imprimirListaComprasHTML() — botón 🖨️ nuevo junto a "Vaciar
+     lista" en la card de Lista de compras. Checklist agrupado por
+     categoría (mismo orden que categoriasCache), pensado también para
+     usarse desde el celular sin imprimir de verdad.
+     No se tocó guardarReceta(), recalcularCostoReceta(),
+     recalcularMargenReceta(), agregarRecetasAlCheck(),
+     confirmarCompra() ni ninguna otra función de cálculo — 100%
+     aditivo (2 funciones nuevas + 1 constante CSS + 2 botones HTML).
+
+     v1.8: aclaraciones visuales en la pestaña Recetas (a pedido) sobre
+     "por lote vs por unidad" — no se tocó ninguna lógica de cálculo,
+     solo texto de ayuda (clase nueva .hint-campo, mismo tamaño que
+     .hint-sugerido pero color --faint). 3 líneas agregadas:
+     (1) bajo la lista de insumos: aclara que las cantidades son para
+     1 lote completo, no por porción;
+     (2) bajo "Unidades por lote": aclara que es el rendimiento del
+     lote cargado arriba;
+     (3) bajo "Precio de venta (por unidad)": aclara que es el precio
+     de 1 porción, no del lote, porque el margen se calcula con eso.
+     No se tocó guardarReceta(), recalcularCostoReceta(),
+     recalcularMargenReceta() ni ninguna otra función — 0 cambios de
+     JS, solo HTML/CSS.
+
+     v1.7: categorías de insumos + pestaña "🛒 Compras" (a pedido,
+     diseño acordado con el usuario). Cambios:
+     (1) Colección nueva 'categoriasCocina' (doc: nombre, creadoEn).
+     cocinaInsumos gana el campo categoriaId (id de categoriasCocina,
+     '' = sin categoría — insumos viejos sin este campo quedan así).
+     Se guarda el ID, no el texto, para que renombrar una categoría
+     sea un solo update() que se refleja en todos los insumos que la
+     usan (mismo criterio que productos/recetas referenciados por id
+     en vez de texto suelto). guardarCategoria()/renombrarCategoria()/
+     eliminarCategoria() — esta última avisa si hay insumos usando esa
+     categoría (mismo patrón de aviso que eliminarInsumo() v1.5) y, si
+     se confirma, los deja en "Sin categoría" en vez de bloquear el
+     borrado o borrarlos en cascada. Selector de categoría en
+     "Registrar insumo" con opción "+ Nueva categoría…" (mismo patrón
+     que selectProducto/__nuevo__). Tabla de insumos: columna
+     Categoría + filtro para verlos agrupados.
+     (2) Colección nueva 'checkCompras' — un solo doc fijo ('activa')
+     con un array `items`. Pestaña nueva "🛒 Compras":
+       (a) "Generar desde recetas": elegís recetas + N° de lotes por
+           receta → suma cantidad×lotes por insumo (mergeando si el
+           mismo insumo aparece en varias recetas) y lo agrega a la
+           lista activa.
+       (b) "Agregar insumo suelto": para lo que no viene de ninguna
+           receta (sal, bolsas, etc.) — elige un insumo ya existente
+           del catálogo + cantidad. No crea insumos nuevos desde acá
+           a propósito (para no duplicar la lógica de guardarInsumo());
+           si el insumo no existe todavía, se crea primero en la
+           pestaña Insumos.
+       (c) Lista de compras: cada fila tiene un checkbox "pendiente"
+           (tildado por defecto = falta comprarlo; se puede destildar
+           manualmente si ya lo tenés, sin borrarlo de la lista).
+           Botón "✅ Marcar comprado" pide, en un mismo paso, cantidad
+           comprada + precio nuevo por unidad → actualiza
+           cocinaInsumos.valorUnidad con ese precio Y marca la fila
+           como comprada. Botón "Vaciar lista" para arrancar una lista
+           nueva.
+     (3) Requiere offline-mock.js v1.9+ (whitelist de escritura
+     ampliada a categoriasCocina/checkCompras + update()/set()
+     genéricos para colecciones raíz) e index.html v2.29+ (las 2
+     colecciones nuevas ya viajan en el paquete de "📦 Descargar
+     catálogos"/"🌴 Descargar todo").
+     No se tocó guardarVenta(), guardarReceta(), eliminarInsumo() (solo
+     se le agregó no tocar categoriaId al no relacionarse) ni ninguna
+     otra lógica de cálculo ya existente.
+
+     v1.6: se integra la navegación estándar del ecosistema (sidebar
+     desktop / mobile-topbar + bottomnav + panel "···", nav.css v1.15 /
+     nav.js v1.18) y el switch de modo offline (crearDB(), firebase-
+     config.js v1.3 + offline-mock.js). Cambios:
+     (1) Se agrega <div id="nav-mount"></div> + window.NAV_CONFIG =
+     {activo:'cocina'} justo después de <body>, y todo el contenido
+     existente se envuelve en <main class="main-wrap" id="mainWrap">
+     — mismo patrón exacto que el resto del ecosistema. Se retira el
+     link manual "← Volver" (ya cubierto por el sidebar/bottomnav).
+     (2) Se agregan alias de variables CSS en :root (--surf, --brd,
+     --txt, --gold-bg, --ok, --err, --warn, --S) apuntando a las
+     mismas variables que ya usaba el archivo — nav.css los necesita
+     con esos nombres; no se tocó ningún valor de color ni su uso
+     existente en el resto del archivo.
+     (3) 'cocina' se agrega a ITEMS/idsFueraBottomnav en nav.js
+     (v1.17→v1.18), grupo 'Operación' — accesible desde sidebar
+     desktop y panel "···" móvil, no ocupa uno de los 4 slots fijos
+     de la barra inferior.
+     (4) const db = firebase.firestore() → const db = crearDB() —
+     mismo patrón que el resto del ecosistema migrado a Fase 1
+     offline. IMPORTANTE: cocinaInsumos/cocinaRecetas/cocinaProductos/
+     ventasCocina AÚN NO forman parte del paquete de "📦 Descargar
+     catálogos" de index.html (esa lista de colecciones vive en
+     offline-mock.js, archivo compartido, no se tocó en esta entrega
+     para no arriesgar el resto del ecosistema ya migrado) — en modo
+     offline, cocina.html hoy muestra sus 3 catálogos vacíos en vez
+     de romperse (comportamiento ya esperado del mock ante una
+     colección sin datos descargados). Conectar cocina a la descarga
+     de catálogos es un paso aparte, a confirmar con el usuario.
+     (5) Se agrega firebase.initializeApp(firebaseConfig) + const
+     auth = firebase.auth() — el archivo original nunca inicializaba
+     la app de Firebase explícitamente; se detectó al integrar
+     cerrarSesion() del nav (que requiere `auth` en scope global).
+     Gap preexistente a la v1.5 subida, no introducido por versiones
+     anteriores de este changelog.
+     No se tocó guardarReceta(), guardarVenta(), eliminarInsumo() ni
+     ninguna otra lógica de cálculo o colección — todo lo anterior es
+     estructura de navegación/carga de scripts.
+
+     v1.5: 3 ajustes de robustez sobre la arquitectura Insumos→Recetas→
+     Ventas (v1.4), a pedido del usuario tras revisión conjunta:
+     (1) Enganche Ventas↔Recetas normalizado: se agrega normalizarNombre()
+     (trim+toUpperCase) y se compara con esa función en vez de igualdad
+     directa de string — defensivo ante espacios sueltos, aunque ambos
+     lados ya guardaban en mayúsculas.
+     (2) eliminarInsumo() ahora revisa recetasCache antes de borrar: si el
+     insumo está usado en una o más recetas guardadas, muestra cuáles y
+     pide confirmación extra explicando que esas recetas NO se alteran
+     (guardan snapshot propio) pero el insumo ya no estará disponible para
+     recetas nuevas.
+     (3) Cada tarjeta de receta guardada ahora compara su costoTotal
+     (snapshot) contra costoActualReceta() (recalculado con los precios
+     vigentes de insumosCache) — si difieren, muestra un badge
+     "⚠️ Insumo actualizado" junto al nombre y, en el detalle expandido,
+     una fila con el costo a precios de hoy. escucharInsumos() ahora
+     también re-renderiza la lista de recetas para que el badge se
+     actualice en vivo si cambia un precio mientras la pestaña está
+     abierta. No se tocó guardarReceta(), guardarVenta() ni la estructura
+     de ninguna colección — todo es lectura/comparación adicional.
+
+     v1.4: enganche Ventas ↔ Recetas. Al elegir un producto en el
+     formulario de Ventas, si existe una receta guardada con el mismo
+     nombre (misma llave 'nombre' en mayúsculas que ya comparten ambas
+     colecciones, no se agregó ningún campo nuevo), se autocompleta el
+     precio unitario con el precioVenta de esa receta — solo si el campo
+     estaba vacío, nunca sobreescribe un precio ya digitado manualmente.
+     Debajo del campo aparece una pista discreta con el margen de esa
+     receta (ej. "Sugerido desde receta · margen 60,55%"). Sin receta
+     coincidente, el campo sigue 100% manual como antes. No se tocó
+     guardarVenta(), recalcularTotalForm() ni la estructura de
+     ventasCocina — cero riesgo sobre la lógica de ventas existente.
+
+     v1.3: lógica JS completa de la pestaña RECETAS (el HTML/CSS ya
+     existía desde v1.2, quedaba sin conectar). Agregado: filas dinámicas
+     de insumos (agregarFilaInsumoReceta/quitarFilaInsumoReceta) que
+     leen el catálogo en vivo de insumosCache; cálculo automático de
+     subtotal por fila y costo total (recalcularCostoReceta); cálculo de
+     ingresos/ganancia/margen% según unidades por lote y precio de venta
+     (recalcularMargenReceta, misma fórmula ganancia/ingresos×100 que la
+     hoja "MARGEN DE GANANCIA"); guardarReceta() con snapshot denormalizado
+     de insumos (no se recalcula si luego cambia el precio del insumo en
+     catálogo); escucharRecetas()/renderListaRecetas() con tarjetas
+     expandibles (toggleRecetaDetalle) mostrando el detalle insumo por
+     insumo; eliminarReceta(). Pendiente (siguiente iteración, no incluido
+     acá): conectar Ventas con Recetas para autocompletar el precio
+     sugerido — se hace por separado tras confirmar con el usuario cómo
+     prefiere ese enganche.
+
+     v1.2: nueva pestaña RECETAS — constructor de receta con filas
+     dinámicas de insumos (tomados del catálogo de la pestaña Insumos),
+     cálculo automático de costo total (suma cantidad×valorUnidad de
+     cada insumo, igual que la hoja "PLAN DE GASTOS LASAÑA"), e ingresos/
+     margen de ganancia según unidades por lote y precio de venta.
+     Colección nueva: 'cocinaRecetas' — doc: nombre, insumos (array
+     denormalizado con nombre/unidad/valorUnidad/cantidad/subtotal al
+     momento de guardar, para que la receta no cambie retroactivamente
+     si luego se edita el precio de un insumo en el catálogo — mismo
+     criterio que otros snapshots del ecosistema, ej. musicos/técnicos
+     denormalizados en sesiones de logistica.html), costoTotal,
+     unidadesPorLote, precioVenta, ingresos, ganancia, margenPct,
+     creadoEn. Debajo del formulario, lista de recetas guardadas con
+     resumen y detalle expandible. Pendiente (siguiente iteración, no
+     incluido acá): conectar Ventas con Recetas para autocompletar el
+     precio sugerido al registrar una venta — se hace por separado tras
+     confirmar con el usuario cómo prefiere ese enganche.
+
+     v1.1: se amplía el módulo de un solo bloque (Ventas) a una interfaz
+     con pestañas, agregando el primer paso del sistema de costeo:
+     INSUMOS (catálogo de ingredientes con nombre/unidad/precio unitario,
+     colección 'cocinaInsumos'). Patrón calcado del costeo de Sagrada
+     Delicia (INSUMOS/RECETARIO/COSTOS) en vez de reinventar la lógica.
+     Próximo paso (aún no incluido): pestaña RECETAS, que consumirá este
+     catálogo de insumos para calcular costo por producto y margen de
+     ganancia — ver plan acordado con el usuario. La pestaña VENTAS
+     (v1.0) queda intacta, sin cambios funcionales.
+
+     v1.0: primera versión — registro simple de ventas ocasionales de
+     comida (tabla tipo hoja de cálculo + catálogo de productos).
+-->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="offline-mock.js"></script>
+<script src="firebase-config.js"></script>
+<script src="https://upload-widget.cloudinary.com/global/all.js"></script>
+<link rel="stylesheet" href="nav.css">
+<style>
+:root{
+  --bg:#0b0b0d;
+  --bg-card:#151517;
+  --bg-card-alt:#1a1a1d;
+  --border:#2a2a2e;
+  --gold:#C4982C;
+  --gold-soft:rgba(196,152,44,0.12);
+  --text:#f2efe6;
+  --muted:#9a978f;
+  --faint:#6f6c66;
+  --danger:#a03228;
+  --T:'Playfair Display', serif;
+  --M:'JetBrains Mono', monospace;
+  /* Alias requeridos por nav.css/nav.js (navegación estándar del
+     ecosistema, v1.6) — apuntan a las MISMAS variables de arriba, no
+     se duplica ningún valor de color a mano. No se tocó ninguna
+     variable existente ni su uso en el resto del archivo. */
+  --surf:var(--bg-card);
+  --surf-light:var(--bg-card-alt);
+  --brd:var(--border);
+  --txt:var(--text);
+  --gold-bg:var(--gold-soft);
+  --ok:#5cb85c;
+  --err:var(--danger);
+  --warn:#d4a017;
+  --S:'Inter', -apple-system, sans-serif;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Inter', -apple-system, sans-serif;
+  padding:24px 16px 60px;
+}
+.wrap{ max-width:960px; margin:0 auto; }
+.header-top{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:18px; flex-wrap:wrap; gap:10px;
+}
+.header-top h1{
+  font-family:var(--T); font-size:1.5rem; font-weight:600;
+  color:var(--gold); letter-spacing:0.03em; margin:0;
+}
+.header-top .sub{ font-size:0.82rem; color:var(--muted); margin-top:2px; }
+.back-link{
+  color:var(--muted); font-size:0.85rem; text-decoration:none;
+  display:inline-block; margin-bottom:14px;
+}
+.back-link:hover{ color:var(--gold); }
+
+/* Tabs */
+.tabs{
+  display:flex; gap:6px; margin-bottom:20px; border-bottom:1px solid var(--border);
+  overflow-x:auto;
+}
+.tab-btn{
+  background:transparent; border:none; color:var(--muted); font-size:0.88rem;
+  font-weight:600; padding:10px 16px; cursor:pointer; white-space:nowrap;
+  border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+.tab-btn.activo{ color:var(--gold); border-bottom-color:var(--gold); }
+.tab-panel{ display:none; }
+.tab-panel.activo{ display:block; }
+
+.total-card{
+  background:linear-gradient(135deg, var(--bg-card), var(--bg-card-alt));
+  border:1px solid var(--border); border-radius:12px;
+  padding:18px 22px; margin-bottom:20px;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+}
+.total-card .label{ font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+.total-card .valor{ font-family:var(--M); font-size:1.9rem; font-weight:700; color:var(--gold); }
+.total-card .conteo{ font-size:0.78rem; color:var(--faint); }
+
+.card{
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+  padding:18px 20px; margin-bottom:20px;
+}
+.card h3{
+  font-family:var(--T); font-size:1.05rem; font-weight:600; color:var(--gold);
+  margin:0 0 4px;
+}
+.card .card-sub{ font-size:0.78rem; color:var(--faint); margin-bottom:14px; }
+
+.form-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+}
+.form-grid.cols-4{ grid-template-columns:1.4fr 0.8fr 0.8fr 1fr; }
+.field{ display:flex; flex-direction:column; gap:5px; }
+.field label{ font-size:0.75rem; color:var(--muted); }
+.field input, .field select{
+  background:#0f0f11; border:1px solid var(--border); border-radius:8px;
+  color:var(--text); padding:10px 12px; font-size:0.92rem; min-height:42px;
+  font-family:inherit;
+}
+.field input:focus, .field select:focus{ outline:none; border-color:var(--gold); }
+/* v1.10: checkboxes con tamaño y color de marca (mejora táctil, cualquier pantalla) */
+input[type="checkbox"]{
+  width:20px; height:20px; accent-color:var(--gold); cursor:pointer; flex-shrink:0;
+}
+.field-total{
+  grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;
+  background:var(--gold-soft); border-radius:8px; padding:10px 14px; margin-top:2px;
+}
+.field-total .lbl{ font-size:0.8rem; color:var(--muted); }
+.field-total .val{ font-family:var(--M); font-weight:700; color:var(--gold); font-size:1.1rem; }
+
+.producto-nuevo-row{
+  grid-column:1/-1; display:none; gap:8px; align-items:center;
+}
+.producto-nuevo-row.activo{ display:flex; }
+.producto-nuevo-row input{ flex:1; }
+/* v1.13: imagen de receta (Cloudinary) */
+.receta-imagen-upload{ display:flex; gap:12px; align-items:center; }
+.receta-imagen-preview{
+  width:72px; height:72px; border-radius:10px; overflow:hidden; flex-shrink:0;
+  background:#0f0f11; border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+}
+.receta-imagen-preview img{ width:100%; height:100%; object-fit:cover; }
+.vacio-mini{ font-size:0.65rem; color:var(--faint); text-align:center; padding:4px; }
+.receta-card-thumb{
+  width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0;
+  border:1px solid var(--border);
+}
+
+.btn{
+  background:var(--gold); color:#1a1408; border:none; border-radius:8px;
+  padding:11px 18px; font-weight:600; font-size:0.9rem; cursor:pointer;
+  min-height:44px;
+}
+.btn:hover{ filter:brightness(1.08); }
+.btn-ghost{
+  background:transparent; color:var(--muted); border:1px solid var(--border);
+  border-radius:8px; padding:9px 14px; font-size:0.85rem; cursor:pointer; min-height:40px;
+}
+.btn-ghost:hover{ border-color:var(--gold); color:var(--gold); }
+.btn-row{ grid-column:1/-1; display:flex; gap:10px; margin-top:4px; }
+
+/* Tabla tipo hoja de cálculo */
+.tabla-wrap{ overflow-x:auto; border-radius:12px; border:1px solid var(--border); }
+table.hoja{
+  width:100%; border-collapse:collapse; font-size:0.85rem; min-width:640px;
+}
+table.hoja thead th{
+  background:var(--bg-card-alt); color:var(--muted); text-transform:uppercase;
+  font-size:0.68rem; letter-spacing:0.05em; font-weight:600;
+  padding:10px 12px; text-align:left; border-bottom:1px solid var(--border);
+  position:sticky; top:0;
+}
+table.hoja thead th.num{ text-align:right; }
+table.hoja tbody td{
+  padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text);
+}
+table.hoja tbody tr:hover{ background:rgba(255,255,255,0.02); }
+table.hoja td.num{ text-align:right; font-family:var(--M); }
+table.hoja td.producto{ font-weight:600; }
+table.hoja td.fecha{ color:var(--muted); white-space:nowrap; }
+table.hoja td.total{ color:var(--gold); font-weight:700; }
+.btn-del{
+  background:transparent; border:none; color:var(--faint); cursor:pointer;
+  font-size:1rem; padding:4px 6px; border-radius:6px;
+}
+.btn-del:hover{ color:var(--danger); background:rgba(160,50,40,0.12); }
+.vacio{ text-align:center; padding:30px; color:var(--faint); font-size:0.85rem; }
+
+/* Recetas */
+.receta-insumo-row{
+  display:grid; grid-template-columns:1.6fr 0.7fr 0.9fr auto; gap:8px; align-items:center;
+  margin-bottom:8px;
+}
+.receta-insumo-row .subtotal{ font-family:var(--M); font-size:0.85rem; color:var(--muted); text-align:right; }
+.margen-grid{
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:14px;
+}
+.margen-box{
+  background:var(--bg-card-alt); border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px;
+}
+.margen-box .lbl{ font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+.margen-box .val{ font-family:var(--M); font-size:1.15rem; font-weight:700; margin-top:4px; }
+.margen-box .val.ok{ color:#5cb85c; }
+.margen-box .val.warn{ color:var(--danger); }
+.margen-box .val.gold{ color:var(--gold); }
+.receta-card{
+  background:var(--bg-card-alt); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px; margin-bottom:10px;
+}
+.receta-card .receta-head{
+  display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+}
+.receta-card .receta-nombre{ font-weight:700; color:var(--gold); font-family:var(--T); font-size:1rem; }
+.receta-card .receta-resumen{ font-size:0.78rem; color:var(--muted); margin-top:2px; }
+.receta-card .receta-detalle{ display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:10px; }
+.receta-card .receta-detalle.activo{ display:block; }
+.receta-detalle-fila{
+  display:flex; justify-content:space-between; font-size:0.82rem; padding:4px 0; color:var(--muted);
+}
+.receta-detalle-fila span:last-child{ font-family:var(--M); color:var(--text); }
+.hint-sugerido{ font-size:0.72rem; color:var(--gold); margin-top:4px; min-height:1em; }
+/* v1.8: aclaraciones fijas de "por lote vs por unidad" en Recetas —
+   mismo tamaño que hint-sugerido pero color --faint (no --gold),
+   porque no es una sugerencia dinámica sino un texto fijo. */
+.hint-campo{ font-size:0.72rem; color:var(--faint); margin-top:4px; line-height:1.35; }
+.badge-desactualizada{
+  display:inline-block; font-size:0.68rem; font-weight:600; color:var(--danger);
+  background:rgba(160,50,40,0.12); border:1px solid rgba(160,50,40,0.3);
+  border-radius:6px; padding:1px 6px; margin-left:6px; vertical-align:middle;
+}
+
+/* Categorías de insumos (v1.7) */
+.categoria-nueva-row{
+  grid-column:1/-1; display:none; gap:8px; align-items:center;
+}
+.categoria-nueva-row.activo{ display:flex; }
+.categoria-nueva-row input{ flex:1; }
+.categoria-list{ display:flex; flex-direction:column; gap:6px; }
+.categoria-list-item{
+  display:flex; align-items:center; gap:8px;
+  background:var(--bg-card-alt); border:1px solid var(--border); border-radius:8px;
+  padding:8px 10px;
+}
+.categoria-list-item input[type="text"]{
+  flex:1; background:transparent; border:none; color:var(--text);
+  font-size:0.88rem; padding:2px 4px;
+}
+.categoria-list-item input[type="text"]:focus{ outline:1px solid var(--gold); border-radius:4px; }
+.chip-categoria{
+  display:inline-block; font-size:0.7rem; color:var(--muted);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border);
+  border-radius:6px; padding:1px 7px;
+}
+/* v1.11: chips de filtro (clickeables), mismo lenguaje visual que .chip-categoria */
+.filtro-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+.chip-filtro{
+  font-family:inherit; font-size:0.78rem; color:var(--muted);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border);
+  border-radius:16px; padding:6px 12px; cursor:pointer;
+}
+.chip-filtro:hover{ border-color:var(--gold); color:var(--text); }
+.chip-filtro.activo{
+  background:var(--gold-soft); border-color:var(--gold); color:var(--gold); font-weight:600;
+}
+/* v1.12: punto de color por categoría, usado en badges y chips de filtro */
+.chip-dot{
+  display:inline-block; width:7px; height:7px; border-radius:50%;
+  margin-right:5px; vertical-align:middle;
+}
+
+/* Compras (v1.7) */
+.receta-check-row{
+  display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center;
+  padding:8px 0; border-bottom:1px solid var(--border);
+}
+.receta-check-row:last-child{ border-bottom:none; }
+.receta-check-row input[type="number"]{ width:70px; }
+.compra-item{
+  display:grid; grid-template-columns:auto 1fr auto auto; gap:10px; align-items:center;
+  padding:10px 0; border-bottom:1px solid var(--border);
+}
+.compra-item:last-child{ border-bottom:none; }
+.compra-item.comprado{ opacity:0.5; }
+.compra-item.comprado .compra-nombre{ text-decoration:line-through; }
+.compra-nombre{ font-weight:600; }
+.compra-meta{ font-size:0.75rem; color:var(--muted); margin-top:1px; }
+.compra-cant{ font-family:var(--M); color:var(--muted); white-space:nowrap; }
+.compra-comprar-form{
+  display:none; grid-template-columns:1fr 1fr auto; gap:8px; margin-top:8px;
+  grid-column:1/-1;
+}
+.compra-comprar-form.activo{ display:grid; }
+.compra-comprar-form input{
+  background:#0f0f11; border:1px solid var(--border); border-radius:8px;
+  color:var(--text); padding:8px 10px; font-size:0.85rem;
+}
+
+@media (max-width:600px){
+  .form-grid{ grid-template-columns:1fr; }
+  .form-grid.cols-4{ grid-template-columns:1fr; }
+  .header-top{ flex-direction:column; align-items:flex-start; }
+
+  /* v1.10: selects y checkboxes más grandes/táctiles en móvil */
+  .field select, .field input,
+  .receta-insumo-row select, .receta-insumo-row input{
+    font-size:16px; min-height:46px;
+  }
+  input[type="checkbox"]{ width:24px; height:24px; }
+  .chip-filtro{ padding:8px 14px; font-size:0.82rem; }
+
+  /* v1.10: fila de lista de compras en 2 líneas (checkbox+nombre / cant+botón) */
+  .compra-item{
+    grid-template-columns:auto 1fr;
+    row-gap:6px;
+  }
+  .compra-item .compra-cant{ grid-column:2; }
+  .compra-item > button{ grid-column:1/-1; }
+
+  /* v1.10: fila de insumo en receta, en 3 líneas (select / cant+subtotal / borrar) */
+  .receta-insumo-row{
+    grid-template-columns:1fr auto;
+    grid-template-areas:
+      "sel sel"
+      "cant sub"
+      "btn btn";
+    row-gap:6px;
+  }
+  .receta-insumo-row select{ grid-area:sel; }
+  .receta-insumo-row input{ grid-area:cant; }
+  .receta-insumo-row .subtotal{ grid-area:sub; }
+  .receta-insumo-row .btn-del{ grid-area:btn; justify-self:end; }
+}
+</style>
+</head>
+<body>
+<script>
+  window.NAV_CONFIG = { activo: 'cocina' };
+</script>
+<div id="nav-mount"></div>
+<main class="main-wrap" id="mainWrap">
+<div class="wrap">
+  <div class="header-top">
+    <div>
+      <h1>🍱 Cocina — Ventas ocasionales</h1>
+      <div class="sub">Insumos, costeo y ventas de comida dentro del estudio</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button type="button" class="tab-btn activo" data-tab="tabVentas" onclick="cambiarTab('tabVentas')">📋 Ventas</button>
+    <button type="button" class="tab-btn" data-tab="tabInsumos" onclick="cambiarTab('tabInsumos')">🧺 Insumos</button>
+    <button type="button" class="tab-btn" data-tab="tabRecetas" onclick="cambiarTab('tabRecetas')">🧮 Recetas</button>
+    <button type="button" class="tab-btn" data-tab="tabCompras" onclick="cambiarTab('tabCompras')">🛒 Compras</button>
+  </div>
+
+  <!-- ============ TAB VENTAS (v1.0, sin cambios funcionales) ============ -->
+  <div class="tab-panel activo" id="tabVentas">
+    <div class="total-card">
+      <div>
+        <div class="label">Total acumulado</div>
+        <div class="valor" id="totalAcumulado">$0</div>
+      </div>
+      <div class="conteo" id="conteoVentas">0 ventas registradas</div>
+    </div>
+
+    <div class="card">
+      <h3>➕ Registrar venta</h3>
+      <div class="card-sub">&nbsp;</div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="inputFecha">Fecha</label>
+          <input type="date" id="inputFecha">
+        </div>
+        <div class="field">
+          <label for="selectProducto">Producto</label>
+          <select id="selectProducto" onchange="alCambiarProducto(this.value)">
+            <option value="">Selecciona…</option>
+            <option value="__nuevo__">➕ Agregar nuevo producto…</option>
+          </select>
+        </div>
+        <div class="producto-nuevo-row" id="filaProductoNuevo">
+          <input type="text" id="inputProductoNuevo" placeholder="Nombre del nuevo producto (ej: AREPAS)">
+          <button type="button" class="btn-ghost" onclick="guardarProductoNuevo()">Guardar</button>
+        </div>
+        <div class="field">
+          <label for="inputCantidad">Cantidad</label>
+          <input type="number" id="inputCantidad" min="1" step="1" placeholder="10" oninput="recalcularTotalForm()">
+        </div>
+        <div class="field">
+          <label for="inputPrecio">Precio unitario</label>
+          <input type="number" id="inputPrecio" min="0" step="500" placeholder="15000" oninput="recalcularTotalForm()">
+          <div class="hint-sugerido" id="hintPrecioSugerido"></div>
+        </div>
+        <div class="field-total">
+          <span class="lbl">Total de esta venta</span>
+          <span class="val" id="totalFormPreview">$0</span>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn" onclick="guardarVenta()">Guardar venta</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="padding:18px 20px 0;">
+        <h3 style="margin-bottom:4px;">📋 Historial de ventas</h3>
+        <div class="card-sub">Ordenado por fecha, más reciente primero.</div>
+      </div>
+      <div class="tabla-wrap">
+        <table class="hoja">
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>Fecha</th>
+              <th>Producto</th>
+              <th class="num">Cantidad</th>
+              <th class="num">Precio unit.</th>
+              <th class="num">Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyVentas">
+            <tr><td colspan="7" class="vacio">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB INSUMOS (nuevo v1.1, categorías v1.7) ============ -->
+  <div class="tab-panel" id="tabInsumos">
+    <div class="card">
+      <h3>🏷️ Categorías</h3>
+      <div class="card-sub">Organiza el catálogo de insumos. Cambiar el nombre acá se refleja en todos los insumos que la usan.</div>
+      <div class="categoria-list" id="listaCategorias">
+        <div class="vacio" style="padding:12px;">Cargando…</div>
+      </div>
+      <div class="form-grid" style="margin-top:12px;">
+        <div class="field" style="grid-column:1/-1;">
+          <label for="inputCategoriaNueva">Nueva categoría</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="inputCategoriaNueva" placeholder="ej: PROTEÍNAS" style="flex:1;">
+            <button type="button" class="btn-ghost" onclick="guardarCategoriaNueva()">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>➕ Registrar insumo</h3>
+      <div class="card-sub">Nombre, categoría, unidad de medida y precio por unidad — usados luego en el costeo de recetas.</div>
+      <div class="form-grid cols-4">
+        <div class="field">
+          <label for="inputInsumoNombre">Nombre</label>
+          <input type="text" id="inputInsumoNombre" placeholder="ej: POLLO">
+        </div>
+        <div class="field">
+          <label for="selectInsumoCategoria">Categoría</label>
+          <select id="selectInsumoCategoria" onchange="alCambiarCategoriaInsumo(this.value)">
+            <option value="">Sin categoría</option>
+            <option value="__nueva__">➕ Nueva categoría…</option>
+          </select>
+        </div>
+        <div class="categoria-nueva-row" id="filaCategoriaNuevaInsumo">
+          <input type="text" id="inputCategoriaNuevaInsumo" placeholder="Nombre de la categoría nueva">
+          <button type="button" class="btn-ghost" onclick="guardarCategoriaNuevaDesdeInsumo()">Guardar</button>
+        </div>
+        <div class="field">
+          <label for="selectInsumoUnidad">Unidad</label>
+          <select id="selectInsumoUnidad">
+            <option value="GR">GR</option>
+            <option value="KG">KG</option>
+            <option value="ML">ML</option>
+            <option value="L">L</option>
+            <option value="UND">UND</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inputInsumoPrecio">Valor unidad</label>
+          <input type="number" id="inputInsumoPrecio" min="0" step="1" placeholder="15">
+        </div>
+        <div class="btn-row" style="align-items:flex-end;">
+          <button type="button" class="btn" style="width:100%;" onclick="guardarInsumo()">Guardar insumo</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="padding:18px 20px 0;">
+        <h3 style="margin-bottom:4px;">🧺 Catálogo de insumos</h3>
+        <div class="card-sub">Orden alfabético. Estos insumos se usarán en las recetas (próximo paso).</div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Filtrar por categoría</label>
+          <div class="filtro-chips" id="filtroCategoriaChips"></div>
+        </div>
+      </div>
+      <div class="tabla-wrap">
+        <table class="hoja">
+          <thead>
+            <tr>
+              <th>Insumo</th>
+              <th>Categoría</th>
+              <th>Unidad</th>
+              <th class="num">Valor unidad</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyInsumos">
+            <tr><td colspan="5" class="vacio">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB RECETAS (nuevo v1.2) ============ -->
+  <div class="tab-panel" id="tabRecetas">
+    <div class="card">
+      <h3>🧮 Nueva receta</h3>
+      <div class="card-sub">Arma la receta con insumos del catálogo — el costo se calcula solo, igual que en la hoja original.</div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label for="inputRecetaNombre">Nombre del producto</label>
+        <input type="text" id="inputRecetaNombre" placeholder="ej: LASAÑA">
+      </div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label>Imagen de la receta (opcional, para el PDF del cliente)</label>
+        <div class="receta-imagen-upload">
+          <div class="receta-imagen-preview" id="recetaImagenPreview"><span class="vacio-mini">Sin imagen</span></div>
+          <div class="btn-row">
+            <button type="button" class="btn-ghost" onclick="abrirWidgetImagenReceta()">📷 Subir imagen</button>
+            <button type="button" class="btn-ghost" id="btnQuitarImagenReceta" style="display:none;" onclick="quitarImagenReceta()">Quitar</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="filasInsumosReceta"></div>
+      <div class="hint-campo">Las cantidades de cada insumo son para <strong>1 lote completo</strong> (ej. la bandeja entera), no por porción individual.</div>
+      <button type="button" class="btn-ghost" onclick="agregarFilaInsumoReceta()" style="margin:8px 0 16px;">➕ Agregar insumo</button>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="inputRecetaUnidadesVendidas">Unidades por lote</label>
+          <input type="number" id="inputRecetaUnidadesVendidas" min="1" step="1" placeholder="10" oninput="recalcularMargenReceta()">
+          <div class="hint-campo">Cuántas porciones rinde el lote que cargaste arriba (ej. la lasaña rinde 10 porciones).</div>
+        </div>
+        <div class="field">
+          <label for="inputRecetaPrecioVenta">Precio de venta (por unidad)</label>
+          <input type="number" id="inputRecetaPrecioVenta" min="0" step="500" placeholder="25000" oninput="recalcularMargenReceta()">
+          <div class="hint-campo">Precio de <strong>una sola porción</strong> — el margen de abajo se calcula con esto, no con el lote completo.</div>
+        </div>
+      </div>
+
+      <div class="margen-grid">
+        <div class="margen-box">
+          <div class="lbl">Costo total</div>
+          <div class="val" id="recetaCostoTotal">$0</div>
+        </div>
+        <div class="margen-box">
+          <div class="lbl">Ingresos de venta</div>
+          <div class="val gold" id="recetaIngresos">$0</div>
+        </div>
+        <div class="margen-box">
+          <div class="lbl">Margen de ganancia</div>
+          <div class="val ok" id="recetaMargen">0% · $0</div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button type="button" class="btn" onclick="guardarReceta()">Guardar receta</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:4px;">🧾 Recetas guardadas</h3>
+      <div class="card-sub">Toca una receta para ver el detalle de insumos.</div>
+      <div id="listaRecetas">
+        <div class="vacio">Cargando…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB COMPRAS (nuevo v1.7) ============ -->
+  <div class="tab-panel" id="tabCompras">
+    <div class="card">
+      <h3>📋 Generar desde recetas</h3>
+      <div class="card-sub">Elige qué recetas vas a preparar y cuántos lotes de cada una — suma los insumos necesarios a la lista.</div>
+      <div id="listaRecetasParaCompra">
+        <div class="vacio" style="padding:12px;">Cargando…</div>
+      </div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button type="button" class="btn" onclick="agregarRecetasAlCheck()">Agregar seleccionadas a la lista</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>➕ Agregar insumo suelto</h3>
+      <div class="card-sub">Para lo que no viene de ninguna receta (sal, bolsas, aseo, etc.). Si el insumo no existe todavía, créalo primero en la pestaña Insumos.</div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="selectInsumoSuelto">Insumo</label>
+          <select id="selectInsumoSuelto">
+            <option value="">Selecciona…</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inputCantidadSuelta">Cantidad</label>
+          <input type="number" id="inputCantidadSuelta" min="0" step="0.01" placeholder="1">
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn-ghost" onclick="agregarInsumoSueltoAlCheck()">Agregar a la lista</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="padding:18px 20px 0; display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+        <div>
+          <h3 style="margin-bottom:4px;">🛒 Lista de compras</h3>
+          <div class="card-sub">Destilda lo que ya tengas. Al marcar "comprado" se actualiza el precio del insumo.</div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button type="button" class="btn-ghost" onclick="imprimirListaComprasHTML()" style="white-space:nowrap;">🖨️ Imprimir</button>
+          <button type="button" class="btn-ghost" onclick="vaciarListaCompras()" style="white-space:nowrap;">Vaciar lista</button>
+        </div>
+      </div>
+      <div style="padding:0 20px 10px;" id="filtroCategoriaComprasWrap">
+        <div class="filtro-chips" id="filtroCategoriaComprasChips"></div>
+      </div>
+      <div style="padding:4px 20px 18px;" id="listaCompras">
+        <div class="vacio">Cargando…</div>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+
+<script>
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+</script>
+<script src="nav.js"></script>
+
+<script>
+const db = crearDB();
+let ventasCache = [];
+let productosCache = [];
+let insumosCache = [];
+let recetasCache = [];
+let categoriasCache = [];
+let filtroCategoriaActual = ''; // v1.11: reemplaza el .value del select de filtro (ahora chips)
+let filtroCategoriaCompras = ''; // v1.12: mismo patrón, para la Lista de compras
+let checkComprasCache = { items: [] };
+let filasRecetaEnConstruccion = [];
+
+// v1.13: imagen de receta vía Cloudinary Upload Widget (unsigned preset)
+const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
+const CLOUDINARY_UPLOAD_PRESET = 'RECETAS';
+const CLOUDINARY_FOLDER = 'RECETAS';
+let imagenRecetaEnConstruccion = '';
+let _cocWidgetCloudinary = null;
+
+function abrirWidgetImagenReceta(){
+  if(typeof cloudinary === 'undefined'){
+    alert('No se pudo cargar el widget de imágenes (Cloudinary). Revisa tu conexión e inténtalo de nuevo.');
+    return;
+  }
+  if(!_cocWidgetCloudinary){
+    _cocWidgetCloudinary = cloudinary.createUploadWidget({
+      cloudName: CLOUDINARY_CLOUD_NAME,
+      uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+      folder: CLOUDINARY_FOLDER,
+      sources: ['local', 'camera', 'url'],
+      multiple: false,
+      maxFiles: 1,
+      cropping: true,
+      croppingAspectRatio: 1,
+      language: 'es'
+    }, (error, result) => {
+      if(error){ console.error('Cloudinary widget error:', error); return; }
+      if(result && result.event === 'success'){
+        imagenRecetaEnConstruccion = result.info.secure_url;
+        renderPreviewImagenReceta();
+      }
+    });
+  }
+  _cocWidgetCloudinary.open();
+}
+
+function quitarImagenReceta(){
+  imagenRecetaEnConstruccion = '';
+  renderPreviewImagenReceta();
+}
+
+function renderPreviewImagenReceta(){
+  const cont = document.getElementById('recetaImagenPreview');
+  const btnQuitar = document.getElementById('btnQuitarImagenReceta');
+  if(!cont) return;
+  if(imagenRecetaEnConstruccion){
+    cont.innerHTML = `<img src="${imagenRecetaEnConstruccion}" alt="Imagen de la receta">`;
+    if(btnQuitar) btnQuitar.style.display = '';
+  } else {
+    cont.innerHTML = '<span class="vacio-mini">Sin imagen</span>';
+    if(btnQuitar) btnQuitar.style.display = 'none';
+  }
+}
+let contadorFilaReceta = 0;
+let recetasSeleccionParaCompra = {}; // { recetaId: numeroDeLotes }
+
+function formatoMoneda(n){
+  return '$' + Math.round(n || 0).toLocaleString('es-CO');
+}
+function formatoFecha(f){
+  if(!f) return '—';
+  const [y,m,d] = f.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// ---------- Tabs ----------
+function cambiarTab(id){
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('activo', p.id === id));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('activo', b.getAttribute('data-tab') === id));
+}
+
+// ---------- Catálogo de productos (cocinaProductos) — para pestaña Ventas ----------
+function escucharProductos(){
+  db.collection('cocinaProductos').orderBy('nombre').onSnapshot(snap => {
+    productosCache = [];
+    snap.forEach(doc => productosCache.push({ id: doc.id, ...doc.data() }));
+    renderSelectProductos();
+  }, err => console.error('No se pudo leer cocinaProductos:', err));
+}
+
+function renderSelectProductos(){
+  const sel = document.getElementById('selectProducto');
+  const valorActual = sel.value;
+  sel.innerHTML = '<option value="">Selecciona…</option>' +
+    productosCache.map(p => `<option value="${p.nombre.replace(/"/g,'&quot;')}">${p.nombre}</option>`).join('') +
+    '<option value="__nuevo__">➕ Agregar nuevo producto…</option>';
+  if(productosCache.some(p => p.nombre === valorActual)) sel.value = valorActual;
+}
+
+function alCambiarProducto(valor){
+  const fila = document.getElementById('filaProductoNuevo');
+  if(valor === '__nuevo__'){
+    fila.classList.add('activo');
+    document.getElementById('inputProductoNuevo').focus();
+  } else {
+    fila.classList.remove('activo');
+  }
+  autocompletarPrecioDesdeReceta(valor);
+}
+
+// ---------- Enganche Ventas ↔ Recetas (v1.4, normalizado en v1.5) ----------
+function normalizarNombre(txt){
+  return (txt || '').toString().trim().toUpperCase();
+}
+
+function autocompletarPrecioDesdeReceta(nombreProducto){
+  const hint = document.getElementById('hintPrecioSugerido');
+  const clave = normalizarNombre(nombreProducto);
+  const receta = recetasCache.find(r => normalizarNombre(r.nombre) === clave);
+  if(!receta || !receta.precioVenta){
+    hint.textContent = '';
+    return;
+  }
+  const inputPrecio = document.getElementById('inputPrecio');
+  if(!inputPrecio.value){
+    inputPrecio.value = receta.precioVenta;
+    recalcularTotalForm();
+  }
+  const margenTxt = (receta.margenPct || 0).toFixed(2).replace('.', ',');
+  hint.textContent = `Sugerido desde receta · margen ${margenTxt}%`;
+}
+
+function guardarProductoNuevo(){
+  const nombre = document.getElementById('inputProductoNuevo').value.trim().toUpperCase();
+  if(!nombre){ alert('Escribe un nombre para el producto.'); return; }
+  if(productosCache.some(p => p.nombre === nombre)){
+    document.getElementById('selectProducto').value = nombre;
+    document.getElementById('filaProductoNuevo').classList.remove('activo');
+    document.getElementById('inputProductoNuevo').value = '';
+    return;
+  }
+  db.collection('cocinaProductos').add({ nombre, creadoEn: new Date().toISOString() })
+    .then(() => {
+      document.getElementById('inputProductoNuevo').value = '';
+      document.getElementById('filaProductoNuevo').classList.remove('activo');
+      setTimeout(() => { document.getElementById('selectProducto').value = nombre; }, 400);
+    })
+    .catch(err => { console.error(err); alert('No se pudo guardar el producto nuevo.'); });
+}
+
+// ---------- Formulario de venta ----------
+function recalcularTotalForm(){
+  const cant = parseFloat(document.getElementById('inputCantidad').value) || 0;
+  const precio = parseFloat(document.getElementById('inputPrecio').value) || 0;
+  document.getElementById('totalFormPreview').textContent = formatoMoneda(cant * precio);
+}
+
+function guardarVenta(){
+  const fecha = document.getElementById('inputFecha').value;
+  const producto = document.getElementById('selectProducto').value;
+  const cantidad = parseFloat(document.getElementById('inputCantidad').value);
+  const precioUnitario = parseFloat(document.getElementById('inputPrecio').value);
+
+  if(!fecha){ alert('Selecciona la fecha de la venta.'); return; }
+  if(!producto || producto === '__nuevo__'){ alert('Selecciona o agrega un producto.'); return; }
+  if(!cantidad || cantidad <= 0){ alert('Ingresa una cantidad válida.'); return; }
+  if(isNaN(precioUnitario) || precioUnitario < 0){ alert('Ingresa un precio unitario válido.'); return; }
+
+  const total = cantidad * precioUnitario;
+
+  db.collection('ventasCocina').add({
+    fecha, producto, cantidad, precioUnitario, total,
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    document.getElementById('inputFecha').value = '';
+    document.getElementById('selectProducto').value = '';
+    document.getElementById('inputCantidad').value = '';
+    document.getElementById('inputPrecio').value = '';
+    document.getElementById('totalFormPreview').textContent = '$0';
+  }).catch(err => { console.error(err); alert('No se pudo guardar la venta.'); });
+}
+
+// ---------- Historial (ventasCocina) ----------
+function escucharVentas(){
+  db.collection('ventasCocina').orderBy('fecha', 'desc').onSnapshot(snap => {
+    ventasCache = [];
+    snap.forEach(doc => ventasCache.push({ id: doc.id, ...doc.data() }));
+    renderTabla();
+    renderTotal();
+  }, err => {
+    console.error('No se pudo leer ventasCocina:', err);
+    document.getElementById('tbodyVentas').innerHTML = '<tr><td colspan="7" class="vacio">Error al cargar el historial.</td></tr>';
+  });
+}
+
+function renderTabla(){
+  const tbody = document.getElementById('tbodyVentas');
+  if(!ventasCache.length){
+    tbody.innerHTML = '<tr><td colspan="7" class="vacio">Aún no hay ventas registradas.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = ventasCache.map((v, i) => `
+    <tr>
+      <td>${ventasCache.length - i}</td>
+      <td class="fecha">${formatoFecha(v.fecha)}</td>
+      <td class="producto">${(v.producto || '—').toString().replace(/</g,'&lt;')}</td>
+      <td class="num">${v.cantidad}</td>
+      <td class="num">${formatoMoneda(v.precioUnitario)}</td>
+      <td class="num total">${formatoMoneda(v.total)}</td>
+      <td><button class="btn-del" title="Eliminar venta" onclick="eliminarVenta('${v.id}')">🗑️</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderTotal(){
+  const total = ventasCache.reduce((acc, v) => acc + (v.total || 0), 0);
+  document.getElementById('totalAcumulado').textContent = formatoMoneda(total);
+  document.getElementById('conteoVentas').textContent = `${ventasCache.length} venta${ventasCache.length === 1 ? '' : 's'} registrada${ventasCache.length === 1 ? '' : 's'}`;
+}
+
+function eliminarVenta(id){
+  if(!confirm('¿Eliminar esta venta? Esta acción no se puede deshacer.')) return;
+  db.collection('ventasCocina').doc(id).delete()
+    .catch(err => { console.error(err); alert('No se pudo eliminar la venta.'); });
+}
+
+// ---------- CATEGORÍAS de insumos (v1.7, colección categoriasCocina) ----------
+function escucharCategorias(){
+  db.collection('categoriasCocina').orderBy('nombre').onSnapshot(snap => {
+    categoriasCache = [];
+    snap.forEach(doc => categoriasCache.push({ id: doc.id, ...doc.data() }));
+    renderListaCategorias();
+    renderSelectCategoriaInsumo();
+    renderFiltroCategoriaChips();
+    renderFiltroCategoriaComprasChips();
+    if(insumosCache.length) renderTablaInsumos();
+  }, err => {
+    console.error('No se pudo leer categoriasCocina:', err);
+    document.getElementById('listaCategorias').innerHTML = '<div class="vacio">Error al cargar categorías.</div>';
+  });
+}
+
+function nombreCategoria(categoriaId){
+  if(!categoriaId) return 'Sin categoría';
+  const cat = categoriasCache.find(c => c.id === categoriaId);
+  return cat ? cat.nombre : 'Sin categoría';
+}
+
+// v1.12: color determinístico por categoría — se asigna según la posición
+// en categoriasCache (mismo orden que "Filtrar por categoría" en Insumos),
+// así toda la app usa el mismo color para la misma categoría.
+const CATEGORIA_COLORES = ['#e07a5f','#81b29a','#4d96ff','#f2cc8f','#b185db','#f28482','#43aa8b','#f9c74f'];
+function colorCategoria(categoriaId){
+  if(!categoriaId) return '#6b6b6b';
+  const idx = categoriasCache.findIndex(c => c.id === categoriaId);
+  if(idx === -1) return '#6b6b6b';
+  return CATEGORIA_COLORES[idx % CATEGORIA_COLORES.length];
+}
+
+function renderListaCategorias(){
+  const cont = document.getElementById('listaCategorias');
+  if(!categoriasCache.length){
+    cont.innerHTML = '<div class="vacio" style="padding:12px;">Aún no hay categorías — se pueden crear acá o al registrar un insumo.</div>';
+    return;
+  }
+  cont.innerHTML = categoriasCache.map(c => `
+    <div class="categoria-list-item">
+      <input type="text" value="${(c.nombre || '').toString().replace(/"/g,'&quot;')}"
+        onchange="renombrarCategoria('${c.id}', this.value)">
+      <button class="btn-del" title="Eliminar categoría" onclick="eliminarCategoria('${c.id}')">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function guardarCategoriaNueva(){
+  const input = document.getElementById('inputCategoriaNueva');
+  const nombre = input.value.trim().toUpperCase();
+  if(!nombre){ alert('Escribe el nombre de la categoría.'); return; }
+  if(categoriasCache.some(c => c.nombre === nombre)){ alert('Ya existe esa categoría.'); return; }
+  db.collection('categoriasCocina').add({
+    nombre, creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => { input.value = ''; })
+    .catch(err => { console.error(err); alert('No se pudo guardar la categoría.'); });
+}
+
+function renombrarCategoria(id, nuevoNombreCrudo){
+  const nuevoNombre = (nuevoNombreCrudo || '').trim().toUpperCase();
+  if(!nuevoNombre){ alert('El nombre no puede quedar vacío.'); renderListaCategorias(); return; }
+  db.collection('categoriasCocina').doc(id).update({ nombre: nuevoNombre })
+    .catch(err => { console.error(err); alert('No se pudo renombrar la categoría.'); renderListaCategorias(); });
+}
+
+// Si hay insumos usando esta categoría, avisa cuántos son (mismo patrón
+// de aviso que eliminarInsumo() v1.5) y, si se confirma, los deja en
+// "Sin categoría" (categoriaId:'') antes de borrar la categoría — no se
+// borran ni se bloquean esos insumos.
+function eliminarCategoria(id){
+  const cat = categoriasCache.find(c => c.id === id);
+  const insumosAfectados = insumosCache.filter(i => i.categoriaId === id);
+
+  if(insumosAfectados.length){
+    const ok = confirm(
+      `"${cat ? cat.nombre : 'Esta categoría'}" la usan ${insumosAfectados.length} insumo(s).\n\n` +
+      `Si continúas, esos insumos van a quedar "Sin categoría" (no se borran ni se alteran de otra forma).\n\n` +
+      `¿Eliminar la categoría de todas formas?`
+    );
+    if(!ok) return;
+  } else {
+    if(!confirm('¿Eliminar esta categoría? Esta acción no se puede deshacer.')) return;
+  }
+
+  Promise.all(insumosAfectados.map(i =>
+    db.collection('cocinaInsumos').doc(i.id).update({ categoriaId: '' })
+  )).then(() => db.collection('categoriasCocina').doc(id).delete())
+    .catch(err => { console.error(err); alert('No se pudo eliminar la categoría.'); });
+}
+
+function renderSelectCategoriaInsumo(){
+  const sel = document.getElementById('selectInsumoCategoria');
+  const valorActual = sel.value;
+  sel.innerHTML = '<option value="">Sin categoría</option>' +
+    categoriasCache.map(c => `<option value="${c.id}">${(c.nombre || '').toString().replace(/</g,'&lt;')}</option>`).join('') +
+    '<option value="__nueva__">➕ Nueva categoría…</option>';
+  if(valorActual !== '__nueva__' && (valorActual === '' || categoriasCache.some(c => c.id === valorActual))) sel.value = valorActual;
+}
+
+function alCambiarCategoriaInsumo(valor){
+  const fila = document.getElementById('filaCategoriaNuevaInsumo');
+  if(valor === '__nueva__'){
+    fila.classList.add('activo');
+    document.getElementById('inputCategoriaNuevaInsumo').focus();
+  } else {
+    fila.classList.remove('activo');
+  }
+}
+
+function guardarCategoriaNuevaDesdeInsumo(){
+  const input = document.getElementById('inputCategoriaNuevaInsumo');
+  const nombre = input.value.trim().toUpperCase();
+  if(!nombre){ alert('Escribe el nombre de la categoría.'); return; }
+  const existente = categoriasCache.find(c => c.nombre === nombre);
+  if(existente){
+    document.getElementById('selectInsumoCategoria').value = existente.id;
+    document.getElementById('filaCategoriaNuevaInsumo').classList.remove('activo');
+    input.value = '';
+    return;
+  }
+  db.collection('categoriasCocina').add({
+    nombre, creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(nuevaRef => {
+    input.value = '';
+    document.getElementById('filaCategoriaNuevaInsumo').classList.remove('activo');
+    setTimeout(() => { document.getElementById('selectInsumoCategoria').value = nuevaRef.id; }, 400);
+  }).catch(err => { console.error(err); alert('No se pudo guardar la categoría nueva.'); });
+}
+
+function renderFiltroCategoriaChips(){
+  const cont = document.getElementById('filtroCategoriaChips');
+  // si la categoría activa ya no existe (fue borrada), se vuelve a "Todas"
+  if(filtroCategoriaActual !== '' && filtroCategoriaActual !== '__sin__' &&
+     !categoriasCache.some(c => c.id === filtroCategoriaActual)){
+    filtroCategoriaActual = '';
+  }
+  const opciones = [
+    { valor:'', nombre:'Todas las categorías' },
+    { valor:'__sin__', nombre:'Sin categoría' },
+    ...categoriasCache.map(c => ({ valor:c.id, nombre:c.nombre || '' }))
+  ];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroCategoriaActual === o.valor ? 'activo' : ''}"
+      onclick="seleccionarFiltroCategoria('${o.valor}')">${o.valor && o.valor !== '__sin__' ? `<span class="chip-dot" style="background:${colorCategoria(o.valor)}"></span>` : ''}${o.nombre.toString().replace(/</g,'&lt;')}</button>
+  `).join('');
+}
+
+function seleccionarFiltroCategoria(valor){
+  filtroCategoriaActual = valor;
+  renderFiltroCategoriaChips();
+  renderTablaInsumos();
+}
+
+// v1.12: mismo patrón de chips, para la Lista de compras
+function renderFiltroCategoriaComprasChips(){
+  const cont = document.getElementById('filtroCategoriaComprasChips');
+  if(!cont) return;
+  if(filtroCategoriaCompras !== '' && filtroCategoriaCompras !== '__sin__' &&
+     !categoriasCache.some(c => c.id === filtroCategoriaCompras)){
+    filtroCategoriaCompras = '';
+  }
+  const opciones = [
+    { valor:'', nombre:'Todas las categorías' },
+    { valor:'__sin__', nombre:'Sin categoría' },
+    ...categoriasCache.map(c => ({ valor:c.id, nombre:c.nombre || '' }))
+  ];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroCategoriaCompras === o.valor ? 'activo' : ''}"
+      onclick="seleccionarFiltroCategoriaCompras('${o.valor}')">${o.valor && o.valor !== '__sin__' ? `<span class="chip-dot" style="background:${colorCategoria(o.valor)}"></span>` : ''}${o.nombre.toString().replace(/</g,'&lt;')}</button>
+  `).join('');
+}
+
+function seleccionarFiltroCategoriaCompras(valor){
+  filtroCategoriaCompras = valor;
+  renderFiltroCategoriaComprasChips();
+  renderListaCompras();
+}
+
+// ---------- INSUMOS (v1.1, colección cocinaInsumos; categoría v1.7) ----------
+function guardarInsumo(){
+  const nombre = document.getElementById('inputInsumoNombre').value.trim().toUpperCase();
+  const categoriaId = document.getElementById('selectInsumoCategoria').value;
+  const unidad = document.getElementById('selectInsumoUnidad').value;
+  const valorUnidad = parseFloat(document.getElementById('inputInsumoPrecio').value);
+
+  if(!nombre){ alert('Escribe el nombre del insumo.'); return; }
+  if(categoriaId === '__nueva__'){ alert('Termina de guardar la categoría nueva primero (botón "Guardar" junto al nombre).'); return; }
+  if(isNaN(valorUnidad) || valorUnidad < 0){ alert('Ingresa un valor por unidad válido.'); return; }
+  if(insumosCache.some(i => i.nombre === nombre)){
+    alert('Ya existe un insumo con ese nombre.'); return;
+  }
+
+  db.collection('cocinaInsumos').add({
+    nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad,
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    document.getElementById('inputInsumoNombre').value = '';
+    document.getElementById('inputInsumoPrecio').value = '';
+  }).catch(err => { console.error(err); alert('No se pudo guardar el insumo.'); });
+}
+
+function eliminarInsumo(id){
+  const insumo = insumosCache.find(i => i.id === id);
+  const recetasAfectadas = recetasCache.filter(r =>
+    (r.insumos || []).some(ins => ins.insumoId === id)
+  );
+
+  if(recetasAfectadas.length){
+    const nombres = recetasAfectadas.map(r => r.nombre).join(', ');
+    const ok = confirm(
+      `"${insumo ? insumo.nombre : 'Este insumo'}" se usa en ${recetasAfectadas.length} receta(s): ${nombres}.\n\n` +
+      `Esas recetas guardadas NO se van a alterar (guardan su propio snapshot), pero ya no vas a poder elegir este insumo para recetas nuevas.\n\n` +
+      `¿Eliminar de todas formas?`
+    );
+    if(!ok) return;
+  } else {
+    if(!confirm('¿Eliminar este insumo del catálogo? Esta acción no se puede deshacer.')) return;
+  }
+
+  db.collection('cocinaInsumos').doc(id).delete()
+    .catch(err => { console.error(err); alert('No se pudo eliminar el insumo.'); });
+}
+
+function escucharInsumos(){
+  db.collection('cocinaInsumos').orderBy('nombre').onSnapshot(snap => {
+    insumosCache = [];
+    snap.forEach(doc => insumosCache.push({ id: doc.id, ...doc.data() }));
+    renderTablaInsumos();
+    renderSelectInsumoSuelto();
+    if(recetasCache.length) renderListaRecetas();
+  }, err => {
+    console.error('No se pudo leer cocinaInsumos:', err);
+    document.getElementById('tbodyInsumos').innerHTML = '<tr><td colspan="5" class="vacio">Error al cargar el catálogo.</td></tr>';
+  });
+}
+
+function renderTablaInsumos(){
+  const tbody = document.getElementById('tbodyInsumos');
+  const filtro = filtroCategoriaActual;
+  let filas = insumosCache;
+  if(filtro === '__sin__') filas = filas.filter(i => !i.categoriaId);
+  else if(filtro) filas = filas.filter(i => i.categoriaId === filtro);
+
+  if(!filas.length){
+    tbody.innerHTML = '<tr><td colspan="5" class="vacio">Aún no hay insumos registrados.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filas.map(i => `
+    <tr>
+      <td class="producto">${(i.nombre || '—').toString().replace(/</g,'&lt;')}</td>
+      <td><span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(i.categoriaId)}"></span>${nombreCategoria(i.categoriaId).toString().replace(/</g,'&lt;')}</span></td>
+      <td>${i.unidad || '—'}</td>
+      <td class="num">${formatoMoneda(i.valorUnidad)}</td>
+      <td><button class="btn-del" title="Eliminar insumo" onclick="eliminarInsumo('${i.id}')">🗑️</button></td>
+    </tr>
+  `).join('');
+}
+
+// ---------- RECETAS (v1.3, colección cocinaRecetas) ----------
+function agregarFilaInsumoReceta(){
+  if(!insumosCache.length){
+    alert('Primero registra al menos un insumo en la pestaña Insumos.');
+    return;
+  }
+  const filaId = 'fr' + (++contadorFilaReceta);
+  filasRecetaEnConstruccion.push({ filaId, insumoId: '', cantidad: 0 });
+
+  const opciones = insumosCache.map(i => `<option value="${i.id}">${i.nombre} (${i.unidad})</option>`).join('');
+  const div = document.createElement('div');
+  div.className = 'receta-insumo-row';
+  div.id = filaId;
+  div.innerHTML = `
+    <select onchange="actualizarFilaReceta('${filaId}', 'insumoId', this.value)">
+      <option value="">— elige insumo —</option>
+      ${opciones}
+    </select>
+    <input type="number" min="0" step="0.01" placeholder="cant." oninput="actualizarFilaReceta('${filaId}', 'cantidad', this.value)">
+    <div class="subtotal" id="${filaId}-subtotal">$0</div>
+    <button type="button" class="btn-del" title="Quitar insumo" onclick="quitarFilaInsumoReceta('${filaId}')">🗑️</button>
+  `;
+  document.getElementById('filasInsumosReceta').appendChild(div);
+}
+
+function actualizarFilaReceta(filaId, campo, valor){
+  const fila = filasRecetaEnConstruccion.find(f => f.filaId === filaId);
+  if(!fila) return;
+  fila[campo] = campo === 'cantidad' ? parseFloat(valor) || 0 : valor;
+  recalcularCostoReceta();
+}
+
+function quitarFilaInsumoReceta(filaId){
+  filasRecetaEnConstruccion = filasRecetaEnConstruccion.filter(f => f.filaId !== filaId);
+  const el = document.getElementById(filaId);
+  if(el) el.remove();
+  recalcularCostoReceta();
+}
+
+function recalcularCostoReceta(){
+  let costoTotal = 0;
+  filasRecetaEnConstruccion.forEach(fila => {
+    const insumo = insumosCache.find(i => i.id === fila.insumoId);
+    const subtotal = insumo ? (insumo.valorUnidad * (fila.cantidad || 0)) : 0;
+    const subtotalEl = document.getElementById(fila.filaId + '-subtotal');
+    if(subtotalEl) subtotalEl.textContent = formatoMoneda(subtotal);
+    costoTotal += subtotal;
+  });
+  document.getElementById('recetaCostoTotal').textContent = formatoMoneda(costoTotal);
+  recalcularMargenReceta();
+}
+
+function recalcularMargenReceta(){
+  const costoTotal = filasRecetaEnConstruccion.reduce((acc, fila) => {
+    const insumo = insumosCache.find(i => i.id === fila.insumoId);
+    return acc + (insumo ? insumo.valorUnidad * (fila.cantidad || 0) : 0);
+  }, 0);
+  const unidades = parseFloat(document.getElementById('inputRecetaUnidadesVendidas').value) || 0;
+  const precioVenta = parseFloat(document.getElementById('inputRecetaPrecioVenta').value) || 0;
+
+  const ingresos = unidades * precioVenta;
+  const ganancia = ingresos - costoTotal;
+  const margenPct = ingresos > 0 ? (ganancia / ingresos) * 100 : 0;
+
+  document.getElementById('recetaIngresos').textContent = formatoMoneda(ingresos);
+  const margenEl = document.getElementById('recetaMargen');
+  margenEl.textContent = `${margenPct.toFixed(2).replace('.', ',')}% · ${formatoMoneda(ganancia)}`;
+  margenEl.className = 'val ' + (ganancia >= 0 ? 'ok' : 'warn');
+}
+
+function guardarReceta(){
+  const nombre = document.getElementById('inputRecetaNombre').value.trim().toUpperCase();
+  if(!nombre){ alert('Escribe el nombre del producto (ej: LASAÑA).'); return; }
+  if(!filasRecetaEnConstruccion.length || filasRecetaEnConstruccion.every(f => !f.insumoId)){
+    alert('Agrega al menos un insumo a la receta.'); return;
+  }
+
+  const insumosSnapshot = filasRecetaEnConstruccion
+    .filter(f => f.insumoId && f.cantidad > 0)
+    .map(f => {
+      const insumo = insumosCache.find(i => i.id === f.insumoId);
+      const subtotal = insumo ? insumo.valorUnidad * f.cantidad : 0;
+      return {
+        insumoId: f.insumoId,
+        nombre: insumo ? insumo.nombre : '—',
+        unidad: insumo ? insumo.unidad : '—',
+        valorUnidad: insumo ? insumo.valorUnidad : 0,
+        cantidad: f.cantidad,
+        subtotal
+      };
+    });
+
+  if(!insumosSnapshot.length){ alert('Revisa las cantidades — deben ser mayores a 0.'); return; }
+
+  const costoTotal = insumosSnapshot.reduce((acc, i) => acc + i.subtotal, 0);
+  const unidadesPorLote = parseFloat(document.getElementById('inputRecetaUnidadesVendidas').value) || 0;
+  const precioVenta = parseFloat(document.getElementById('inputRecetaPrecioVenta').value) || 0;
+  const ingresos = unidadesPorLote * precioVenta;
+  const ganancia = ingresos - costoTotal;
+  const margenPct = ingresos > 0 ? (ganancia / ingresos) * 100 : 0;
+
+  db.collection('cocinaRecetas').add({
+    nombre,
+    insumos: insumosSnapshot,
+    imagenUrl: imagenRecetaEnConstruccion || '',
+    costoTotal, unidadesPorLote, precioVenta, ingresos, ganancia, margenPct,
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    document.getElementById('inputRecetaNombre').value = '';
+    document.getElementById('inputRecetaUnidadesVendidas').value = '';
+    document.getElementById('inputRecetaPrecioVenta').value = '';
+    document.getElementById('filasInsumosReceta').innerHTML = '';
+    filasRecetaEnConstruccion = [];
+    imagenRecetaEnConstruccion = '';
+    renderPreviewImagenReceta();
+    recalcularCostoReceta();
+  }).catch(err => { console.error(err); alert('No se pudo guardar la receta.'); });
+}
+
+function eliminarReceta(id){
+  if(!confirm('¿Eliminar esta receta? Esta acción no se puede deshacer.')) return;
+  db.collection('cocinaRecetas').doc(id).delete()
+    .catch(err => { console.error(err); alert('No se pudo eliminar la receta.'); });
+}
+
+function toggleRecetaDetalle(id){
+  const detalle = document.getElementById('detalle-' + id);
+  if(detalle) detalle.classList.toggle('activo');
+}
+
+function escucharRecetas(){
+  db.collection('cocinaRecetas').orderBy('nombre').onSnapshot(snap => {
+    recetasCache = [];
+    snap.forEach(doc => recetasCache.push({ id: doc.id, ...doc.data() }));
+    renderListaRecetas();
+    // v1.7 — la pestaña Compras necesita el mismo recetasCache para
+    // armar la lista de checkboxes "generar desde recetas".
+    renderListaRecetasParaCompra();
+  }, err => {
+    console.error('No se pudo leer cocinaRecetas:', err);
+    document.getElementById('listaRecetas').innerHTML = '<div class="vacio">Error al cargar las recetas.</div>';
+  });
+}
+
+function costoActualReceta(receta){
+  return (receta.insumos || []).reduce((acc, i) => {
+    const insumoVigente = insumosCache.find(ins => ins.id === i.insumoId);
+    const valorVigente = insumoVigente ? insumoVigente.valorUnidad : i.valorUnidad;
+    return acc + (valorVigente * i.cantidad);
+  }, 0);
+}
+
+function renderListaRecetas(){
+  const cont = document.getElementById('listaRecetas');
+  if(!recetasCache.length){
+    cont.innerHTML = '<div class="vacio">Aún no hay recetas guardadas.</div>';
+    return;
+  }
+  cont.innerHTML = recetasCache.map(r => {
+    const costoActual = costoActualReceta(r);
+    const desactualizada = Math.abs(costoActual - (r.costoTotal || 0)) >= 1;
+    const badge = desactualizada
+      ? `<span class="badge-desactualizada" title="El precio de uno o más insumos cambió desde que se guardó">⚠️ Insumo actualizado</span>`
+      : '';
+    return `
+    <div class="receta-card">
+      <div class="receta-head" onclick="toggleRecetaDetalle('${r.id}')">
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${r.imagenUrl ? `<img src="${r.imagenUrl}" class="receta-card-thumb" alt="">` : ''}
+          <div>
+            <div class="receta-nombre">${(r.nombre || '—').toString().replace(/</g,'&lt;')} ${badge}</div>
+            <div class="receta-resumen">Costo ${formatoMoneda(r.costoTotal)} · Margen ${(r.margenPct || 0).toFixed(2).replace('.', ',')}%</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button type="button" class="btn-ghost" title="Imprimir / PDF interno de esta receta" onclick="event.stopPropagation(); imprimirRecetaHTML('${r.id}')">🖨️</button>
+          <button type="button" class="btn-ghost" title="PDF para el cliente (sin costos)" onclick="event.stopPropagation(); imprimirRecetaClienteHTML('${r.id}')">🧾</button>
+          <button type="button" class="btn-del" title="Eliminar receta" onclick="event.stopPropagation(); eliminarReceta('${r.id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="receta-detalle" id="detalle-${r.id}">
+        ${(r.insumos || []).map(i => `
+          <div class="receta-detalle-fila">
+            <span>${i.nombre} × ${i.cantidad} ${i.unidad}</span>
+            <span>${formatoMoneda(i.subtotal)}</span>
+          </div>
+        `).join('')}
+        <div class="receta-detalle-fila">
+          <span>Unidades por lote / Precio venta</span>
+          <span>${r.unidadesPorLote || 0} / ${formatoMoneda(r.precioVenta)}</span>
+        </div>
+        <div class="receta-detalle-fila">
+          <span>Ingresos / Ganancia</span>
+          <span>${formatoMoneda(r.ingresos)} / ${formatoMoneda(r.ganancia)}</span>
+        </div>
+        ${desactualizada ? `
+        <div class="receta-detalle-fila" style="color:var(--gold);">
+          <span>Costo con precios actuales</span>
+          <span>${formatoMoneda(costoActual)}</span>
+        </div>` : ''}
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+
+// ---------- COMPRAS (v1.7, colección checkCompras — doc único 'activa') ----------
+function renderSelectInsumoSuelto(){
+  const sel = document.getElementById('selectInsumoSuelto');
+  if(!sel) return;
+  const valorActual = sel.value;
+  sel.innerHTML = '<option value="">Selecciona…</option>' +
+    insumosCache.map(i => `<option value="${i.id}">${(i.nombre || '').toString().replace(/</g,'&lt;')} (${i.unidad})</option>`).join('');
+  if(insumosCache.some(i => i.id === valorActual)) sel.value = valorActual;
+}
+
+function renderListaRecetasParaCompra(){
+  const cont = document.getElementById('listaRecetasParaCompra');
+  if(!cont) return;
+  if(!recetasCache.length){
+    cont.innerHTML = '<div class="vacio" style="padding:12px;">Aún no hay recetas guardadas.</div>';
+    return;
+  }
+  cont.innerHTML = recetasCache.map(r => {
+    const lotes = recetasSeleccionParaCompra[r.id] || 0;
+    return `
+    <div class="receta-check-row">
+      <input type="checkbox" ${lotes > 0 ? 'checked' : ''}
+        onchange="toggleRecetaSeleccionCompra('${r.id}', this.checked)">
+      <span>${(r.nombre || '—').toString().replace(/</g,'&lt;')}</span>
+      <input type="number" min="1" step="1" placeholder="lotes" value="${lotes > 0 ? lotes : ''}"
+        oninput="actualizarLotesRecetaCompra('${r.id}', this.value)">
+    </div>`;
+  }).join('');
+}
+
+function toggleRecetaSeleccionCompra(recetaId, marcado){
+  if(marcado){
+    if(!recetasSeleccionParaCompra[recetaId]) recetasSeleccionParaCompra[recetaId] = 1;
+  } else {
+    delete recetasSeleccionParaCompra[recetaId];
+  }
+  renderListaRecetasParaCompra();
+}
+
+function actualizarLotesRecetaCompra(recetaId, valor){
+  const n = parseInt(valor, 10);
+  recetasSeleccionParaCompra[recetaId] = (n > 0) ? n : 1;
+}
+
+// Suma cantidad×lotes por insumo entre todas las recetas seleccionadas
+// (mergeando si un mismo insumo aparece en varias) y lo agrega/suma a
+// la lista activa de checkCompras. No dispara ningún cambio sobre
+// cocinaRecetas ni cocinaInsumos — solo arma la lista de compra.
+function agregarRecetasAlCheck(){
+  const idsSeleccionadas = Object.keys(recetasSeleccionParaCompra);
+  if(!idsSeleccionadas.length){ alert('Marca al menos una receta.'); return; }
+
+  const itemsActuales = [...(checkComprasCache.items || [])];
+
+  idsSeleccionadas.forEach(recetaId => {
+    const receta = recetasCache.find(r => r.id === recetaId);
+    if(!receta) return;
+    const lotes = recetasSeleccionParaCompra[recetaId] || 1;
+    (receta.insumos || []).forEach(ins => {
+      const cantidadNecesaria = (ins.cantidad || 0) * lotes;
+      const existente = itemsActuales.find(it => it.insumoId === ins.insumoId);
+      const insumoVigente = insumosCache.find(i => i.id === ins.insumoId);
+      if(existente){
+        existente.cantidad += cantidadNecesaria;
+        if(!existente.recetasOrigen.includes(recetaId)) existente.recetasOrigen.push(recetaId);
+      } else {
+        itemsActuales.push({
+          insumoId: ins.insumoId,
+          nombre: ins.nombre,
+          unidad: ins.unidad,
+          categoriaId: insumoVigente ? (insumoVigente.categoriaId || '') : '',
+          cantidad: cantidadNecesaria,
+          pendiente: true,
+          comprado: false,
+          cantidadComprada: null,
+          precioComprado: null,
+          origen: 'receta',
+          recetasOrigen: [recetaId]
+        });
+      }
+    });
+  });
+
+  _guardarListaCompras(itemsActuales).then(() => {
+    recetasSeleccionParaCompra = {};
+    renderListaRecetasParaCompra();
+  });
+}
+
+function agregarInsumoSueltoAlCheck(){
+  const insumoId = document.getElementById('selectInsumoSuelto').value;
+  const cantidad = parseFloat(document.getElementById('inputCantidadSuelta').value);
+  if(!insumoId){ alert('Selecciona un insumo.'); return; }
+  if(!cantidad || cantidad <= 0){ alert('Ingresa una cantidad válida.'); return; }
+
+  const insumo = insumosCache.find(i => i.id === insumoId);
+  const itemsActuales = [...(checkComprasCache.items || [])];
+  const existente = itemsActuales.find(it => it.insumoId === insumoId);
+
+  if(existente){
+    existente.cantidad += cantidad;
+  } else {
+    itemsActuales.push({
+      insumoId,
+      nombre: insumo ? insumo.nombre : '—',
+      unidad: insumo ? insumo.unidad : '—',
+      categoriaId: insumo ? (insumo.categoriaId || '') : '',
+      cantidad,
+      pendiente: true,
+      comprado: false,
+      cantidadComprada: null,
+      precioComprado: null,
+      origen: 'suelto',
+      recetasOrigen: []
+    });
+  }
+
+  _guardarListaCompras(itemsActuales).then(() => {
+    document.getElementById('selectInsumoSuelto').value = '';
+    document.getElementById('inputCantidadSuelta').value = '';
+  });
+}
+
+// set() con merge:true — crea el doc 'activa' si todavía no existe
+// (primera vez que se usa la pestaña Compras) o lo actualiza si ya
+// existe. Requiere offline-mock.js v1.9+ (set()/update() genéricos
+// para colecciones raíz en la whitelist).
+function _guardarListaCompras(nuevaListaItems){
+  return db.collection('checkCompras').doc('activa').set({
+    items: nuevaListaItems,
+    actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true }).catch(err => {
+    console.error(err);
+    alert('No se pudo guardar la lista de compras.');
+  });
+}
+
+function escucharCheckCompras(){
+  db.collection('checkCompras').doc('activa').onSnapshot(doc => {
+    checkComprasCache = doc.exists ? { items: doc.data().items || [] } : { items: [] };
+    renderListaCompras();
+  }, err => {
+    console.error('No se pudo leer checkCompras:', err);
+    document.getElementById('listaCompras').innerHTML = '<div class="vacio">Error al cargar la lista de compras.</div>';
+  });
+}
+
+// Checkbox "pendiente" — se puede destildar manualmente si ya tenés el
+// insumo, sin sacarlo de la lista (a diferencia de borrar la fila).
+function togglePendienteCompra(insumoId, marcado){
+  const items = [...(checkComprasCache.items || [])];
+  const item = items.find(it => it.insumoId === insumoId);
+  if(!item) return;
+  item.pendiente = marcado;
+  _guardarListaCompras(items);
+}
+
+function abrirFormComprado(insumoId){
+  document.querySelectorAll('.compra-comprar-form').forEach(f => f.classList.remove('activo'));
+  const form = document.getElementById('form-comprar-' + insumoId);
+  if(form) form.classList.add('activo');
+}
+
+function cerrarFormComprado(insumoId){
+  const form = document.getElementById('form-comprar-' + insumoId);
+  if(form) form.classList.remove('activo');
+}
+
+// Marcar comprado: cantidad comprada + precio nuevo en un mismo paso.
+// Actualiza cocinaInsumos.valorUnidad con el precio nuevo Y marca la
+// fila como comprada en la misma acción (whitelist v1.7: ambas
+// escrituras funcionan offline, encoladas por separado).
+function confirmarCompra(insumoId){
+  const cantidadComprada = parseFloat(document.getElementById('inputCantidadComprada-' + insumoId).value);
+  const precioNuevo = parseFloat(document.getElementById('inputPrecioComprado-' + insumoId).value);
+
+  if(!cantidadComprada || cantidadComprada <= 0){ alert('Ingresa una cantidad comprada válida.'); return; }
+  if(isNaN(precioNuevo) || precioNuevo < 0){ alert('Ingresa un precio unitario válido.'); return; }
+
+  const items = [...(checkComprasCache.items || [])];
+  const item = items.find(it => it.insumoId === insumoId);
+  if(!item) return;
+  item.comprado = true;
+  item.pendiente = false;
+  item.cantidadComprada = cantidadComprada;
+  item.precioComprado = precioNuevo;
+
+  Promise.all([
+    db.collection('cocinaInsumos').doc(insumoId).update({ valorUnidad: precioNuevo }),
+    _guardarListaCompras(items)
+  ]).catch(err => { console.error(err); alert('No se pudo registrar la compra.'); });
+}
+
+// Deshacer "comprado" — vuelve a pendiente. OJO: no revierte el precio
+// ya actualizado en cocinaInsumos (sería otra decisión de diseño, no
+// se pidió acá) — solo revierte el estado de la fila en la lista.
+function reabrirCompra(insumoId){
+  const items = [...(checkComprasCache.items || [])];
+  const item = items.find(it => it.insumoId === insumoId);
+  if(!item) return;
+  item.comprado = false;
+  item.pendiente = true;
+  _guardarListaCompras(items);
+}
+
+function vaciarListaCompras(){
+  if(!confirm('¿Vaciar toda la lista de compras? Esta acción no se puede deshacer.')) return;
+  _guardarListaCompras([]);
+}
+
+function renderListaCompras(){
+  const cont = document.getElementById('listaCompras');
+  let items = checkComprasCache.items || [];
+  if(filtroCategoriaCompras === '__sin__') items = items.filter(it => !it.categoriaId);
+  else if(filtroCategoriaCompras) items = items.filter(it => it.categoriaId === filtroCategoriaCompras);
+  if(!items.length){
+    cont.innerHTML = (checkComprasCache.items || []).length
+      ? '<div class="vacio">No hay ítems de esta categoría en la lista.</div>'
+      : '<div class="vacio">La lista está vacía — generá desde recetas o agregá un insumo suelto arriba.</div>';
+    return;
+  }
+  cont.innerHTML = items.map(it => `
+    <div class="compra-item ${it.comprado ? 'comprado' : ''}">
+      <input type="checkbox" ${it.pendiente ? 'checked' : ''} ${it.comprado ? 'disabled' : ''}
+        onchange="togglePendienteCompra('${it.insumoId}', this.checked)">
+      <div>
+        <div class="compra-nombre">${(it.nombre || '—').toString().replace(/</g,'&lt;')}</div>
+        <div class="compra-meta">
+          <span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(it.categoriaId)}"></span>${nombreCategoria(it.categoriaId).toString().replace(/</g,'&lt;')}</span>
+          ${it.origen === 'suelto' ? '<span class="chip-categoria">Suelto</span>' : ''}
+        </div>
+      </div>
+      <div class="compra-cant">${it.cantidad} ${it.unidad || ''}</div>
+      ${it.comprado
+        ? `<button type="button" class="btn-ghost" onclick="reabrirCompra('${it.insumoId}')">↩️ Deshacer</button>`
+        : `<button type="button" class="btn-ghost" onclick="abrirFormComprado('${it.insumoId}')">✅ Marcar comprado</button>`
+      }
+      <div class="compra-comprar-form" id="form-comprar-${it.insumoId}">
+        <input type="number" id="inputCantidadComprada-${it.insumoId}" min="0" step="0.01" placeholder="Cantidad comprada" value="${it.cantidad || ''}">
+        <input type="number" id="inputPrecioComprado-${it.insumoId}" min="0" step="1" placeholder="Precio nuevo por unidad">
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn" onclick="confirmarCompra('${it.insumoId}')">Guardar</button>
+          <button type="button" class="btn-ghost" onclick="cerrarFormComprado('${it.insumoId}')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// v1.9: PDF vía HTML/CSS (window.print()) — mismo patrón que
+// exportarPDFSesionHTML()/PH_PRINT_CSS de logistica.html (ventana de
+// preview nueva, barra flotante con botón "Imprimir/Guardar PDF",
+// @media print, window.onafterprint cierra la ventana sola). Prefijo
+// de clases CSS ".coc-" (en vez de ".ph-") para no chocar si algún
+// día se comparte CSS entre módulos. Diferencia real con logistica.html:
+// cocina.html NO carga header-config.js, así que el header acá es
+// texto simple, sin logo/diffuser — no se inventó ninguna dependencia
+// nueva para igualarlo.
+// ============================================================
+function _cocEsc(str){
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const COC_PRINT_CSS = `
+@page{ size:letter; margin:20mm 18mm; }
+body{ margin:0; background:#3a3a3a; padding:32px 0; }
+@media print{ body{ background:none; padding:0; } }
+.coc-page{
+  width:100%; max-width:215.9mm; margin:0 auto; background:#fff;
+  position:relative; box-sizing:border-box; color:#1e1e1e;
+  font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;
+  padding:14mm 16mm 12mm; box-shadow:0 10px 40px rgba(0,0,0,.35);
+}
+@media print{ .coc-page{ max-width:none; margin:0; padding:14mm 16mm 12mm; box-shadow:none; } }
+.coc-header{
+  display:flex; justify-content:space-between; align-items:flex-end;
+  border-bottom:0.7mm solid #c9a24b; padding-bottom:4mm; margin-bottom:8mm;
+}
+.coc-header-marca{ font-size:9pt; font-weight:700; letter-spacing:0.04em; color:#1e1e1e; }
+.coc-header-sub{ font-size:7.5pt; color:#9a978f; margin-top:1mm; }
+.coc-header-fecha{ font-size:7.5pt; color:#9a978f; text-align:right; }
+.coc-hero{ margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm; }
+.coc-hero-titulo{ font-size:15pt; font-weight:700; color:#1e1e1e; }
+.coc-hero-meta{ font-size:8.5pt; color:#a8823a; margin-top:2mm; }
+.coc-cliente-imagen{ margin:0 0 6mm; text-align:center; }
+.coc-cliente-imagen img{ max-width:100%; max-height:70mm; border-radius:2.5mm; object-fit:cover; }
+.coc-seccion{ margin:0 0 6mm; background:#f6f4ef; border-radius:2.5mm; padding:6mm; break-inside:avoid; }
+.coc-titulo-seccion{
+  font-size:7.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.04em;
+  text-transform:uppercase; border-bottom:0.4mm solid #c9a24b; padding-bottom:2mm; margin-bottom:4mm;
+}
+.coc-fila{ display:flex; justify-content:space-between; gap:4mm; padding:2.2mm 1mm; font-size:9pt; }
+.coc-fila:nth-child(even){ background:#ffffff; }
+.coc-fila-izq{ color:#1e1e1e; }
+.coc-fila-der{ color:#505050; font-family:monospace; }
+.coc-totales{ margin-top:6mm; }
+.coc-totales .coc-fila{ font-size:9.5pt; }
+.coc-totales .coc-fila.coc-destacada{ font-weight:700; color:#a8823a; font-size:10.5pt; }
+.coc-footer{
+  margin-top:10mm; display:flex; justify-content:space-between;
+  font-size:7pt; color:#9a978f; border-top:0.15mm solid #9a978f; padding-top:3mm;
+}
+/* Checklist de compras */
+.coc-grupo-cat{ margin-bottom:6mm; break-inside:avoid; }
+.coc-grupo-cat-nombre{
+  font-size:8.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.03em;
+  text-transform:uppercase; margin-bottom:2mm;
+}
+.coc-check-item{
+  display:flex; align-items:center; gap:4mm; padding:3mm 1mm; font-size:9.5pt;
+  border-bottom:0.15mm solid #e5e1d6;
+}
+.coc-check-box{
+  width:5mm; height:5mm; border:0.5mm solid #1e1e1e; border-radius:1mm; flex-shrink:0;
+}
+.coc-check-nombre{ flex:1; color:#1e1e1e; }
+.coc-check-cant{ color:#505050; font-family:monospace; font-size:9pt; }
+/* Barra flotante de preview — igual patrón que .ph-barra-preview */
+.coc-barra-preview{
+  position:fixed; top:0; left:0; right:0; z-index:999;
+  display:flex; justify-content:center; gap:10px;
+  background:#1e1e1e; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.coc-barra-preview button{
+  font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;
+  font-size:13px; font-weight:700; border:none; border-radius:5px;
+  padding:9px 20px; cursor:pointer;
+}
+#cocBtnImprimir{ background:#c9a24b; color:#1e1e1e; }
+#cocBtnCerrar{ background:transparent; color:#cfcfcf; border:1px solid #555 !important; }
+.coc-preview-espaciador{ height:52px; }
+@media print{ .coc-barra-preview, .coc-preview-espaciador{ display:none !important; } }
+`;
+
+// Abre la ventana de preview con barra flotante + botón imprimir —
+// misma mecánica en ambas funciones de abajo, factorizada acá para no
+// duplicar el bloque window.open()/document.write().
+function _cocAbrirPreview(titulo, htmlDoc){
+  const win = window.open('', '_blank', 'width=640,height=700,resizable=yes,scrollbars=yes');
+  if(!win){
+    alert('El navegador bloqueó la ventana de preview. Habilita popups para este sitio e inténtalo de nuevo.');
+    return;
+  }
+  win.document.open();
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <title>${_cocEsc(titulo)}</title>
+    <style>${COC_PRINT_CSS}</style>
+  </head><body>
+    <div class="coc-barra-preview">
+      <button id="cocBtnImprimir">🖨️ Imprimir / Guardar PDF</button>
+      <button id="cocBtnCerrar">Cerrar</button>
+    </div>
+    <div class="coc-preview-espaciador"></div>
+    ${htmlDoc}
+    <script>
+      document.getElementById('cocBtnImprimir').addEventListener('click', () => window.print());
+      document.getElementById('cocBtnCerrar').addEventListener('click', () => window.close());
+      window.onafterprint = () => window.close();
+    <\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+// Ficha de receta / pedido especial — usa el snapshot GUARDADO de la
+// receta (insumos.valorUnidad al momento de guardar), no los precios
+// vigentes de insumosCache. Es intencional: es el costeo del pedido
+// tal como se cotizó, no una recalculación con precios de hoy (para
+// eso ya existe el badge "⚠️ Insumo actualizado" en pantalla).
+function imprimirRecetaHTML(recetaId){
+  const r = recetasCache.find(x => x.id === recetaId);
+  if(!r) return;
+  const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  const htmlInsumos = (r.insumos || []).map(i => `
+    <div class="coc-fila">
+      <span class="coc-fila-izq">${_cocEsc(i.nombre)}</span>
+      <span class="coc-fila-der">${_cocEsc(i.cantidad)} ${_cocEsc(i.unidad)} · ${formatoMoneda(i.subtotal)}</span>
+    </div>`).join('');
+
+  const htmlDoc = `
+  <div class="coc-page">
+    <div class="coc-header">
+      <div>
+        <div class="coc-header-marca">AUDIOLINK · COCINA</div>
+        <div class="coc-header-sub">Ficha de receta / pedido</div>
+      </div>
+      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
+    </div>
+
+    <div class="coc-hero">
+      <div class="coc-hero-titulo">${_cocEsc(r.nombre || '—')}</div>
+      <div class="coc-hero-meta">${_cocEsc(r.unidadesPorLote || 0)} unidades por lote · ${formatoMoneda(r.precioVenta)} c/u</div>
+    </div>
+
+    <div class="coc-seccion">
+      <div class="coc-titulo-seccion">Insumos (1 lote)</div>
+      ${htmlInsumos}
+    </div>
+
+    <div class="coc-totales">
+      <div class="coc-fila"><span class="coc-fila-izq">Costo total del lote</span><span class="coc-fila-der">${formatoMoneda(r.costoTotal)}</span></div>
+      <div class="coc-fila"><span class="coc-fila-izq">Ingresos de venta</span><span class="coc-fila-der">${formatoMoneda(r.ingresos)}</span></div>
+      <div class="coc-fila coc-destacada"><span>Ganancia · Margen</span><span>${formatoMoneda(r.ganancia)} · ${(r.margenPct || 0).toFixed(2).replace('.', ',')}%</span></div>
+    </div>
+
+    <div class="coc-footer">
+      <span>AUDIOLINK — Cocina / Costeo interno</span>
+      <span>Documento generado automáticamente</span>
+    </div>
+  </div>`;
+
+  const tituloVentana = `Receta - ${r.nombre || 'Sin nombre'}`;
+  _cocAbrirPreview(tituloVentana, htmlDoc);
+}
+
+// Ficha de receta PARA EL CLIENTE — versión pública, deliberadamente
+// distinta a imprimirRecetaHTML(): NO incluye costoTotal, ganancia ni
+// margenPct (eso es información interna del negocio). Muestra nombre,
+// imagen (si se subió una vía Cloudinary), ingredientes con cantidades
+// (sin precio unitario ni subtotal) y el precio de venta al público.
+function imprimirRecetaClienteHTML(recetaId){
+  const r = recetasCache.find(x => x.id === recetaId);
+  if(!r) return;
+  const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  const htmlImagen = r.imagenUrl
+    ? `<div class="coc-cliente-imagen"><img src="${r.imagenUrl}" alt="${_cocEsc(r.nombre || '')}"></div>`
+    : '';
+
+  const htmlIngredientes = (r.insumos || []).map(i => `
+    <div class="coc-fila">
+      <span class="coc-fila-izq">${_cocEsc(i.nombre)}</span>
+      <span class="coc-fila-der">${_cocEsc(i.cantidad)} ${_cocEsc(i.unidad)}</span>
+    </div>`).join('');
+
+  const htmlDoc = `
+  <div class="coc-page">
+    <div class="coc-header">
+      <div>
+        <div class="coc-header-marca">AUDIOLINK · COCINA</div>
+        <div class="coc-header-sub">Ficha de producto</div>
+      </div>
+      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
+    </div>
+
+    ${htmlImagen}
+
+    <div class="coc-hero">
+      <div class="coc-hero-titulo">${_cocEsc(r.nombre || '—')}</div>
+      <div class="coc-hero-meta">Precio: ${formatoMoneda(r.precioVenta)} c/u</div>
+    </div>
+
+    <div class="coc-seccion">
+      <div class="coc-titulo-seccion">Ingredientes</div>
+      ${htmlIngredientes}
+    </div>
+
+    <div class="coc-footer">
+      <span>AUDIOLINK — Cocina</span>
+      <span>Documento generado automáticamente</span>
+    </div>
+  </div>`;
+
+  const tituloVentana = `${r.nombre || 'Producto'} - Ficha`;
+  _cocAbrirPreview(tituloVentana, htmlDoc);
+}
+
+// Checklist de compras agrupado por categoría (mismo orden que
+// categoriasCache, "Sin categoría" al final) — pensado para imprimirse
+// o para usarse tal cual en la ventana de preview desde el celular
+// mientras se está en la tienda (checkboxes grandes, sin necesidad de
+// imprimir de verdad).
+function imprimirListaComprasHTML(){
+  const items = checkComprasCache.items || [];
+  if(!items.length){ alert('La lista de compras está vacía.'); return; }
+  const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  const grupos = {};
+  items.forEach(it => {
+    const catId = it.categoriaId || '';
+    if(!grupos[catId]) grupos[catId] = [];
+    grupos[catId].push(it);
+  });
+
+  const ordenCategorias = [...categoriasCache.map(c => c.id), ''];
+  const htmlGrupos = ordenCategorias
+    .filter(catId => grupos[catId] && grupos[catId].length)
+    .map(catId => `
+      <div class="coc-grupo-cat">
+        <div class="coc-grupo-cat-nombre">${_cocEsc(nombreCategoria(catId))}</div>
+        ${grupos[catId].map(it => `
+          <div class="coc-check-item">
+            <div class="coc-check-box"></div>
+            <span class="coc-check-nombre">${_cocEsc(it.nombre)}</span>
+            <span class="coc-check-cant">${_cocEsc(it.cantidad)} ${_cocEsc(it.unidad || '')}</span>
+          </div>`).join('')}
+      </div>`).join('');
+
+  const htmlDoc = `
+  <div class="coc-page">
+    <div class="coc-header">
+      <div>
+        <div class="coc-header-marca">AUDIOLINK · COCINA</div>
+        <div class="coc-header-sub">Lista de compras</div>
+      </div>
+      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
+    </div>
+    ${htmlGrupos}
+    <div class="coc-footer">
+      <span>AUDIOLINK — Cocina / Costeo interno</span>
+      <span>${items.length} ítem(s) en la lista</span>
+    </div>
+  </div>`;
+
+  _cocAbrirPreview('Lista de compras', htmlDoc);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const hoy = new Date().toISOString().slice(0,10);
+  document.getElementById('inputFecha').value = hoy;
+  escucharProductos();
+  escucharVentas();
+  escucharCategorias();
+  escucharInsumos();
+  escucharRecetas();
+  escucharCheckCompras();
+});
+</script>
+</body>
+</html>

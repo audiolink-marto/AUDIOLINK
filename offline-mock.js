@@ -1,4 +1,76 @@
-/* AUDIOLINK · offline-mock.js · v1.5 (Fase 2 — sincronización real)
+/* AUDIOLINK · offline-mock.js · v1.9 (whitelist ampliada: categorías + compras)
+   v1.9: cocina.html v1.7 agregó 2 colecciones raíz nuevas
+   (categoriasCocina, checkCompras) que necesitaban escritura offline.
+   Se agregan ambas a _COLECCIONES_ESCRIBIBLES_RAIZ y, como
+   categoriasCocina.doc(id).update() y checkCompras.doc('activa').set()
+   no tenían equivalente en el mock (antes solo existía add()/delete()
+   sobre colecciones raíz), se agregan docRef.update() y docRef.set()
+   genéricos para toda la whitelist (ver comentario junto a esos
+   bloques, dentro de _mockDoc). set() es upsert — crea el doc si no
+   existe, lo reemplaza si existe — necesario porque checkCompras
+   puede no tener nada descargado la primera vez que se usa offline.
+   sincronizarColaOffline() ahora también sube cambios tipo
+   'update'/'set' de estas colecciones (antes solo sabía 'add'/
+   'delete'). Sin detección de conflicto en 'update' (a diferencia de
+   sesiones) — riesgo aceptado, no se pidió más que eso.
+
+   v1.8: query.add() de las colecciones de cocina (whitelist v1.7) ya
+   no guarda el sentinel crudo de
+   firebase.firestore.FieldValue.serverTimestamp() en memoria/UI —
+   cocina.html lo usa en creadoEn al guardar ventas/insumos/recetas.
+   Nueva función _reemplazarServerTimestampParaOffline(datos): detecta
+   ese sentinel (objeto interno del SDK con _methodName conteniendo
+   "servertimestamp") y lo reemplaza por new Date().toISOString() SOLO
+   en la copia que va al array en memoria — la cola de sincronización
+   (_encolarCambio) sigue guardando el sentinel original intacto, para
+   que al sincronizar Firestore real lo resuelva como un
+   serverTimestamp de verdad (no una fecha aproximada del momento del
+   add() offline). No se tocó tomas/sesiones ni ninguna otra función.
+
+   v1.7 (escritura offline de cocina.html)
+   v1.7: whitelist de escritura offline ampliada a las 4 colecciones
+   raíz de cocina.html (cocinaInsumos, cocinaRecetas, cocinaProductos,
+   ventasCocina). Mismo mecanismo que sesiones/tomas (v1.3): cola de
+   cambios pendientes (_encolarCambio), listeners vivos para que la UI
+   se refresque sola sin salir y volver a entrar (_registrarListenerVivo/
+   _notificarListenersVivos, mismo patrón que tomas de v1.4), y
+   sincronizarColaOffline() (v1.5) ahora también sube estos cambios a
+   Firestore real cuando vuelve la señal.
+   (a) add(): en _mockColeccionRaiz(), para las 4 colecciones de la
+       whitelist — genera id temporal 'offline_...', guarda el doc YA
+       en _offlineData.catalogos[nombre] (memoria + localStorage) para
+       que la UI lo vea sin esperar sync, encola el cambio y notifica
+       a cualquier onSnapshot() activo sobre esa colección.
+   (b) delete(): en _mockDoc(), mismas 4 colecciones — saca el doc de
+       memoria, encola el cambio, notifica listeners.
+   (c) No hay update() para estas 4 colecciones — cocina.html no lo usa
+       (solo add()/delete()), se agrega si en el futuro hace falta un
+       caso real.
+   (d) Sin conflictos posibles en add()/delete() (a diferencia del
+       update() de sesiones): un add() siempre crea un doc nuevo, un
+       delete() no tiene "versión anterior" que comparar — se
+       sincronizan directo, sin pasar por _conflictosOffline.
+   (e) Cualquier otra colección raíz (musicos, equipoTecnico, estudios,
+       equipoInterno, ingenieros, musicosPortal, etc.) sigue sin
+       add()/update()/delete() — no agregarla a la whitelist sin
+       confirmarlo antes con el usuario.
+
+   v1.6 (lectura offline de cocina.html)
+   v1.6: cargarArchivoOffline() ahora también guarda cocinaInsumos,
+   cocinaRecetas, cocinaProductos y ventasCocina cuando vienen en el
+   .json de catálogos (tipoArchivo 'audiolink_catalogos_offline' o
+   'audiolink_todo_offline') — mismo patrón que equipoInterno/
+   ingenieros/musicosPortal (v1.0). Son 4 colecciones raíz, igual que
+   esas, así que no hace falta tocar _mockColeccionRaiz ni ningún otro
+   mecanismo de lectura: con quedar en _offlineData.catalogos alcanza
+   para que cocina.html las lea offline con db.collection(nombre)...
+   Solo lado de LECTURA. El botón "📦 Descargar catálogos" (y
+   "🌴 Descargar todo") que arma el .json vive en index.html, que no
+   se tocó acá — falta agregarle estos 4 campos ahí para que el .json
+   los incluya de verdad. Sin ese cambio, este archivo simplemente
+   guarda array vacío para los 4 (no rompe nada, pero tampoco sirve de
+   nada hasta que index.html los empaquete).
+
    v1.5: sincronizarColaOffline() sube de verdad la cola de cambios
    pendientes a Firestore real (firebase.firestore(), no crearDB()).
    Para add() de tomas no hay conflicto posible (siempre crea un doc
@@ -203,6 +275,18 @@ const AUDIOLINK_OFFLINE_KEY = 'audiolink_offline_data';
 // ciclos de vida distintos (limpiar uno no debe limpiar el otro).
 const AUDIOLINK_COLA_KEY = 'audiolink_offline_cola_cambios';
 
+// v1.7 — whitelist de escritura offline para colecciones RAÍZ (a
+// diferencia de sesiones/tomas, que son subcolecciones de 'proyectos'
+// y tienen su propia whitelist dentro de _mockDoc). Usada por
+// _mockColeccionRaiz() (add) y _mockDoc() (delete). Cualquier colección
+// raíz que no esté acá sigue sin escritura offline — no agregarla sin
+// confirmarlo antes con el usuario.
+// v1.9: se agregan 'categoriasCocina' y 'checkCompras' (cocina.html
+// v1.7). A diferencia de las 4 anteriores, estas dos también necesitan
+// update()/set() puntual sobre un doc — ver docRef.update/docRef.set
+// más abajo, junto a docRef.delete (mismo bloque, misma condición).
+const _COLECCIONES_ESCRIBIBLES_RAIZ = ['cocinaInsumos', 'cocinaRecetas', 'cocinaProductos', 'ventasCocina', 'categoriasCocina', 'checkCompras'];
+
 // Estructura en memoria, se llena con cargarArchivoOffline() o se
 // restaura sola desde localStorage al cargar este script:
 // {
@@ -215,6 +299,8 @@ const AUDIOLINK_COLA_KEY = 'audiolink_offline_cola_cambios';
 //   },
 //   catalogos: { musicos:[...], equipoTecnico:[...], estudios:[...],
 //                equipoInterno:[...], ingenieros:[...], musicosPortal:[...],
+//                cocinaInsumos:[...], cocinaRecetas:[...],
+//                cocinaProductos:[...], ventasCocina:[...],
 //                fechaDescarga: "ISO..." }
 // }
 let _offlineData = _restaurarOfflineDataDesdeLocalStorage();
@@ -379,6 +465,31 @@ async function sincronizarColaOffline(){
           }
           await ref.update(cambio.datos);
           sincronizados++;
+        } else if(_COLECCIONES_ESCRIBIBLES_RAIZ.includes(cambio.coleccion) && cambio.tipo === 'add'){
+          // v1.7 — sin conflicto posible (siempre crea un doc nuevo),
+          // igual que 'tomas'/add de arriba.
+          await db.collection(cambio.coleccion).add(cambio.datos);
+          sincronizados++;
+        } else if(_COLECCIONES_ESCRIBIBLES_RAIZ.includes(cambio.coleccion) && cambio.tipo === 'delete'){
+          // v1.7 — sin conflicto posible: si alguien más ya lo había
+          // borrado, Firestore no tira error al borrar un doc
+          // inexistente, simplemente no hace nada.
+          await db.collection(cambio.coleccion).doc(cambio.docId).delete();
+          sincronizados++;
+        } else if(_COLECCIONES_ESCRIBIBLES_RAIZ.includes(cambio.coleccion) && cambio.tipo === 'update'){
+          // v1.9 — igual que 'sesiones'/update pero SIN detección de
+          // conflicto (categoriasCocina no tiene actualizadoEn de
+          // referencia como sesiones). Si dos personas editan la
+          // misma categoría offline al mismo tiempo, gana el último
+          // que sincroniza — riesgo aceptado, no se pidió más que eso.
+          await db.collection(cambio.coleccion).doc(cambio.docId).update(cambio.datos);
+          sincronizados++;
+        } else if(_COLECCIONES_ESCRIBIBLES_RAIZ.includes(cambio.coleccion) && cambio.tipo === 'set'){
+          // v1.9 — checkCompras.doc('activa').set(). Mismo sin-
+          // conflicto que 'add'/'delete': set() siempre reemplaza el
+          // doc completo, no hay merge parcial que pueda chocar.
+          await db.collection(cambio.coleccion).doc(cambio.docId).set(cambio.datos);
+          sincronizados++;
         } else {
           console.warn('AUDIOLINK offline-mock: cambio en cola con tipo/colección no reconocido, se deja pendiente.', cambio);
           pendientes.push(cambio);
@@ -482,6 +593,23 @@ async function cargarArchivoOffline(fileList){
           equipoInterno: json.equipoInterno || [],
           ingenieros: json.ingenieros || [],
           musicosPortal: json.musicosPortal || [],
+          // v1.6: catálogos de cocina.html (colecciones raíz, mismo
+          // patrón que equipoInterno/ingenieros/musicosPortal). Si el
+          // .json no los trae (archivos viejos ya descargados o
+          // mientras index.html no los empaquete todavía), quedan
+          // como array vacío — no rompe nada.
+          cocinaInsumos: json.cocinaInsumos || [],
+          cocinaRecetas: json.cocinaRecetas || [],
+          cocinaProductos: json.cocinaProductos || [],
+          ventasCocina: json.ventasCocina || [],
+          // v1.9: categoriasCocina sigue el mismo patrón array que los
+          // 4 de arriba. checkCompras es doc único ('activa') — index.html
+          // v2.29+ lo manda como objeto suelto (o null si no existe
+          // todavía), acá se envuelve en array de 1 para que encaje
+          // con el mismo mecanismo de búsqueda por id que usa
+          // _mockDoc() para el resto de colecciones raíz.
+          categoriasCocina: json.categoriasCocina || [],
+          checkCompras: json.checkCompras ? [json.checkCompras] : [],
           fechaDescarga: json.fechaDescarga
         };
         resumen.push(`✅ Catálogos — descargados ${_formatearFecha(json.fechaDescarga)}`);
@@ -515,6 +643,14 @@ async function cargarArchivoOffline(fileList){
             equipoInterno: json.catalogos.equipoInterno || [],
             ingenieros: json.catalogos.ingenieros || [],
             musicosPortal: json.catalogos.musicosPortal || [],
+            // v1.6: mismo agregado que en audiolink_catalogos_offline.
+            cocinaInsumos: json.catalogos.cocinaInsumos || [],
+            cocinaRecetas: json.catalogos.cocinaRecetas || [],
+            cocinaProductos: json.catalogos.cocinaProductos || [],
+            ventasCocina: json.catalogos.ventasCocina || [],
+            // v1.9: mismo agregado que en audiolink_catalogos_offline.
+            categoriasCocina: json.catalogos.categoriasCocina || [],
+            checkCompras: json.catalogos.checkCompras ? [json.catalogos.checkCompras] : [],
             fechaDescarga: json.fechaDescarga
           };
         }
@@ -569,6 +705,28 @@ function crearDBOffline(){
 // Colección de nivel raíz: por ahora solo 'proyectos' tiene datos reales
 // (desde archivos de proyecto). Catálogos (musicos/equipoTecnico/estudios)
 // se resuelven aparte porque en Firestore SÍ son colecciones raíz.
+// v1.8 — detecta el "sentinel" que devuelve
+// firebase.firestore.FieldValue.serverTimestamp() (un objeto interno
+// del SDK, no una fecha real — Firestore recién lo resuelve del lado
+// del servidor). cocina.html lo usa en creadoEn al guardar ventas/
+// insumos/recetas. Offline no hay servidor que lo resuelva, así que
+// sin este reemplazo quedaría guardado el objeto crudo en memoria y
+// se vería roto en cualquier pantalla que muestre esa fecha antes de
+// sincronizar. Se reemplaza SOLO en la copia que va a memoria/UI —
+// la cola de sincronización (_encolarCambio) sigue guardando el
+// sentinel original, para que Firestore real lo resuelva como
+// serverTimestamp de verdad al sincronizar.
+function _reemplazarServerTimestampParaOffline(datos){
+  const copia = { ...datos };
+  Object.keys(copia).forEach(k => {
+    const v = copia[k];
+    if(v && typeof v === 'object' && typeof v._methodName === 'string' && v._methodName.toLowerCase().includes('servertimestamp')){
+      copia[k] = new Date().toISOString();
+    }
+  });
+  return copia;
+}
+
 function _mockColeccionRaiz(nombre){
   let docsBase = [];
   if(nombre === 'proyectos'){
@@ -577,11 +735,48 @@ function _mockColeccionRaiz(nombre){
     docsBase = _offlineData.catalogos[nombre];
   }
 
-  return Object.assign(_crearQueryEstatica(docsBase.map(d => _crearDocSnapshot(d.id, d))), {
-    doc(id){
-      return _mockDoc(nombre, id);
-    }
-  });
+  const query = _crearQueryEstatica(docsBase.map(d => _crearDocSnapshot(d.id, d)));
+  query.doc = function(id){
+    return _mockDoc(nombre, id);
+  };
+
+  // v1.7 — whitelist de escritura offline (ver constante
+  // _COLECCIONES_ESCRIBIBLES_RAIZ más arriba). Mismo patrón que
+  // tomasQuery dentro de _mockDoc (v1.3/v1.4): onSnapshot() se
+  // sobreescribe puntualmente para registrar un listener vivo que se
+  // re-emite solo cuando add()/delete() cambian los datos, sin tocar
+  // el onSnapshot() genérico de _crearQueryEstatica (sigue igual para
+  // cualquier otro uso, incluida esta misma colección en modo
+  // solo-lectura si algún día se saca de la whitelist).
+  if(_COLECCIONES_ESCRIBIBLES_RAIZ.includes(nombre) && _offlineData.catalogos){
+    const _pathKeyCatalogo = `catalogo:${nombre}`;
+
+    query.onSnapshot = function(callback){
+      function _emitirCatalogo(){
+        const itemsActuales = _offlineData.catalogos[nombre] || [];
+        const fresca = _crearQueryEstatica(itemsActuales.map(d => _crearDocSnapshot(d.id, d)));
+        fresca.get().then(callback);
+      }
+      setTimeout(_emitirCatalogo, 0);
+      return _registrarListenerVivo(_pathKeyCatalogo, _emitirCatalogo);
+    };
+
+    query.add = async function(datos){
+      const nuevoId = _generarIdOffline();
+      // v1.8 — el doc que va a memoria/UI tiene los serverTimestamp()
+      // ya resueltos a una fecha local; el que va a la cola de
+      // sincronización (más abajo) mantiene el sentinel original.
+      const nuevoDoc = { id: nuevoId, ..._reemplazarServerTimestampParaOffline(datos) };
+      if(!_offlineData.catalogos[nombre]) _offlineData.catalogos[nombre] = [];
+      _offlineData.catalogos[nombre].push(nuevoDoc);
+      _encolarCambio({ tipo: 'add', coleccion: nombre, docId: nuevoId, datos });
+      _guardarOfflineDataEnLocalStorage();
+      _notificarListenersVivos(_pathKeyCatalogo);
+      return { id: nuevoId };
+    };
+  }
+
+  return query;
 }
 
 // v0.9: antes solo resolvía datos reales cuando coleccionRaiz==='proyectos'
@@ -605,7 +800,7 @@ function _mockDoc(coleccionRaiz, id){
     if(item) dataEnMemoria = item;
   }
 
-  return {
+  const docRef = {
     id,
     async get(){
       if(dataEnMemoria){
@@ -761,6 +956,71 @@ function _mockDoc(coleccionRaiz, id){
     // escribir offline — no agregarla a la whitelist sin confirmarlo
     // antes con el usuario.
   };
+
+  // v1.7 — whitelist de escritura offline para colecciones RAÍZ (ver
+  // _COLECCIONES_ESCRIBIBLES_RAIZ). delete() puntual: saca el doc de
+  // _offlineData.catalogos[coleccionRaiz], encola el cambio y notifica
+  // a cualquier onSnapshot() activo sobre esa colección (mismo
+  // _pathKeyCatalogo que usa query.onSnapshot()/add() en
+  // _mockColeccionRaiz). Sin update() a propósito — cocina.html no lo
+  // usa sobre estas 4 colecciones.
+  if(_COLECCIONES_ESCRIBIBLES_RAIZ.includes(coleccionRaiz) && _offlineData.catalogos){
+    docRef.delete = async function(){
+      const arr = _offlineData.catalogos[coleccionRaiz] || [];
+      const idx = arr.findIndex(d => d.id === id);
+      if(idx === -1){
+        throw new Error(`AUDIOLINK offline-mock: no se puede borrar "${id}" de "${coleccionRaiz}" porque no está cargado en memoria offline.`);
+      }
+      arr.splice(idx, 1);
+      _encolarCambio({ tipo: 'delete', coleccion: coleccionRaiz, docId: id });
+      _guardarOfflineDataEnLocalStorage();
+      _notificarListenersVivos(`catalogo:${coleccionRaiz}`);
+    };
+  }
+
+  // v1.9 — update()/set() puntual sobre un doc de colección raíz.
+  // Antes ningún doc raíz tenía esto (comentario viejo: "Sin update()
+  // a propósito — cocina.html no lo usa sobre estas 4 colecciones").
+  // Ahora categoriasCocina.doc(id).update({nombre}) y
+  // checkCompras.doc('activa').set({...}) sí lo necesitan. Misma
+  // whitelist que delete() arriba, pero sin exigir que el array ya
+  // exista en memoria (checkCompras puede no tener nada descargado
+  // todavía la primera vez que se usa offline).
+  if(_COLECCIONES_ESCRIBIBLES_RAIZ.includes(coleccionRaiz)){
+    docRef.update = async function(datos){
+      const arr = (_offlineData.catalogos && _offlineData.catalogos[coleccionRaiz]) || [];
+      const idx = arr.findIndex(d => d.id === id);
+      if(idx === -1){
+        throw new Error(`AUDIOLINK offline-mock: no se puede actualizar "${id}" en "${coleccionRaiz}" porque no está cargado en memoria offline.`);
+      }
+      Object.assign(arr[idx], _reemplazarServerTimestampParaOffline(datos));
+      _encolarCambio({ tipo: 'update', coleccion: coleccionRaiz, docId: id, datos });
+      _guardarOfflineDataEnLocalStorage();
+      _notificarListenersVivos(`catalogo:${coleccionRaiz}`);
+    };
+
+    // set() es upsert (crea si no existe, reemplaza si existe) — así
+    // se comporta Firestore real. checkCompras.doc('activa') lo usa
+    // porque ese doc puede no existir todavía (primera vez que se abre
+    // la pestaña Compras).
+    docRef.set = async function(datos){
+      if(!_offlineData.catalogos) _offlineData.catalogos = {};
+      if(!_offlineData.catalogos[coleccionRaiz]) _offlineData.catalogos[coleccionRaiz] = [];
+      const arr = _offlineData.catalogos[coleccionRaiz];
+      const datosResueltos = _reemplazarServerTimestampParaOffline(datos);
+      const idx = arr.findIndex(d => d.id === id);
+      if(idx === -1){
+        arr.push({ id, ...datosResueltos });
+      } else {
+        arr[idx] = { id, ...datosResueltos };
+      }
+      _encolarCambio({ tipo: 'set', coleccion: coleccionRaiz, docId: id, datos });
+      _guardarOfflineDataEnLocalStorage();
+      _notificarListenersVivos(`catalogo:${coleccionRaiz}`);
+    };
+  }
+
+  return docRef;
 }
 
 function _crearDocSnapshot(id, data, proyectoIdPadre){

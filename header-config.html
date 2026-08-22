@@ -3,8 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Header PDF (v1.2)</title>
-<!-- AUDIOLINK · header-config.html · v1.1
+<title>Audiolink — Header PDF (v1.5)</title>
+<!-- AUDIOLINK · header-config.html · v1.5
+     v1.5: nuevo checkbox "Sin logo" (logoSinLogoInput) junto a Posición Y
+     del logo — oculta el logo por completo (display:none) para evitar el
+     ícono "alt" roto si la ruta queda vacía/inválida. También se aclaró
+     el title de "Sin fondo" para reflejar que ahora también oculta el
+     diffuser con display:none (mismo blindaje). Ver header-config.js v1.7
+     para la lógica. Ningún otro control se tocó.
+
+     v1.4: 3 controles nuevos en "Efectos del logo" (Matiz/Saturación/
+     Sepia, rangos más libres: hue -180°/180°, saturación 0–300%, sepia
+     0–100%) y nueva tarjeta "Efectos del fondo (diffuser)" con 5
+     controles (Difuminado/Grises/Contraste/Rotación/Sombra) — ver
+     header-config.js v1.5/v1.6 para la lógica. Ninguno de estos aplica
+     en jsPDF (Cliente/Interno clásicos), solo en el PDF piloto HTML y
+     en este preview.
+     v1.3: (1) layout de 2 columnas (.config-grid) — cards de edición a la
+     izquierda, tarjeta "Preview" en columna aparte a la derecha con
+     position:sticky, para que quede siempre visible mientras se editan
+     los demás campos con scroll (en mobile <960px se apila normal, sin
+     sticky). (2) nueva tarjeta "Efectos del logo" con 6 controles
+     (Opacidad/Difuminado/Grises/Contraste/Rotación/Sombra) — ver
+     header-config.js v1.4 para la lógica y el alcance real de cada uno
+     en jsPDF vs. modo piloto/preview.
+     v1.1
      Panel centralizado de configuración del header de PDF (logo,
      diffuser, color, opacidades, tamaño/alineación del logo). Antes este
      panel vivía duplicado dentro de logistica.html; ahora es la única
@@ -151,6 +174,18 @@ main{padding:28px;max-width:900px;margin:0 auto;}
   .field-row{flex-wrap:wrap;}
   .field-row label{flex:0 0 100%;}
 }
+/* v1.4: layout de 2 columnas — cards de edición a la izquierda, Preview
+   fijo (sticky) a la derecha mientras se hace scroll editando. En mobile
+   (<960px) se apila normal y el Preview deja de ser sticky (no tiene
+   sentido con poco alto de pantalla). */
+main{max-width:1180px;}
+.config-grid{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start;}
+.preview-col{position:sticky;top:20px;}
+@media (max-width:960px){
+  main{max-width:900px;}
+  .config-grid{grid-template-columns:1fr;}
+  .preview-col{position:static;}
+}
 /* v1.1: botones de alineación del logo (reemplazan slider Posición X) */
 .align-group{display:flex;gap:8px;flex:1;}
 .align-btn{
@@ -197,6 +232,9 @@ window.NAV_CONFIG = { activo: 'header-config' };
     <h2>AJUSTES — HEADER PDF</h2>
   </div>
 
+  <div class="config-grid">
+  <div class="config-col">
+
   <div class="card">
     <h3>Logo y textura</h3>
     <div class="sub">Rutas de las imágenes usadas en el header de todos los PDF del ecosistema.</div>
@@ -241,7 +279,7 @@ window.NAV_CONFIG = { activo: 'header-config' };
     </div>
     <div class="field-row">
       <label for="headerSinFondoInput">Sin fondo (ahorra tinta)</label>
-      <input type="checkbox" id="headerSinFondoInput" title="Exporta el header de ambos PDF sin el fondo de color (queda blanco) — ahorra tinta al imprimir. Logo, línea dorada y textos se mantienen igual." onchange="actualizarHeaderSinFondo(this.checked)">
+      <input type="checkbox" id="headerSinFondoInput" title="Exporta el header de ambos PDF sin el fondo de color ni el diffuser (queda blanco sólido) — ahorra tinta al imprimir y evita que aparezca el ícono roto si la ruta del diffuser está vacía. Logo, línea dorada y textos se mantienen igual." onchange="actualizarHeaderSinFondo(this.checked)">
     </div>
   </div>
 
@@ -265,10 +303,85 @@ window.NAV_CONFIG = { activo: 'header-config' };
       <label for="logoOffsetYInput">Posición Y</label>
       <input type="range" id="logoOffsetYInput" min="-10" max="10" step="0.5" title="Desplazamiento vertical del logo (en mm) respecto al centro del header." onchange="actualizarLogoOffsetY(this.value)" oninput="actualizarLogoOffsetY(this.value)">
     </div>
+    <div class="field-row">
+      <label for="logoSinLogoInput">Sin logo</label>
+      <input type="checkbox" id="logoSinLogoInput" title="Oculta el logo por completo en el header (preview y PDF). Útil si el campo de ruta queda vacío: evita que aparezca el ícono roto de imagen." onchange="actualizarLogoSinLogo(this.checked)">
+    </div>
 
     <button type="button" class="btn" style="margin-top:6px;" title="Restablece color, opacidades, tamaño y posición del logo a sus valores por defecto (no toca las rutas de logo/diffuser)." onclick="resetearHeaderDefaults()">↺ Restablecer</button>
   </div>
 
+  <div class="card">
+    <h3>Efectos del logo</h3>
+    <div class="sub">Solo se ven en el header HTML del PDF piloto y en este preview. En los PDF con jsPDF (Cliente/Interno clásicos), únicamente la opacidad tiene efecto real.</div>
+
+    <div class="field-row">
+      <label for="logoOpacityInput">Opacidad</label>
+      <input type="range" id="logoOpacityInput" min="0" max="1" step="0.05" title="Opacidad del logo. 0 = invisible, 1 = totalmente sólido. Es el único efecto de esta tarjeta que también aplica en los PDF jsPDF." onchange="actualizarLogoOpacity(this.value)" oninput="actualizarLogoOpacity(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="logoBlurInput">Difuminado</label>
+      <input type="range" id="logoBlurInput" min="0" max="8" step="0.5" title="Difumina el logo (blur), útil para que se mezcle más con el fondo del header. Solo modo piloto/preview." onchange="actualizarLogoBlur(this.value)" oninput="actualizarLogoBlur(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="logoGrayscaleInput">Escala de grises</label>
+      <input type="range" id="logoGrayscaleInput" min="0" max="100" step="5" title="Desatura el logo. 0 = colores normales, 100 = blanco y negro. Solo modo piloto/preview." onchange="actualizarLogoGrayscale(this.value)" oninput="actualizarLogoGrayscale(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="logoContrastInput">Contraste</label>
+      <input type="range" id="logoContrastInput" min="50" max="150" step="5" title="Contraste del logo. 100 = normal. Solo modo piloto/preview." onchange="actualizarLogoContrast(this.value)" oninput="actualizarLogoContrast(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="logoRotacionInput">Rotación</label>
+      <input type="range" id="logoRotacionInput" min="-15" max="15" step="1" title="Inclina el logo en grados. Solo modo piloto/preview." onchange="actualizarLogoRotacion(this.value)" oninput="actualizarLogoRotacion(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="logoSombraInput">Sombra suave</label>
+      <input type="checkbox" id="logoSombraInput" title="Agrega una sombra sutil detrás del logo, para darle un poco de profundidad sobre el diffuser. Solo modo piloto/preview." onchange="actualizarLogoSombra(this.checked)">
+    </div>
+    <div class="field-row">
+      <label for="logoHueInput">Matiz de color</label>
+      <input type="range" id="logoHueInput" min="-180" max="180" step="5" title="Gira el tono de color del logo (hue-rotate). 0 = colores originales. Solo modo piloto/preview." onchange="actualizarLogoHue(this.value)" oninput="actualizarLogoHue(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="logoSaturateInput">Saturación</label>
+      <input type="range" id="logoSaturateInput" min="0" max="300" step="5" title="Intensidad del color del logo. 100 = normal, 0 = sin color, por encima de 100 = colores más vivos. Solo modo piloto/preview." onchange="actualizarLogoSaturate(this.value)" oninput="actualizarLogoSaturate(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="logoSepiaInput">Sepia</label>
+      <input type="range" id="logoSepiaInput" min="0" max="100" step="5" title="Aplica un tinte cálido/sepia sobre el logo. Solo modo piloto/preview." onchange="actualizarLogoSepia(this.value)" oninput="actualizarLogoSepia(this.value)">
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Efectos del fondo (diffuser)</h3>
+    <div class="sub">Solo se ven en el header HTML del PDF piloto y en este preview. Los PDF con jsPDF (Cliente/Interno clásicos) no aplican ninguno de estos.</div>
+
+    <div class="field-row">
+      <label for="diffuserBlurInput">Difuminado</label>
+      <input type="range" id="diffuserBlurInput" min="0" max="20" step="0.5" title="Difumina la imagen de fondo del header. Solo modo piloto/preview." onchange="actualizarDiffuserBlur(this.value)" oninput="actualizarDiffuserBlur(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="diffuserGrayscaleInput">Escala de grises</label>
+      <input type="range" id="diffuserGrayscaleInput" min="0" max="100" step="5" title="Desatura el fondo del header. 0 = colores normales, 100 = blanco y negro. Solo modo piloto/preview." onchange="actualizarDiffuserGrayscale(this.value)" oninput="actualizarDiffuserGrayscale(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="diffuserContrastInput">Contraste</label>
+      <input type="range" id="diffuserContrastInput" min="0" max="200" step="5" title="Contraste del fondo del header. 100 = normal. Solo modo piloto/preview." onchange="actualizarDiffuserContrast(this.value)" oninput="actualizarDiffuserContrast(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="diffuserRotacionInput">Rotación</label>
+      <input type="range" id="diffuserRotacionInput" min="-45" max="45" step="1" title="Inclina la imagen de fondo del header en grados. El header recorta lo que se salga (overflow oculto). Solo modo piloto/preview." onchange="actualizarDiffuserRotacion(this.value)" oninput="actualizarDiffuserRotacion(this.value)">
+    </div>
+    <div class="field-row">
+      <label for="diffuserSombraInput">Sombra suave</label>
+      <input type="checkbox" id="diffuserSombraInput" title="Agrega una sombra sutil sobre la imagen de fondo. Solo modo piloto/preview." onchange="actualizarDiffuserSombra(this.checked)">
+    </div>
+  </div>
+
+  </div>
+
+  <div class="preview-col">
   <div class="card">
     <h3>Preview</h3>
     <div class="sub">Proporción real del header del PDF (210×38mm) — puramente visual, no genera PDF.</div>
@@ -278,6 +391,9 @@ window.NAV_CONFIG = { activo: 'header-config' };
       <img id="headerPreviewLogo" src="" alt="">
       <div style="position:absolute;left:0;right:0;bottom:0;height:2.5%;background:var(--gold);"></div>
     </div>
+  </div>
+  </div>
+
   </div>
 
 </main>
