@@ -3,8 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.13)</title>
-<!-- AUDIOLINK · cocina.html · v1.13
+<title>Audiolink — Cocina (v1.14)</title>
+<!-- AUDIOLINK · cocina.html · v1.14
+     v1.14: (a pedido) se aumentó el tamaño de todos los textos chicos
+     de la interfaz (labels, hints, chips, badges, subtítulos) — solo
+     CSS, valores en rem, aprox. +1-2px cada uno, manteniendo la
+     jerarquía visual (lo que era más chico sigue siendo más chico que
+     lo mediano, solo que ya no ilegible). El bloque de impresión/PDF
+     (COC_PRINT_CSS, en pt/mm) NO se tocó — se verificó carácter por
+     carácter que quedó idéntico al de v1.13, para no arriesgar el
+     PDF ya validado. Nota: este mismo ajuste queda pendiente de
+     replicar en nav.js/index.html y el resto del ecosistema — no se
+     tienen esos archivos subidos en esta sesión.
      v1.13: (a pedido) imagen de receta + PDF versión cliente.
      (1) Imagen de receta: widget de subida de Cloudinary (unsigned
      upload preset "RECETAS", cloud "dv7lelmoy", carpeta "RECETAS"),
@@ -303,9 +313,9 @@ body{
   font-family:var(--T); font-size:1.5rem; font-weight:600;
   color:var(--gold); letter-spacing:0.03em; margin:0;
 }
-.header-top .sub{ font-size:0.82rem; color:var(--muted); margin-top:2px; }
+.header-top .sub{ font-size:0.9rem; color:var(--muted); margin-top:2px; }
 .back-link{
-  color:var(--muted); font-size:0.85rem; text-decoration:none;
+  color:var(--muted); font-size:0.92rem; text-decoration:none;
   display:inline-block; margin-bottom:14px;
 }
 .back-link:hover{ color:var(--gold); }
@@ -316,7 +326,7 @@ body{
   overflow-x:auto;
 }
 .tab-btn{
-  background:transparent; border:none; color:var(--muted); font-size:0.88rem;
+  background:transparent; border:none; color:var(--muted); font-size:0.94rem;
   font-weight:600; padding:10px 16px; cursor:pointer; white-space:nowrap;
   border-bottom:2px solid transparent; margin-bottom:-1px;
 }
@@ -330,9 +340,9 @@ body{
   padding:18px 22px; margin-bottom:20px;
   display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
 }
-.total-card .label{ font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+.total-card .label{ font-size:0.85rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
 .total-card .valor{ font-family:var(--M); font-size:1.9rem; font-weight:700; color:var(--gold); }
-.total-card .conteo{ font-size:0.78rem; color:var(--faint); }
+.total-card .conteo{ font-size:0.88rem; color:var(--faint); }
 
 .card{
   background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
@@ -342,17 +352,17 @@ body{
   font-family:var(--T); font-size:1.05rem; font-weight:600; color:var(--gold);
   margin:0 0 4px;
 }
-.card .card-sub{ font-size:0.78rem; color:var(--faint); margin-bottom:14px; }
+.card .card-sub{ font-size:0.88rem; color:var(--faint); margin-bottom:14px; }
 
 .form-grid{
   display:grid; grid-template-columns:1fr 1fr; gap:12px;
 }
 .form-grid.cols-4{ grid-template-columns:1.4fr 0.8fr 0.8fr 1fr; }
 .field{ display:flex; flex-direction:column; gap:5px; }
-.field label{ font-size:0.75rem; color:var(--muted); }
+.field label{ font-size:0.85rem; color:var(--muted); }
 .field input, .field select{
   background:#0f0f11; border:1px solid var(--border); border-radius:8px;
-  color:var(--text); padding:10px 12px; font-size:0.92rem; min-height:42px;
+  color:var(--text); padding:10px 12px; font-size:0.96rem; min-height:42px;
   font-family:inherit;
 }
 .field input:focus, .field select:focus{ outline:none; border-color:var(--gold); }
@@ -364,7 +374,7 @@ input[type="checkbox"]{
   grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;
   background:var(--gold-soft); border-radius:8px; padding:10px 14px; margin-top:2px;
 }
-.field-total .lbl{ font-size:0.8rem; color:var(--muted); }
+.field-total .lbl{ font-size:0.88rem; color:var(--muted); }
 .field-total .val{ font-family:var(--M); font-weight:700; color:var(--gold); font-size:1.1rem; }
 
 .producto-nuevo-row{
@@ -380,7 +390,7 @@ input[type="checkbox"]{
   display:flex; align-items:center; justify-content:center;
 }
 .receta-imagen-preview img{ width:100%; height:100%; object-fit:cover; }
-.vacio-mini{ font-size:0.65rem; color:var(--faint); text-align:center; padding:4px; }
+.vacio-mini{ font-size:0.75rem; color:var(--faint); text-align:center; padding:4px; }
 .receta-card-thumb{
   width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0;
   border:1px solid var(--border);
@@ -388,13 +398,13 @@ input[type="checkbox"]{
 
 .btn{
   background:var(--gold); color:#1a1408; border:none; border-radius:8px;
-  padding:11px 18px; font-weight:600; font-size:0.9rem; cursor:pointer;
+  padding:11px 18px; font-weight:600; font-size:0.95rem; cursor:pointer;
   min-height:44px;
 }
 .btn:hover{ filter:brightness(1.08); }
 .btn-ghost{
   background:transparent; color:var(--muted); border:1px solid var(--border);
-  border-radius:8px; padding:9px 14px; font-size:0.85rem; cursor:pointer; min-height:40px;
+  border-radius:8px; padding:9px 14px; font-size:0.92rem; cursor:pointer; min-height:40px;
 }
 .btn-ghost:hover{ border-color:var(--gold); color:var(--gold); }
 .btn-row{ grid-column:1/-1; display:flex; gap:10px; margin-top:4px; }
@@ -402,11 +412,11 @@ input[type="checkbox"]{
 /* Tabla tipo hoja de cálculo */
 .tabla-wrap{ overflow-x:auto; border-radius:12px; border:1px solid var(--border); }
 table.hoja{
-  width:100%; border-collapse:collapse; font-size:0.85rem; min-width:640px;
+  width:100%; border-collapse:collapse; font-size:0.92rem; min-width:640px;
 }
 table.hoja thead th{
   background:var(--bg-card-alt); color:var(--muted); text-transform:uppercase;
-  font-size:0.68rem; letter-spacing:0.05em; font-weight:600;
+  font-size:0.78rem; letter-spacing:0.05em; font-weight:600;
   padding:10px 12px; text-align:left; border-bottom:1px solid var(--border);
   position:sticky; top:0;
 }
@@ -424,14 +434,14 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   font-size:1rem; padding:4px 6px; border-radius:6px;
 }
 .btn-del:hover{ color:var(--danger); background:rgba(160,50,40,0.12); }
-.vacio{ text-align:center; padding:30px; color:var(--faint); font-size:0.85rem; }
+.vacio{ text-align:center; padding:30px; color:var(--faint); font-size:0.92rem; }
 
 /* Recetas */
 .receta-insumo-row{
   display:grid; grid-template-columns:1.6fr 0.7fr 0.9fr auto; gap:8px; align-items:center;
   margin-bottom:8px;
 }
-.receta-insumo-row .subtotal{ font-family:var(--M); font-size:0.85rem; color:var(--muted); text-align:right; }
+.receta-insumo-row .subtotal{ font-family:var(--M); font-size:0.92rem; color:var(--muted); text-align:right; }
 .margen-grid{
   display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:14px;
 }
@@ -439,7 +449,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   background:var(--bg-card-alt); border:1px solid var(--border); border-radius:10px;
   padding:12px 14px;
 }
-.margen-box .lbl{ font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+.margen-box .lbl{ font-size:0.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
 .margen-box .val{ font-family:var(--M); font-size:1.15rem; font-weight:700; margin-top:4px; }
 .margen-box .val.ok{ color:#5cb85c; }
 .margen-box .val.warn{ color:var(--danger); }
@@ -452,20 +462,20 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   display:flex; justify-content:space-between; align-items:center; cursor:pointer;
 }
 .receta-card .receta-nombre{ font-weight:700; color:var(--gold); font-family:var(--T); font-size:1rem; }
-.receta-card .receta-resumen{ font-size:0.78rem; color:var(--muted); margin-top:2px; }
+.receta-card .receta-resumen{ font-size:0.88rem; color:var(--muted); margin-top:2px; }
 .receta-card .receta-detalle{ display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:10px; }
 .receta-card .receta-detalle.activo{ display:block; }
 .receta-detalle-fila{
-  display:flex; justify-content:space-between; font-size:0.82rem; padding:4px 0; color:var(--muted);
+  display:flex; justify-content:space-between; font-size:0.9rem; padding:4px 0; color:var(--muted);
 }
 .receta-detalle-fila span:last-child{ font-family:var(--M); color:var(--text); }
-.hint-sugerido{ font-size:0.72rem; color:var(--gold); margin-top:4px; min-height:1em; }
+.hint-sugerido{ font-size:0.82rem; color:var(--gold); margin-top:4px; min-height:1em; }
 /* v1.8: aclaraciones fijas de "por lote vs por unidad" en Recetas —
    mismo tamaño que hint-sugerido pero color --faint (no --gold),
    porque no es una sugerencia dinámica sino un texto fijo. */
-.hint-campo{ font-size:0.72rem; color:var(--faint); margin-top:4px; line-height:1.35; }
+.hint-campo{ font-size:0.82rem; color:var(--faint); margin-top:4px; line-height:1.35; }
 .badge-desactualizada{
-  display:inline-block; font-size:0.68rem; font-weight:600; color:var(--danger);
+  display:inline-block; font-size:0.78rem; font-weight:600; color:var(--danger);
   background:rgba(160,50,40,0.12); border:1px solid rgba(160,50,40,0.3);
   border-radius:6px; padding:1px 6px; margin-left:6px; vertical-align:middle;
 }
@@ -484,18 +494,18 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 }
 .categoria-list-item input[type="text"]{
   flex:1; background:transparent; border:none; color:var(--text);
-  font-size:0.88rem; padding:2px 4px;
+  font-size:0.94rem; padding:2px 4px;
 }
 .categoria-list-item input[type="text"]:focus{ outline:1px solid var(--gold); border-radius:4px; }
 .chip-categoria{
-  display:inline-block; font-size:0.7rem; color:var(--muted);
+  display:inline-block; font-size:0.8rem; color:var(--muted);
   background:rgba(255,255,255,0.04); border:1px solid var(--border);
   border-radius:6px; padding:1px 7px;
 }
 /* v1.11: chips de filtro (clickeables), mismo lenguaje visual que .chip-categoria */
 .filtro-chips{ display:flex; flex-wrap:wrap; gap:6px; }
 .chip-filtro{
-  font-family:inherit; font-size:0.78rem; color:var(--muted);
+  font-family:inherit; font-size:0.88rem; color:var(--muted);
   background:rgba(255,255,255,0.04); border:1px solid var(--border);
   border-radius:16px; padding:6px 12px; cursor:pointer;
 }
@@ -524,7 +534,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 .compra-item.comprado{ opacity:0.5; }
 .compra-item.comprado .compra-nombre{ text-decoration:line-through; }
 .compra-nombre{ font-weight:600; }
-.compra-meta{ font-size:0.75rem; color:var(--muted); margin-top:1px; }
+.compra-meta{ font-size:0.85rem; color:var(--muted); margin-top:1px; }
 .compra-cant{ font-family:var(--M); color:var(--muted); white-space:nowrap; }
 .compra-comprar-form{
   display:none; grid-template-columns:1fr 1fr auto; gap:8px; margin-top:8px;
@@ -533,7 +543,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 .compra-comprar-form.activo{ display:grid; }
 .compra-comprar-form input{
   background:#0f0f11; border:1px solid var(--border); border-radius:8px;
-  color:var(--text); padding:8px 10px; font-size:0.85rem;
+  color:var(--text); padding:8px 10px; font-size:0.92rem;
 }
 
 @media (max-width:600px){
@@ -547,7 +557,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
     font-size:16px; min-height:46px;
   }
   input[type="checkbox"]{ width:24px; height:24px; }
-  .chip-filtro{ padding:8px 14px; font-size:0.82rem; }
+  .chip-filtro{ padding:8px 14px; font-size:0.9rem; }
 
   /* v1.10: fila de lista de compras en 2 líneas (checkbox+nombre / cant+botón) */
   .compra-item{
