@@ -3,8 +3,230 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.15)</title>
-<!-- AUDIOLINK · cocina.html · v1.15
+<title>Audiolink — Cocina (v1.34)</title>
+<!-- AUDIOLINK · cocina.html · v1.34
+     v1.34: (corrección) el catálogo de insumos no mostraba el stock
+     trackeado (v1.33 agregó el dato, pero la tabla se quedó con las
+     mismas 5 columnas de antes). Se agrega columna "Stock" — muestra
+     el valor + unidad si el insumo tiene trackearStock activo, o "—"
+     si no. No toca ningún cálculo ni el resto de columnas.
+     v1.33
+     v1.33: (a pedido) sistema de stock opcional por insumo:
+     - cocinaInsumos gana trackearStock (bool) + stockActual (número,
+       misma unidad del insumo, sin conversión). Solo insumos donde
+       vos lo actives lo usan — el resto sigue exactamente igual.
+     - Al generar la lista de compras desde recetas, si hay insumos
+       trackeados de por medio, aparece un modal "Confirmá tu stock"
+       con un input editable por insumo (precargado, saltable con
+       "Usar valores actuales") ANTES de calcular qué falta comprar.
+       Lo que el stock ya cubre no entra a la lista y se descuenta
+       directo de cocinaInsumos.stockActual.
+     - "Marcar comprado" en un insumo trackeado ahora pide "¿cuánto
+       tenés en total ahora?" (conteo real, reemplaza stockActual) en
+       vez de sumar la cantidad comprada — evita desincronía si se usó
+       insumo sin pasar por el sistema.
+     - Trazabilidad: recetasOrigen ahora guarda {id,nombre,cantidad}
+       por receta (antes solo el id) — se muestra como "Para: receta A,
+       receta B" bajo el nombre del ítem en la lista de compras. Ítems
+       viejos con recetasOrigen de solo ids no rompen, simplemente no
+       muestran ese texto.
+     No toca Firestore de recetas ni el cálculo de costos/márgenes.
+     v1.32
+     v1.32: (a pedido) el checkbox "pendiente" de la Lista de compras
+     (v1.31) se reemplazó por un botón de texto: "Ya la tengo" (pendiente
+     → en existencia) y "↩️ Necesito comprarla" (en existencia → pendiente),
+     en vez de un checkbox ambiguo. Mismo dato (item.pendiente), mismo
+     comportamiento — solo cambia cómo se dispara desde el HTML. No toca
+     Firestore ni el cálculo de precios/totales.
+     v1.31
+     v1.31: (a pedido) el checkbox "pendiente" de cada ítem de la Lista
+     de Compras ahora se relaciona visualmente con "Marcar comprado":
+     antes, destildar pendiente (sin marcar comprado) no cambiaba nada
+     en pantalla — el botón "✅ Marcar comprado" seguía apareciendo
+     igual, aunque el usuario ya hubiera dicho "esto no hace falta
+     comprarlo". Ahora, un ítem con pendiente:false Y comprado:false
+     (osea, destildado a mano) muestra:
+       - Borde verde a la izquierda + nombre atenuado (clase
+         .no-necesita) — deliberadamente DISTINTO del tachado/opacidad
+         de "comprado" (clase .comprado), para no confundir "ya lo
+         tengo, no gasté nada" con "ya lo compré, gasté esto".
+       - En vez del botón, la etiqueta "✓ En existencia — no se
+         compra" — y el precio total (v1.29/v1.30) se oculta, porque ya
+         no aplica calcular cuánto costaría comprar algo que no se va
+         a comprar.
+     Si el usuario vuelve a tildar el checkbox, todo vuelve a la
+     normalidad (botón + total). Sin cambios en confirmarCompra()/
+     reabrirCompra()/togglePendienteCompra() — solo cambió qué se
+     muestra según el estado ya existente de pendiente/comprado.
+
+     v1.30: (a pedido) el precio total del ítem (v1.29) ahora se
+     recalcula EN VIVO mientras se edita el formulario "✅ Marcar
+     comprado" — antes solo se actualizaba después de Guardar (al
+     releer Firestore). Los 2 inputs (cantidad comprada, precio nuevo)
+     ahora disparan actualizarTotalEnVivo() en cada tecla, que solo
+     cambia el texto en pantalla (nunca toca checkComprasCache ni
+     Firestore). Al "Cancelar" se revierte el total — y los inputs — al
+     valor original (cantidad de la lista × precio vigente del
+     insumo), para que abrir el form de nuevo no arrastre una edición
+     descartada. Sin cambios en confirmarCompra()/reabrirCompra().
+
+     v1.29: (a pedido) precio total estimado (cantidad × valorUnidad
+     actual del insumo) junto a la cantidad de cada ítem, antes del
+     botón "✅ Marcar comprado" / "↩️ Deshacer". Es un cálculo en
+     pantalla, no un valor guardado en checkCompras — usa siempre el
+     precio VIGENTE del insumo, así que se actualiza solo si el precio
+     cambia por cualquier vía (otra compra, edición manual). No se
+     confunde con item.precioComprado (ese es historial, fijo, de la
+     compra ya confirmada). Sin cambios en confirmarCompra()/
+     reabrirCompra() ni en la estructura de datos.
+
+     v1.28: (a pedido) 2 mejoras al formulario "✅ Marcar comprado" de la
+     Lista de compras:
+     1) El input de precio ahora precarga el valorUnidad actual del
+        insumo (antes quedaba vacío con solo un placeholder) — cubre el
+        caso común de "el precio no cambió", donde antes había que
+        tipearlo de memoria o adivinarlo. Sigue siendo editable si el
+        precio real cambió.
+     2) En un ítem ya comprado, aparece un texto pequeño en gris/tachado
+        ("$X nuevo · $Y si deshaces") que hace explícito a qué precio
+        volvería el insumo si se toca "↩️ Deshacer" — antes ese dato
+        (item.precioAnterior, guardado desde v1.26) existía pero era
+        invisible en pantalla.
+     Además, letra más grande en nombre/cantidad de cada ítem y en los
+     2 inputs del formulario de compra, sobre todo en mobile (16px
+     mínimo en los inputs, para evitar el zoom automático de iOS al
+     enfocarlos). Sin cambios de lógica de cálculo — confirmarCompra()
+     y reabrirCompra() quedan intactas.
+
+     v1.26: (a pedido) "Deshacer" seguro en Lista de compras — antes,
+     revertir una compra (reabrirCompra) NO revertía el precio ya
+     escrito en cocinaInsumos, así que un error de tipeo en el precio
+     quedaba pegado en el catálogo sin forma clara de corregirlo desde
+     ahí. Ahora confirmarCompra() guarda precioAnterior (el valorUnidad
+     que tenía el insumo justo antes de esa compra); al deshacer, si
+     nadie volvió a tocar el precio desde entonces (sigue igual a
+     precioComprado), se revierte a precioAnterior. Si ya cambió por
+     otro camino (edición manual del insumo vía ✏️, u otra compra
+     posterior), no se toca — para no pisar un cambio más reciente que
+     el usuario sí quiso. Recetas ya guardadas siguen sin verse
+     afectadas, como siempre (snapshot propio por receta).
+     v1.25: (a pedido) edición real de insumos del catálogo — antes
+     solo se podía crear y eliminar; para corregir un precio o unidad
+     había que borrar y recrear el insumo (arriesgado: perdía la
+     categoría si no se reasignaba bien, y quedaba fuera de la lista
+     mientras tanto). Nuevo botón ✏️ en cada fila de la tabla de
+     insumos, mismo patrón que habilitarEdicionReceta()/
+     cancelarEdicionReceta(): carga el insumo en el formulario de
+     arriba, cambia a "Guardar cambios" + botón "Cancelar", y
+     guardarInsumo() hace update() en vez de add(). La validación de
+     nombre duplicado ahora ignora el propio insumo en edición. Editar
+     precio/unidad NO recalcula retroactivamente las recetas ya
+     guardadas — cada receta guarda su propio snapshot (ver badge
+     "⚠️ Insumo actualizado" ya existente en la lista de recetas).
+     Sin cambios en costo/margen de recetas ni en las fichas PDF.
+     v1.24: (a pedido) nuevo checkbox "Mostrar 'por lote de N unidades'
+     en el menú público" — hasta ahora ese texto salía siempre que
+     unidadesPorLote > 1; algunas recetas no necesitan mostrarlo aunque
+     manejen lote > 1 (ej. venden solo por unidad al público, el lote
+     es un dato interno de producción). Se guarda como
+     mostrarLotePublico (boolean) en cocinaRecetas, default true (igual
+     patrón que mostrarCantidadesCliente) para no cambiar el
+     comportamiento de recetas ya guardadas sin este campo. Se replica
+     en el espejo menuPublico para que menu.html (v1.4) pueda leerlo.
+     Sin cambios en costo/margen ni en las fichas PDF internas.
+     v1.23: (a pedido) tarjeta "🍽️ Menú público" al inicio de la pestaña
+     Recetas, con 2 botones: "🔗 Copiar link del menú" (copia la URL de
+     menu.html al portapapeles vía clipboard API, con fallback a
+     prompt() si el navegador no lo soporta) y "↗️ Ir al menú" (abre
+     menu.html en pestaña nueva). El link se calcula reemplazando
+     "cocina.html" por "menu.html" en la URL actual — no se hardcodea
+     ningún dominio, así funciona igual en local, en cualquier preview
+     de Netlify y en producción. Sin cambios de lógica de cálculo.
+     v1.22: (a pedido) nuevo checkbox "Visible en menú público" en el
+     formulario de recetas (visibleMenu, boolean, desmarcado por
+     defecto — nada se publica sin decisión explícita del staff).
+     Cuando se guarda una receta con visibleMenu == true, se
+     escribe/actualiza un doc espejo en la colección nueva
+     menuPublico/{recetaId} — SOLO con nombre, descripción, imagenUrl,
+     precioVenta, unidadesPorLote, mostrarCantidadesCliente e insumos
+     (nombre/cantidad/unidad, SIN valorUnidad ni subtotal). NUNCA se
+     replica costoTotal, ganancia ni margenPct — ese es el motivo de
+     usar un espejo en vez de exponer cocinaRecetas directamente
+     (mismo patrón que actividad/integrantes en vacas.html: Firestore
+     Rules no puede ocultar campos dentro de un doc, solo el doc
+     completo, así que la única forma de proteger el margen es no
+     tener esos campos en la colección que se lee sin login). Si se
+     desmarca visibleMenu, el espejo se borra. eliminarReceta() también
+     borra el espejo correspondiente. Requiere agregar la colección
+     menuPublico a firestore.rules (lectura pública sin login, escritura
+     solo esStaff()) — no incluido en este archivo, se entrega aparte.
+     Pensado para menu.html (portal público de menú, aún no creado).
+     v1.21: (a pedido) checkbox "Mostrar cantidades de ingredientes en
+     la ficha del cliente" en el formulario de recetas (marcado por
+     defecto, mismo patrón que ocultarMontosActividad de vacas.html).
+     Se guarda como mostrarCantidadesCliente (boolean) en Firestore.
+     En la ficha de cliente (imprimirRecetaClienteHTML): si está
+     marcado se sigue mostrando cantidad + unidad de cada ingrediente
+     como siempre; si se desmarca, solo se lista el nombre del
+     ingrediente, sin cantidad (para no revelar la proporción exacta
+     de la receta). La ficha interna de costeo (imprimirRecetaHTML) no
+     se ve afectada — siempre muestra cantidades, es de uso interno.
+     Recetas guardadas antes de esta versión (sin el campo) se tratan
+     como "mostrar cantidades = true" para no cambiar su comportamiento
+     visual sin que el usuario lo decida explícitamente. Sin cambios
+     de lógica de cálculo de costos ni margen.
+     v1.20: (a pedido) nuevo campo "descripcion" en recetas — textarea
+     opcional en el formulario ("Descripción para el cliente"), se
+     guarda en Firestore junto a los demás campos de la receta y se
+     muestra en la ficha de cliente (imprimirRecetaClienteHTML) debajo
+     del precio, ANTES de la lista de ingredientes. No aparece en la
+     ficha interna de costeo. Además, la ficha de cliente ahora indica
+     "por lote de N unidades" junto al precio SOLO cuando
+     unidadesPorLote > 1 (venta mixta: unidad suelta vs. pedidos de
+     varias unidades para eventos); con 1 o vacío se mantiene el
+     precio simple "c/u" de siempre. Sin cambios de lógica de cálculo
+     de costos ni margen.
+     v1.19: (a pedido) header tipo banner full-bleed en las fichas de
+     PDF interno (🖨️ imprimirRecetaHTML) y ficha de cliente
+     (imprimirRecetaClienteHTML) cuando la receta tiene imagenUrl —
+     antes la imagen quedaba suelta como bloque aparte bajo un header
+     plano; ahora se usa como fondo del encabezado con overlay en
+     degradado (marca + subtítulo + fecha superpuestos). Sin imagen,
+     ambas fichas siguen con el .coc-header plano de siempre. Nueva
+     función compartida _cocEncabezado() centraliza esta lógica para
+     no duplicarla entre las dos funciones de impresión. Ajustado el
+     degradado del overlay (más oscuro arriba, piso de contraste hasta
+     la mitad) para que el texto blanco se lea bien incluso sobre fotos
+     claras. Sin cambios de lógica de cálculo.
+     v1.18: FIX (reportado con captura) — la caja "MARGEN DE GANANCIA"
+     se veía desordenada/cortada en móvil: el texto "92,80% · $62.000"
+     no cabía en 1 de 3 columnas iguales y el navegador lo partía justo
+     después del "·", dejando el símbolo huérfano en una línea y el
+     monto en otra. En móvil (<600px), .margen-grid pasa a 2 columnas
+     y la caja de Margen ocupa la fila completa (grid-column:1/-1),
+     dándole espacio para mostrarse en una sola línea limpia. Se
+     verificó visualmente con captura (Playwright, viewport 390px) que
+     tanto esto como el layout de los 4 botones de la tarjeta de receta
+     (arreglado en v1.17) ya se ven correctamente. Sin cambios de lógica.
+     v1.17: FIX — la tarjeta de receta se desordenaba/desbordaba en
+     pantallas angostas desde que se agregaron la miniatura de imagen
+     (v1.13) y el botón ✏️ editar (v1.15): .receta-head no tenía
+     flex-wrap, así que miniatura + nombre + 4 botones intentaban caber
+     todos en una sola fila sin acomodarse. Se reemplazan los estilos
+     inline por clases .receta-head-info/.receta-head-acciones con
+     flex-wrap y min-width:0, para que el bloque de botones baje de
+     línea cuando no cabe en vez de desbordarse. Sin cambios de lógica,
+     solo layout.
+     v1.16: FIX — la imagen de receta no aparecía en el PDF interno
+     (🖨️ imprimirRecetaHTML). En v1.13 la imagen solo se agregó al PDF
+     cliente (imprimirRecetaClienteHTML) por error de omisión; ahora
+     ambas plantillas la muestran igual (mismo bloque .coc-cliente-imagen,
+     debajo del encabezado). No se tocó nada de costos/márgenes del PDF
+     interno. Nota: se revisó también offline-mock.js — cocinaRecetas SÍ
+     tiene update()/set() habilitados en la whitelist (línea 288), así
+     que si la miniatura en la lista de recetas sigue sin verse tras
+     este fix, el problema estaría en si la edición realmente llegó a
+     guardarse (revisar que aparezca el toast "✅ Receta actualizada").
      v1.15: (a pedido) "Editar receta" + sistema de toast, replicando el
      mismo patrón ya usado en RECETARIO.html (proyecto Sagrada Delicia)
      para mantener consistencia entre proyectos del ecosistema:
@@ -481,6 +703,15 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 }
 .receta-card .receta-head{
   display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+  flex-wrap:wrap; gap:8px 10px;
+}
+.receta-card .receta-head-info{
+  display:flex; align-items:center; gap:10px; min-width:0; flex:1 1 200px;
+}
+.receta-card .receta-head-info > div{ min-width:0; }
+.receta-card .receta-nombre{ overflow-wrap:break-word; }
+.receta-card .receta-head-acciones{
+  display:flex; gap:6px; align-items:center; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;
 }
 .receta-card .receta-nombre{ font-weight:700; color:var(--gold); font-family:var(--T); font-size:1rem; }
 .receta-card .receta-resumen{ font-size:0.88rem; color:var(--muted); margin-top:2px; }
@@ -500,6 +731,36 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   background:rgba(160,50,40,0.12); border:1px solid rgba(160,50,40,0.3);
   border-radius:6px; padding:1px 6px; margin-left:6px; vertical-align:middle;
 }
+/* v1.35: fila de línea de pedido — flex en vez de grid rígido, porque
+   cada tipo (receta/insumo/libre) necesita distinto número de campos:
+   receta e insumo tienen un <select>, libre tiene nombre + costo +
+   precio manuales. */
+.pedido-linea-row{
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px;
+  padding:10px; background:var(--bg-card-alt); border-radius:8px; border:1px solid var(--border);
+}
+.pedido-linea-row > select, .pedido-linea-row > input{ flex:1 1 140px; min-width:0; }
+.pedido-linea-row > input[type="number"]{ flex:0 1 90px; }
+.pedido-linea-row .subtotal{ font-family:var(--M); font-size:0.92rem; color:var(--muted); text-align:right; flex:0 0 auto; white-space:nowrap; }
+.pedido-linea-tipo-tag{
+  font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted);
+  flex:0 0 auto; background:var(--surf-light); padding:3px 7px; border-radius:5px;
+}
+.badge-estado-pedido{
+  display:inline-block; font-size:0.78rem; font-weight:600;
+  border-radius:6px; padding:2px 8px; margin-left:6px; vertical-align:middle;
+}
+.badge-estado-pedido.pendiente{ color:var(--warn); background:rgba(212,160,23,0.12); border:1px solid rgba(212,160,23,0.3); }
+.badge-estado-pedido.en_proceso{ color:var(--gold); background:var(--gold-soft); border:1px solid rgba(196,152,44,0.3); }
+.badge-estado-pedido.entregado{ color:var(--ok); background:rgba(92,184,92,0.12); border:1px solid rgba(92,184,92,0.3); }
+.badge-estado-pedido.cancelado{ color:var(--danger); background:rgba(160,50,40,0.12); border:1px solid rgba(160,50,40,0.3); }
+.badge-pago-pedido{
+  display:inline-block; font-size:0.78rem; font-weight:600;
+  border-radius:6px; padding:2px 8px; margin-left:6px; vertical-align:middle;
+}
+.badge-pago-pedido.pagado{ color:var(--ok); background:rgba(92,184,92,0.12); border:1px solid rgba(92,184,92,0.3); }
+.badge-pago-pedido.abono{ color:var(--warn); background:rgba(212,160,23,0.12); border:1px solid rgba(212,160,23,0.3); }
+.badge-pago-pedido.sinpago{ color:var(--danger); background:rgba(160,50,40,0.12); border:1px solid rgba(160,50,40,0.3); }
 
 /* Categorías de insumos (v1.7) */
 .categoria-nueva-row{
@@ -570,15 +831,48 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 .receta-check-row:last-child{ border-bottom:none; }
 .receta-check-row input[type="number"]{ width:70px; }
 .compra-item{
-  display:grid; grid-template-columns:auto 1fr auto auto; gap:10px; align-items:center;
+  display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center;
   padding:10px 0; border-bottom:1px solid var(--border);
 }
 .compra-item:last-child{ border-bottom:none; }
 .compra-item.comprado{ opacity:0.5; }
 .compra-item.comprado .compra-nombre{ text-decoration:line-through; }
-.compra-nombre{ font-weight:600; }
-.compra-meta{ font-size:0.85rem; color:var(--muted); margin-top:1px; }
-.compra-cant{ font-family:var(--M); color:var(--muted); white-space:nowrap; }
+/* v1.31: ítem destildado manualmente (pendiente:false) pero NO comprado
+   — "ya lo tengo, no hace falta comprarlo". Borde verde a la izquierda
+   en vez de tachado/opacidad completa (eso queda reservado para
+   "comprado", que sí implica gasto real). */
+.compra-item.no-necesita{
+  opacity:0.7; border-left:3px solid var(--ok); padding-left:10px;
+}
+.compra-item.no-necesita .compra-nombre{ color:var(--muted); }
+.compra-en-stock{ color:var(--ok); font-size:0.92rem; font-weight:600; grid-column:1/-1; margin-top:4px; }
+/* v1.32: reemplaza el checkbox "pendiente" por un botón de texto — el
+   checkbox generaba confusión (se leía como "marcar tarea", no como
+   "decidir si hace falta comprarlo"). Fila de acciones a lo ancho,
+   con el toggle y el botón principal (comprar/deshacer) uno al lado
+   del otro. */
+.compra-acciones{
+  grid-column:1/-1; display:flex; gap:8px; flex-wrap:wrap; margin-top:2px;
+}
+.btn-toggle-stock{
+  background:transparent; color:var(--muted); border:1px solid var(--border);
+  border-radius:8px; padding:9px 14px; font-size:0.92rem; cursor:pointer; min-height:40px;
+}
+.btn-toggle-stock:hover{ border-color:var(--ok); color:var(--ok); }
+.compra-item.no-necesita .btn-toggle-stock{ border-color:var(--ok); color:var(--ok); }
+.compra-nombre{ font-weight:600; font-size:1.05rem; }
+.compra-meta{ font-size:0.9rem; color:var(--muted); margin-top:2px; }
+.compra-cant{ font-family:var(--M); color:var(--muted); white-space:nowrap; font-size:1rem; }
+/* v1.28: "ghost" del precio anterior — visible solo en ítems ya
+   comprados, muestra a qué precio queda el insumo (nuevo) y a cuál
+   volvería si se deshace, para que ese resultado no quede implícito
+   solo en el botón "↩️ Deshacer". */
+.compra-precio-ghost{ font-size:0.85rem; color:var(--faint); margin-top:3px; font-family:var(--M); }
+.compra-precio-ghost .tachado{ text-decoration:line-through; }
+/* v1.29: precio total (cantidad × precio actual del insumo), al lado
+   de la cantidad — estimado, no un valor guardado, por eso usa el
+   valorUnidad vigente y no queda ligado a la compra ya confirmada. */
+.compra-total{ font-size:0.9rem; color:var(--gold); font-weight:600; margin-top:2px; }
 .compra-comprar-form{
   display:none; grid-template-columns:1fr 1fr auto; gap:8px; margin-top:8px;
   grid-column:1/-1;
@@ -586,7 +880,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 .compra-comprar-form.activo{ display:grid; }
 .compra-comprar-form input{
   background:#0f0f11; border:1px solid var(--border); border-radius:8px;
-  color:var(--text); padding:8px 10px; font-size:0.92rem;
+  color:var(--text); padding:10px 12px; font-size:0.98rem; min-height:42px;
 }
 
 @media (max-width:600px){
@@ -601,14 +895,27 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   }
   input[type="checkbox"]{ width:24px; height:24px; }
   .chip-filtro{ padding:8px 14px; font-size:0.9rem; }
+  /* v1.18: en móvil, "Margen de ganancia" ocupa toda la fila para que
+     "92,80% · $62.000" no se corte a la mitad en una caja de 1/3 */
+  .margen-grid{ grid-template-columns:1fr 1fr; }
+  .margen-box:nth-child(3){ grid-column:1/-1; }
 
-  /* v1.10: fila de lista de compras en 2 líneas (checkbox+nombre / cant+botón) */
+  /* v1.10: fila de lista de compras en 2 líneas (nombre / cant+acciones).
+     v1.32: se quitó la columna del checkbox (ya no existe), queda
+     nombre a la izquierda y cantidad a la derecha en la 1a línea. */
   .compra-item{
-    grid-template-columns:auto 1fr;
+    grid-template-columns:1fr auto;
     row-gap:6px;
   }
-  .compra-item .compra-cant{ grid-column:2; }
-  .compra-item > button{ grid-column:1/-1; }
+  .compra-item .compra-acciones{ grid-column:1/-1; }
+
+  /* v1.28: letra más grande en mobile (nombre/cantidad/ghost de precio)
+     y los 2 inputs del form de compra a 16px min (evita el zoom
+     automático de iOS al enfocar un input con font-size < 16px). */
+  .compra-nombre{ font-size:1.1rem; }
+  .compra-cant{ font-size:1.05rem; }
+  .compra-precio-ghost{ font-size:0.88rem; }
+  .compra-comprar-form input{ font-size:16px; min-height:46px; }
 
   /* v1.10: fila de insumo en receta, en 3 líneas (select / cant+subtotal / borrar) */
   .receta-insumo-row{
@@ -645,6 +952,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
     <button type="button" class="tab-btn activo" data-tab="tabVentas" onclick="cambiarTab('tabVentas')">📋 Ventas</button>
     <button type="button" class="tab-btn" data-tab="tabInsumos" onclick="cambiarTab('tabInsumos')">🧺 Insumos</button>
     <button type="button" class="tab-btn" data-tab="tabRecetas" onclick="cambiarTab('tabRecetas')">🧮 Recetas</button>
+    <button type="button" class="tab-btn" data-tab="tabPedidos" onclick="cambiarTab('tabPedidos')">📦 Pedidos</button>
     <button type="button" class="tab-btn" data-tab="tabCompras" onclick="cambiarTab('tabCompras')">🛒 Compras</button>
   </div>
 
@@ -742,7 +1050,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
     </div>
 
     <div class="card">
-      <h3>➕ Registrar insumo</h3>
+      <h3 id="tituloFormInsumo">➕ Registrar insumo <span class="badge-edicion" id="badgeModoEdicionInsumo" style="display:none;">✏️ Editando</span></h3>
       <div class="card-sub">Nombre, categoría, unidad de medida y precio por unidad — usados luego en el costeo de recetas.</div>
       <div class="form-grid cols-4">
         <div class="field">
@@ -774,8 +1082,16 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
           <label for="inputInsumoPrecio">Valor unidad</label>
           <input type="number" id="inputInsumoPrecio" min="0" step="1" placeholder="15">
         </div>
+        <div class="field">
+          <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkInsumoTrackearStock" style="width:auto; margin:0;" onchange="alCambiarTrackearStockInsumo(this.checked)"> Trackear stock (para insumos que sobran: aluminio, guantes, huevos, etc.)</label>
+        </div>
+        <div class="field" id="filaInsumoStockActual" style="display:none;">
+          <label for="inputInsumoStockActual">Stock actual (en la misma unidad de arriba)</label>
+          <input type="number" id="inputInsumoStockActual" min="0" step="0.01" placeholder="0">
+        </div>
         <div class="btn-row" style="align-items:flex-end;">
-          <button type="button" class="btn" style="width:100%;" onclick="guardarInsumo()">Guardar insumo</button>
+          <button type="button" class="btn" style="width:100%;" id="btnGuardarInsumo" onclick="guardarInsumo()">Guardar insumo</button>
+          <button type="button" class="btn-ghost" id="btnCancelarEdicionInsumo" style="display:none;" onclick="cancelarEdicionInsumo()">Cancelar</button>
         </div>
       </div>
     </div>
@@ -797,11 +1113,12 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
               <th>Categoría</th>
               <th>Unidad</th>
               <th class="num">Valor unidad</th>
+              <th class="num">Stock</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="tbodyInsumos">
-            <tr><td colspan="5" class="vacio">Cargando…</td></tr>
+            <tr><td colspan="6" class="vacio">Cargando…</td></tr>
           </tbody>
         </table>
       </div>
@@ -810,6 +1127,14 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 
   <!-- ============ TAB RECETAS (nuevo v1.2) ============ -->
   <div class="tab-panel" id="tabRecetas">
+    <div class="card" style="margin-bottom:14px;">
+      <h3 style="margin:0 0 4px;">🍽️ Menú público</h3>
+      <div class="card-sub">Portal sin login donde el cliente ve las recetas marcadas "Visible en menú" — comparte el link o ábrelo para revisar cómo se ve.</div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button type="button" class="btn-ghost" onclick="copiarLinkMenuPublico()">🔗 Copiar link del menú</button>
+        <a href="menu.html" target="_blank" rel="noopener" class="btn-ghost" style="text-decoration:none; display:inline-flex; align-items:center;">↗️ Ir al menú</a>
+      </div>
+    </div>
     <div class="card">
       <h3 id="tituloFormReceta">🧮 Nueva receta <span class="badge-edicion" id="badgeModoEdicion" style="display:none;">✏️ Editando</span></h3>
       <div class="card-sub">Arma la receta con insumos del catálogo — el costo se calcula solo, igual que en la hoja original.</div>
@@ -828,6 +1153,27 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
             <button type="button" class="btn-ghost" id="btnQuitarImagenReceta" style="display:none;" onclick="quitarImagenReceta()">Quitar</button>
           </div>
         </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label for="inputRecetaDescripcion">Descripción para el cliente (opcional)</label>
+        <textarea id="inputRecetaDescripcion" rows="3" placeholder="ej: Torta de tres leches, para 12 personas. Contiene gluten y lácteos." style="width:100%; font-family:inherit; resize:vertical;"></textarea>
+        <div class="hint-campo">Aparece en la ficha de producto para el cliente (no en la ficha interna de costeo). No se muestran ingredientes ni precios acá, solo lo que escribas.</div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkMostrarCantidadesCliente" checked style="width:auto; margin:0;"> Mostrar cantidades de ingredientes en la ficha del cliente</label>
+        <div class="hint-campo">Si lo desmarcas, la ficha del cliente lista los ingredientes sin cantidades (útil si no quieres revelar la proporción exacta de tu receta). La ficha interna de costeo siempre muestra las cantidades, sin importar esto.</div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkVisibleMenu" style="width:auto; margin:0;"> Visible en menú público</label>
+        <div class="hint-campo">Desmarcado por defecto. Si lo marcas, esta receta aparece en menu.html (portal público sin login). Solo se publican nombre, imagen, descripción, precio e ingredientes (según el checkbox de arriba) — nunca costo ni margen.</div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkMostrarLote" checked style="width:auto; margin:0;"> Mostrar "por lote de N unidades" en el menú público</label>
+        <div class="hint-campo">Si lo desmarcas, el menú público solo muestra el precio "c/u", sin mencionar el lote, aunque la receta maneje más de 1 unidad por lote. Útil cuando el lote es un dato de producción interno y no algo que el cliente compra.</div>
       </div>
 
       <div id="filasInsumosReceta"></div>
@@ -877,8 +1223,102 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
     </div>
   </div>
 
+  <!-- ============ TAB PEDIDOS (nuevo v1.35) ============ -->
+  <div class="tab-panel" id="tabPedidos">
+    <div class="card">
+      <h3 id="tituloFormPedido">📦 Nuevo pedido <span class="badge-edicion" id="badgeModoEdicionPedido" style="display:none;">✏️ Editando</span></h3>
+      <div class="card-sub">Un pedido puede mezclar recetas del catálogo, insumos que revendes tal cual, y líneas libres (ej. algo comprado en otro lado para revender).</div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="inputPedidoCliente">Cliente</label>
+          <input type="text" id="inputPedidoCliente" placeholder="ej: Juan Pérez">
+        </div>
+        <div class="field">
+          <label for="inputPedidoTelefono">Teléfono (opcional)</label>
+          <input type="text" id="inputPedidoTelefono" placeholder="ej: 3001234567">
+        </div>
+        <div class="field">
+          <label for="inputPedidoFecha">Fecha de entrega</label>
+          <input type="date" id="inputPedidoFecha">
+        </div>
+      </div>
+      <div class="field" style="margin:14px 0;">
+        <label for="inputPedidoNotas">Notas (opcional)</label>
+        <textarea id="inputPedidoNotas" rows="2" placeholder="ej: sin nueces, entregar antes de las 3pm" style="width:100%; font-family:inherit; resize:vertical;"></textarea>
+      </div>
+
+      <div id="filasLineasPedido"></div>
+      <div class="hint-campo">Cada línea guarda su propio costo y precio de venta al momento de agregarla — si más adelante cambia el precio de un insumo o receta, este pedido no se recalcula solo.</div>
+      <div class="btn-row" style="margin:10px 0 16px; flex-wrap:wrap;">
+        <button type="button" class="btn-ghost" onclick="agregarLineaPedido('receta')">➕ Desde receta</button>
+        <button type="button" class="btn-ghost" onclick="agregarLineaPedido('insumo')">➕ Desde insumo</button>
+        <button type="button" class="btn-ghost" onclick="agregarLineaPedido('libre')">➕ Línea libre</button>
+      </div>
+
+      <div class="margen-grid">
+        <div class="margen-box">
+          <div class="lbl">Costo total</div>
+          <div class="val" id="pedidoCostoTotal">$0</div>
+        </div>
+        <div class="margen-box">
+          <div class="lbl">Monto total (venta)</div>
+          <div class="val gold" id="pedidoMontoTotal">$0</div>
+        </div>
+        <div class="margen-box">
+          <div class="lbl">Margen de ganancia</div>
+          <div class="val ok" id="pedidoMargen">0% · $0</div>
+        </div>
+      </div>
+
+      <div class="form-grid" style="margin-top:16px;">
+        <div class="field">
+          <label for="inputPedidoAbonado">Abonado por el cliente</label>
+          <input type="number" id="inputPedidoAbonado" min="0" step="500" placeholder="0" oninput="recalcularTotalesPedido()">
+        </div>
+        <div class="field">
+          <label>Saldo pendiente</label>
+          <div class="val" id="pedidoSaldoPendiente" style="padding:10px 12px; background:var(--bg-card-alt); border-radius:8px; border:1px solid var(--border);">$0</div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button type="button" class="btn" id="btnGuardarPedido" onclick="guardarPedido()">Guardar pedido</button>
+        <button type="button" class="btn-ghost" id="btnCancelarEdicionPedido" style="display:none;" onclick="cancelarEdicionPedido()">Cancelar edición</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:4px;">📋 Pedidos registrados</h3>
+      <div class="card-sub">Toca un pedido para ver el detalle de líneas.</div>
+      <div class="filtro-chips" id="filtroEstadoPedidoChips" style="margin-bottom:14px;"></div>
+      <div id="listaPedidos">
+        <div class="vacio">Cargando…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ TAB COMPRAS (nuevo v1.7) ============ -->
   <div class="tab-panel" id="tabCompras">
+    <div class="card">
+      <h3 style="margin:0 0 4px;">📱 Portal de compras</h3>
+      <div class="card-sub">Portal separado (compras.html) para que alguien más marque la lista desde su celular sin entrar acá — protegido con un PIN simple que definís vos.</div>
+      <div class="form-grid" style="margin-top:4px;">
+        <div class="field">
+          <label for="inputPinCompras">PIN de acceso</label>
+          <input type="text" id="inputPinCompras" placeholder="ej: 4821" maxlength="8" inputmode="numeric">
+        </div>
+        <div class="btn-row" style="align-items:flex-end;">
+          <button type="button" class="btn-ghost" style="width:100%;" onclick="guardarPinCompras()">Guardar PIN</button>
+        </div>
+      </div>
+      <div class="hint-campo">El PIN es una barrera simple en la pantalla del portal, no un control de seguridad real de la base de datos — no lo compartas más allá de a quién confíes con la compra.</div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button type="button" class="btn-ghost" onclick="copiarLinkCompras()">🔗 Copiar link de compras</button>
+        <a href="compras.html" target="_blank" rel="noopener" class="btn-ghost" style="text-decoration:none; display:inline-flex; align-items:center;">↗️ Ir al portal</a>
+      </div>
+    </div>
+
     <div class="card">
       <h3>📋 Generar desde recetas</h3>
       <div class="card-sub">Elige qué recetas vas a preparar y cuántos lotes de cada una — suma los insumos necesarios a la lista.</div>
@@ -887,6 +1327,22 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
       </div>
       <div class="btn-row" style="margin-top:12px;">
         <button type="button" class="btn" onclick="agregarRecetasAlCheck()">Agregar seleccionadas a la lista</button>
+      </div>
+    </div>
+
+    <!-- v1.33: modal "confirmar stock" — aparece solo si alguna receta
+         seleccionada usa un insumo con trackearStock activo. Deja
+         corregir el stock contado justo antes de calcular qué falta
+         comprar, o saltarlo con "Usar valores actuales". -->
+    <div id="modalConfirmarStockOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:16px;">
+      <div class="card" style="max-width:480px; width:100%; max-height:80vh; overflow-y:auto;">
+        <h3 style="margin:0 0 4px;">📦 Confirmá tu stock</h3>
+        <div class="card-sub">Estos insumos trackean stock. Contá lo que tenés ahora mismo (opcional) o continuá con los valores guardados.</div>
+        <div id="listaConfirmarStock"></div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button type="button" class="btn" onclick="confirmarStockYGenerarLista()">Usar valores actuales y continuar</button>
+          <button type="button" class="btn-ghost" onclick="cerrarModalConfirmarStock()">Cancelar</button>
+        </div>
       </div>
     </div>
 
@@ -950,6 +1406,61 @@ let filtroCategoriaCompras = ''; // v1.12: mismo patrón, para la Lista de compr
 let checkComprasCache = { items: [] };
 let filasRecetaEnConstruccion = [];
 let recetaEnEdicionId = null; // v1.15: id de la receta que se está editando (null = modo "nueva")
+let insumoEnEdicionId = null; // v1.25: id del insumo que se está editando (null = modo "nuevo")
+
+// v1.23: link del portal público de menú — calculado a partir de la
+// URL actual (reemplaza "cocina.html" por "menu.html"), así funciona
+// igual en local, en cualquier preview de Netlify y en el dominio
+// final, sin hardcodear ningún dominio.
+function _cocLinkMenuPublico(){
+  return window.location.href.replace(/cocina\.html.*$/, 'menu.html');
+}
+function copiarLinkMenuPublico(){
+  const link = _cocLinkMenuPublico();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link)
+      .then(() => mostrarToast('🔗 Link del menú copiado', 'ok'))
+      .catch(() => prompt('Copia el link manualmente:', link));
+  } else {
+    prompt('Copia el link manualmente:', link);
+  }
+}
+
+// v1.27: link del portal de compras (compras.html), mismo patrón que
+// _cocLinkMenuPublico() — calculado desde la URL actual, sin
+// hardcodear dominio.
+function _cocLinkCompras(){
+  return window.location.href.replace(/cocina\.html.*$/, 'compras.html');
+}
+function copiarLinkCompras(){
+  const link = _cocLinkCompras();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link)
+      .then(() => mostrarToast('🔗 Link de compras copiado', 'ok'))
+      .catch(() => prompt('Copia el link manualmente:', link));
+  } else {
+    prompt('Copia el link manualmente:', link);
+  }
+}
+
+// v1.27: PIN del portal de compras — doc único configPortal/compras,
+// campo pin (string). Lectura pública / escritura solo esStaff() en
+// las rules (igual patrón que menuPublico). El PIN es una barrera de
+// interfaz, no seguridad real de Firestore — ver aviso en pantalla.
+function escucharPinCompras(){
+  db.collection('configPortal').doc('compras').onSnapshot(doc => {
+    const pin = doc.exists ? (doc.data().pin || '') : '';
+    const input = document.getElementById('inputPinCompras');
+    if(input && document.activeElement !== input) input.value = pin;
+  }, err => console.error('No se pudo leer el PIN de compras:', err));
+}
+function guardarPinCompras(){
+  const pin = document.getElementById('inputPinCompras').value.trim();
+  if(!pin){ alert('Escribe un PIN (ej: 4 a 8 dígitos).'); return; }
+  db.collection('configPortal').doc('compras').set({ pin }, { merge: true })
+    .then(() => mostrarToast('✅ PIN actualizado', 'ok'))
+    .catch(err => { console.error(err); alert('No se pudo guardar el PIN.'); });
+}
 
 // v1.15: toast de confirmación, mismo patrón que RECETARIO.html
 function mostrarToast(msg, tipo = 'info', dur = 3500){
@@ -1015,6 +1526,14 @@ function renderPreviewImagenReceta(){
 }
 let contadorFilaReceta = 0;
 let recetasSeleccionParaCompra = {}; // { recetaId: numeroDeLotes }
+let necesidadPendienteGenerar = null; // v1.33: mapa insumoId->necesidad, mientras el modal de stock está abierto
+
+// v1.35: pedidos
+let pedidosCache = [];
+let pedidoEnEdicionId = null;
+let lineasPedidoEnConstruccion = []; // [{filaId, tipo, refId, nombre, unidad, cantidad, costoUnitario, precioUnitario}]
+let contadorFilaPedido = 0;
+let filtroEstadoPedidoActual = '';
 
 function formatoMoneda(n){
   return '$' + Math.round(n || 0).toLocaleString('es-CO');
@@ -1356,26 +1875,97 @@ function seleccionarFiltroCategoriaCompras(valor){
 }
 
 // ---------- INSUMOS (v1.1, colección cocinaInsumos; categoría v1.7) ----------
+// v1.25: guardarInsumo() ahora sirve tanto para crear como para editar
+// (insumoEnEdicionId null = crear, con id = update). La validación de
+// nombre duplicado ignora el propio insumo en edición, si no, nunca se
+// podría guardar sin cambiar el nombre. Editar precio/unidad acá NO
+// recalcula retroactivamente las recetas ya guardadas — cada receta
+// guarda su propio snapshot del precio al momento de crearla/editarla
+// (ver badge "⚠️ Insumo actualizado" en la lista de recetas).
 function guardarInsumo(){
   const nombre = document.getElementById('inputInsumoNombre').value.trim().toUpperCase();
   const categoriaId = document.getElementById('selectInsumoCategoria').value;
   const unidad = document.getElementById('selectInsumoUnidad').value;
   const valorUnidad = parseFloat(document.getElementById('inputInsumoPrecio').value);
+  // v1.33: trackearStock — opcional, para insumos donde interesa saber
+  // cuánto queda disponible (desechables que sobran, o consumibles como
+  // huevos donde compras por unidad completa). stockActual se guarda en
+  // la misma unidad del insumo (sin conversión).
+  const trackearStock = document.getElementById('chkInsumoTrackearStock').checked;
+  const stockActual = trackearStock ? (parseFloat(document.getElementById('inputInsumoStockActual').value) || 0) : null;
 
   if(!nombre){ alert('Escribe el nombre del insumo.'); return; }
   if(categoriaId === '__nueva__'){ alert('Termina de guardar la categoría nueva primero (botón "Guardar" junto al nombre).'); return; }
   if(isNaN(valorUnidad) || valorUnidad < 0){ alert('Ingresa un valor por unidad válido.'); return; }
-  if(insumosCache.some(i => i.nombre === nombre)){
+  if(insumosCache.some(i => i.nombre === nombre && i.id !== insumoEnEdicionId)){
     alert('Ya existe un insumo con ese nombre.'); return;
   }
 
-  db.collection('cocinaInsumos').add({
-    nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad,
-    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(() => {
-    document.getElementById('inputInsumoNombre').value = '';
-    document.getElementById('inputInsumoPrecio').value = '';
-  }).catch(err => { console.error(err); alert('No se pudo guardar el insumo.'); });
+  const datosInsumo = { nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad, trackearStock, stockActual };
+
+  if(insumoEnEdicionId){
+    db.collection('cocinaInsumos').doc(insumoEnEdicionId).update(datosInsumo)
+      .then(() => {
+        cancelarEdicionInsumo();
+        mostrarToast('✅ Insumo actualizado', 'ok');
+      }).catch(err => { console.error(err); alert('No se pudo actualizar el insumo.'); });
+  } else {
+    db.collection('cocinaInsumos').add({
+      ...datosInsumo,
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      document.getElementById('inputInsumoNombre').value = '';
+      document.getElementById('inputInsumoPrecio').value = '';
+      document.getElementById('chkInsumoTrackearStock').checked = false;
+      document.getElementById('inputInsumoStockActual').value = '';
+      document.getElementById('filaInsumoStockActual').style.display = 'none';
+    }).catch(err => { console.error(err); alert('No se pudo guardar el insumo.'); });
+  }
+}
+
+// v1.33: muestra/oculta el campo de stock actual según el checkbox.
+function alCambiarTrackearStockInsumo(marcado){
+  document.getElementById('filaInsumoStockActual').style.display = marcado ? '' : 'none';
+}
+
+// v1.25: mismo patrón que habilitarEdicionReceta() — carga el insumo
+// en el formulario de arriba y lo deja en modo edición.
+function habilitarEdicionInsumo(id){
+  const i = insumosCache.find(x => x.id === id);
+  if(!i) return;
+  insumoEnEdicionId = id;
+
+  document.getElementById('inputInsumoNombre').value = i.nombre || '';
+  document.getElementById('selectInsumoCategoria').value = i.categoriaId || '';
+  document.getElementById('selectInsumoUnidad').value = i.unidad || 'GR';
+  document.getElementById('inputInsumoPrecio').value = i.valorUnidad || '';
+  document.getElementById('chkInsumoTrackearStock').checked = !!i.trackearStock;
+  document.getElementById('inputInsumoStockActual').value = (i.stockActual != null) ? i.stockActual : '';
+  document.getElementById('filaInsumoStockActual').style.display = i.trackearStock ? '' : 'none';
+
+  document.getElementById('tituloFormInsumo').firstChild.textContent = '✏️ Editando insumo ';
+  document.getElementById('badgeModoEdicionInsumo').style.display = '';
+  document.getElementById('btnGuardarInsumo').textContent = 'Guardar cambios';
+  document.getElementById('btnCancelarEdicionInsumo').style.display = '';
+
+  document.getElementById('tabInsumos').scrollIntoView({ behavior:'smooth', block:'start' });
+  mostrarToast('✏️ Insumo cargado en el formulario para editar', 'info');
+}
+
+function cancelarEdicionInsumo(){
+  insumoEnEdicionId = null;
+  document.getElementById('inputInsumoNombre').value = '';
+  document.getElementById('selectInsumoCategoria').value = '';
+  document.getElementById('selectInsumoUnidad').value = 'GR';
+  document.getElementById('inputInsumoPrecio').value = '';
+  document.getElementById('chkInsumoTrackearStock').checked = false;
+  document.getElementById('inputInsumoStockActual').value = '';
+  document.getElementById('filaInsumoStockActual').style.display = 'none';
+
+  document.getElementById('tituloFormInsumo').firstChild.textContent = '➕ Registrar insumo ';
+  document.getElementById('badgeModoEdicionInsumo').style.display = 'none';
+  document.getElementById('btnGuardarInsumo').textContent = 'Guardar insumo';
+  document.getElementById('btnCancelarEdicionInsumo').style.display = 'none';
 }
 
 function eliminarInsumo(id){
@@ -1409,7 +1999,7 @@ function escucharInsumos(){
     if(recetasCache.length) renderListaRecetas();
   }, err => {
     console.error('No se pudo leer cocinaInsumos:', err);
-    document.getElementById('tbodyInsumos').innerHTML = '<tr><td colspan="5" class="vacio">Error al cargar el catálogo.</td></tr>';
+    document.getElementById('tbodyInsumos').innerHTML = '<tr><td colspan="6" class="vacio">Error al cargar el catálogo.</td></tr>';
   });
 }
 
@@ -1421,7 +2011,7 @@ function renderTablaInsumos(){
   else if(filtro) filas = filas.filter(i => i.categoriaId === filtro);
 
   if(!filas.length){
-    tbody.innerHTML = '<tr><td colspan="5" class="vacio">Aún no hay insumos registrados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="vacio">Aún no hay insumos registrados.</td></tr>';
     return;
   }
   tbody.innerHTML = filas.map(i => `
@@ -1430,7 +2020,11 @@ function renderTablaInsumos(){
       <td><span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(i.categoriaId)}"></span>${nombreCategoria(i.categoriaId).toString().replace(/</g,'&lt;')}</span></td>
       <td>${i.unidad || '—'}</td>
       <td class="num">${formatoMoneda(i.valorUnidad)}</td>
-      <td><button class="btn-del" title="Eliminar insumo" onclick="eliminarInsumo('${i.id}')">🗑️</button></td>
+      <td class="num">${i.trackearStock ? ((i.stockActual != null ? i.stockActual : 0) + ' ' + (i.unidad || '')) : '—'}</td>
+      <td class="btn-row">
+        <button type="button" class="btn-ghost" title="Editar insumo" onclick="habilitarEdicionInsumo('${i.id}')">✏️</button>
+        <button class="btn-del" title="Eliminar insumo" onclick="eliminarInsumo('${i.id}')">🗑️</button>
+      </td>
     </tr>
   `).join('');
 }
@@ -1514,6 +2108,10 @@ function habilitarEdicionReceta(id){
   recetaEnEdicionId = id;
 
   document.getElementById('inputRecetaNombre').value = r.nombre || '';
+  document.getElementById('inputRecetaDescripcion').value = r.descripcion || '';
+  document.getElementById('chkMostrarCantidadesCliente').checked = r.mostrarCantidadesCliente !== false;
+  document.getElementById('chkVisibleMenu').checked = r.visibleMenu === true;
+  document.getElementById('chkMostrarLote').checked = r.mostrarLotePublico !== false;
   document.getElementById('inputRecetaUnidadesVendidas').value = r.unidadesPorLote || '';
   document.getElementById('inputRecetaPrecioVenta').value = r.precioVenta || '';
 
@@ -1549,6 +2147,10 @@ function habilitarEdicionReceta(id){
 function cancelarEdicionReceta(){
   recetaEnEdicionId = null;
   document.getElementById('inputRecetaNombre').value = '';
+  document.getElementById('inputRecetaDescripcion').value = '';
+  document.getElementById('chkMostrarCantidadesCliente').checked = true;
+  document.getElementById('chkVisibleMenu').checked = false;
+  document.getElementById('chkMostrarLote').checked = true;
   document.getElementById('inputRecetaUnidadesVendidas').value = '';
   document.getElementById('inputRecetaPrecioVenta').value = '';
   document.getElementById('filasInsumosReceta').innerHTML = '';
@@ -1591,12 +2193,20 @@ function guardarReceta(){
   const costoTotal = insumosSnapshot.reduce((acc, i) => acc + i.subtotal, 0);
   const unidadesPorLote = parseFloat(document.getElementById('inputRecetaUnidadesVendidas').value) || 0;
   const precioVenta = parseFloat(document.getElementById('inputRecetaPrecioVenta').value) || 0;
+  const descripcion = document.getElementById('inputRecetaDescripcion').value.trim();
+  const mostrarCantidadesCliente = document.getElementById('chkMostrarCantidadesCliente').checked;
+  const visibleMenu = document.getElementById('chkVisibleMenu').checked;
+  const mostrarLotePublico = document.getElementById('chkMostrarLote').checked;
   const ingresos = unidadesPorLote * precioVenta;
   const ganancia = ingresos - costoTotal;
   const margenPct = ingresos > 0 ? (ganancia / ingresos) * 100 : 0;
 
   const datosReceta = {
     nombre,
+    descripcion,
+    mostrarCantidadesCliente,
+    visibleMenu,
+    mostrarLotePublico,
     insumos: insumosSnapshot,
     imagenUrl: imagenRecetaEnConstruccion || '',
     costoTotal, unidadesPorLote, precioVenta, ingresos, ganancia, margenPct
@@ -1604,6 +2214,10 @@ function guardarReceta(){
 
   const limpiarFormularioReceta = () => {
     document.getElementById('inputRecetaNombre').value = '';
+    document.getElementById('inputRecetaDescripcion').value = '';
+    document.getElementById('chkMostrarCantidadesCliente').checked = true;
+    document.getElementById('chkVisibleMenu').checked = false;
+    document.getElementById('chkMostrarLote').checked = true;
     document.getElementById('inputRecetaUnidadesVendidas').value = '';
     document.getElementById('inputRecetaPrecioVenta').value = '';
     document.getElementById('filasInsumosReceta').innerHTML = '';
@@ -1616,6 +2230,7 @@ function guardarReceta(){
   if(recetaEnEdicionId){
     db.collection('cocinaRecetas').doc(recetaEnEdicionId).update(datosReceta)
       .then(() => {
+        _cocSincronizarMenuPublico(recetaEnEdicionId, datosReceta);
         recetaEnEdicionId = null;
         document.getElementById('tituloFormReceta').firstChild.textContent = '🧮 Nueva receta ';
         document.getElementById('badgeModoEdicion').style.display = 'none';
@@ -1628,17 +2243,46 @@ function guardarReceta(){
     db.collection('cocinaRecetas').add({
       ...datosReceta,
       creadoEn: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
+    }).then(docRef => {
+      _cocSincronizarMenuPublico(docRef.id, datosReceta);
       limpiarFormularioReceta();
       mostrarToast('✅ Receta guardada', 'ok');
     }).catch(err => { console.error(err); alert('No se pudo guardar la receta.'); });
   }
 }
 
+// v2.32 (menu.html): mantiene el espejo público menuPublico/{recetaId}
+// sincronizado con cocinaRecetas — SOLO campos sin costo/margen (nunca
+// costoTotal/ganancia/margenPct/valorUnidad/subtotal por insumo). Si
+// visibleMenu es false, se borra el espejo (si existía) en vez de
+// dejarlo desactualizado o expuesto sin necesidad. No falla la UI si
+// esto da error (el guardado de la receta ya se hizo bien) — solo
+// se loguea, para no bloquear el flujo principal por un problema del
+// espejo público.
+function _cocSincronizarMenuPublico(recetaId, r){
+  if(!r.visibleMenu){
+    db.collection('menuPublico').doc(recetaId).delete().catch(() => {});
+    return;
+  }
+  const insumosPublicos = (r.insumos || []).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, unidad: i.unidad }));
+  db.collection('menuPublico').doc(recetaId).set({
+    nombre: r.nombre || '',
+    descripcion: r.descripcion || '',
+    imagenUrl: r.imagenUrl || '',
+    precioVenta: r.precioVenta || 0,
+    unidadesPorLote: r.unidadesPorLote || 0,
+    mostrarCantidadesCliente: r.mostrarCantidadesCliente !== false,
+    mostrarLotePublico: r.mostrarLotePublico !== false,
+    insumos: insumosPublicos,
+    actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err => console.error('No se pudo sincronizar menuPublico:', err));
+}
+
 function eliminarReceta(id){
   if(!confirm('¿Eliminar esta receta? Esta acción no se puede deshacer.')) return;
   db.collection('cocinaRecetas').doc(id).delete()
     .then(() => {
+      db.collection('menuPublico').doc(id).delete().catch(() => {});
       if(recetaEnEdicionId === id) cancelarEdicionReceta(); // v1.15: evita quedar "editando" algo que ya no existe
       mostrarToast('🗑️ Receta eliminada', 'warn');
     })
@@ -1687,14 +2331,14 @@ function renderListaRecetas(){
     return `
     <div class="receta-card">
       <div class="receta-head" onclick="toggleRecetaDetalle('${r.id}')">
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div class="receta-head-info">
           ${r.imagenUrl ? `<img src="${r.imagenUrl}" class="receta-card-thumb" alt="">` : ''}
           <div>
             <div class="receta-nombre">${(r.nombre || '—').toString().replace(/</g,'&lt;')} ${badge}</div>
             <div class="receta-resumen">Costo ${formatoMoneda(r.costoTotal)} · Margen ${(r.margenPct || 0).toFixed(2).replace('.', ',')}%</div>
           </div>
         </div>
-        <div style="display:flex; gap:6px; align-items:center;">
+        <div class="receta-head-acciones">
           <button type="button" class="btn-ghost" title="Editar receta" onclick="event.stopPropagation(); habilitarEdicionReceta('${r.id}')">✏️</button>
           <button type="button" class="btn-ghost" title="Imprimir / PDF interno de esta receta" onclick="event.stopPropagation(); imprimirRecetaHTML('${r.id}')">🖨️</button>
           <button type="button" class="btn-ghost" title="PDF para el cliente (sin costos)" onclick="event.stopPropagation(); imprimirRecetaClienteHTML('${r.id}')">🧾</button>
@@ -1721,6 +2365,414 @@ function renderListaRecetas(){
           <span>Costo con precios actuales</span>
           <span>${formatoMoneda(costoActual)}</span>
         </div>` : ''}
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+
+// ---------- PEDIDOS (v1.35, colección cocinaPedidos) ----------
+// Un pedido mezcla hasta 3 tipos de línea, todas con la misma forma
+// (cantidad, costoUnitario, precioUnitario) para que el total se calcule
+// con un solo reduce() sin importar el tipo:
+//  - "receta": usa el snapshot de costo de una receta guardada.
+//  - "insumo": reventa directa de un insumo del catálogo, sin transformar.
+//  - "libre": algo puntual, sin vínculo a ningún catálogo (ej. comprado
+//    en otro lado para revender) — nombre/costo/precio se escriben a mano.
+// Igual que recetas: costoUnitario/precioUnitario quedan guardados en la
+// línea al momento de agregarla, no se recalculan solos después.
+
+function escucharPedidos(){
+  db.collection('cocinaPedidos').orderBy('fechaEntrega').onSnapshot(snap => {
+    pedidosCache = [];
+    snap.forEach(doc => pedidosCache.push({ id: doc.id, ...doc.data() }));
+    renderListaPedidos();
+  }, err => {
+    console.error('No se pudo leer cocinaPedidos:', err);
+    document.getElementById('listaPedidos').innerHTML = '<div class="vacio">Error al cargar los pedidos.</div>';
+  });
+}
+
+function agregarLineaPedido(tipo){
+  if(tipo === 'receta' && !recetasCache.length){ alert('Primero registra al menos una receta.'); return; }
+  if(tipo === 'insumo' && !insumosCache.length){ alert('Primero registra al menos un insumo.'); return; }
+
+  const filaId = 'pl' + (++contadorFilaPedido);
+  lineasPedidoEnConstruccion.push({
+    filaId, tipo, refId: '', nombre: '', unidad: '',
+    cantidad: 1, costoUnitario: 0, precioUnitario: 0
+  });
+
+  const cont = document.getElementById('filasLineasPedido');
+  const div = document.createElement('div');
+  div.className = 'pedido-linea-row';
+  div.id = filaId;
+
+  if(tipo === 'receta'){
+    const opciones = recetasCache.map(r => `<option value="${r.id}">${(r.nombre || '—').toString().replace(/</g,'&lt;')}</option>`).join('');
+    div.innerHTML = `
+      <span class="pedido-linea-tipo-tag">Receta</span>
+      <select onchange="actualizarLineaPedidoDesdeCatalogo('${filaId}', this.value)">
+        <option value="">— elige receta —</option>${opciones}
+      </select>
+      <input type="number" min="1" step="1" placeholder="cant." value="1" oninput="actualizarLineaPedido('${filaId}', 'cantidad', this.value)">
+      <div class="subtotal" id="${filaId}-subtotal">$0</div>
+      <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
+  } else if(tipo === 'insumo'){
+    const opciones = insumosCache.map(i => `<option value="${i.id}">${(i.nombre || '—').toString().replace(/</g,'&lt;')} (${i.unidad})</option>`).join('');
+    div.innerHTML = `
+      <span class="pedido-linea-tipo-tag">Insumo</span>
+      <select onchange="actualizarLineaPedidoDesdeCatalogo('${filaId}', this.value)">
+        <option value="">— elige insumo —</option>${opciones}
+      </select>
+      <input type="number" min="1" step="1" placeholder="cant." value="1" oninput="actualizarLineaPedido('${filaId}', 'cantidad', this.value)">
+      <input type="number" min="0" step="500" placeholder="precio venta" oninput="actualizarLineaPedido('${filaId}', 'precioUnitario', this.value)">
+      <div class="subtotal" id="${filaId}-subtotal">$0</div>
+      <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
+  } else {
+    div.innerHTML = `
+      <span class="pedido-linea-tipo-tag">Libre</span>
+      <input type="text" placeholder="ej: Pastel de pollo (panadería)" oninput="actualizarLineaPedido('${filaId}', 'nombre', this.value)">
+      <input type="number" min="1" step="1" placeholder="cant." value="1" oninput="actualizarLineaPedido('${filaId}', 'cantidad', this.value)">
+      <input type="number" min="0" step="100" placeholder="costo" oninput="actualizarLineaPedido('${filaId}', 'costoUnitario', this.value)">
+      <input type="number" min="0" step="100" placeholder="precio venta" oninput="actualizarLineaPedido('${filaId}', 'precioUnitario', this.value)">
+      <div class="subtotal" id="${filaId}-subtotal">$0</div>
+      <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
+  }
+  cont.appendChild(div);
+  recalcularTotalesPedido();
+}
+
+// v1.35: precarga nombre/unidad/costo/precio al elegir receta o insumo
+// en el select — para "receta" el precioUnitario default es el precio
+// de venta ya definido en la receta (editable si el pedido negocia
+// otro precio); para "insumo" el costoUnitario es el valorUnidad
+// vigente y el precio de venta queda vacío para que vos lo escribas
+// (no hay "precio de venta" definido para insumos sueltos hoy).
+function actualizarLineaPedidoDesdeCatalogo(filaId, refId){
+  const linea = lineasPedidoEnConstruccion.find(l => l.filaId === filaId);
+  if(!linea) return;
+  linea.refId = refId;
+
+  if(linea.tipo === 'receta'){
+    const r = recetasCache.find(x => x.id === refId);
+    linea.nombre = r ? r.nombre : '';
+    linea.unidad = 'und';
+    linea.costoUnitario = r ? costoActualReceta(r) / (r.unidadesPorLote || 1) : 0;
+    linea.precioUnitario = r ? (r.precioVenta || 0) : 0;
+  } else if(linea.tipo === 'insumo'){
+    const i = insumosCache.find(x => x.id === refId);
+    linea.nombre = i ? i.nombre : '';
+    linea.unidad = i ? i.unidad : '';
+    linea.costoUnitario = i ? (i.valorUnidad || 0) : 0;
+    // precioUnitario lo escribe el usuario en el input de al lado — no se toca acá.
+  }
+  recalcularTotalesPedido();
+}
+
+function actualizarLineaPedido(filaId, campo, valor){
+  const linea = lineasPedidoEnConstruccion.find(l => l.filaId === filaId);
+  if(!linea) return;
+  if(campo === 'cantidad' || campo === 'costoUnitario' || campo === 'precioUnitario'){
+    linea[campo] = parseFloat(valor) || 0;
+  } else {
+    linea[campo] = valor;
+  }
+  recalcularTotalesPedido();
+}
+
+function eliminarLineaPedido(filaId){
+  lineasPedidoEnConstruccion = lineasPedidoEnConstruccion.filter(l => l.filaId !== filaId);
+  const el = document.getElementById(filaId);
+  if(el) el.remove();
+  recalcularTotalesPedido();
+}
+
+// v1.35: recalcula subtotales por línea y los 3 totales del pedido
+// (costo, monto de venta, margen) + el saldo pendiente según lo abonado.
+// Mismo patrón que recalcularMargenReceta() en la pestaña Recetas.
+function recalcularTotalesPedido(){
+  let costoTotal = 0, montoTotal = 0;
+  lineasPedidoEnConstruccion.forEach(l => {
+    const subCosto = (l.cantidad || 0) * (l.costoUnitario || 0);
+    const subVenta = (l.cantidad || 0) * (l.precioUnitario || 0);
+    costoTotal += subCosto;
+    montoTotal += subVenta;
+    const elSubtotal = document.getElementById(l.filaId + '-subtotal');
+    if(elSubtotal) elSubtotal.textContent = formatoMoneda(subVenta);
+  });
+
+  const ganancia = montoTotal - costoTotal;
+  const margenPct = montoTotal > 0 ? (ganancia / montoTotal) * 100 : 0;
+
+  document.getElementById('pedidoCostoTotal').textContent = formatoMoneda(costoTotal);
+  document.getElementById('pedidoMontoTotal').textContent = formatoMoneda(montoTotal);
+  const elMargen = document.getElementById('pedidoMargen');
+  elMargen.textContent = `${margenPct.toFixed(2).replace('.', ',')}% · ${formatoMoneda(ganancia)}`;
+  elMargen.className = 'val ' + (ganancia >= 0 ? 'ok' : 'warn');
+
+  const abonado = parseFloat(document.getElementById('inputPedidoAbonado').value) || 0;
+  const saldo = montoTotal - abonado;
+  document.getElementById('pedidoSaldoPendiente').textContent = formatoMoneda(saldo > 0 ? saldo : 0);
+}
+
+function guardarPedido(){
+  const cliente = document.getElementById('inputPedidoCliente').value.trim();
+  const telefono = document.getElementById('inputPedidoTelefono').value.trim();
+  const fechaEntrega = document.getElementById('inputPedidoFecha').value;
+  const notas = document.getElementById('inputPedidoNotas').value.trim();
+  const abonado = parseFloat(document.getElementById('inputPedidoAbonado').value) || 0;
+
+  if(!cliente){ alert('Escribe el nombre del cliente.'); return; }
+  if(!lineasPedidoEnConstruccion.length){ alert('Agrega al menos una línea al pedido.'); return; }
+  if(lineasPedidoEnConstruccion.some(l => !l.nombre)){
+    alert('Hay una línea sin insumo/receta elegido o sin nombre (línea libre). Complétala o elimínala.'); return;
+  }
+
+  const costoTotal = lineasPedidoEnConstruccion.reduce((acc, l) => acc + (l.cantidad || 0) * (l.costoUnitario || 0), 0);
+  const montoTotal = lineasPedidoEnConstruccion.reduce((acc, l) => acc + (l.cantidad || 0) * (l.precioUnitario || 0), 0);
+
+  const lineas = lineasPedidoEnConstruccion.map(l => ({
+    tipo: l.tipo, refId: l.refId || null, nombre: l.nombre, unidad: l.unidad || '',
+    cantidad: l.cantidad, costoUnitario: l.costoUnitario, precioUnitario: l.precioUnitario
+  }));
+
+  const datosPedido = {
+    cliente, telefono, fechaEntrega, notas, lineas, costoTotal, montoTotal, abonado,
+    estado: pedidoEnEdicionId ? (pedidosCache.find(p => p.id === pedidoEnEdicionId) || {}).estado || 'pendiente' : 'pendiente'
+  };
+
+  const promesa = pedidoEnEdicionId
+    ? db.collection('cocinaPedidos').doc(pedidoEnEdicionId).update(datosPedido)
+    : db.collection('cocinaPedidos').add({ ...datosPedido, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+
+  promesa.then(() => {
+    mostrarToast(pedidoEnEdicionId ? '✅ Pedido actualizado' : '✅ Pedido guardado', 'ok');
+    cancelarEdicionPedido();
+  }).catch(err => { console.error(err); alert('No se pudo guardar el pedido.'); });
+}
+
+function habilitarEdicionPedido(id){
+  const p = pedidosCache.find(x => x.id === id);
+  if(!p) return;
+  pedidoEnEdicionId = id;
+
+  document.getElementById('inputPedidoCliente').value = p.cliente || '';
+  document.getElementById('inputPedidoTelefono').value = p.telefono || '';
+  document.getElementById('inputPedidoFecha').value = p.fechaEntrega || '';
+  document.getElementById('inputPedidoNotas').value = p.notas || '';
+  document.getElementById('inputPedidoAbonado').value = p.abonado || '';
+
+  document.getElementById('filasLineasPedido').innerHTML = '';
+  lineasPedidoEnConstruccion = [];
+  (p.lineas || []).forEach(l => {
+    const filaId = 'pl' + (++contadorFilaPedido);
+    lineasPedidoEnConstruccion.push({ filaId, tipo: l.tipo, refId: l.refId, nombre: l.nombre, unidad: l.unidad, cantidad: l.cantidad, costoUnitario: l.costoUnitario, precioUnitario: l.precioUnitario });
+    const div = document.createElement('div');
+    div.className = 'pedido-linea-row';
+    div.id = filaId;
+    const tag = l.tipo === 'receta' ? 'Receta' : l.tipo === 'insumo' ? 'Insumo' : 'Libre';
+    const nombreEscapado = (l.nombre || '').toString().replace(/</g,'&lt;');
+    if(l.tipo === 'libre'){
+      div.innerHTML = `
+        <span class="pedido-linea-tipo-tag">${tag}</span>
+        <input type="text" value="${nombreEscapado}" oninput="actualizarLineaPedido('${filaId}', 'nombre', this.value)">
+        <input type="number" min="1" step="1" value="${l.cantidad}" oninput="actualizarLineaPedido('${filaId}', 'cantidad', this.value)">
+        <input type="number" min="0" step="100" value="${l.costoUnitario}" oninput="actualizarLineaPedido('${filaId}', 'costoUnitario', this.value)">
+        <input type="number" min="0" step="100" value="${l.precioUnitario}" oninput="actualizarLineaPedido('${filaId}', 'precioUnitario', this.value)">
+        <div class="subtotal" id="${filaId}-subtotal">$0</div>
+        <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
+    } else {
+      const opciones = (l.tipo === 'receta' ? recetasCache : insumosCache)
+        .map(x => `<option value="${x.id}" ${x.id === l.refId ? 'selected' : ''}>${(x.nombre || '—').toString().replace(/</g,'&lt;')}</option>`).join('');
+      div.innerHTML = `
+        <span class="pedido-linea-tipo-tag">${tag}</span>
+        <select onchange="actualizarLineaPedidoDesdeCatalogo('${filaId}', this.value)">
+          <option value="">— elige —</option>${opciones}
+        </select>
+        <input type="number" min="1" step="1" value="${l.cantidad}" oninput="actualizarLineaPedido('${filaId}', 'cantidad', this.value)">
+        ${l.tipo === 'insumo' ? `<input type="number" min="0" step="500" value="${l.precioUnitario}" oninput="actualizarLineaPedido('${filaId}', 'precioUnitario', this.value)">` : ''}
+        <div class="subtotal" id="${filaId}-subtotal">$0</div>
+        <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
+    }
+    document.getElementById('filasLineasPedido').appendChild(div);
+  });
+  recalcularTotalesPedido();
+
+  document.getElementById('tituloFormPedido').firstChild.textContent = '✏️ Editando pedido ';
+  document.getElementById('badgeModoEdicionPedido').style.display = '';
+  document.getElementById('btnGuardarPedido').textContent = 'Guardar cambios';
+  document.getElementById('btnCancelarEdicionPedido').style.display = '';
+
+  document.getElementById('tabPedidos').scrollIntoView({ behavior:'smooth', block:'start' });
+  mostrarToast('✏️ Pedido cargado en el formulario para editar', 'info');
+}
+
+function cancelarEdicionPedido(){
+  pedidoEnEdicionId = null;
+  lineasPedidoEnConstruccion = [];
+  document.getElementById('filasLineasPedido').innerHTML = '';
+  document.getElementById('inputPedidoCliente').value = '';
+  document.getElementById('inputPedidoTelefono').value = '';
+  document.getElementById('inputPedidoFecha').value = '';
+  document.getElementById('inputPedidoNotas').value = '';
+  document.getElementById('inputPedidoAbonado').value = '';
+  recalcularTotalesPedido();
+
+  document.getElementById('tituloFormPedido').firstChild.textContent = '📦 Nuevo pedido ';
+  document.getElementById('badgeModoEdicionPedido').style.display = 'none';
+  document.getElementById('btnGuardarPedido').textContent = 'Guardar pedido';
+  document.getElementById('btnCancelarEdicionPedido').style.display = 'none';
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido? Esta acción no se puede deshacer.')) return;
+  db.collection('cocinaPedidos').doc(id).delete()
+    .then(() => {
+      if(pedidoEnEdicionId === id) cancelarEdicionPedido();
+      mostrarToast('🗑️ Pedido eliminado', 'warn');
+    })
+    .catch(err => { console.error(err); alert('No se pudo eliminar el pedido.'); });
+}
+
+function cambiarEstadoPedido(id, nuevoEstado){
+  db.collection('cocinaPedidos').doc(id).update({ estado: nuevoEstado })
+    .catch(err => { console.error(err); alert('No se pudo actualizar el estado.'); });
+}
+
+// v1.35: agrega una línea tipo insumo/libre a la lista de compras
+// (checkCompras) — a mano, vos decidís cuáles líneas necesitan compra
+// real (muchas veces ya tenés el insumo en stock). No aplica a líneas
+// tipo receta porque esas ya se gestionan desde "Generar desde recetas".
+function agregarLineaPedidoALista(pedidoId, lineaIndex){
+  const p = pedidosCache.find(x => x.id === pedidoId);
+  if(!p) return;
+  const linea = (p.lineas || [])[lineaIndex];
+  if(!linea || linea.tipo === 'receta') return;
+
+  const itemsActuales = [...(checkComprasCache.items || [])];
+  const insumoVigente = linea.refId ? insumosCache.find(i => i.id === linea.refId) : null;
+  const existente = linea.refId ? itemsActuales.find(it => it.insumoId === linea.refId) : null;
+
+  const origenPedido = { tipo: 'pedido', id: pedidoId, nombre: `Pedido de ${p.cliente}`, cantidad: linea.cantidad };
+
+  if(existente){
+    existente.cantidad += linea.cantidad;
+    existente.recetasOrigen = existente.recetasOrigen || [];
+    existente.recetasOrigen.push(origenPedido);
+  } else {
+    itemsActuales.push({
+      insumoId: linea.refId || ('libre-' + Date.now()),
+      nombre: linea.nombre,
+      unidad: linea.unidad || '',
+      categoriaId: insumoVigente ? (insumoVigente.categoriaId || '') : '',
+      cantidad: linea.cantidad,
+      pendiente: true,
+      comprado: false,
+      cantidadComprada: null,
+      precioComprado: null,
+      origen: 'pedido',
+      recetasOrigen: [origenPedido]
+    });
+  }
+
+  _guardarListaCompras(itemsActuales).then(() => {
+    mostrarToast('🛒 Agregado a la lista de compras', 'ok');
+  });
+}
+
+function renderFiltroEstadoPedidoChips(){
+  const cont = document.getElementById('filtroEstadoPedidoChips');
+  if(!cont) return;
+  const opciones = [
+    { valor: '', nombre: 'Todos' },
+    { valor: 'pendiente', nombre: 'Pendiente' },
+    { valor: 'en_proceso', nombre: 'En proceso' },
+    { valor: 'entregado', nombre: 'Entregado' },
+    { valor: 'cancelado', nombre: 'Cancelado' }
+  ];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroEstadoPedidoActual === o.valor ? 'activo' : ''}"
+      onclick="seleccionarFiltroEstadoPedido('${o.valor}')">${o.nombre}</button>
+  `).join('');
+}
+
+function seleccionarFiltroEstadoPedido(valor){
+  filtroEstadoPedidoActual = valor;
+  renderFiltroEstadoPedidoChips();
+  renderListaPedidos();
+}
+
+function toggleDetallePedido(id){
+  const detalle = document.getElementById('detalle-pedido-' + id);
+  if(detalle) detalle.classList.toggle('activo');
+}
+
+const NOMBRES_ESTADO_PEDIDO = { pendiente: 'Pendiente', en_proceso: 'En proceso', entregado: 'Entregado', cancelado: 'Cancelado' };
+
+function renderListaPedidos(){
+  renderFiltroEstadoPedidoChips();
+  const cont = document.getElementById('listaPedidos');
+  let pedidos = pedidosCache;
+  if(filtroEstadoPedidoActual) pedidos = pedidos.filter(p => p.estado === filtroEstadoPedidoActual);
+
+  if(!pedidos.length){
+    cont.innerHTML = '<div class="vacio">No hay pedidos para mostrar.</div>';
+    return;
+  }
+
+  cont.innerHTML = pedidos.map(p => {
+    const abonado = p.abonado || 0;
+    const saldo = (p.montoTotal || 0) - abonado;
+    let badgePago = '';
+    if(saldo <= 0 && (p.montoTotal || 0) > 0) badgePago = `<span class="badge-pago-pedido pagado">✅ Pagado</span>`;
+    else if(abonado > 0) badgePago = `<span class="badge-pago-pedido abono">💰 Abono: ${formatoMoneda(abonado)}</span>`;
+    else badgePago = `<span class="badge-pago-pedido sinpago">Sin abono</span>`;
+
+    return `
+    <div class="receta-card">
+      <div class="receta-head" onclick="toggleDetallePedido('${p.id}')">
+        <div class="receta-head-info">
+          <div>
+            <div class="receta-nombre">${(p.cliente || '—').toString().replace(/</g,'&lt;')}
+              <span class="badge-estado-pedido ${p.estado || 'pendiente'}">${NOMBRES_ESTADO_PEDIDO[p.estado] || 'Pendiente'}</span>
+              ${badgePago}
+            </div>
+            <div class="receta-resumen">${p.fechaEntrega || 'sin fecha'} · Monto ${formatoMoneda(p.montoTotal)} · Saldo ${formatoMoneda(saldo > 0 ? saldo : 0)}</div>
+          </div>
+        </div>
+        <div class="receta-head-acciones">
+          <button type="button" class="btn-ghost" title="Editar pedido" onclick="event.stopPropagation(); habilitarEdicionPedido('${p.id}')">✏️</button>
+          <button type="button" class="btn-del" title="Eliminar pedido" onclick="event.stopPropagation(); eliminarPedido('${p.id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="receta-detalle" id="detalle-pedido-${p.id}">
+        ${p.telefono ? `<div class="receta-detalle-fila"><span>Teléfono</span><span>${p.telefono.toString().replace(/</g,'&lt;')}</span></div>` : ''}
+        ${p.notas ? `<div class="receta-detalle-fila"><span>Notas</span><span>${p.notas.toString().replace(/</g,'&lt;')}</span></div>` : ''}
+        ${(p.lineas || []).map((l, idx) => `
+          <div class="receta-detalle-fila">
+            <span>${(l.nombre || '—').toString().replace(/</g,'&lt;')} × ${l.cantidad} ${l.unidad || ''}</span>
+            <span style="display:flex; align-items:center; gap:8px;">
+              ${formatoMoneda((l.cantidad || 0) * (l.precioUnitario || 0))}
+              ${l.tipo !== 'receta' ? `<button type="button" class="btn-ghost" style="padding:2px 8px; font-size:0.78rem;" onclick="event.stopPropagation(); agregarLineaPedidoALista('${p.id}', ${idx})">🛒 A compras</button>` : ''}
+            </span>
+          </div>
+        `).join('')}
+        <div class="receta-detalle-fila">
+          <span>Costo total / Margen</span>
+          <span>${formatoMoneda(p.costoTotal)} / ${formatoMoneda((p.montoTotal || 0) - (p.costoTotal || 0))}</span>
+        </div>
+        <div class="receta-detalle-fila">
+          <span>Cambiar estado</span>
+          <span>
+            <select onchange="cambiarEstadoPedido('${p.id}', this.value)" style="width:auto; padding:4px 8px; font-size:0.85rem;">
+              <option value="pendiente" ${p.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+              <option value="en_proceso" ${p.estado === 'en_proceso' ? 'selected' : ''}>En proceso</option>
+              <option value="entregado" ${p.estado === 'entregado' ? 'selected' : ''}>Entregado</option>
+              <option value="cancelado" ${p.estado === 'cancelado' ? 'selected' : ''}>Cancelado</option>
+            </select>
+          </span>
+        </div>
       </div>
     </div>
   `;
@@ -1774,46 +2826,132 @@ function actualizarLotesRecetaCompra(recetaId, valor){
 // Suma cantidad×lotes por insumo entre todas las recetas seleccionadas
 // (mergeando si un mismo insumo aparece en varias) y lo agrega/suma a
 // la lista activa de checkCompras. No dispara ningún cambio sobre
-// cocinaRecetas ni cocinaInsumos — solo arma la lista de compra.
+// cocinaRecetas — si el insumo trackea stock, sí puede actualizar
+// cocinaInsumos.stockActual (ver confirmarStockYGenerarLista()).
+//
+// v1.33: antes de generar, si alguna receta seleccionada usa un
+// insumo con trackearStock activo, se abre un modal para confirmar/
+// corregir el stock contado. Si ninguna lo usa, genera directo como
+// antes (sin modal de por medio).
 function agregarRecetasAlCheck(){
   const idsSeleccionadas = Object.keys(recetasSeleccionParaCompra);
   if(!idsSeleccionadas.length){ alert('Marca al menos una receta.'); return; }
 
-  const itemsActuales = [...(checkComprasCache.items || [])];
-
+  // arma el mapa insumoId -> cantidad total necesaria, y qué recetas
+  // (con nombre + cantidad) piden cada insumo, para usarlo tanto en el
+  // modal de stock como en el guardado final.
+  const necesidad = {}; // insumoId -> { cantidad, unidad, nombre, categoriaId, recetas:[{id,nombre,cantidad}] }
   idsSeleccionadas.forEach(recetaId => {
     const receta = recetasCache.find(r => r.id === recetaId);
     if(!receta) return;
     const lotes = recetasSeleccionParaCompra[recetaId] || 1;
     (receta.insumos || []).forEach(ins => {
       const cantidadNecesaria = (ins.cantidad || 0) * lotes;
-      const existente = itemsActuales.find(it => it.insumoId === ins.insumoId);
       const insumoVigente = insumosCache.find(i => i.id === ins.insumoId);
+      if(!necesidad[ins.insumoId]){
+        necesidad[ins.insumoId] = {
+          cantidad: 0, unidad: ins.unidad, nombre: ins.nombre,
+          categoriaId: insumoVigente ? (insumoVigente.categoriaId || '') : '',
+          recetas: []
+        };
+      }
+      necesidad[ins.insumoId].cantidad += cantidadNecesaria;
+      necesidad[ins.insumoId].recetas.push({ id: recetaId, nombre: receta.nombre || '—', cantidad: cantidadNecesaria });
+    });
+  });
+
+  necesidadPendienteGenerar = necesidad; // guardado en variable global para el paso siguiente
+
+  const insumosTrackeados = Object.keys(necesidad)
+    .map(id => insumosCache.find(i => i.id === id))
+    .filter(i => i && i.trackearStock);
+
+  if(insumosTrackeados.length){
+    abrirModalConfirmarStock(insumosTrackeados);
+  } else {
+    confirmarStockYGenerarLista();
+  }
+}
+
+// v1.33: abre el modal con un input editable por insumo trackeado,
+// precargado con stockActual guardado.
+function abrirModalConfirmarStock(insumosTrackeados){
+  const cont = document.getElementById('listaConfirmarStock');
+  cont.innerHTML = insumosTrackeados.map(i => `
+    <div class="field" style="margin-top:10px;">
+      <label for="inputStockConfirmar-${i.id}">${(i.nombre || '—').toString().replace(/</g,'&lt;')} (${i.unidad || ''})</label>
+      <input type="number" id="inputStockConfirmar-${i.id}" min="0" step="0.01" value="${i.stockActual != null ? i.stockActual : 0}">
+    </div>
+  `).join('');
+  document.getElementById('modalConfirmarStockOverlay').style.display = 'flex';
+}
+
+function cerrarModalConfirmarStock(){
+  document.getElementById('modalConfirmarStockOverlay').style.display = 'none';
+  necesidadPendienteGenerar = null;
+}
+
+// v1.33: toma los valores del modal (o los ya guardados, si el modal
+// ni se abrió porque no había insumos trackeados), descuenta lo que
+// el stock ya cubre, actualiza cocinaInsumos.stockActual y arma la
+// lista de compras solo con lo que realmente falta comprar.
+function confirmarStockYGenerarLista(){
+  const necesidad = necesidadPendienteGenerar;
+  if(!necesidad) return;
+
+  const itemsActuales = [...(checkComprasCache.items || [])];
+  const actualizacionesStock = []; // [{insumoId, nuevoStock}]
+
+  Object.keys(necesidad).forEach(insumoId => {
+    const n = necesidad[insumoId];
+    const insumoVigente = insumosCache.find(i => i.id === insumoId);
+    let cantidadAComprar = n.cantidad;
+
+    if(insumoVigente && insumoVigente.trackearStock){
+      const inputStock = document.getElementById('inputStockConfirmar-' + insumoId);
+      const stockContado = inputStock ? (parseFloat(inputStock.value) || 0) : (insumoVigente.stockActual || 0);
+      const stockRestante = stockContado - n.cantidad;
+      cantidadAComprar = stockRestante < 0 ? -stockRestante : 0;
+      actualizacionesStock.push({ insumoId, nuevoStock: stockRestante > 0 ? stockRestante : 0 });
+    }
+
+    if(cantidadAComprar > 0){
+      const existente = itemsActuales.find(it => it.insumoId === insumoId);
       if(existente){
-        existente.cantidad += cantidadNecesaria;
-        if(!existente.recetasOrigen.includes(recetaId)) existente.recetasOrigen.push(recetaId);
+        existente.cantidad += cantidadAComprar;
+        n.recetas.forEach(r => {
+          if(!existente.recetasOrigen.some(o => (o.id || o) === r.id)) existente.recetasOrigen.push(r);
+        });
       } else {
         itemsActuales.push({
-          insumoId: ins.insumoId,
-          nombre: ins.nombre,
-          unidad: ins.unidad,
-          categoriaId: insumoVigente ? (insumoVigente.categoriaId || '') : '',
-          cantidad: cantidadNecesaria,
+          insumoId,
+          nombre: n.nombre,
+          unidad: n.unidad,
+          categoriaId: n.categoriaId,
+          cantidad: cantidadAComprar,
           pendiente: true,
           comprado: false,
           cantidadComprada: null,
           precioComprado: null,
           origen: 'receta',
-          recetasOrigen: [recetaId]
+          recetasOrigen: [...n.recetas]
         });
       }
-    });
+    }
   });
 
-  _guardarListaCompras(itemsActuales).then(() => {
-    recetasSeleccionParaCompra = {};
-    renderListaRecetasParaCompra();
+  const promesas = [ _guardarListaCompras(itemsActuales) ];
+  actualizacionesStock.forEach(u => {
+    promesas.push(db.collection('cocinaInsumos').doc(u.insumoId).update({ stockActual: u.nuevoStock }));
   });
+
+  Promise.all(promesas).then(() => {
+    recetasSeleccionParaCompra = {};
+    necesidadPendienteGenerar = null;
+    document.getElementById('modalConfirmarStockOverlay').style.display = 'none';
+    renderListaRecetasParaCompra();
+    mostrarToast('✅ Lista de compras actualizada', 'ok');
+  }).catch(err => { console.error(err); alert('No se pudo generar la lista de compras.'); });
 }
 
 function agregarInsumoSueltoAlCheck(){
@@ -1874,13 +3012,14 @@ function escucharCheckCompras(){
   });
 }
 
-// Checkbox "pendiente" — se puede destildar manualmente si ya tenés el
-// insumo, sin sacarlo de la lista (a diferencia de borrar la fila).
-function togglePendienteCompra(insumoId, marcado){
+// v1.32: botón "Ya la tengo" / "↩️ Necesito comprarla" — reemplaza al
+// checkbox "pendiente" de v1.31. Invierte el estado actual (ya no
+// depende de this.checked, porque ahora es un <button>, no un input).
+function togglePendienteCompra(insumoId){
   const items = [...(checkComprasCache.items || [])];
   const item = items.find(it => it.insumoId === insumoId);
   if(!item) return;
-  item.pendiente = marcado;
+  item.pendiente = !item.pendiente;
   _guardarListaCompras(items);
 }
 
@@ -1893,12 +3032,46 @@ function abrirFormComprado(insumoId){
 function cerrarFormComprado(insumoId){
   const form = document.getElementById('form-comprar-' + insumoId);
   if(form) form.classList.remove('activo');
+  // v1.30: al cancelar, revertimos el total en pantalla al cálculo
+  // original (cantidad de la lista × precio vigente del insumo) — si
+  // el usuario alcanzó a editar los inputs antes de cancelar, esos
+  // valores quedan en el DOM pero ya no deben reflejarse en el total.
+  const items = checkComprasCache.items || [];
+  const item = items.find(it => it.insumoId === insumoId);
+  const insumo = insumosCache.find(i => i.id === insumoId);
+  const totalDiv = document.getElementById('compra-total-' + insumoId);
+  const inputCant = document.getElementById('inputCantidadComprada-' + insumoId);
+  const inputPrecio = document.getElementById('inputPrecioComprado-' + insumoId);
+  if(item && insumo && totalDiv){
+    if(inputCant) inputCant.value = item.cantidad || '';
+    if(inputPrecio) inputPrecio.value = insumo.valorUnidad;
+    totalDiv.textContent = '$' + Math.round(item.cantidad * insumo.valorUnidad);
+  }
+}
+
+// v1.30: recalcula el total ($cantidad × $precio) en vivo, mientras el
+// usuario edita los inputs del formulario "Marcar comprado" — antes el
+// compra-total solo se recalculaba después de Guardar (al releer
+// Firestore vía onSnapshot). No toca checkComprasCache ni Firestore,
+// solo el texto en pantalla; confirmarCompra() sigue siendo la única
+// función que efectivamente guarda algo.
+function actualizarTotalEnVivo(insumoId){
+  const totalDiv = document.getElementById('compra-total-' + insumoId);
+  if(!totalDiv) return;
+  const cantidad = parseFloat(document.getElementById('inputCantidadComprada-' + insumoId).value);
+  const precio = parseFloat(document.getElementById('inputPrecioComprado-' + insumoId).value);
+  if(isNaN(cantidad) || isNaN(precio)){ totalDiv.textContent = '—'; return; }
+  totalDiv.textContent = '$' + Math.round(cantidad * precio);
 }
 
 // Marcar comprado: cantidad comprada + precio nuevo en un mismo paso.
 // Actualiza cocinaInsumos.valorUnidad con el precio nuevo Y marca la
 // fila como comprada en la misma acción (whitelist v1.7: ambas
 // escrituras funcionan offline, encoladas por separado).
+// v1.26: se guarda también precioAnterior (el valorUnidad que tenía el
+// insumo justo antes de esta compra) — permite que reabrirCompra()
+// revierta el precio de forma segura si el usuario se equivocó al
+// tipear el precio comprado.
 function confirmarCompra(insumoId){
   const cantidadComprada = parseFloat(document.getElementById('inputCantidadComprada-' + insumoId).value);
   const precioNuevo = parseFloat(document.getElementById('inputPrecioComprado-' + insumoId).value);
@@ -1909,27 +3082,56 @@ function confirmarCompra(insumoId){
   const items = [...(checkComprasCache.items || [])];
   const item = items.find(it => it.insumoId === insumoId);
   if(!item) return;
+  const insumo = insumosCache.find(i => i.id === insumoId);
   item.comprado = true;
   item.pendiente = false;
   item.cantidadComprada = cantidadComprada;
   item.precioComprado = precioNuevo;
+  item.precioAnterior = insumo ? insumo.valorUnidad : null;
+
+  const datosInsumoUpdate = { valorUnidad: precioNuevo };
+  // v1.33: si el insumo trackea stock, el campo extra del form es el
+  // conteo real ("cuánto tenés en total ahora"), no una suma — evita
+  // que se desincronice si alguien usó insumo sin pasar por el sistema.
+  if(insumo && insumo.trackearStock){
+    const inputStock = document.getElementById('inputStockTrasCompra-' + insumoId);
+    const stockContado = inputStock ? parseFloat(inputStock.value) : NaN;
+    if(!isNaN(stockContado) && stockContado >= 0) datosInsumoUpdate.stockActual = stockContado;
+  }
 
   Promise.all([
-    db.collection('cocinaInsumos').doc(insumoId).update({ valorUnidad: precioNuevo }),
+    db.collection('cocinaInsumos').doc(insumoId).update(datosInsumoUpdate),
     _guardarListaCompras(items)
   ]).catch(err => { console.error(err); alert('No se pudo registrar la compra.'); });
 }
 
-// Deshacer "comprado" — vuelve a pendiente. OJO: no revierte el precio
-// ya actualizado en cocinaInsumos (sería otra decisión de diseño, no
-// se pidió acá) — solo revierte el estado de la fila en la lista.
+// Deshacer "comprado" — vuelve a pendiente.
+// v1.26: si nadie tocó el precio del insumo desde esta compra (sigue
+// siendo igual a precioComprado), se revierte a precioAnterior — cubre
+// el caso de "me equivoqué al tipear el precio". Si el precio ya
+// cambió por otro camino (edición manual del insumo, u otra compra
+// posterior), NO se toca, para no pisar un cambio más reciente que el
+// usuario sí quiso. Recetas ya guardadas no se ven afectadas de
+// ninguna forma — igual que siempre, cada una guarda su propio
+// snapshot del precio.
 function reabrirCompra(insumoId){
   const items = [...(checkComprasCache.items || [])];
   const item = items.find(it => it.insumoId === insumoId);
   if(!item) return;
   item.comprado = false;
   item.pendiente = true;
-  _guardarListaCompras(items);
+
+  const insumo = insumosCache.find(i => i.id === insumoId);
+  const nadieMasLoTocoDesde = insumo && item.precioComprado != null && insumo.valorUnidad === item.precioComprado;
+
+  if(nadieMasLoTocoDesde && item.precioAnterior != null){
+    Promise.all([
+      db.collection('cocinaInsumos').doc(insumoId).update({ valorUnidad: item.precioAnterior }),
+      _guardarListaCompras(items)
+    ]).catch(err => { console.error(err); alert('No se pudo deshacer la compra.'); });
+  } else {
+    _guardarListaCompras(items);
+  }
 }
 
 function vaciarListaCompras(){
@@ -1948,32 +3150,63 @@ function renderListaCompras(){
       : '<div class="vacio">La lista está vacía — generá desde recetas o agregá un insumo suelto arriba.</div>';
     return;
   }
-  cont.innerHTML = items.map(it => `
-    <div class="compra-item ${it.comprado ? 'comprado' : ''}">
-      <input type="checkbox" ${it.pendiente ? 'checked' : ''} ${it.comprado ? 'disabled' : ''}
-        onchange="togglePendienteCompra('${it.insumoId}', this.checked)">
+  cont.innerHTML = items.map(it => {
+    // v1.28: precio actual del insumo — se usa para precargar el input
+    // de compra (en vez de dejarlo vacío, ya que casi siempre el precio
+    // no cambió respecto a la última vez) y, si el ítem ya está
+    // comprado, para el "ghost" del precio anterior junto al nuevo.
+    const insumoActual = insumosCache.find(i => i.id === it.insumoId);
+    const precioActual = insumoActual ? insumoActual.valorUnidad : '';
+    // v1.31: ítem destildado manualmente ("ya lo tengo") — distinto de
+    // "comprado" (que implica gasto real vía confirmarCompra()).
+    const noNecesita = !it.pendiente && !it.comprado;
+    // v1.33: texto "Para: receta A, receta B" — recetasOrigen ahora
+    // guarda objetos {id,nombre,cantidad}; los ítems viejos (antes de
+    // v1.33) solo tienen el id como string, por eso el filtro/mapa de
+    // abajo ignora esos sin romper nada.
+    const nombresOrigen = (it.recetasOrigen || [])
+      .map(o => (o && typeof o === 'object') ? o.nombre : null)
+      .filter(Boolean);
+    return `
+    <div class="compra-item ${it.comprado ? 'comprado' : ''} ${noNecesita ? 'no-necesita' : ''}">
       <div>
         <div class="compra-nombre">${(it.nombre || '—').toString().replace(/</g,'&lt;')}</div>
         <div class="compra-meta">
           <span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(it.categoriaId)}"></span>${nombreCategoria(it.categoriaId).toString().replace(/</g,'&lt;')}</span>
           ${it.origen === 'suelto' ? '<span class="chip-categoria">Suelto</span>' : ''}
         </div>
+        ${nombresOrigen.length ? `<div class="compra-meta">Para: ${nombresOrigen.join(', ').toString().replace(/</g,'&lt;')}</div>` : ''}
+        ${it.comprado && it.precioAnterior != null ? `
+        <div class="compra-precio-ghost">$${it.precioComprado} nuevo · <span class="tachado">$${it.precioAnterior}</span> si deshaces</div>
+        ` : ''}
       </div>
-      <div class="compra-cant">${it.cantidad} ${it.unidad || ''}</div>
-      ${it.comprado
-        ? `<button type="button" class="btn-ghost" onclick="reabrirCompra('${it.insumoId}')">↩️ Deshacer</button>`
-        : `<button type="button" class="btn-ghost" onclick="abrirFormComprado('${it.insumoId}')">✅ Marcar comprado</button>`
-      }
+      <div class="compra-cant">
+        ${it.cantidad} ${it.unidad || ''}
+        ${precioActual !== '' && !noNecesita ? `<div class="compra-total" id="compra-total-${it.insumoId}">$${Math.round(it.cantidad * precioActual)}</div>` : ''}
+      </div>
+      <div class="compra-acciones">
+        ${it.comprado
+          ? `<button type="button" class="btn-ghost" onclick="reabrirCompra('${it.insumoId}')">↩️ Deshacer</button>`
+          : `
+            <button type="button" class="btn-toggle-stock" onclick="togglePendienteCompra('${it.insumoId}')">${noNecesita ? '↩️ Necesito comprarla' : 'Ya la tengo'}</button>
+            ${!noNecesita ? `<button type="button" class="btn-ghost" onclick="abrirFormComprado('${it.insumoId}')">✅ Marcar comprado</button>` : ''}
+          `
+        }
+      </div>
       <div class="compra-comprar-form" id="form-comprar-${it.insumoId}">
-        <input type="number" id="inputCantidadComprada-${it.insumoId}" min="0" step="0.01" placeholder="Cantidad comprada" value="${it.cantidad || ''}">
-        <input type="number" id="inputPrecioComprado-${it.insumoId}" min="0" step="1" placeholder="Precio nuevo por unidad">
+        <input type="number" id="inputCantidadComprada-${it.insumoId}" min="0" step="0.01" placeholder="Cantidad comprada" value="${it.cantidad || ''}" oninput="actualizarTotalEnVivo('${it.insumoId}')">
+        <input type="number" id="inputPrecioComprado-${it.insumoId}" min="0" step="1" placeholder="Precio nuevo por unidad" value="${precioActual}" oninput="actualizarTotalEnVivo('${it.insumoId}')">
+        ${insumoActual && insumoActual.trackearStock ? `
+        <input type="number" id="inputStockTrasCompra-${it.insumoId}" min="0" step="0.01" placeholder="¿Cuánto tenés en total ahora? (contado)" value="">
+        ` : ''}
         <div style="display:flex; gap:6px;">
           <button type="button" class="btn" onclick="confirmarCompra('${it.insumoId}')">Guardar</button>
           <button type="button" class="btn-ghost" onclick="cerrarFormComprado('${it.insumoId}')">Cancelar</button>
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 // ============================================================
@@ -2012,6 +3245,24 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 .coc-hero{ margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm; }
 .coc-hero-titulo{ font-size:15pt; font-weight:700; color:#1e1e1e; }
 .coc-hero-meta{ font-size:8.5pt; color:#a8823a; margin-top:2mm; }
+/* v1.19: header tipo banner cuando la receta tiene imagen — full-bleed
+   (cancela el padding de .coc-page con márgenes negativos), con el
+   texto de marca/fecha superpuesto en degradado. Reemplaza a
+   .coc-header solo cuando hay imagenUrl; sin imagen se sigue usando
+   el .coc-header plano de siempre (ver _cocEncabezado más abajo). */
+.coc-imagen-header{
+  position:relative; margin:-14mm -16mm 8mm; height:55mm; overflow:hidden;
+}
+.coc-imagen-header img{ width:100%; height:100%; object-fit:cover; display:block; }
+.coc-imagen-header-overlay{
+  position:absolute; top:0; left:0; right:0; padding:6mm;
+  display:flex; justify-content:space-between; align-items:flex-start;
+  background:linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0) 100%);
+}
+.coc-imagen-header-marca{ font-size:9pt; font-weight:700; letter-spacing:0.04em; color:#fff; }
+.coc-imagen-header-sub{ font-size:7.5pt; color:#f0e6d0; margin-top:1mm; }
+.coc-imagen-header-fecha{ font-size:7.5pt; color:#f0e6d0; text-align:right; }
+.coc-descripcion-texto{ font-size:9pt; color:#3a3a3a; line-height:1.5; white-space:pre-line; }
 .coc-cliente-imagen{ margin:0 0 6mm; text-align:center; }
 .coc-cliente-imagen img{ max-width:100%; max-height:70mm; border-radius:2.5mm; object-fit:cover; }
 .coc-seccion{ margin:0 0 6mm; background:#f6f4ef; border-radius:2.5mm; padding:6mm; break-inside:avoid; }
@@ -2065,6 +3316,34 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 // Abre la ventana de preview con barra flotante + botón imprimir —
 // misma mecánica en ambas funciones de abajo, factorizada acá para no
 // duplicar el bloque window.open()/document.write().
+// v1.19: encabezado compartido por ambas fichas — si la receta tiene
+// imagen, usa el banner full-bleed (.coc-imagen-header); si no, el
+// header plano de siempre (.coc-header). Evita duplicar esta lógica
+// en imprimirRecetaHTML() y imprimirRecetaClienteHTML().
+function _cocEncabezado(r, fechaGeneracion, subtitulo){
+  if(r.imagenUrl){
+    return `
+    <div class="coc-imagen-header">
+      <img src="${r.imagenUrl}" alt="${_cocEsc(r.nombre || '')}">
+      <div class="coc-imagen-header-overlay">
+        <div>
+          <div class="coc-imagen-header-marca">AUDIOLINK · COCINA</div>
+          <div class="coc-imagen-header-sub">${_cocEsc(subtitulo)}</div>
+        </div>
+        <div class="coc-imagen-header-fecha">${_cocEsc(fechaGeneracion)}</div>
+      </div>
+    </div>`;
+  }
+  return `
+    <div class="coc-header">
+      <div>
+        <div class="coc-header-marca">AUDIOLINK · COCINA</div>
+        <div class="coc-header-sub">${_cocEsc(subtitulo)}</div>
+      </div>
+      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
+    </div>`;
+}
+
 function _cocAbrirPreview(titulo, htmlDoc){
   const win = window.open('', '_blank', 'width=640,height=700,resizable=yes,scrollbars=yes');
   if(!win){
@@ -2109,13 +3388,7 @@ function imprimirRecetaHTML(recetaId){
 
   const htmlDoc = `
   <div class="coc-page">
-    <div class="coc-header">
-      <div>
-        <div class="coc-header-marca">AUDIOLINK · COCINA</div>
-        <div class="coc-header-sub">Ficha de receta / pedido</div>
-      </div>
-      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
-    </div>
+    ${_cocEncabezado(r, fechaGeneracion, 'Ficha de receta / pedido')}
 
     <div class="coc-hero">
       <div class="coc-hero-titulo">${_cocEsc(r.nombre || '—')}</div>
@@ -2146,39 +3419,51 @@ function imprimirRecetaHTML(recetaId){
 // Ficha de receta PARA EL CLIENTE — versión pública, deliberadamente
 // distinta a imprimirRecetaHTML(): NO incluye costoTotal, ganancia ni
 // margenPct (eso es información interna del negocio). Muestra nombre,
-// imagen (si se subió una vía Cloudinary), ingredientes con cantidades
-// (sin precio unitario ni subtotal) y el precio de venta al público.
+// descripción (v1.20, campo libre pensado para el cliente), imagen
+// (si se subió una vía Cloudinary), ingredientes con cantidades (sin
+// precio unitario ni subtotal) y el precio de venta al público.
+// v1.20: el dato "por lote de N unidades" solo se muestra si
+// unidadesPorLote > 1 — pensado para venta mixta (unidad suelta vs.
+// pedidos de varias unidades para eventos). Con unidadesPorLote <= 1
+// se mantiene el precio simple "c/u" de siempre.
+// v1.21: el listado de ingredientes en la ficha de cliente ahora
+// respeta mostrarCantidadesCliente — si es false, se listan solo los
+// nombres de los ingredientes (sin cantidad), para no revelar la
+// proporción exacta de la receta. Por defecto (true, o campo ausente
+// en recetas viejas) se sigue mostrando cantidad + unidad como antes.
 function imprimirRecetaClienteHTML(recetaId){
   const r = recetasCache.find(x => x.id === recetaId);
   if(!r) return;
   const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
 
-  const htmlImagen = r.imagenUrl
-    ? `<div class="coc-cliente-imagen"><img src="${r.imagenUrl}" alt="${_cocEsc(r.nombre || '')}"></div>`
-    : '';
-
-  const htmlIngredientes = (r.insumos || []).map(i => `
+  const mostrarCantidades = r.mostrarCantidadesCliente !== false;
+  const htmlIngredientes = (r.insumos || []).map(i => mostrarCantidades ? `
     <div class="coc-fila">
       <span class="coc-fila-izq">${_cocEsc(i.nombre)}</span>
       <span class="coc-fila-der">${_cocEsc(i.cantidad)} ${_cocEsc(i.unidad)}</span>
+    </div>` : `
+    <div class="coc-fila">
+      <span class="coc-fila-izq">${_cocEsc(i.nombre)}</span>
     </div>`).join('');
+
+  const metaPrecio = (r.unidadesPorLote || 0) > 1
+    ? `Precio: ${formatoMoneda(r.precioVenta)} c/u · por lote de ${_cocEsc(r.unidadesPorLote)} unidades`
+    : `Precio: ${formatoMoneda(r.precioVenta)} c/u`;
+
+  const htmlDescripcion = r.descripcion
+    ? `<div class="coc-seccion"><div class="coc-titulo-seccion">Descripción</div><div class="coc-descripcion-texto">${_cocEsc(r.descripcion)}</div></div>`
+    : '';
 
   const htmlDoc = `
   <div class="coc-page">
-    <div class="coc-header">
-      <div>
-        <div class="coc-header-marca">AUDIOLINK · COCINA</div>
-        <div class="coc-header-sub">Ficha de producto</div>
-      </div>
-      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
-    </div>
-
-    ${htmlImagen}
+    ${_cocEncabezado(r, fechaGeneracion, 'Ficha de producto')}
 
     <div class="coc-hero">
       <div class="coc-hero-titulo">${_cocEsc(r.nombre || '—')}</div>
-      <div class="coc-hero-meta">Precio: ${formatoMoneda(r.precioVenta)} c/u</div>
+      <div class="coc-hero-meta">${metaPrecio}</div>
     </div>
+
+    ${htmlDescripcion}
 
     <div class="coc-seccion">
       <div class="coc-titulo-seccion">Ingredientes</div>

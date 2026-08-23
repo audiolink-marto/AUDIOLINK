@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Compras (v1.5)</title>
+<!-- AUDIOLINK · compras.html · v1.5
+     v1.5: (a pedido) mismo cambio que cocina.html v1.33 — soporte para
+     insumos con trackearStock: se muestra "Para: receta A, receta B"
+     bajo el nombre del ítem (si aplica), y el form de "Marcar comprado"
+     de un insumo trackeado pide "¿cuánto tenés en total ahora?" (se
+     guarda como stockActual, reemplazando el valor, no sumando). El
+     modal de "Generar desde recetas" no aplica acá — este portal solo
+     marca la lista ya generada desde cocina.html, no la genera.
+
+     v1.4: (a pedido) mismo cambio que cocina.html v1.32 — el checkbox
+     "pendiente" se reemplazó por un botón de texto: "Ya la tengo"
+     (pendiente → en existencia) y "↩️ Necesito comprarla" (en existencia
+     → pendiente). Mismo dato (item.pendiente), mismo comportamiento —
+     solo cambia cómo se dispara desde el HTML. No toca Firestore ni el
+     cálculo de precios/totales.
+
+     v1.3: (a pedido) mismo cambio que cocina.html v1.31 — un ítem
+     destildado a mano (pendiente:false, comprado:false) ahora muestra
+     borde verde + "✓ En existencia — no se compra" en vez del botón
+     "✅ Marcar comprado", y se oculta el precio total (ya no aplica).
+     Distinto, a propósito, del estilo tachado/opacidad de "comprado"
+     (ese sí implica gasto real).
+
+     v1.2: (a pedido) el precio total del ítem (v1.1) ahora se
+     recalcula en vivo mientras se edita el formulario "✅ Marcar
+     comprado" — mismo cambio que cocina.html v1.30, calcado 1:1.
+
+     v1.1: (a pedido) precio total estimado (cantidad × valorUnidad
+     actual del insumo) junto a la cantidad de cada ítem — mismo
+     agregado que cocina.html v1.29, calcado 1:1.
+
+     v1.0: Portal público (sin login) para la Lista de Compras, pensado para
+     que alguien más marque ítems desde su celular sin entrar a
+     cocina.html. Protegido con un PIN simple guardado en
+     configPortal/compras (mismo doc que cocina.html v1.27 escribe
+     desde la pestaña Compras). El PIN es una barrera de interfaz, NO
+     seguridad real de Firestore — depende de las rules entregadas
+     aparte (lectura pública de configPortal/compras y checkCompras/
+     activa; escritura pública de checkCompras/activa y, en
+     cocinaInsumos, restringida solo al campo valorUnidad).
+
+     Lee/escribe EXACTAMENTE las mismas colecciones que cocina.html:
+     - checkCompras/activa (la lista en sí)
+     - cocinaInsumos (solo lectura de valorUnidad para precargar el
+       precio, y escritura de valorUnidad al confirmar una compra —
+       igual que hace cocina.html)
+     - categoriasCocina (para los chips de filtro y colores)
+     No toca cocinaRecetas, ventasCocina ni ninguna otra colección.
+
+     Funciones calcadas 1:1 de cocina.html v1.28 (mismos nombres,
+     misma lógica: togglePendienteCompra, abrirFormComprado/
+     cerrarFormComprado, confirmarCompra con precioAnterior,
+     reabrirCompra, filtro por categoría con chips) — cualquier ajuste
+     futuro a esa lógica en cocina.html debería replicarse acá a mano,
+     ya que son dos archivos HTML independientes (no hay módulo
+     compartido en este ecosistema).
+
+     Firebase: igual patrón que menu.html (portal público liviano) —
+     firebase.initializeApp(firebaseConfig) + firebase.firestore()
+     directo. Sin crearDB() ni modo offline: este portal es solo para
+     visitantes externos con conexión, no para trabajar sin señal
+     desde el panel interno.
+
+     El PIN NO se guarda en localStorage a propósito — se pide de
+     nuevo en cada visita/recarga. Sin límite de intentos (el PIN es
+     solo una barrera de interfaz, según el aviso ya mostrado en
+     cocina.html).
+-->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --bg-card:#151517;
+  --bg-card-alt:#1a1a1d;
+  --border:#2a2a2e;
+  --gold:#C4982C;
+  --gold-soft:rgba(196,152,44,0.12);
+  --text:#f2efe6;
+  --muted:#9a978f;
+  --faint:#6f6c66;
+  --danger:#a03228;
+  --ok:#5cb85c;
+  --T:'Playfair Display', serif;
+  --M:'JetBrains Mono', monospace;
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Inter', -apple-system, sans-serif;
+  padding:20px 14px 60px;
+}
+.wrap{ max-width:640px; margin:0 auto; }
+.header-top{ text-align:center; margin-bottom:22px; }
+.header-top h1{
+  font-family:var(--T); font-size:1.5rem; font-weight:600;
+  color:var(--gold); letter-spacing:0.03em; margin:0 0 4px;
+}
+.header-top .sub{ font-size:0.92rem; color:var(--muted); }
+
+.card{
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+  padding:20px; margin-bottom:18px;
+}
+.card h3{
+  font-family:var(--T); font-size:1.1rem; font-weight:600; color:var(--gold);
+  margin:0 0 6px;
+}
+.card .card-sub{ font-size:0.9rem; color:var(--faint); margin-bottom:14px; }
+
+/* Pantalla de PIN */
+.pin-box{ text-align:center; padding:30px 20px; }
+.pin-box input{
+  width:100%; max-width:220px; text-align:center; letter-spacing:0.3em;
+  font-size:1.6rem; font-family:var(--M); background:#0f0f11;
+  border:1px solid var(--border); border-radius:10px; color:var(--text);
+  padding:14px 12px; min-height:56px; margin:14px 0;
+}
+.pin-box input:focus{ outline:none; border-color:var(--gold); }
+.pin-error{ color:var(--danger); font-size:0.9rem; min-height:1.2em; margin-bottom:6px; }
+
+.btn{
+  background:var(--gold); color:#1a1408; border:none; border-radius:8px;
+  padding:13px 20px; font-weight:600; font-size:1rem; cursor:pointer;
+  min-height:48px; width:100%;
+}
+.btn:hover{ filter:brightness(1.08); }
+.btn-ghost{
+  background:transparent; color:var(--muted); border:1px solid var(--border);
+  border-radius:8px; padding:10px 16px; font-size:0.95rem; cursor:pointer; min-height:44px;
+}
+.btn-ghost:hover{ border-color:var(--gold); color:var(--gold); }
+
+.vacio{ text-align:center; padding:30px; color:var(--faint); font-size:0.95rem; }
+
+.chip-categoria{
+  display:inline-block; font-size:0.82rem; color:var(--muted);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border);
+  border-radius:6px; padding:1px 7px;
+}
+.filtro-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+.chip-filtro{
+  font-family:inherit; font-size:0.92rem; color:var(--muted);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border);
+  border-radius:16px; padding:8px 14px; cursor:pointer;
+}
+.chip-filtro:hover{ border-color:var(--gold); color:var(--text); }
+.chip-filtro.activo{
+  background:var(--gold-soft); border-color:var(--gold); color:var(--gold); font-weight:600;
+}
+.chip-dot{
+  display:inline-block; width:7px; height:7px; border-radius:50%;
+  margin-right:5px; vertical-align:middle;
+}
+input[type="checkbox"]{
+  width:24px; height:24px; accent-color:var(--gold); cursor:pointer; flex-shrink:0;
+}
+
+.compra-item{
+  display:grid; grid-template-columns:1fr auto; row-gap:8px;
+  padding:14px 0; border-bottom:1px solid var(--border);
+}
+.compra-item:last-child{ border-bottom:none; }
+.compra-item.comprado{ opacity:0.5; }
+.compra-item.comprado .compra-nombre{ text-decoration:line-through; }
+.compra-item.no-necesita{
+  opacity:0.7; border-left:3px solid var(--ok); padding-left:10px;
+}
+.compra-item.no-necesita .compra-nombre{ color:var(--muted); }
+.compra-en-stock{ color:var(--ok); font-size:0.95rem; font-weight:600; grid-column:1/-1; margin-top:4px; }
+.compra-nombre{ font-weight:600; font-size:1.1rem; }
+.compra-meta{ font-size:0.9rem; color:var(--muted); margin-top:2px; }
+.compra-cant{ font-family:var(--M); color:var(--muted); font-size:1.05rem; grid-column:2; }
+.compra-precio-ghost{ font-size:0.88rem; color:var(--faint); margin-top:3px; font-family:var(--M); }
+.compra-precio-ghost .tachado{ text-decoration:line-through; }
+.compra-total{ font-size:0.92rem; color:var(--gold); font-weight:600; margin-top:2px; }
+/* v1.4: fila de acciones a lo ancho — reemplaza al checkbox "pendiente"
+   por un botón de texto, igual que cocina.html v1.32. */
+.compra-acciones{
+  grid-column:1/-1; display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;
+}
+.btn-toggle-stock{
+  background:transparent; color:var(--muted); border:1px solid var(--border);
+  border-radius:8px; padding:9px 14px; font-size:0.92rem; cursor:pointer; min-height:40px;
+}
+.btn-toggle-stock:hover{ border-color:var(--ok); color:var(--ok); }
+.compra-item.no-necesita .btn-toggle-stock{ border-color:var(--ok); color:var(--ok); }
+.compra-comprar-form{
+  display:none; grid-template-columns:1fr; gap:8px; margin-top:8px;
+  grid-column:1/-1;
+}
+.compra-comprar-form.activo{ display:grid; }
+.compra-comprar-form input{
+  background:#0f0f11; border:1px solid var(--border); border-radius:8px;
+  color:var(--text); padding:12px; font-size:16px; min-height:46px;
+}
+.compra-comprar-form .btn-row{ display:flex; gap:8px; }
+.compra-comprar-form .btn-row .btn{ flex:1; }
+.compra-comprar-form .btn-row .btn-ghost{ flex:1; }
+
+.footer-nota{ text-align:center; font-size:0.8rem; color:var(--faint); margin-top:24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-top">
+    <h1>🛒 Lista de Compras</h1>
+    <div class="sub">Audiolink — Cocina</div>
+  </div>
+
+  <!-- Pantalla de PIN -->
+  <div class="card pin-box" id="pantallaPin">
+    <h3 style="margin-bottom:2px;">Acceso con PIN</h3>
+    <div class="card-sub">Pídele el PIN a quien administra la cocina.</div>
+    <input type="text" id="inputPin" inputmode="numeric" maxlength="8" placeholder="····" autocomplete="off">
+    <div class="pin-error" id="pinError"></div>
+    <button type="button" class="btn" onclick="intentarEntrar()">Entrar</button>
+  </div>
+
+  <!-- Contenido (oculto hasta validar PIN) -->
+  <div id="contenidoCompras" style="display:none;">
+    <div class="card">
+      <h3>📋 Filtrar por categoría</h3>
+      <div class="filtro-chips" id="filtroCategoriaComprasChips"></div>
+    </div>
+
+    <div class="card" style="padding:16px 18px;">
+      <h3 style="margin-bottom:2px;">Ítems</h3>
+      <div class="card-sub">Destilda lo que ya tengas. Al marcar "comprado" se actualiza el precio del insumo.</div>
+      <div id="listaCompras">
+        <div class="vacio">Cargando…</div>
+      </div>
+    </div>
+
+    <div class="footer-nota">El PIN es una barrera de pantalla, no un control de seguridad de la base de datos.</div>
+  </div>
+
+</div>
+
+<script>
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
+
+<script>
+// ---------- Estado ----------
+let checkComprasCache = { items: [] };
+let insumosCache = [];
+let categoriasCache = [];
+let filtroCategoriaCompras = '';
+let pinValidado = false;
+
+// ---------- PIN ----------
+function intentarEntrar(){
+  const intento = document.getElementById('inputPin').value.trim();
+  if(!intento){ mostrarErrorPin('Escribe el PIN.'); return; }
+  db.collection('configPortal').doc('compras').get().then(doc => {
+    const pinReal = doc.exists ? (doc.data().pin || '') : '';
+    if(!pinReal){ mostrarErrorPin('Todavía no se configuró un PIN. Avísale a quien administra la cocina.'); return; }
+    if(intento === pinReal){
+      pinValidado = true;
+      document.getElementById('pantallaPin').style.display = 'none';
+      document.getElementById('contenidoCompras').style.display = 'block';
+      iniciarEscuchas();
+    } else {
+      mostrarErrorPin('PIN incorrecto. Intenta de nuevo.');
+    }
+  }).catch(err => {
+    console.error(err);
+    mostrarErrorPin('No se pudo verificar el PIN. Revisa tu conexión.');
+  });
+}
+function mostrarErrorPin(msg){
+  document.getElementById('pinError').textContent = msg;
+}
+document.getElementById('inputPin').addEventListener('keydown', e => {
+  if(e.key === 'Enter') intentarEntrar();
+});
+
+// ---------- Escuchas Firestore (solo tras validar PIN) ----------
+function iniciarEscuchas(){
+  db.collection('categoriasCocina').orderBy('nombre').onSnapshot(snap => {
+    categoriasCache = [];
+    snap.forEach(doc => categoriasCache.push({ id: doc.id, ...doc.data() }));
+    renderFiltroCategoriaComprasChips();
+    renderListaCompras();
+  }, err => console.error('No se pudo leer categoriasCocina:', err));
+
+  db.collection('cocinaInsumos').onSnapshot(snap => {
+    insumosCache = [];
+    snap.forEach(doc => insumosCache.push({ id: doc.id, ...doc.data() }));
+    renderListaCompras();
+  }, err => console.error('No se pudo leer cocinaInsumos:', err));
+
+  db.collection('checkCompras').doc('activa').onSnapshot(doc => {
+    checkComprasCache = doc.exists ? { items: doc.data().items || [] } : { items: [] };
+    renderListaCompras();
+  }, err => {
+    console.error('No se pudo leer checkCompras:', err);
+    document.getElementById('listaCompras').innerHTML = '<div class="vacio">Error al cargar la lista de compras.</div>';
+  });
+}
+
+// ---------- Categorías (solo lectura — mismo patrón que cocina.html) ----------
+function nombreCategoria(categoriaId){
+  if(!categoriaId) return 'Sin categoría';
+  const cat = categoriasCache.find(c => c.id === categoriaId);
+  return cat ? cat.nombre : 'Sin categoría';
+}
+const CATEGORIA_COLORES = ['#e07a5f','#81b29a','#4d96ff','#f2cc8f','#b185db','#f28482','#43aa8b','#f9c74f'];
+function colorCategoria(categoriaId){
+  if(!categoriaId) return '#6b6b6b';
+  const idx = categoriasCache.findIndex(c => c.id === categoriaId);
+  if(idx === -1) return '#6b6b6b';
+  return CATEGORIA_COLORES[idx % CATEGORIA_COLORES.length];
+}
+
+function renderFiltroCategoriaComprasChips(){
+  const cont = document.getElementById('filtroCategoriaComprasChips');
+  if(!cont) return;
+  if(filtroCategoriaCompras !== '' && filtroCategoriaCompras !== '__sin__' &&
+     !categoriasCache.some(c => c.id === filtroCategoriaCompras)){
+    filtroCategoriaCompras = '';
+  }
+  const opciones = [
+    { valor:'', nombre:'Todas las categorías' },
+    { valor:'__sin__', nombre:'Sin categoría' },
+    ...categoriasCache.map(c => ({ valor:c.id, nombre:c.nombre || '' }))
+  ];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroCategoriaCompras === o.valor ? 'activo' : ''}"
+      onclick="seleccionarFiltroCategoriaCompras('${o.valor}')">${o.valor && o.valor !== '__sin__' ? `<span class="chip-dot" style="background:${colorCategoria(o.valor)}"></span>` : ''}${o.nombre.toString().replace(/</g,'&lt;')}</button>
+  `).join('');
+}
+function seleccionarFiltroCategoriaCompras(valor){
+  filtroCategoriaCompras = valor;
+  renderFiltroCategoriaComprasChips();
+  renderListaCompras();
+}
+
+// ---------- Lista de compras (calcado de cocina.html v1.28) ----------
+function _guardarListaCompras(nuevaListaItems){
+  return db.collection('checkCompras').doc('activa').set({
+    items: nuevaListaItems,
+    actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true }).catch(err => {
+    console.error(err);
+    alert('No se pudo guardar la lista de compras.');
+  });
+}
+
+// v1.4: botón "Ya la tengo" / "↩️ Necesito comprarla" — igual que
+// cocina.html v1.32. Invierte el estado actual (ya no depende de
+// this.checked, porque ahora es un <button>, no un input).
+function togglePendienteCompra(insumoId){
+  const items = [...(checkComprasCache.items || [])];
+  const item = items.find(it => it.insumoId === insumoId);
+  if(!item) return;
+  item.pendiente = !item.pendiente;
+  _guardarListaCompras(items);
+}
+
+function abrirFormComprado(insumoId){
+  document.querySelectorAll('.compra-comprar-form').forEach(f => f.classList.remove('activo'));
+  const form = document.getElementById('form-comprar-' + insumoId);
+  if(form) form.classList.add('activo');
+}
+function cerrarFormComprado(insumoId){
+  const form = document.getElementById('form-comprar-' + insumoId);
+  if(form) form.classList.remove('activo');
+  // v1.2: al cancelar, revierte el total y los inputs al valor
+  // original (cantidad de la lista × precio vigente del insumo),
+  // igual que cocina.html v1.30.
+  const items = checkComprasCache.items || [];
+  const item = items.find(it => it.insumoId === insumoId);
+  const insumo = insumosCache.find(i => i.id === insumoId);
+  const totalDiv = document.getElementById('compra-total-' + insumoId);
+  const inputCant = document.getElementById('inputCantidadComprada-' + insumoId);
+  const inputPrecio = document.getElementById('inputPrecioComprado-' + insumoId);
+  if(item && insumo && totalDiv){
+    if(inputCant) inputCant.value = item.cantidad || '';
+    if(inputPrecio) inputPrecio.value = insumo.valorUnidad;
+    totalDiv.textContent = '$' + Math.round(item.cantidad * insumo.valorUnidad);
+  }
+}
+
+// v1.2: recalcula el total en vivo mientras se edita el formulario,
+// igual que cocina.html v1.30 — no toca checkComprasCache ni Firestore.
+function actualizarTotalEnVivo(insumoId){
+  const totalDiv = document.getElementById('compra-total-' + insumoId);
+  if(!totalDiv) return;
+  const cantidad = parseFloat(document.getElementById('inputCantidadComprada-' + insumoId).value);
+  const precio = parseFloat(document.getElementById('inputPrecioComprado-' + insumoId).value);
+  if(isNaN(cantidad) || isNaN(precio)){ totalDiv.textContent = '—'; return; }
+  totalDiv.textContent = '$' + Math.round(cantidad * precio);
+}
+
+function confirmarCompra(insumoId){
+  const cantidadComprada = parseFloat(document.getElementById('inputCantidadComprada-' + insumoId).value);
+  const precioNuevo = parseFloat(document.getElementById('inputPrecioComprado-' + insumoId).value);
+
+  if(!cantidadComprada || cantidadComprada <= 0){ alert('Ingresa una cantidad comprada válida.'); return; }
+  if(isNaN(precioNuevo) || precioNuevo < 0){ alert('Ingresa un precio unitario válido.'); return; }
+
+  const items = [...(checkComprasCache.items || [])];
+  const item = items.find(it => it.insumoId === insumoId);
+  if(!item) return;
+  const insumo = insumosCache.find(i => i.id === insumoId);
+  item.comprado = true;
+  item.pendiente = false;
+  item.cantidadComprada = cantidadComprada;
+  item.precioComprado = precioNuevo;
+  item.precioAnterior = insumo ? insumo.valorUnidad : null;
+
+  const datosInsumoUpdate = { valorUnidad: precioNuevo };
+  // v1.5: igual que cocina.html v1.33 — si el insumo trackea stock, el
+  // campo extra es el conteo real ("cuánto tenés en total ahora"), no
+  // una suma, para no desincronizarse si se usó insumo por fuera.
+  if(insumo && insumo.trackearStock){
+    const inputStock = document.getElementById('inputStockTrasCompra-' + insumoId);
+    const stockContado = inputStock ? parseFloat(inputStock.value) : NaN;
+    if(!isNaN(stockContado) && stockContado >= 0) datosInsumoUpdate.stockActual = stockContado;
+  }
+
+  Promise.all([
+    db.collection('cocinaInsumos').doc(insumoId).update(datosInsumoUpdate),
+    _guardarListaCompras(items)
+  ]).catch(err => { console.error(err); alert('No se pudo registrar la compra.'); });
+}
+
+function reabrirCompra(insumoId){
+  const items = [...(checkComprasCache.items || [])];
+  const item = items.find(it => it.insumoId === insumoId);
+  if(!item) return;
+  item.comprado = false;
+  item.pendiente = true;
+
+  const insumo = insumosCache.find(i => i.id === insumoId);
+  const nadieMasLoTocoDesde = insumo && item.precioComprado != null && insumo.valorUnidad === item.precioComprado;
+
+  if(nadieMasLoTocoDesde && item.precioAnterior != null){
+    Promise.all([
+      db.collection('cocinaInsumos').doc(insumoId).update({ valorUnidad: item.precioAnterior }),
+      _guardarListaCompras(items)
+    ]).catch(err => { console.error(err); alert('No se pudo deshacer la compra.'); });
+  } else {
+    _guardarListaCompras(items);
+  }
+}
+
+function renderListaCompras(){
+  const cont = document.getElementById('listaCompras');
+  if(!pinValidado) return;
+  let items = checkComprasCache.items || [];
+  if(filtroCategoriaCompras === '__sin__') items = items.filter(it => !it.categoriaId);
+  else if(filtroCategoriaCompras) items = items.filter(it => it.categoriaId === filtroCategoriaCompras);
+  if(!items.length){
+    cont.innerHTML = (checkComprasCache.items || []).length
+      ? '<div class="vacio">No hay ítems de esta categoría en la lista.</div>'
+      : '<div class="vacio">La lista está vacía por ahora.</div>';
+    return;
+  }
+  cont.innerHTML = items.map(it => {
+    const insumoActual = insumosCache.find(i => i.id === it.insumoId);
+    const precioActual = insumoActual ? insumoActual.valorUnidad : '';
+    const noNecesita = !it.pendiente && !it.comprado;
+    // v1.5: igual que cocina.html v1.33 — texto "Para: receta A, receta
+    // B" bajo el nombre, usando recetasOrigen (objetos {id,nombre,
+    // cantidad}; ítems viejos con solo ids no muestran nada, sin romper).
+    const nombresOrigen = (it.recetasOrigen || [])
+      .map(o => (o && typeof o === 'object') ? o.nombre : null)
+      .filter(Boolean);
+    return `
+    <div class="compra-item ${it.comprado ? 'comprado' : ''} ${noNecesita ? 'no-necesita' : ''}">
+      <div>
+        <div class="compra-nombre">${(it.nombre || '—').toString().replace(/</g,'&lt;')}</div>
+        <div class="compra-meta">
+          <span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(it.categoriaId)}"></span>${nombreCategoria(it.categoriaId).toString().replace(/</g,'&lt;')}</span>
+          ${it.origen === 'suelto' ? '<span class="chip-categoria">Suelto</span>' : ''}
+        </div>
+        ${nombresOrigen.length ? `<div class="compra-meta">Para: ${nombresOrigen.join(', ').toString().replace(/</g,'&lt;')}</div>` : ''}
+        ${it.comprado && it.precioAnterior != null ? `
+        <div class="compra-precio-ghost">$${it.precioComprado} nuevo · <span class="tachado">$${it.precioAnterior}</span> si deshaces</div>
+        ` : ''}
+      </div>
+      <div class="compra-cant">
+        ${it.cantidad} ${it.unidad || ''}
+        ${precioActual !== '' && !noNecesita ? `<div class="compra-total" id="compra-total-${it.insumoId}">$${Math.round(it.cantidad * precioActual)}</div>` : ''}
+      </div>
+      <div class="compra-acciones">
+        ${it.comprado
+          ? `<button type="button" class="btn-ghost" onclick="reabrirCompra('${it.insumoId}')">↩️ Deshacer</button>`
+          : `
+            <button type="button" class="btn-toggle-stock" onclick="togglePendienteCompra('${it.insumoId}')">${noNecesita ? '↩️ Necesito comprarla' : 'Ya la tengo'}</button>
+            ${!noNecesita ? `<button type="button" class="btn-ghost" onclick="abrirFormComprado('${it.insumoId}')">✅ Marcar comprado</button>` : ''}
+          `
+        }
+      </div>
+      <div class="compra-comprar-form" id="form-comprar-${it.insumoId}">
+        <input type="number" id="inputCantidadComprada-${it.insumoId}" min="0" step="0.01" placeholder="Cantidad comprada" value="${it.cantidad || ''}" oninput="actualizarTotalEnVivo('${it.insumoId}')">
+        <input type="number" id="inputPrecioComprado-${it.insumoId}" min="0" step="1" placeholder="Precio nuevo por unidad" value="${precioActual}" oninput="actualizarTotalEnVivo('${it.insumoId}')">
+        ${insumoActual && insumoActual.trackearStock ? `
+        <input type="number" id="inputStockTrasCompra-${it.insumoId}" min="0" step="0.01" placeholder="¿Cuánto tenés en total ahora? (contado)" value="">
+        ` : ''}
+        <div class="btn-row">
+          <button type="button" class="btn" onclick="confirmarCompra('${it.insumoId}')">Guardar</button>
+          <button type="button" class="btn-ghost" onclick="cerrarFormComprado('${it.insumoId}')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+</script>
+</body>
+</html>
