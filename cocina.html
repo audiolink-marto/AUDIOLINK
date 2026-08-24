@@ -3,8 +3,140 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.34)</title>
-<!-- AUDIOLINK · cocina.html · v1.34
+<title>Audiolink — Cocina (v1.43)</title>
+<!-- AUDIOLINK · cocina.html · v1.43
+     v1.43: (a pedido) registro de abonos por movimiento — el campo
+     plano "Abonado por el cliente" se reemplaza por un historial
+     `abonos` (array de {monto, fecha}), mismo patrón que el checklist
+     de notas (v1.38): lista en memoria + agregar/borrar en el
+     formulario. Pedidos guardados antes de v1.43 (con `abonado` como
+     número) se migran solos a un abono único la primera vez que se
+     editan o se les registra un abono nuevo — no se pierde el dato
+     viejo. Nuevo botón 💰 en cada tarjeta de Pedidos para registrar un
+     abono sin abrir el formulario completo (mismo mecanismo que
+     toggleNotaPedidoGuardado: actualiza Firestore directo). El PDF de
+     pedido ahora incluye el historial de abonos (fecha + monto) antes
+     del bloque de totales. Sin cambios en costo/margen/cálculo de
+     líneas del pedido.
+
+     v1.42: (a pedido) resumen de pedido en PDF — cada línea tipo receta
+     ahora incluye la lista de ingredientes (solo nombres, SIN cantidad,
+     mismo criterio que imprimirRecetaClienteHTML con
+     mostrarCantidadesCliente=false, para no revelar la proporción
+     exacta). También se agrega el precio unitario ("c/u") junto a la
+     cantidad de cada línea, ADEMÁS del subtotal que ya se mostraba (no
+     lo reemplaza). Sin cambios en costo/margen/cálculo del pedido ni
+     en ninguna otra ficha PDF.
+
+     v1.41: (a pedido) resumen de pedido en PDF — botón 🖨️ nuevo en cada
+     tarjeta de Pedidos, mismo mecanismo de siempre (ventana de preview
+     + "Imprimir / Guardar PDF", igual que la ficha de receta y la
+     lista de compras). Incluye cliente, fecha de entrega, teléfono,
+     cada línea del pedido con cantidad y precio de venta — y, a
+     pedido explícito, la RECETA se incluye visualmente: si una línea
+     es tipo receta, se muestra su miniatura + descripción (si tiene),
+     igual que la ficha de producto para cliente. Notas del checklist
+     se muestran como ✅/⬜ estático (no interactivo, es un documento).
+     Totales: monto del pedido, abonado, saldo pendiente — NUNCA
+     costoUnitario ni margen (documento de cara al cliente, mismo
+     criterio que imprimirRecetaClienteHTML()). Las clases CSS nuevas
+     se AGREGARON al final de COC_PRINT_CSS sin tocar ni una línea de
+     las reglas existentes (mismo cuidado de v1.14, que dejó ese
+     bloque validado carácter por carácter). No toca ninguna otra
+     pestaña, colección ni cálculo existente.
+     v1.40
+     v1.40: (a pedido) el checklist de notas de pedido (v1.38) usaba un
+     <input type="checkbox"> nativo y tachaba el texto al confirmar. Se
+     cambia por un ícono grande tocable (⬜ pendiente / ✅ confirmado) —
+     más visual, y el texto YA NO se tacha, solo cambia el ícono. Mismo
+     comportamiento por debajo (toggleNotaPedido/toggleNotaPedidoGuardado
+     sin cambios de lógica), solo cambia cómo se ve y se toca. Aplica
+     tanto en el formulario (notas nuevas/en edición) como en el
+     detalle del pedido ya guardado. No toca ninguna otra pestaña,
+     colección ni cálculo existente.
+     v1.39
+     v1.39: (a pedido) precio de receta sin bebida/adiciones, para
+     pedidos grandes donde el cliente no las necesita:
+     - Formulario de receta: nuevo campo opcional "Precio sin bebida/
+       adiciones" (precioVentaSinExtras) — se carga a mano, igual que
+       el precio normal. Vacío si la receta no aplica.
+     - Línea de pedido tipo receta: si la receta elegida tiene ese
+       precio cargado, aparece un checkbox "Sin bebida/adiciones" que
+       alterna precioUnitario entre el precio normal y el reducido.
+       El checkbox se oculta solo si la receta no tiene ese precio
+       definido. No toca costoUnitario (el costo real de producción
+       sigue siendo el mismo aunque no se entregue la bebida/adición
+       — el margen mostrado queda algo conservador en esos casos, no
+       incorrecto).
+     - Pedidos guardados antes de v1.39 sin este dato: al editarlos,
+       si la receta vigente ya tiene precioVentaSinExtras cargado, el
+       checkbox aparece igual (usa el precio actual como fallback).
+     No toca ninguna otra pestaña, colección ni cálculo existente.
+     v1.38
+     v1.38: (a pedido) 3 ajustes:
+     1. Emoji de la pestaña/título "Insumos": 🧺 → 🥑.
+     2. Línea de pedido tipo "receta" ahora muestra la miniatura de la
+        receta elegida (misma imagen que ya usás en el catálogo de
+        Recetas) junto al selector — ayuda a confirmar de un vistazo
+        que se eligió la receta correcta si hay nombres parecidos.
+     3. Las notas del pedido dejan de ser un textarea de texto libre y
+        pasan a ser un checklist: cada nota es un ítem con su propio
+        check ("sin nueces" ✓, "entregar antes de las 3pm"). Los checks
+        son clicables directo desde el detalle del pedido (sin entrar
+        a modo edición). Pedidos guardados antes de v1.38 (notas como
+        string plano) se migran solos a un único ítem sin marcar, la
+        primera vez que se abren o se toca un check.
+     No toca ninguna otra pestaña, colección ni cálculo existente.
+     v1.37
+     v1.37: (corrección) el menú de pestañas (.tabs) y el contenedor de
+     la tabla del catálogo de insumos (.tabla-wrap) tenían overflow-x:
+     auto sin overflow-y explícito. Por una regla de la spec de CSS,
+     eso hace que el navegador calcule overflow-y como "auto" también
+     (no "visible"), aunque nunca se pidió scroll vertical ahí — con
+     texto agrandado (zoom de accesibilidad), la fila creció un poco
+     más de lo esperado y activó una "cajita con scroll propio" en vez
+     de simplemente hacerse más alta. Se agrega overflow-y:hidden
+     explícito en ambos lugares para que solo exista el scroll
+     horizontal que sí se pidió. No se encontraron anchos/altos fijos
+     en px que expliquen "apretujonamiento" en otras secciones — la
+     mayoría ya usa flex/grid con unidades relativas.
+     v1.36
+     v1.36: (corrección mobile) el módulo de Pedidos (v1.35) se había
+     quedado fuera de la regla que agranda inputs/selects en móvil —
+     sus campos podían verse chicos y disparar el zoom automático de
+     iOS al tocarlos. Se agrega .pedido-linea-row a esa regla, y el
+     select de "Cambiar estado" del detalle gana min-width para que
+     sea táctil. Los 5 tabs (con Pedidos incluido) ya funcionaban bien
+     en mobile porque .tabs tiene scroll horizontal automático — no
+     hizo falta tocar eso.
+     v1.35
+     v1.35: (a pedido) nuevo módulo "📦 Pedidos" (colección cocinaPedidos):
+     - Un pedido tiene cliente, teléfono, fecha de entrega, notas, y
+       líneas de 3 tipos posibles: "receta" (del catálogo), "insumo"
+       (reventa directa de un insumo, ej. una gaseosa), "libre" (algo
+       puntual sin catálogo, ej. pastel de pollo comprado en panadería
+       para revender). Las 3 comparten forma (cantidad, costoUnitario,
+       precioUnitario) así el total se calcula igual sin importar el
+       tipo — mismo patrón snapshot que ya usan las recetas: el costo/
+       precio queda guardado en la línea, no se recalcula si el
+       insumo/receta cambia después.
+     - Costeo en vivo mientras armás el pedido: costo total, monto de
+       venta, margen — igual que en la pestaña Recetas.
+     - Pago con abono parcial: campo "Abonado", saldo pendiente
+       calculado solo (no se guarda como campo aparte). Badge visual
+       Pagado / Abono / Sin abono según esos números.
+     - Estado del pedido (pendiente/en proceso/entregado/cancelado),
+       cambiable desde un select en el detalle. Filtro por estado en
+       la lista de pedidos (chips, mismo patrón que categorías).
+     - Botón "🛒 A compras" por línea tipo insumo/libre — agrega esa
+       línea a la lista de compras (checkCompras) a mano, sin ser
+       automático (muchas veces ya tenés el insumo en stock). No
+       aplica a líneas tipo receta, esas se gestionan desde "Generar
+       desde recetas" en la pestaña Compras. El origen queda guardado
+       en recetasOrigen del ítem, mismo campo que ya usan las recetas
+       (tipo:'pedido' en vez de tipo:'receta').
+     No toca ninguna otra pestaña ni colección existente.
+     v1.34
      v1.34: (corrección) el catálogo de insumos no mostraba el stock
      trackeado (v1.33 agregó el dato, pero la tabla se quedó con las
      mismas 5 columnas de antes). Se agrega columna "Stock" — muestra
@@ -566,7 +698,7 @@ body{
 /* Tabs */
 .tabs{
   display:flex; gap:6px; margin-bottom:20px; border-bottom:1px solid var(--border);
-  overflow-x:auto;
+  overflow-x:auto; overflow-y:hidden;
 }
 .tab-btn{
   background:transparent; border:none; color:var(--muted); font-size:0.94rem;
@@ -653,7 +785,7 @@ input[type="checkbox"]{
 .btn-row{ grid-column:1/-1; display:flex; gap:10px; margin-top:4px; }
 
 /* Tabla tipo hoja de cálculo */
-.tabla-wrap{ overflow-x:auto; border-radius:12px; border:1px solid var(--border); }
+.tabla-wrap{ overflow-x:auto; overflow-y:hidden; border-radius:12px; border:1px solid var(--border); }
 table.hoja{
   width:100%; border-collapse:collapse; font-size:0.92rem; min-width:640px;
 }
@@ -746,6 +878,32 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted);
   flex:0 0 auto; background:var(--surf-light); padding:3px 7px; border-radius:5px;
 }
+/* v1.38: checklist de notas de pedido — reemplaza el textarea libre por
+   ítems individuales marcables (ej. "sin nueces" ✓ una vez resuelto). */
+/* v1.38: checklist de notas de pedido — reemplaza el textarea libre por
+   ítems individuales marcables (ej. "sin nueces" ✓ una vez resuelto).
+   v1.40: el check deja de ser un <input type="checkbox"> nativo y pasa
+   a ser un ícono grande tocable (⬜/✅) — más visual, y el texto ya NO
+   se tacha al confirmar (solo cambia el ícono), a pedido del usuario. */
+.nota-pedido-item{
+  display:flex; align-items:center; gap:8px; padding:6px 0;
+  border-bottom:1px solid var(--border);
+}
+.nota-pedido-item:last-child{ border-bottom:none; }
+.nota-pedido-check{
+  flex-shrink:0; font-size:1.3rem; line-height:1; cursor:pointer;
+  background:none; border:none; padding:0; user-select:none;
+}
+.nota-pedido-item .texto{ flex:1; font-size:0.92rem; }
+/* v1.43: abono-pedido-item — mismo patrón visual que nota-pedido-item,
+   sin el ícono de check (los abonos no se marcan, se borran). */
+.abono-pedido-item{
+  display:flex; align-items:center; gap:8px; padding:6px 0;
+  border-bottom:1px solid var(--border); font-size:0.92rem;
+}
+.abono-pedido-item:last-child{ border-bottom:none; }
+.abono-pedido-item .fecha{ color:var(--muted); flex-shrink:0; }
+.abono-pedido-item .monto{ flex:1; font-family:var(--M, monospace); }
 .badge-estado-pedido{
   display:inline-block; font-size:0.78rem; font-weight:600;
   border-radius:6px; padding:2px 8px; margin-left:6px; vertical-align:middle;
@@ -888,9 +1046,13 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   .form-grid.cols-4{ grid-template-columns:1fr; }
   .header-top{ flex-direction:column; align-items:flex-start; }
 
-  /* v1.10: selects y checkboxes más grandes/táctiles en móvil */
+  /* v1.10: selects y checkboxes más grandes/táctiles en móvil.
+     v1.36: se agrega .pedido-linea-row (se había quedado afuera al
+     crear el módulo de Pedidos — sus inputs quedaban chicos y podían
+     disparar el zoom automático de iOS al no llegar a 16px). */
   .field select, .field input,
-  .receta-insumo-row select, .receta-insumo-row input{
+  .receta-insumo-row select, .receta-insumo-row input,
+  .pedido-linea-row select, .pedido-linea-row input{
     font-size:16px; min-height:46px;
   }
   input[type="checkbox"]{ width:24px; height:24px; }
@@ -950,7 +1112,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 
   <div class="tabs">
     <button type="button" class="tab-btn activo" data-tab="tabVentas" onclick="cambiarTab('tabVentas')">📋 Ventas</button>
-    <button type="button" class="tab-btn" data-tab="tabInsumos" onclick="cambiarTab('tabInsumos')">🧺 Insumos</button>
+    <button type="button" class="tab-btn" data-tab="tabInsumos" onclick="cambiarTab('tabInsumos')">🥑 Insumos</button>
     <button type="button" class="tab-btn" data-tab="tabRecetas" onclick="cambiarTab('tabRecetas')">🧮 Recetas</button>
     <button type="button" class="tab-btn" data-tab="tabPedidos" onclick="cambiarTab('tabPedidos')">📦 Pedidos</button>
     <button type="button" class="tab-btn" data-tab="tabCompras" onclick="cambiarTab('tabCompras')">🛒 Compras</button>
@@ -1098,7 +1260,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 
     <div class="card" style="padding:0; overflow:hidden;">
       <div style="padding:18px 20px 0;">
-        <h3 style="margin-bottom:4px;">🧺 Catálogo de insumos</h3>
+        <h3 style="margin-bottom:4px;">🥑 Catálogo de insumos</h3>
         <div class="card-sub">Orden alfabético. Estos insumos se usarán en las recetas (próximo paso).</div>
         <div class="field" style="margin-bottom:14px;">
           <label>Filtrar por categoría</label>
@@ -1191,6 +1353,11 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
           <input type="number" id="inputRecetaPrecioVenta" min="0" step="500" placeholder="25000" oninput="recalcularMargenReceta()">
           <div class="hint-campo">Precio de <strong>una sola porción</strong> — el margen de abajo se calcula con esto, no con el lote completo.</div>
         </div>
+        <div class="field">
+          <label for="inputRecetaPrecioSinExtras">Precio sin bebida/adiciones (opcional)</label>
+          <input type="number" id="inputRecetaPrecioSinExtras" min="0" step="500" placeholder="ej: 20000">
+          <div class="hint-campo">Solo si esta receta incluye bebida/adiciones (queso, mantequilla, etc.) en el precio de arriba. Se usa cuando un pedido grande no las necesita — se elige desde la línea de receta en Pedidos.</div>
+        </div>
       </div>
 
       <div class="margen-grid">
@@ -1244,8 +1411,12 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
         </div>
       </div>
       <div class="field" style="margin:14px 0;">
-        <label for="inputPedidoNotas">Notas (opcional)</label>
-        <textarea id="inputPedidoNotas" rows="2" placeholder="ej: sin nueces, entregar antes de las 3pm" style="width:100%; font-family:inherit; resize:vertical;"></textarea>
+        <label>Notas (opcional)</label>
+        <div id="listaNotasPedido"></div>
+        <div class="btn-row" style="margin-top:6px;">
+          <input type="text" id="inputNuevaNotaPedido" placeholder="ej: sin nueces, entregar antes de las 3pm" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); agregarNotaPedido();}">
+          <button type="button" class="btn-ghost" onclick="agregarNotaPedido()">➕</button>
+        </div>
       </div>
 
       <div id="filasLineasPedido"></div>
@@ -1273,8 +1444,13 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 
       <div class="form-grid" style="margin-top:16px;">
         <div class="field">
-          <label for="inputPedidoAbonado">Abonado por el cliente</label>
-          <input type="number" id="inputPedidoAbonado" min="0" step="500" placeholder="0" oninput="recalcularTotalesPedido()">
+          <label>Abonos registrados</label>
+          <div id="listaAbonosPedido"></div>
+          <div class="btn-row" style="margin-top:6px;">
+            <input type="number" id="inputNuevoAbonoMonto" min="0" step="500" placeholder="Monto" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); agregarAbonoPedido();}">
+            <input type="date" id="inputNuevoAbonoFecha" style="flex:0 0 auto;">
+            <button type="button" class="btn-ghost" onclick="agregarAbonoPedido()">➕</button>
+          </div>
         </div>
         <div class="field">
           <label>Saldo pendiente</label>
@@ -1532,6 +1708,16 @@ let necesidadPendienteGenerar = null; // v1.33: mapa insumoId->necesidad, mientr
 let pedidosCache = [];
 let pedidoEnEdicionId = null;
 let lineasPedidoEnConstruccion = []; // [{filaId, tipo, refId, nombre, unidad, cantidad, costoUnitario, precioUnitario}]
+let notasPedidoEnConstruccion = []; // v1.38: [{texto, hecho}]
+let abonosPedidoEnConstruccion = []; // v1.43: [{monto, fecha}]
+
+// v1.43: suma el historial de abonos de un pedido. Compatible con
+// pedidos guardados antes de v1.43, donde `abonado` era un número
+// plano en vez de un array — si no hay `abonos`, se usa ese número.
+function totalAbonado(p){
+  if(Array.isArray(p.abonos)) return p.abonos.reduce((acc, a) => acc + (a.monto || 0), 0);
+  return p.abonado || 0;
+}
 let contadorFilaPedido = 0;
 let filtroEstadoPedidoActual = '';
 
@@ -2114,6 +2300,7 @@ function habilitarEdicionReceta(id){
   document.getElementById('chkMostrarLote').checked = r.mostrarLotePublico !== false;
   document.getElementById('inputRecetaUnidadesVendidas').value = r.unidadesPorLote || '';
   document.getElementById('inputRecetaPrecioVenta').value = r.precioVenta || '';
+  document.getElementById('inputRecetaPrecioSinExtras').value = r.precioVentaSinExtras || '';
 
   imagenRecetaEnConstruccion = r.imagenUrl || '';
   renderPreviewImagenReceta();
@@ -2153,6 +2340,7 @@ function cancelarEdicionReceta(){
   document.getElementById('chkMostrarLote').checked = true;
   document.getElementById('inputRecetaUnidadesVendidas').value = '';
   document.getElementById('inputRecetaPrecioVenta').value = '';
+  document.getElementById('inputRecetaPrecioSinExtras').value = '';
   document.getElementById('filasInsumosReceta').innerHTML = '';
   filasRecetaEnConstruccion = [];
   imagenRecetaEnConstruccion = '';
@@ -2193,6 +2381,7 @@ function guardarReceta(){
   const costoTotal = insumosSnapshot.reduce((acc, i) => acc + i.subtotal, 0);
   const unidadesPorLote = parseFloat(document.getElementById('inputRecetaUnidadesVendidas').value) || 0;
   const precioVenta = parseFloat(document.getElementById('inputRecetaPrecioVenta').value) || 0;
+  const precioVentaSinExtras = parseFloat(document.getElementById('inputRecetaPrecioSinExtras').value) || null;
   const descripcion = document.getElementById('inputRecetaDescripcion').value.trim();
   const mostrarCantidadesCliente = document.getElementById('chkMostrarCantidadesCliente').checked;
   const visibleMenu = document.getElementById('chkVisibleMenu').checked;
@@ -2209,7 +2398,7 @@ function guardarReceta(){
     mostrarLotePublico,
     insumos: insumosSnapshot,
     imagenUrl: imagenRecetaEnConstruccion || '',
-    costoTotal, unidadesPorLote, precioVenta, ingresos, ganancia, margenPct
+    costoTotal, unidadesPorLote, precioVenta, precioVentaSinExtras, ingresos, ganancia, margenPct
   };
 
   const limpiarFormularioReceta = () => {
@@ -2220,6 +2409,7 @@ function guardarReceta(){
     document.getElementById('chkMostrarLote').checked = true;
     document.getElementById('inputRecetaUnidadesVendidas').value = '';
     document.getElementById('inputRecetaPrecioVenta').value = '';
+    document.getElementById('inputRecetaPrecioSinExtras').value = '';
     document.getElementById('filasInsumosReceta').innerHTML = '';
     filasRecetaEnConstruccion = [];
     imagenRecetaEnConstruccion = '';
@@ -2412,10 +2602,14 @@ function agregarLineaPedido(tipo){
     const opciones = recetasCache.map(r => `<option value="${r.id}">${(r.nombre || '—').toString().replace(/</g,'&lt;')}</option>`).join('');
     div.innerHTML = `
       <span class="pedido-linea-tipo-tag">Receta</span>
+      <span id="${filaId}-thumb"></span>
       <select onchange="actualizarLineaPedidoDesdeCatalogo('${filaId}', this.value)">
         <option value="">— elige receta —</option>${opciones}
       </select>
       <input type="number" min="1" step="1" placeholder="cant." value="1" oninput="actualizarLineaPedido('${filaId}', 'cantidad', this.value)">
+      <label id="${filaId}-sinExtrasLabel" style="display:none; align-items:center; gap:5px; font-size:0.82rem; color:var(--muted); flex:0 0 auto;">
+        <input type="checkbox" id="${filaId}-sinExtras" onchange="toggleSinExtrasLineaPedido('${filaId}', this.checked)"> Sin bebida/adiciones
+      </label>
       <div class="subtotal" id="${filaId}-subtotal">$0</div>
       <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
   } else if(tipo === 'insumo'){
@@ -2459,7 +2653,21 @@ function actualizarLineaPedidoDesdeCatalogo(filaId, refId){
     linea.nombre = r ? r.nombre : '';
     linea.unidad = 'und';
     linea.costoUnitario = r ? costoActualReceta(r) / (r.unidadesPorLote || 1) : 0;
-    linea.precioUnitario = r ? (r.precioVenta || 0) : 0;
+    // v1.39: se guardan los 2 precios posibles de la receta (con y sin
+    // bebida/adiciones) en la línea, para poder alternar con el
+    // checkbox sin tener que volver a consultar recetasCache.
+    linea.precioConExtras = r ? (r.precioVenta || 0) : 0;
+    linea.precioSinExtras = r ? (r.precioVentaSinExtras || null) : null;
+    linea.sinExtras = false;
+    linea.precioUnitario = linea.precioConExtras;
+
+    const elThumb = document.getElementById(filaId + '-thumb');
+    if(elThumb) elThumb.innerHTML = (r && r.imagenUrl) ? `<img src="${r.imagenUrl}" class="receta-card-thumb" alt="">` : '';
+
+    const elLabel = document.getElementById(filaId + '-sinExtrasLabel');
+    const elCheck = document.getElementById(filaId + '-sinExtras');
+    if(elLabel) elLabel.style.display = (linea.precioSinExtras != null) ? 'flex' : 'none';
+    if(elCheck) elCheck.checked = false;
   } else if(linea.tipo === 'insumo'){
     const i = insumosCache.find(x => x.id === refId);
     linea.nombre = i ? i.nombre : '';
@@ -2467,6 +2675,20 @@ function actualizarLineaPedidoDesdeCatalogo(filaId, refId){
     linea.costoUnitario = i ? (i.valorUnidad || 0) : 0;
     // precioUnitario lo escribe el usuario en el input de al lado — no se toca acá.
   }
+  recalcularTotalesPedido();
+}
+
+// v1.39: alterna el precioUnitario de una línea de receta entre el
+// precio normal (con bebida/adiciones) y el precio sin extras, definido
+// a mano en la receta (campo opcional). No toca costoUnitario — el
+// costo real de producción sigue siendo el mismo aunque el cliente no
+// reciba bebida/adiciones, así que el margen mostrado será algo más
+// bajo de lo real en esos casos (conservador, no incorrecto).
+function toggleSinExtrasLineaPedido(filaId, marcado){
+  const linea = lineasPedidoEnConstruccion.find(l => l.filaId === filaId);
+  if(!linea) return;
+  linea.sinExtras = marcado;
+  linea.precioUnitario = marcado ? (linea.precioSinExtras != null ? linea.precioSinExtras : linea.precioConExtras) : linea.precioConExtras;
   recalcularTotalesPedido();
 }
 
@@ -2511,17 +2733,91 @@ function recalcularTotalesPedido(){
   elMargen.textContent = `${margenPct.toFixed(2).replace('.', ',')}% · ${formatoMoneda(ganancia)}`;
   elMargen.className = 'val ' + (ganancia >= 0 ? 'ok' : 'warn');
 
-  const abonado = parseFloat(document.getElementById('inputPedidoAbonado').value) || 0;
+  const abonado = abonosPedidoEnConstruccion.reduce((acc, a) => acc + (a.monto || 0), 0);
   const saldo = montoTotal - abonado;
   document.getElementById('pedidoSaldoPendiente').textContent = formatoMoneda(saldo > 0 ? saldo : 0);
+}
+
+// v1.38: checklist de notas — cada ítem es {texto, hecho}. Reemplaza al
+// textarea libre de antes; pedidos viejos guardados con notas como
+// string plano (formato pre-v1.38) se migran solos a un único ítem sin
+// marcar la primera vez que se abren para editar (ver habilitarEdicionPedido).
+function agregarNotaPedido(){
+  const input = document.getElementById('inputNuevaNotaPedido');
+  const texto = input.value.trim();
+  if(!texto) return;
+  notasPedidoEnConstruccion.push({ texto, hecho: false });
+  input.value = '';
+  renderNotasPedido();
+}
+
+function toggleNotaPedido(idx){
+  if(!notasPedidoEnConstruccion[idx]) return;
+  notasPedidoEnConstruccion[idx].hecho = !notasPedidoEnConstruccion[idx].hecho;
+  renderNotasPedido();
+}
+
+function eliminarNotaPedido(idx){
+  notasPedidoEnConstruccion.splice(idx, 1);
+  renderNotasPedido();
+}
+
+function renderNotasPedido(){
+  const cont = document.getElementById('listaNotasPedido');
+  if(!cont) return;
+  cont.innerHTML = notasPedidoEnConstruccion.map((n, idx) => `
+    <div class="nota-pedido-item ${n.hecho ? 'hecho' : ''}">
+      <button type="button" class="nota-pedido-check" title="${n.hecho ? 'Marcar como pendiente' : 'Confirmar'}" onclick="toggleNotaPedido(${idx})">${n.hecho ? '✅' : '⬜'}</button>
+      <span class="texto">${(n.texto || '').toString().replace(/</g,'&lt;')}</span>
+      <button type="button" class="btn-del" style="padding:2px 8px;" onclick="eliminarNotaPedido(${idx})">🗑️</button>
+    </div>
+  `).join('');
+}
+
+// v1.43: gestor de abonos dentro del formulario — mismo patrón que las
+// notas (lista en memoria + render), pero cada ítem es {monto, fecha}
+// y no tiene estado "hecho" (se agrega o se borra, no se marca).
+function agregarAbonoPedido(){
+  const inputMonto = document.getElementById('inputNuevoAbonoMonto');
+  const inputFecha = document.getElementById('inputNuevoAbonoFecha');
+  const monto = parseFloat(inputMonto.value) || 0;
+  if(monto <= 0){ alert('Escribe un monto válido.'); return; }
+  const fecha = inputFecha.value || new Date().toISOString().slice(0,10);
+  abonosPedidoEnConstruccion.push({ monto, fecha });
+  inputMonto.value = '';
+  inputFecha.value = '';
+  renderAbonosPedido();
+  recalcularTotalesPedido();
+}
+
+function eliminarAbonoPedido(idx){
+  abonosPedidoEnConstruccion.splice(idx, 1);
+  renderAbonosPedido();
+  recalcularTotalesPedido();
+}
+
+function renderAbonosPedido(){
+  const cont = document.getElementById('listaAbonosPedido');
+  if(!cont) return;
+  if(!abonosPedidoEnConstruccion.length){
+    cont.innerHTML = '<div class="hint-campo" style="margin:0;">Sin abonos registrados.</div>';
+    return;
+  }
+  cont.innerHTML = abonosPedidoEnConstruccion.map((a, idx) => `
+    <div class="abono-pedido-item">
+      <span class="fecha">${_cocEsc(a.fecha || '')}</span>
+      <span class="monto">${formatoMoneda(a.monto || 0)}</span>
+      <button type="button" class="btn-del" style="padding:2px 8px;" onclick="eliminarAbonoPedido(${idx})">🗑️</button>
+    </div>
+  `).join('');
 }
 
 function guardarPedido(){
   const cliente = document.getElementById('inputPedidoCliente').value.trim();
   const telefono = document.getElementById('inputPedidoTelefono').value.trim();
   const fechaEntrega = document.getElementById('inputPedidoFecha').value;
-  const notas = document.getElementById('inputPedidoNotas').value.trim();
-  const abonado = parseFloat(document.getElementById('inputPedidoAbonado').value) || 0;
+  const notas = notasPedidoEnConstruccion; // v1.38: array [{texto,hecho}], ya no textarea
+  const abonos = abonosPedidoEnConstruccion; // v1.43: array [{monto,fecha}], ya no número plano
 
   if(!cliente){ alert('Escribe el nombre del cliente.'); return; }
   if(!lineasPedidoEnConstruccion.length){ alert('Agrega al menos una línea al pedido.'); return; }
@@ -2534,11 +2830,14 @@ function guardarPedido(){
 
   const lineas = lineasPedidoEnConstruccion.map(l => ({
     tipo: l.tipo, refId: l.refId || null, nombre: l.nombre, unidad: l.unidad || '',
-    cantidad: l.cantidad, costoUnitario: l.costoUnitario, precioUnitario: l.precioUnitario
+    cantidad: l.cantidad, costoUnitario: l.costoUnitario, precioUnitario: l.precioUnitario,
+    sinExtras: l.sinExtras || false,
+    precioConExtras: l.precioConExtras != null ? l.precioConExtras : null,
+    precioSinExtras: l.precioSinExtras != null ? l.precioSinExtras : null
   }));
 
   const datosPedido = {
-    cliente, telefono, fechaEntrega, notas, lineas, costoTotal, montoTotal, abonado,
+    cliente, telefono, fechaEntrega, notas, lineas, costoTotal, montoTotal, abonos,
     estado: pedidoEnEdicionId ? (pedidosCache.find(p => p.id === pedidoEnEdicionId) || {}).estado || 'pendiente' : 'pendiente'
   };
 
@@ -2560,14 +2859,46 @@ function habilitarEdicionPedido(id){
   document.getElementById('inputPedidoCliente').value = p.cliente || '';
   document.getElementById('inputPedidoTelefono').value = p.telefono || '';
   document.getElementById('inputPedidoFecha').value = p.fechaEntrega || '';
-  document.getElementById('inputPedidoNotas').value = p.notas || '';
-  document.getElementById('inputPedidoAbonado').value = p.abonado || '';
+
+  // v1.43: abonos como array {monto,fecha}. Pedidos guardados antes de
+  // v1.43 tienen `abonado` como número plano — se migran a un abono
+  // único (fecha de creación del pedido, o de hoy si no hay) la primera
+  // vez que se abren para editar; al guardar de nuevo ya quedan en el
+  // formato nuevo (array), igual que la migración de notas en v1.38.
+  if(Array.isArray(p.abonos)){
+    abonosPedidoEnConstruccion = p.abonos.map(a => ({ monto: a.monto || 0, fecha: a.fecha || '' }));
+  } else if(p.abonado > 0){
+    const fechaMigracion = (p.creadoEn && p.creadoEn.toDate) ? p.creadoEn.toDate().toISOString().slice(0,10) : new Date().toISOString().slice(0,10);
+    abonosPedidoEnConstruccion = [{ monto: p.abonado, fecha: fechaMigracion }];
+  } else {
+    abonosPedidoEnConstruccion = [];
+  }
+  renderAbonosPedido();
+
+  // v1.38: notas como checklist. Pedidos guardados antes de v1.38 tienen
+  // `notas` como string plano — se migran solos a un único ítem sin
+  // marcar la primera vez que se abren para editar; al guardar de nuevo
+  // ya quedan en el formato nuevo (array).
+  if(Array.isArray(p.notas)){
+    notasPedidoEnConstruccion = p.notas.map(n => ({ texto: n.texto || '', hecho: !!n.hecho }));
+  } else if(typeof p.notas === 'string' && p.notas.trim()){
+    notasPedidoEnConstruccion = [{ texto: p.notas.trim(), hecho: false }];
+  } else {
+    notasPedidoEnConstruccion = [];
+  }
+  renderNotasPedido();
 
   document.getElementById('filasLineasPedido').innerHTML = '';
   lineasPedidoEnConstruccion = [];
   (p.lineas || []).forEach(l => {
     const filaId = 'pl' + (++contadorFilaPedido);
-    lineasPedidoEnConstruccion.push({ filaId, tipo: l.tipo, refId: l.refId, nombre: l.nombre, unidad: l.unidad, cantidad: l.cantidad, costoUnitario: l.costoUnitario, precioUnitario: l.precioUnitario });
+    lineasPedidoEnConstruccion.push({
+      filaId, tipo: l.tipo, refId: l.refId, nombre: l.nombre, unidad: l.unidad, cantidad: l.cantidad,
+      costoUnitario: l.costoUnitario, precioUnitario: l.precioUnitario,
+      sinExtras: l.sinExtras || false,
+      precioConExtras: l.precioConExtras != null ? l.precioConExtras : l.precioUnitario,
+      precioSinExtras: l.precioSinExtras != null ? l.precioSinExtras : null
+    });
     const div = document.createElement('div');
     div.className = 'pedido-linea-row';
     div.id = filaId;
@@ -2585,15 +2916,31 @@ function habilitarEdicionPedido(id){
     } else {
       const opciones = (l.tipo === 'receta' ? recetasCache : insumosCache)
         .map(x => `<option value="${x.id}" ${x.id === l.refId ? 'selected' : ''}>${(x.nombre || '—').toString().replace(/</g,'&lt;')}</option>`).join('');
+      const recetaElegida = l.tipo === 'receta' ? recetasCache.find(x => x.id === l.refId) : null;
+      // v1.39: precioSinExtras guardado en la línea, o si el pedido es
+      // de antes de v1.39 y no lo tiene, se usa el de la receta vigente
+      // (puede no existir tampoco, en cuyo caso el checkbox queda oculto).
+      const precioSinExtrasDisponible = l.precioSinExtras != null ? l.precioSinExtras : (recetaElegida ? recetaElegida.precioVentaSinExtras : null);
       div.innerHTML = `
         <span class="pedido-linea-tipo-tag">${tag}</span>
+        ${l.tipo === 'receta' ? `<span id="${filaId}-thumb">${recetaElegida && recetaElegida.imagenUrl ? `<img src="${recetaElegida.imagenUrl}" class="receta-card-thumb" alt="">` : ''}</span>` : ''}
         <select onchange="actualizarLineaPedidoDesdeCatalogo('${filaId}', this.value)">
           <option value="">— elige —</option>${opciones}
         </select>
         <input type="number" min="1" step="1" value="${l.cantidad}" oninput="actualizarLineaPedido('${filaId}', 'cantidad', this.value)">
         ${l.tipo === 'insumo' ? `<input type="number" min="0" step="500" value="${l.precioUnitario}" oninput="actualizarLineaPedido('${filaId}', 'precioUnitario', this.value)">` : ''}
+        ${l.tipo === 'receta' ? `
+        <label id="${filaId}-sinExtrasLabel" style="display:${precioSinExtrasDisponible != null ? 'flex' : 'none'}; align-items:center; gap:5px; font-size:0.82rem; color:var(--muted); flex:0 0 auto;">
+          <input type="checkbox" id="${filaId}-sinExtras" ${l.sinExtras ? 'checked' : ''} onchange="toggleSinExtrasLineaPedido('${filaId}', this.checked)"> Sin bebida/adiciones
+        </label>` : ''}
         <div class="subtotal" id="${filaId}-subtotal">$0</div>
         <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
+      // asegura que precioSinExtras quede disponible en memoria aunque
+      // venga del fallback de la receta vigente, no solo de lo guardado.
+      if(l.tipo === 'receta'){
+        const lineaEnMemoria = lineasPedidoEnConstruccion[lineasPedidoEnConstruccion.length - 1];
+        lineaEnMemoria.precioSinExtras = precioSinExtrasDisponible;
+      }
     }
     document.getElementById('filasLineasPedido').appendChild(div);
   });
@@ -2611,12 +2958,14 @@ function habilitarEdicionPedido(id){
 function cancelarEdicionPedido(){
   pedidoEnEdicionId = null;
   lineasPedidoEnConstruccion = [];
+  notasPedidoEnConstruccion = [];
+  abonosPedidoEnConstruccion = [];
   document.getElementById('filasLineasPedido').innerHTML = '';
   document.getElementById('inputPedidoCliente').value = '';
   document.getElementById('inputPedidoTelefono').value = '';
   document.getElementById('inputPedidoFecha').value = '';
-  document.getElementById('inputPedidoNotas').value = '';
-  document.getElementById('inputPedidoAbonado').value = '';
+  renderAbonosPedido();
+  renderNotasPedido();
   recalcularTotalesPedido();
 
   document.getElementById('tituloFormPedido').firstChild.textContent = '📦 Nuevo pedido ';
@@ -2638,6 +2987,41 @@ function eliminarPedido(id){
 function cambiarEstadoPedido(id, nuevoEstado){
   db.collection('cocinaPedidos').doc(id).update({ estado: nuevoEstado })
     .catch(err => { console.error(err); alert('No se pudo actualizar el estado.'); });
+}
+
+// v1.38: marca/desmarca una nota directo desde el detalle del pedido,
+// sin necesidad de entrar a modo edición. Migra notas viejas (string)
+// a array la primera vez que se toca un check.
+function toggleNotaPedidoGuardado(pedidoId, idx){
+  const p = pedidosCache.find(x => x.id === pedidoId);
+  if(!p) return;
+  const notasArr = Array.isArray(p.notas) ? [...p.notas] : (typeof p.notas === 'string' && p.notas.trim() ? [{ texto: p.notas.trim(), hecho: false }] : []);
+  if(!notasArr[idx]) return;
+  notasArr[idx] = { ...notasArr[idx], hecho: !notasArr[idx].hecho };
+  db.collection('cocinaPedidos').doc(pedidoId).update({ notas: notasArr })
+    .catch(err => { console.error(err); alert('No se pudo actualizar la nota.'); });
+}
+
+// v1.43: registra un abono directo desde la tarjeta, sin abrir el
+// formulario de edición completo — mismo espíritu que
+// toggleNotaPedidoGuardado (actualiza Firestore directo con el array
+// actualizado). Migra `abonado` (número plano, pedidos pre-v1.43) a
+// `abonos` la primera vez que se usa este botón sobre ese pedido.
+function registrarAbonoRapido(pedidoId){
+  const p = pedidosCache.find(x => x.id === pedidoId);
+  if(!p) return;
+  const montoStr = prompt('Monto del abono:');
+  if(montoStr === null) return;
+  const monto = parseFloat(montoStr);
+  if(!(monto > 0)){ alert('Escribe un monto válido.'); return; }
+
+  const abonosArr = Array.isArray(p.abonos) ? [...p.abonos]
+    : (p.abonado > 0 ? [{ monto: p.abonado, fecha: (p.creadoEn && p.creadoEn.toDate) ? p.creadoEn.toDate().toISOString().slice(0,10) : new Date().toISOString().slice(0,10) }] : []);
+  abonosArr.push({ monto, fecha: new Date().toISOString().slice(0,10) });
+
+  db.collection('cocinaPedidos').doc(pedidoId).update({ abonos: abonosArr })
+    .then(() => mostrarToast('💰 Abono registrado', 'ok'))
+    .catch(err => { console.error(err); alert('No se pudo registrar el abono.'); });
 }
 
 // v1.35: agrega una línea tipo insumo/libre a la lista de compras
@@ -2722,7 +3106,7 @@ function renderListaPedidos(){
   }
 
   cont.innerHTML = pedidos.map(p => {
-    const abonado = p.abonado || 0;
+    const abonado = totalAbonado(p);
     const saldo = (p.montoTotal || 0) - abonado;
     let badgePago = '';
     if(saldo <= 0 && (p.montoTotal || 0) > 0) badgePago = `<span class="badge-pago-pedido pagado">✅ Pagado</span>`;
@@ -2742,13 +3126,32 @@ function renderListaPedidos(){
           </div>
         </div>
         <div class="receta-head-acciones">
+          <button type="button" class="btn-ghost" title="Registrar abono" onclick="event.stopPropagation(); registrarAbonoRapido('${p.id}')">💰</button>
+          <button type="button" class="btn-ghost" title="Resumen de pedido (PDF)" onclick="event.stopPropagation(); imprimirPedidoHTML('${p.id}')">🖨️</button>
           <button type="button" class="btn-ghost" title="Editar pedido" onclick="event.stopPropagation(); habilitarEdicionPedido('${p.id}')">✏️</button>
           <button type="button" class="btn-del" title="Eliminar pedido" onclick="event.stopPropagation(); eliminarPedido('${p.id}')">🗑️</button>
         </div>
       </div>
       <div class="receta-detalle" id="detalle-pedido-${p.id}">
         ${p.telefono ? `<div class="receta-detalle-fila"><span>Teléfono</span><span>${p.telefono.toString().replace(/</g,'&lt;')}</span></div>` : ''}
-        ${p.notas ? `<div class="receta-detalle-fila"><span>Notas</span><span>${p.notas.toString().replace(/</g,'&lt;')}</span></div>` : ''}
+        ${(() => {
+          const notasArr = Array.isArray(p.notas) ? p.notas : (typeof p.notas === 'string' && p.notas.trim() ? [{ texto: p.notas.trim(), hecho: false }] : []);
+          if(!notasArr.length) return '';
+          return `<div class="receta-detalle-fila" style="align-items:flex-start;"><span>Notas</span><span>${notasArr.map((n, idx) => `
+            <div class="nota-pedido-item ${n.hecho ? 'hecho' : ''}" style="border-bottom:none; padding:2px 0;">
+              <button type="button" class="nota-pedido-check" title="${n.hecho ? 'Marcar como pendiente' : 'Confirmar'}" onclick="event.stopPropagation(); toggleNotaPedidoGuardado('${p.id}', ${idx})">${n.hecho ? '✅' : '⬜'}</button>
+              <span class="texto">${(n.texto || '').toString().replace(/</g,'&lt;')}</span>
+            </div>`).join('')}</span></div>`;
+        })()}
+        ${(() => {
+          const abonosArr = Array.isArray(p.abonos) ? p.abonos : (p.abonado > 0 ? [{ monto: p.abonado, fecha: '' }] : []);
+          if(!abonosArr.length) return '';
+          return `<div class="receta-detalle-fila" style="align-items:flex-start;"><span>Abonos</span><span>${abonosArr.map(a => `
+            <div class="abono-pedido-item" style="border-bottom:none; padding:2px 0;">
+              <span class="fecha">${(a.fecha || '').toString().replace(/</g,'&lt;')}</span>
+              <span class="monto">${formatoMoneda(a.monto || 0)}</span>
+            </div>`).join('')}</span></div>`;
+        })()}
         ${(p.lineas || []).map((l, idx) => `
           <div class="receta-detalle-fila">
             <span>${(l.nombre || '—').toString().replace(/</g,'&lt;')} × ${l.cantidad} ${l.unidad || ''}</span>
@@ -2765,7 +3168,7 @@ function renderListaPedidos(){
         <div class="receta-detalle-fila">
           <span>Cambiar estado</span>
           <span>
-            <select onchange="cambiarEstadoPedido('${p.id}', this.value)" style="width:auto; padding:4px 8px; font-size:0.85rem;">
+            <select onchange="cambiarEstadoPedido('${p.id}', this.value)" style="width:auto; min-width:150px; padding:6px 8px; font-size:0.9rem;">
               <option value="pendiente" ${p.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
               <option value="en_proceso" ${p.estado === 'en_proceso' ? 'selected' : ''}>En proceso</option>
               <option value="entregado" ${p.estado === 'entregado' ? 'selected' : ''}>Entregado</option>
@@ -3311,6 +3714,24 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 #cocBtnCerrar{ background:transparent; color:#cfcfcf; border:1px solid #555 !important; }
 .coc-preview-espaciador{ height:52px; }
 @media print{ .coc-barra-preview, .coc-preview-espaciador{ display:none !important; } }
+/* v1.41 (a pedido — resumen de pedido en PDF): clases nuevas, AGREGADAS
+   al final del bloque sin tocar ninguna regla existente arriba (mismo
+   criterio de v1.14 de no arriesgar el PDF ya validado). */
+.coc-linea-pedido{
+  display:flex; align-items:center; gap:4mm; padding:2.5mm 1mm;
+  font-size:9pt; border-bottom:0.15mm solid #e5e1d6;
+}
+.coc-linea-pedido:last-child{ border-bottom:none; }
+.coc-linea-pedido-img{
+  width:12mm; height:12mm; border-radius:1.5mm; object-fit:cover; flex-shrink:0;
+}
+.coc-linea-pedido-info{ flex:1; }
+.coc-linea-pedido-nombre{ color:#1e1e1e; font-weight:600; }
+.coc-linea-pedido-desc{ color:#9a978f; font-size:7.8pt; margin-top:0.5mm; }
+.coc-linea-pedido-ing{ color:#9a978f; font-size:7.5pt; font-style:italic; margin-top:0.5mm; }
+.coc-linea-pedido-cant{ color:#505050; font-size:8pt; margin-top:0.5mm; }
+.coc-linea-pedido-precio{ color:#505050; font-family:monospace; font-size:9pt; text-align:right; flex-shrink:0; }
+.coc-nota-pdf{ font-size:9pt; padding:1.5mm 0; display:flex; gap:2mm; }
 `;
 
 // Abre la ventana de preview con barra flotante + botón imprimir —
@@ -3480,6 +3901,97 @@ function imprimirRecetaClienteHTML(recetaId){
   _cocAbrirPreview(tituloVentana, htmlDoc);
 }
 
+// v1.41 (a pedido): resumen de pedido para el cliente — mismo patrón
+// que imprimirRecetaClienteHTML(): NUNCA muestra costoUnitario ni
+// margen (información interna), solo cantidades y precios de venta.
+// Cada línea tipo "receta" incluye la miniatura + descripción de la
+// receta (si tiene), igual que la ficha de producto — para que el
+// cliente reconozca visualmente qué está pidiendo, no solo el nombre.
+// El encabezado usa la imagen de la PRIMERA línea de receta que tenga
+// una (si ninguna tiene, usa el header plano de siempre).
+function imprimirPedidoHTML(pedidoId){
+  const p = pedidosCache.find(x => x.id === pedidoId);
+  if(!p) return;
+  const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  const lineaConImagen = (p.lineas || []).find(l => {
+    if(l.tipo !== 'receta' || !l.refId) return false;
+    const r = recetasCache.find(x => x.id === l.refId);
+    return r && r.imagenUrl;
+  });
+  const recetaParaHeader = lineaConImagen ? recetasCache.find(x => x.id === lineaConImagen.refId) : null;
+  const pseudoRecetaHeader = { nombre: p.cliente || 'Pedido', imagenUrl: recetaParaHeader ? recetaParaHeader.imagenUrl : '' };
+
+  const htmlLineas = (p.lineas || []).map(l => {
+    const r = (l.tipo === 'receta' && l.refId) ? recetasCache.find(x => x.id === l.refId) : null;
+    const subtotal = (l.cantidad || 0) * (l.precioUnitario || 0);
+    const extrasNota = (l.tipo === 'receta' && l.sinExtras) ? ' <span style="color:#9a978f;">(sin bebida/adiciones)</span>' : '';
+    const htmlIngredientesLinea = (r && Array.isArray(r.insumos) && r.insumos.length)
+      ? `<div class="coc-linea-pedido-ing">${r.insumos.map(i => _cocEsc(i.nombre)).join(', ')}</div>`
+      : '';
+    return `
+    <div class="coc-linea-pedido">
+      ${r && r.imagenUrl ? `<img src="${r.imagenUrl}" class="coc-linea-pedido-img" alt="">` : ''}
+      <div class="coc-linea-pedido-info">
+        <div class="coc-linea-pedido-nombre">${_cocEsc(l.nombre || '—')}${extrasNota}</div>
+        ${r && r.descripcion ? `<div class="coc-linea-pedido-desc">${_cocEsc(r.descripcion)}</div>` : ''}
+        ${htmlIngredientesLinea}
+        <div class="coc-linea-pedido-cant">${_cocEsc(l.cantidad)} ${_cocEsc(l.unidad || '')} · ${formatoMoneda(l.precioUnitario || 0)} c/u</div>
+      </div>
+      <div class="coc-linea-pedido-precio">${formatoMoneda(subtotal)}</div>
+    </div>`;
+  }).join('');
+
+  const notasArr = Array.isArray(p.notas) ? p.notas : (typeof p.notas === 'string' && p.notas.trim() ? [{ texto: p.notas.trim(), hecho: false }] : []);
+  const htmlNotas = notasArr.length ? `
+    <div class="coc-seccion">
+      <div class="coc-titulo-seccion">Notas</div>
+      ${notasArr.map(n => `<div class="coc-nota-pdf"><span>${n.hecho ? '✅' : '⬜'}</span><span>${_cocEsc(n.texto || '')}</span></div>`).join('')}
+    </div>` : '';
+
+  const abonado = totalAbonado(p);
+  const saldo = (p.montoTotal || 0) - abonado;
+  const abonosArrPdf = Array.isArray(p.abonos) ? p.abonos : (p.abonado > 0 ? [{ monto: p.abonado, fecha: '' }] : []);
+  const htmlAbonos = abonosArrPdf.length ? `
+    <div class="coc-seccion">
+      <div class="coc-titulo-seccion">Abonos</div>
+      ${abonosArrPdf.map(a => `<div class="coc-fila"><span class="coc-fila-izq">${_cocEsc(a.fecha || '—')}</span><span class="coc-fila-der">${formatoMoneda(a.monto || 0)}</span></div>`).join('')}
+    </div>` : '';
+
+  const htmlDoc = `
+  <div class="coc-page">
+    ${_cocEncabezado(pseudoRecetaHeader, fechaGeneracion, 'Resumen de pedido')}
+
+    <div class="coc-hero">
+      <div class="coc-hero-titulo">${_cocEsc(p.cliente || '—')}</div>
+      <div class="coc-hero-meta">${p.fechaEntrega ? 'Entrega: ' + _cocEsc(p.fechaEntrega) : 'Sin fecha de entrega'}${p.telefono ? ' · ' + _cocEsc(p.telefono) : ''}</div>
+    </div>
+
+    <div class="coc-seccion">
+      <div class="coc-titulo-seccion">Pedido</div>
+      ${htmlLineas}
+    </div>
+
+    ${htmlNotas}
+
+    ${htmlAbonos}
+
+    <div class="coc-totales">
+      <div class="coc-fila"><span class="coc-fila-izq">Total del pedido</span><span class="coc-fila-der">${formatoMoneda(p.montoTotal)}</span></div>
+      <div class="coc-fila"><span class="coc-fila-izq">Abonado</span><span class="coc-fila-der">${formatoMoneda(abonado)}</span></div>
+      <div class="coc-fila coc-destacada"><span>Saldo pendiente</span><span>${formatoMoneda(saldo > 0 ? saldo : 0)}</span></div>
+    </div>
+
+    <div class="coc-footer">
+      <span>AUDIOLINK — Cocina</span>
+      <span>Documento generado automáticamente</span>
+    </div>
+  </div>`;
+
+  const tituloVentana = `Pedido - ${p.cliente || 'Cliente'}`;
+  _cocAbrirPreview(tituloVentana, htmlDoc);
+}
+
 // Checklist de compras agrupado por categoría (mismo orden que
 // categoriasCache, "Sin categoría" al final) — pensado para imprimirse
 // o para usarse tal cual en la ventana de preview desde el celular
@@ -3538,6 +4050,7 @@ document.addEventListener('DOMContentLoaded', () => {
   escucharCategorias();
   escucharInsumos();
   escucharRecetas();
+  escucharPedidos();
   escucharCheckCompras();
 });
 </script>
