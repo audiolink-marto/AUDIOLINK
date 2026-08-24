@@ -3,8 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.47)</title>
-<!-- AUDIOLINK · cocina.html · v1.47
+<title>Audiolink — Cocina (v1.50)</title>
+<!-- AUDIOLINK · cocina.html · v1.50
+     v1.50: (a pedido) color propio por etiqueta de uso — antes todos
+     los chips de etiqueta (Insumos, Recetario, Compras) eran dorados
+     fijos, iguales entre sí y parecidos a los chips de categoría, así
+     que no se distinguían de un vistazo. Ahora cada etiqueta tiene un
+     color determinístico (mismo texto → mismo color siempre, en toda
+     la app) sacado de una paleta propia ETIQUETA_COLORES (distinta de
+     CATEGORIA_COLORES, para no confundir "color de categoría" con
+     "color de etiqueta" cuando ambos aparecen juntos). colorEtiqueta()
+     hashea el nombre de la etiqueta (no depende de un índice/orden
+     como colorCategoria(), porque las etiquetas no tienen un array
+     fijo con posición estable). Los 4 lugares donde se pinta
+     .chip-etiqueta (formulario de Insumos, tabla de Insumos,
+     Recetario, Compras) ahora aplican fondo/borde/texto de ese color
+     vía styleChipEtiqueta(). No cambia el chip de sugerencia
+     (.chip-etiqueta-sugerencia, sigue neutro/punteado a propósito,
+     para diferenciarse de una etiqueta ya puesta) ni ningún cálculo,
+     filtro o dato guardado en Firestore.
+     v1.49: (a pedido) relación entre etiquetas de Insumos y la pestaña
+     Compras — antes las etiquetas de uso (v1.46/v1.47) solo existían
+     en Insumos y Recetario. Ahora, mismo patrón que ya usa Recetario
+     (etiquetasDeReceta()/filtroEtiquetaRecetaChips): (1) cada ítem de
+     la Lista de compras muestra las etiquetas del insumo del que viene
+     (chips .chip-etiqueta, leídas en vivo de insumosCache — nada nuevo
+     se guarda en checkCompras); (2) nuevos chips de filtro
+     #filtroEtiquetaComprasChips, junto a los de categoría ya
+     existentes, para filtrar la lista por etiqueta de uso; estado
+     filtroEtiquetaCompras + seleccionarFiltroEtiquetaCompras(). Los
+     ítems "sueltos" (origen:'suelto', sin insumo real de catálogo) no
+     tienen etiquetas y quedan fuera de ese filtro cuando está activo.
+     No se toca Firestore, checkCompras, confirmarCompra(),
+     reabrirCompra() ni el filtro por categoría existente.
+     v1.48: fix — las sugerencias de etiquetas (v1.47) no aparecían al
+     editar un insumo que todavía no tenía ninguna etiqueta propia,
+     porque renderEtiquetasInsumo() cortaba con un return antes de
+     llegar a renderSugerenciasEtiquetaInsumo() cuando la lista estaba
+     vacía. Ahora las sugerencias se refrescan siempre, tenga o no
+     etiquetas el insumo actual. No cambia nada más de la lógica.
      v1.47: (a pedido) sugerencias de etiquetas al editar/crear un
      insumo — el chip-input de "Etiquetas de uso" (v1.46) no mostraba
      las etiquetas ya usadas en el resto del catálogo, así que había
@@ -1654,6 +1691,10 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
       <div style="padding:0 20px 10px;" id="filtroCategoriaComprasWrap">
         <div class="filtro-chips" id="filtroCategoriaComprasChips"></div>
       </div>
+      <!-- v1.49: filtro por etiqueta de uso (heredada del insumo), mismo patrón que categoría -->
+      <div style="padding:0 20px 10px;" id="filtroEtiquetaComprasWrap">
+        <div class="filtro-chips" id="filtroEtiquetaComprasChips"></div>
+      </div>
       <div style="padding:4px 20px 18px;" id="listaCompras">
         <div class="vacio">Cargando…</div>
       </div>
@@ -1680,6 +1721,7 @@ let filtroEtiquetaActual = ''; // v1.46: chips de filtro por etiqueta de uso
 let filtroEtiquetaRecetaActual = ''; // v1.46: mismo filtro, aplicado en Recetario
 let etiquetasInsumoEnConstruccion = []; // v1.46: [string,...] del insumo en el formulario
 let filtroCategoriaCompras = ''; // v1.12: mismo patrón, para la Lista de compras
+let filtroEtiquetaCompras = ''; // v1.49: filtro por etiqueta de uso (heredada del insumo), en Compras
 let checkComprasCache = { items: [] };
 let filasRecetaEnConstruccion = [];
 let recetaEnEdicionId = null; // v1.15: id de la receta que se está editando (null = modo "nueva")
@@ -2008,6 +2050,23 @@ function nombreCategoria(categoriaId){
 // en categoriasCache (mismo orden que "Filtrar por categoría" en Insumos),
 // así toda la app usa el mismo color para la misma categoría.
 const CATEGORIA_COLORES = ['#e07a5f','#81b29a','#4d96ff','#f2cc8f','#b185db','#f28482','#43aa8b','#f9c74f'];
+// v1.50: paleta propia para etiquetas de uso, distinta de CATEGORIA_COLORES
+// para no confundir "color de categoría" con "color de etiqueta" al mirar
+// un ítem que muestra ambos (ej. fila de Insumos, ítem de Compras).
+const ETIQUETA_COLORES = ['#5aa9e6','#e8598a','#7fb069','#d4a017','#9d65c9','#e07856','#4fb3a9','#c9636b'];
+function colorEtiqueta(nombre){
+  // Hash simple y determinístico del texto — a diferencia de colorCategoria()
+  // (que usa el índice en categoriasCache), acá no hay un array con orden fijo,
+  // así que la misma etiqueta siempre debe dar el mismo color sin depender de posición.
+  const s = (nombre || '').toString();
+  let hash = 0;
+  for(let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  return ETIQUETA_COLORES[hash % ETIQUETA_COLORES.length];
+}
+function styleChipEtiqueta(nombre){
+  const c = colorEtiqueta(nombre);
+  return `style="background:${c}22; border:1px solid ${c}; color:${c};"`;
+}
 function colorCategoria(categoriaId){
   if(!categoriaId) return '#6b6b6b';
   const idx = categoriasCache.findIndex(c => c.id === categoriaId);
@@ -2157,10 +2216,11 @@ function renderEtiquetasInsumo(){
   if(!cont) return;
   if(!etiquetasInsumoEnConstruccion.length){
     cont.innerHTML = '<div class="hint-campo" style="margin:0;">Sin etiquetas.</div>';
+    renderSugerenciasEtiquetaInsumo();
     return;
   }
   cont.innerHTML = etiquetasInsumoEnConstruccion.map((e, idx) => `
-    <span class="chip-etiqueta">${e.toString().replace(/</g,'&lt;')} <button type="button" onclick="eliminarEtiquetaInsumo(${idx})">✕</button></span>
+    <span class="chip-etiqueta" ${styleChipEtiqueta(e)}>${e.toString().replace(/</g,'&lt;')} <button type="button" onclick="eliminarEtiquetaInsumo(${idx})">✕</button></span>
   `).join('');
   renderSugerenciasEtiquetaInsumo();
 }
@@ -2234,6 +2294,37 @@ function renderFiltroCategoriaComprasChips(){
 function seleccionarFiltroCategoriaCompras(valor){
   filtroCategoriaCompras = valor;
   renderFiltroCategoriaComprasChips();
+  renderListaCompras();
+}
+
+// v1.49: filtro por etiqueta de uso en Compras — misma idea que
+// renderFiltroEtiquetaRecetaChips(), pero la etiqueta se lee del
+// insumo (it.insumoId) de cada ítem ya presente en checkComprasCache,
+// no de todasLasEtiquetasInsumo() completo, para no mostrar etiquetas
+// que no aplican a nada de la lista actual.
+function etiquetasDeItemCompra(it){
+  const insumo = insumosCache.find(i => i.id === it.insumoId);
+  return (insumo && Array.isArray(insumo.etiquetas)) ? insumo.etiquetas : [];
+}
+
+function renderFiltroEtiquetaComprasChips(){
+  const cont = document.getElementById('filtroEtiquetaComprasChips');
+  if(!cont) return;
+  const set = new Set();
+  (checkComprasCache.items || []).forEach(it => etiquetasDeItemCompra(it).forEach(e => set.add(e)));
+  const etiquetas = [...set].sort();
+  if(filtroEtiquetaCompras && !etiquetas.includes(filtroEtiquetaCompras)) filtroEtiquetaCompras = '';
+  if(!etiquetas.length){ cont.innerHTML = ''; return; }
+  const opciones = [{ valor:'', nombre:'Todas' }, ...etiquetas.map(e => ({ valor:e, nombre:e }))];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroEtiquetaCompras === o.valor ? 'activo' : ''}"
+      onclick="seleccionarFiltroEtiquetaCompras('${o.valor.toString().replace(/'/g,"\\'")}')">${o.nombre.toString().replace(/</g,'&lt;')}</button>
+  `).join('');
+}
+
+function seleccionarFiltroEtiquetaCompras(valor){
+  filtroEtiquetaCompras = valor;
+  renderFiltroEtiquetaComprasChips();
   renderListaCompras();
 }
 
@@ -2365,8 +2456,10 @@ function escucharInsumos(){
     snap.forEach(doc => insumosCache.push({ id: doc.id, ...doc.data() }));
     renderTablaInsumos();
     renderFiltroEtiquetaChips();
+    renderFiltroEtiquetaComprasChips(); // v1.49: los insumos cambiaron, refrescar chips de etiqueta en Compras
     renderSelectInsumoSuelto();
     if(recetasCache.length){ renderListaRecetas(); renderFiltroEtiquetaRecetaChips(); }
+    renderListaCompras(); // v1.49: refleja etiquetas actualizadas del insumo en la lista ya renderizada
   }, err => {
     console.error('No se pudo leer cocinaInsumos:', err);
     document.getElementById('tbodyInsumos').innerHTML = '<tr><td colspan="7" class="vacio">Error al cargar el catálogo.</td></tr>';
@@ -2389,7 +2482,7 @@ function renderTablaInsumos(){
     <tr>
       <td class="producto">${(i.nombre || '—').toString().replace(/</g,'&lt;')}</td>
       <td><span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(i.categoriaId)}"></span>${nombreCategoria(i.categoriaId).toString().replace(/</g,'&lt;')}</span></td>
-      <td>${Array.isArray(i.etiquetas) && i.etiquetas.length ? i.etiquetas.map(e => `<span class="chip-etiqueta">${e.toString().replace(/</g,'&lt;')}</span>`).join('') : '—'}</td>
+      <td>${Array.isArray(i.etiquetas) && i.etiquetas.length ? i.etiquetas.map(e => `<span class="chip-etiqueta" ${styleChipEtiqueta(e)}>${e.toString().replace(/</g,'&lt;')}</span>`).join('') : '—'}</td>
       <td>${i.unidad || '—'}</td>
       <td class="num">${formatoMoneda(i.valorUnidad)}</td>
       <td class="num">${i.trackearStock ? ((i.stockActual != null ? i.stockActual : 0) + ' ' + (i.unidad || '')) : '—'}</td>
@@ -2742,7 +2835,7 @@ function renderListaRecetas(){
       : '';
     const etiquetasReceta = etiquetasDeReceta(r);
     const chipsEtiquetas = etiquetasReceta.length
-      ? etiquetasReceta.map(e => `<span class="chip-etiqueta">${e.toString().replace(/</g,'&lt;')}</span>`).join('')
+      ? etiquetasReceta.map(e => `<span class="chip-etiqueta" ${styleChipEtiqueta(e)}>${e.toString().replace(/</g,'&lt;')}</span>`).join('')
       : '';
     return `
     <div class="receta-card">
@@ -3639,6 +3732,7 @@ function _guardarListaCompras(nuevaListaItems){
 function escucharCheckCompras(){
   db.collection('checkCompras').doc('activa').onSnapshot(doc => {
     checkComprasCache = doc.exists ? { items: doc.data().items || [] } : { items: [] };
+    renderFiltroEtiquetaComprasChips(); // v1.49: el set de etiquetas disponibles depende de los ítems actuales
     renderListaCompras();
   }, err => {
     console.error('No se pudo leer checkCompras:', err);
@@ -3778,6 +3872,7 @@ function renderListaCompras(){
   let items = checkComprasCache.items || [];
   if(filtroCategoriaCompras === '__sin__') items = items.filter(it => !it.categoriaId);
   else if(filtroCategoriaCompras) items = items.filter(it => it.categoriaId === filtroCategoriaCompras);
+  if(filtroEtiquetaCompras) items = items.filter(it => etiquetasDeItemCompra(it).includes(filtroEtiquetaCompras)); // v1.49
   if(!items.length){
     cont.innerHTML = (checkComprasCache.items || []).length
       ? '<div class="vacio">No hay ítems de esta categoría en la lista.</div>'
@@ -3801,6 +3896,8 @@ function renderListaCompras(){
     const nombresOrigen = (it.recetasOrigen || [])
       .map(o => (o && typeof o === 'object') ? o.nombre : null)
       .filter(Boolean);
+    // v1.49: etiquetas heredadas del insumo (misma fuente que Insumos/Recetario, en vivo)
+    const etiquetasItem = etiquetasDeItemCompra(it);
     return `
     <div class="compra-item ${it.comprado ? 'comprado' : ''} ${noNecesita ? 'no-necesita' : ''}">
       <div>
@@ -3810,6 +3907,7 @@ function renderListaCompras(){
           ${it.origen === 'suelto' ? '<span class="chip-categoria">Suelto</span>' : ''}
         </div>
         ${nombresOrigen.length ? `<div class="compra-meta">Para: ${nombresOrigen.join(', ').toString().replace(/</g,'&lt;')}</div>` : ''}
+        ${etiquetasItem.length ? `<div style="margin-top:4px;">${etiquetasItem.map(e => `<span class="chip-etiqueta" ${styleChipEtiqueta(e)}>${e.toString().replace(/</g,'&lt;')}</span>`).join('')}</div>` : ''}
         ${it.comprado && it.precioAnterior != null ? `
         <div class="compra-precio-ghost">$${it.precioComprado} nuevo · <span class="tachado">$${it.precioAnterior}</span> si deshaces</div>
         ` : ''}
