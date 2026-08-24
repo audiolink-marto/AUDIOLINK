@@ -3,8 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.43)</title>
-<!-- AUDIOLINK · cocina.html · v1.43
+<title>Audiolink — Cocina (v1.47)</title>
+<!-- AUDIOLINK · cocina.html · v1.47
+     v1.47: (a pedido) sugerencias de etiquetas al editar/crear un
+     insumo — el chip-input de "Etiquetas de uso" (v1.46) no mostraba
+     las etiquetas ya usadas en el resto del catálogo, así que había
+     que retiparlas de memoria cada vez. Ahora, debajo del input,
+     aparecen como chips tocables (borde punteado, para diferenciarse
+     de una etiqueta ya puesta) todas las etiquetas existentes que el
+     insumo actual todavía no tiene — tocar una la agrega directo, sin
+     escribir. Se arma con todasLasEtiquetasInsumo() (ya existente,
+     la misma que usa el filtro) y se refresca junto con
+     renderEtiquetasInsumo(), así que funciona igual al crear, editar
+     y cancelar. No toca ninguna otra pestaña, colección ni cálculo
+     existente.
+     v1.45: textos secundarios más grandes SOLO en móvil (media query
+     max-width:600px ya existente) — etiquetas, badges de pedido,
+     hints, resúmenes de tarjeta y el listado de abonos/notas pasan de
+     0.75–0.88rem a ~0.92rem en pantalla chica. En escritorio no
+     cambia nada, y el PDF (clases .coc-*) tampoco se toca, porque usa
+     tamaños en pt pensados para hoja impresa.
+
+     v1.44: alertas de color en el saldo de pedido — mismo criterio en
+     los 3 lugares donde se muestra (tarjeta, formulario y PDF): rojo
+     = sin abono, amarillo = abono parcial, verde = pagado completo.
+     Reutiliza el mismo criterio que ya traía el badge 💰/✅ de la
+     tarjeta (v1.43), solo que ahora también colorea el texto "Saldo"
+     de la tarjeta, el recuadro de saldo del formulario, y la fila
+     "Saldo pendiente" del PDF (con clases nuevas y aisladas para no
+     afectar el color fijo de "Ganancia · Margen" en la ficha de
+     receta, que comparte la misma clase base). Sin cambios en
+     cálculo de costos, márgenes ni abonos.
+
      v1.43: (a pedido) registro de abonos por movimiento — el campo
      plano "Abonado por el cliente" se reemplaza por un historial
      `abonos` (array de {monto, fecha}), mismo patrón que el checklist
@@ -953,6 +983,28 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 .chip-filtro.activo{
   background:var(--gold-soft); border-color:var(--gold); color:var(--gold); font-weight:600;
 }
+/* v1.46: chip removible de etiqueta de uso (dentro del formulario y en
+   la tabla/ficha, sin el botón ✕ cuando es solo lectura). */
+.chip-etiqueta{
+  display:inline-flex; align-items:center; gap:4px; font-size:0.82rem;
+  background:rgba(160,130,58,0.12); border:1px solid rgba(160,130,58,0.3);
+  color:var(--gold); border-radius:12px; padding:3px 8px; margin:2px 4px 2px 0;
+}
+.chip-etiqueta button{
+  background:none; border:none; color:inherit; cursor:pointer; padding:0;
+  font-size:0.8rem; line-height:1; opacity:0.7;
+}
+.chip-etiqueta button:hover{ opacity:1; }
+/* v1.47: chip de SUGERENCIA de etiqueta (tocar para agregar) — mismo
+   tamaño táctil que .chip-etiqueta pero borde punteado y color apagado,
+   para distinguirlo de una etiqueta ya puesta en el insumo. */
+.chip-etiqueta-sugerencia{
+  display:inline-flex; align-items:center; font-size:0.82rem;
+  background:rgba(255,255,255,0.03); border:1px dashed var(--border);
+  color:var(--muted); border-radius:12px; padding:3px 8px; margin:2px 4px 2px 0;
+  cursor:pointer;
+}
+.chip-etiqueta-sugerencia:hover{ border-color:var(--gold); color:var(--gold); }
 /* v1.12: punto de color por categoría, usado en badges y chips de filtro */
 .chip-dot{
   display:inline-block; width:7px; height:7px; border-radius:50%;
@@ -1078,6 +1130,34 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   .compra-cant{ font-size:1.05rem; }
   .compra-precio-ghost{ font-size:0.88rem; }
   .compra-comprar-form input{ font-size:16px; min-height:46px; }
+
+  /* v1.45: en móvil, varios textos secundarios (etiquetas, badges,
+     hints, resúmenes) quedaban entre 0.75–0.88rem — muy chicos para
+     pantalla táctil. Se sube el piso a ~0.92rem SOLO en móvil; en
+     escritorio no cambia nada. No toca el PDF (clases .coc-*), que
+     usa tamaños en pt pensados para hoja impresa, no pantalla. Los
+     !important son necesarios porque algunos de estos textos traen
+     su tamaño por estilo inline (ej. el botón "🛒 A compras"). */
+  .vacio-mini,
+  .hint-sugerido,
+  .hint-campo,
+  .badge-pago-pedido,
+  .badge-estado-pedido,
+  .nota-pedido-item .texto,
+  .abono-pedido-item,
+  .abono-pedido-item .fecha,
+  .abono-pedido-item .monto,
+  .receta-resumen,
+  .card-sub,
+  .conteo,
+  .compra-meta,
+  .compra-total,
+  .sub,
+  .margen-box .lbl,
+  .field-total .lbl,
+  .chip-filtro{
+    font-size:0.92rem !important;
+  }
 
   /* v1.10: fila de insumo en receta, en 3 líneas (select / cant+subtotal / borrar) */
   .receta-insumo-row{
@@ -1251,6 +1331,15 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
           <label for="inputInsumoStockActual">Stock actual (en la misma unidad de arriba)</label>
           <input type="number" id="inputInsumoStockActual" min="0" step="0.01" placeholder="0">
         </div>
+        <div class="field" style="grid-column:1/-1;">
+          <label for="inputNuevaEtiquetaInsumo">Etiquetas de uso (ej: salsas, bebidas — un insumo puede tener varias)</label>
+          <div id="listaEtiquetasInsumo"></div>
+          <div class="btn-row" style="margin-top:6px;">
+            <input type="text" id="inputNuevaEtiquetaInsumo" placeholder="ej: bebidas" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault(); agregarEtiquetaInsumo();}">
+            <button type="button" class="btn-ghost" onclick="agregarEtiquetaInsumo()">➕</button>
+          </div>
+          <div id="sugerenciasEtiquetaInsumo" style="margin-top:6px;"></div>
+        </div>
         <div class="btn-row" style="align-items:flex-end;">
           <button type="button" class="btn" style="width:100%;" id="btnGuardarInsumo" onclick="guardarInsumo()">Guardar insumo</button>
           <button type="button" class="btn-ghost" id="btnCancelarEdicionInsumo" style="display:none;" onclick="cancelarEdicionInsumo()">Cancelar</button>
@@ -1266,6 +1355,10 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
           <label>Filtrar por categoría</label>
           <div class="filtro-chips" id="filtroCategoriaChips"></div>
         </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Filtrar por uso (etiqueta)</label>
+          <div class="filtro-chips" id="filtroEtiquetaChips"></div>
+        </div>
       </div>
       <div class="tabla-wrap">
         <table class="hoja">
@@ -1273,6 +1366,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
             <tr>
               <th>Insumo</th>
               <th>Categoría</th>
+              <th>Etiquetas</th>
               <th>Unidad</th>
               <th class="num">Valor unidad</th>
               <th class="num">Stock</th>
@@ -1280,7 +1374,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
             </tr>
           </thead>
           <tbody id="tbodyInsumos">
-            <tr><td colspan="6" class="vacio">Cargando…</td></tr>
+            <tr><td colspan="7" class="vacio">Cargando…</td></tr>
           </tbody>
         </table>
       </div>
@@ -1384,6 +1478,10 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
     <div class="card">
       <h3 style="margin-bottom:4px;">🧾 Recetas guardadas</h3>
       <div class="card-sub">Toca una receta para ver el detalle de insumos.</div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>Filtrar por uso (etiqueta heredada de sus insumos)</label>
+        <div class="filtro-chips" id="filtroEtiquetaRecetaChips"></div>
+      </div>
       <div id="listaRecetas">
         <div class="vacio">Cargando…</div>
       </div>
@@ -1578,6 +1676,9 @@ let insumosCache = [];
 let recetasCache = [];
 let categoriasCache = [];
 let filtroCategoriaActual = ''; // v1.11: reemplaza el .value del select de filtro (ahora chips)
+let filtroEtiquetaActual = ''; // v1.46: chips de filtro por etiqueta de uso
+let filtroEtiquetaRecetaActual = ''; // v1.46: mismo filtro, aplicado en Recetario
+let etiquetasInsumoEnConstruccion = []; // v1.46: [string,...] del insumo en el formulario
 let filtroCategoriaCompras = ''; // v1.12: mismo patrón, para la Lista de compras
 let checkComprasCache = { items: [] };
 let filasRecetaEnConstruccion = [];
@@ -2035,6 +2136,82 @@ function seleccionarFiltroCategoria(valor){
   renderTablaInsumos();
 }
 
+// v1.46: chip-input de etiquetas dentro del formulario de insumo —
+// mismo patrón que notas/abonos de Pedidos (lista en memoria + render).
+function agregarEtiquetaInsumo(){
+  const input = document.getElementById('inputNuevaEtiquetaInsumo');
+  const valor = input.value.trim().toLowerCase();
+  if(!valor) return;
+  if(!etiquetasInsumoEnConstruccion.includes(valor)) etiquetasInsumoEnConstruccion.push(valor);
+  input.value = '';
+  renderEtiquetasInsumo();
+}
+
+function eliminarEtiquetaInsumo(idx){
+  etiquetasInsumoEnConstruccion.splice(idx, 1);
+  renderEtiquetasInsumo();
+}
+
+function renderEtiquetasInsumo(){
+  const cont = document.getElementById('listaEtiquetasInsumo');
+  if(!cont) return;
+  if(!etiquetasInsumoEnConstruccion.length){
+    cont.innerHTML = '<div class="hint-campo" style="margin:0;">Sin etiquetas.</div>';
+    return;
+  }
+  cont.innerHTML = etiquetasInsumoEnConstruccion.map((e, idx) => `
+    <span class="chip-etiqueta">${e.toString().replace(/</g,'&lt;')} <button type="button" onclick="eliminarEtiquetaInsumo(${idx})">✕</button></span>
+  `).join('');
+  renderSugerenciasEtiquetaInsumo();
+}
+
+// v1.47: chips de SUGERENCIA con las etiquetas ya usadas en el catálogo
+// (excluye las que el insumo actual ya tiene puestas) — para no tener
+// que retipear una etiqueta que ya existe, tanto al crear como al
+// editar un insumo. Se refresca junto con renderEtiquetasInsumo().
+function renderSugerenciasEtiquetaInsumo(){
+  const cont = document.getElementById('sugerenciasEtiquetaInsumo');
+  if(!cont) return;
+  const disponibles = todasLasEtiquetasInsumo().filter(e => !etiquetasInsumoEnConstruccion.includes(e));
+  if(!disponibles.length){ cont.innerHTML = ''; return; }
+  cont.innerHTML = disponibles.map(e => `
+    <span class="chip-etiqueta-sugerencia" onclick="agregarEtiquetaInsumoDesdeSugerencia('${e.toString().replace(/'/g,"\\'")}')">${e.toString().replace(/</g,'&lt;')}</span>
+  `).join('');
+}
+
+function agregarEtiquetaInsumoDesdeSugerencia(valor){
+  if(!etiquetasInsumoEnConstruccion.includes(valor)) etiquetasInsumoEnConstruccion.push(valor);
+  renderEtiquetasInsumo();
+}
+
+// v1.46: lista de todas las etiquetas usadas en el catálogo, para
+// armar los chips de filtro — no es una colección aparte, se deriva
+// de insumosCache (igual de simple que las etiquetas mismas).
+function todasLasEtiquetasInsumo(){
+  const set = new Set();
+  insumosCache.forEach(i => { if(Array.isArray(i.etiquetas)) i.etiquetas.forEach(e => set.add(e)); });
+  return [...set].sort();
+}
+
+function renderFiltroEtiquetaChips(){
+  const cont = document.getElementById('filtroEtiquetaChips');
+  if(!cont) return;
+  const etiquetas = todasLasEtiquetasInsumo();
+  if(filtroEtiquetaActual && !etiquetas.includes(filtroEtiquetaActual)) filtroEtiquetaActual = '';
+  if(!etiquetas.length){ cont.innerHTML = '<div class="hint-campo" style="margin:0;">Aún no hay etiquetas creadas.</div>'; return; }
+  const opciones = [{ valor:'', nombre:'Todas' }, ...etiquetas.map(e => ({ valor:e, nombre:e }))];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroEtiquetaActual === o.valor ? 'activo' : ''}"
+      onclick="seleccionarFiltroEtiqueta('${o.valor}')">${o.nombre.toString().replace(/</g,'&lt;')}</button>
+  `).join('');
+}
+
+function seleccionarFiltroEtiqueta(valor){
+  filtroEtiquetaActual = valor;
+  renderFiltroEtiquetaChips();
+  renderTablaInsumos();
+}
+
 // v1.12: mismo patrón de chips, para la Lista de compras
 function renderFiltroCategoriaComprasChips(){
   const cont = document.getElementById('filtroCategoriaComprasChips');
@@ -2087,7 +2264,7 @@ function guardarInsumo(){
     alert('Ya existe un insumo con ese nombre.'); return;
   }
 
-  const datosInsumo = { nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad, trackearStock, stockActual };
+  const datosInsumo = { nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad, trackearStock, stockActual, etiquetas: etiquetasInsumoEnConstruccion };
 
   if(insumoEnEdicionId){
     db.collection('cocinaInsumos').doc(insumoEnEdicionId).update(datosInsumo)
@@ -2105,6 +2282,8 @@ function guardarInsumo(){
       document.getElementById('chkInsumoTrackearStock').checked = false;
       document.getElementById('inputInsumoStockActual').value = '';
       document.getElementById('filaInsumoStockActual').style.display = 'none';
+      etiquetasInsumoEnConstruccion = [];
+      renderEtiquetasInsumo();
     }).catch(err => { console.error(err); alert('No se pudo guardar el insumo.'); });
   }
 }
@@ -2128,6 +2307,8 @@ function habilitarEdicionInsumo(id){
   document.getElementById('chkInsumoTrackearStock').checked = !!i.trackearStock;
   document.getElementById('inputInsumoStockActual').value = (i.stockActual != null) ? i.stockActual : '';
   document.getElementById('filaInsumoStockActual').style.display = i.trackearStock ? '' : 'none';
+  etiquetasInsumoEnConstruccion = Array.isArray(i.etiquetas) ? [...i.etiquetas] : [];
+  renderEtiquetasInsumo();
 
   document.getElementById('tituloFormInsumo').firstChild.textContent = '✏️ Editando insumo ';
   document.getElementById('badgeModoEdicionInsumo').style.display = '';
@@ -2147,6 +2328,8 @@ function cancelarEdicionInsumo(){
   document.getElementById('chkInsumoTrackearStock').checked = false;
   document.getElementById('inputInsumoStockActual').value = '';
   document.getElementById('filaInsumoStockActual').style.display = 'none';
+  etiquetasInsumoEnConstruccion = [];
+  renderEtiquetasInsumo();
 
   document.getElementById('tituloFormInsumo').firstChild.textContent = '➕ Registrar insumo ';
   document.getElementById('badgeModoEdicionInsumo').style.display = 'none';
@@ -2181,11 +2364,12 @@ function escucharInsumos(){
     insumosCache = [];
     snap.forEach(doc => insumosCache.push({ id: doc.id, ...doc.data() }));
     renderTablaInsumos();
+    renderFiltroEtiquetaChips();
     renderSelectInsumoSuelto();
-    if(recetasCache.length) renderListaRecetas();
+    if(recetasCache.length){ renderListaRecetas(); renderFiltroEtiquetaRecetaChips(); }
   }, err => {
     console.error('No se pudo leer cocinaInsumos:', err);
-    document.getElementById('tbodyInsumos').innerHTML = '<tr><td colspan="6" class="vacio">Error al cargar el catálogo.</td></tr>';
+    document.getElementById('tbodyInsumos').innerHTML = '<tr><td colspan="7" class="vacio">Error al cargar el catálogo.</td></tr>';
   });
 }
 
@@ -2195,15 +2379,17 @@ function renderTablaInsumos(){
   let filas = insumosCache;
   if(filtro === '__sin__') filas = filas.filter(i => !i.categoriaId);
   else if(filtro) filas = filas.filter(i => i.categoriaId === filtro);
+  if(filtroEtiquetaActual) filas = filas.filter(i => Array.isArray(i.etiquetas) && i.etiquetas.includes(filtroEtiquetaActual));
 
   if(!filas.length){
-    tbody.innerHTML = '<tr><td colspan="6" class="vacio">Aún no hay insumos registrados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="vacio">Aún no hay insumos registrados.</td></tr>';
     return;
   }
   tbody.innerHTML = filas.map(i => `
     <tr>
       <td class="producto">${(i.nombre || '—').toString().replace(/</g,'&lt;')}</td>
       <td><span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(i.categoriaId)}"></span>${nombreCategoria(i.categoriaId).toString().replace(/</g,'&lt;')}</span></td>
+      <td>${Array.isArray(i.etiquetas) && i.etiquetas.length ? i.etiquetas.map(e => `<span class="chip-etiqueta">${e.toString().replace(/</g,'&lt;')}</span>`).join('') : '—'}</td>
       <td>${i.unidad || '—'}</td>
       <td class="num">${formatoMoneda(i.valorUnidad)}</td>
       <td class="num">${i.trackearStock ? ((i.stockActual != null ? i.stockActual : 0) + ' ' + (i.unidad || '')) : '—'}</td>
@@ -2489,6 +2675,7 @@ function escucharRecetas(){
     recetasCache = [];
     snap.forEach(doc => recetasCache.push({ id: doc.id, ...doc.data() }));
     renderListaRecetas();
+    renderFiltroEtiquetaRecetaChips();
     // v1.7 — la pestaña Compras necesita el mismo recetasCache para
     // armar la lista de checkboxes "generar desde recetas".
     renderListaRecetasParaCompra();
@@ -2506,17 +2693,56 @@ function costoActualReceta(receta){
   }, 0);
 }
 
+// v1.46: etiquetas de uso heredadas — unión de las etiquetas de todos
+// los insumos que componen la receta (no se guardan aparte, se
+// derivan en vivo desde insumosCache, igual que el costo actual).
+function etiquetasDeReceta(receta){
+  const set = new Set();
+  (receta.insumos || []).forEach(i => {
+    const insumo = insumosCache.find(ins => ins.id === i.insumoId);
+    if(insumo && Array.isArray(insumo.etiquetas)) insumo.etiquetas.forEach(e => set.add(e));
+  });
+  return [...set].sort();
+}
+
+function renderFiltroEtiquetaRecetaChips(){
+  const cont = document.getElementById('filtroEtiquetaRecetaChips');
+  if(!cont) return;
+  const set = new Set();
+  recetasCache.forEach(r => etiquetasDeReceta(r).forEach(e => set.add(e)));
+  const etiquetas = [...set].sort();
+  if(filtroEtiquetaRecetaActual && !etiquetas.includes(filtroEtiquetaRecetaActual)) filtroEtiquetaRecetaActual = '';
+  if(!etiquetas.length){ cont.innerHTML = '<div class="hint-campo" style="margin:0;">Sin etiquetas (agrégalas desde Insumos).</div>'; return; }
+  const opciones = [{ valor:'', nombre:'Todas' }, ...etiquetas.map(e => ({ valor:e, nombre:e }))];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroEtiquetaRecetaActual === o.valor ? 'activo' : ''}"
+      onclick="seleccionarFiltroEtiquetaReceta('${o.valor}')">${o.nombre.toString().replace(/</g,'&lt;')}</button>
+  `).join('');
+}
+
+function seleccionarFiltroEtiquetaReceta(valor){
+  filtroEtiquetaRecetaActual = valor;
+  renderFiltroEtiquetaRecetaChips();
+  renderListaRecetas();
+}
+
 function renderListaRecetas(){
   const cont = document.getElementById('listaRecetas');
-  if(!recetasCache.length){
-    cont.innerHTML = '<div class="vacio">Aún no hay recetas guardadas.</div>';
+  let recetas = recetasCache;
+  if(filtroEtiquetaRecetaActual) recetas = recetas.filter(r => etiquetasDeReceta(r).includes(filtroEtiquetaRecetaActual));
+  if(!recetas.length){
+    cont.innerHTML = `<div class="vacio">${recetasCache.length ? 'Ninguna receta tiene esa etiqueta.' : 'Aún no hay recetas guardadas.'}</div>`;
     return;
   }
-  cont.innerHTML = recetasCache.map(r => {
+  cont.innerHTML = recetas.map(r => {
     const costoActual = costoActualReceta(r);
     const desactualizada = Math.abs(costoActual - (r.costoTotal || 0)) >= 1;
     const badge = desactualizada
       ? `<span class="badge-desactualizada" title="El precio de uno o más insumos cambió desde que se guardó">⚠️ Insumo actualizado</span>`
+      : '';
+    const etiquetasReceta = etiquetasDeReceta(r);
+    const chipsEtiquetas = etiquetasReceta.length
+      ? etiquetasReceta.map(e => `<span class="chip-etiqueta">${e.toString().replace(/</g,'&lt;')}</span>`).join('')
       : '';
     return `
     <div class="receta-card">
@@ -2526,6 +2752,7 @@ function renderListaRecetas(){
           <div>
             <div class="receta-nombre">${(r.nombre || '—').toString().replace(/</g,'&lt;')} ${badge}</div>
             <div class="receta-resumen">Costo ${formatoMoneda(r.costoTotal)} · Margen ${(r.margenPct || 0).toFixed(2).replace('.', ',')}%</div>
+            ${chipsEtiquetas ? `<div style="margin-top:4px;">${chipsEtiquetas}</div>` : ''}
           </div>
         </div>
         <div class="receta-head-acciones">
@@ -2735,7 +2962,10 @@ function recalcularTotalesPedido(){
 
   const abonado = abonosPedidoEnConstruccion.reduce((acc, a) => acc + (a.monto || 0), 0);
   const saldo = montoTotal - abonado;
-  document.getElementById('pedidoSaldoPendiente').textContent = formatoMoneda(saldo > 0 ? saldo : 0);
+  const elSaldo = document.getElementById('pedidoSaldoPendiente');
+  elSaldo.textContent = formatoMoneda(saldo > 0 ? saldo : 0);
+  elSaldo.style.color = (saldo <= 0 && montoTotal > 0) ? 'var(--ok)' : (abonado > 0 ? 'var(--warn)' : 'var(--danger)');
+  elSaldo.style.fontWeight = '600';
 }
 
 // v1.38: checklist de notas — cada ítem es {texto, hecho}. Reemplaza al
@@ -3109,8 +3339,9 @@ function renderListaPedidos(){
     const abonado = totalAbonado(p);
     const saldo = (p.montoTotal || 0) - abonado;
     let badgePago = '';
-    if(saldo <= 0 && (p.montoTotal || 0) > 0) badgePago = `<span class="badge-pago-pedido pagado">✅ Pagado</span>`;
-    else if(abonado > 0) badgePago = `<span class="badge-pago-pedido abono">💰 Abono: ${formatoMoneda(abonado)}</span>`;
+    let colorSaldo = 'var(--danger)';
+    if(saldo <= 0 && (p.montoTotal || 0) > 0){ badgePago = `<span class="badge-pago-pedido pagado">✅ Pagado</span>`; colorSaldo = 'var(--ok)'; }
+    else if(abonado > 0){ badgePago = `<span class="badge-pago-pedido abono">💰 Abono: ${formatoMoneda(abonado)}</span>`; colorSaldo = 'var(--warn)'; }
     else badgePago = `<span class="badge-pago-pedido sinpago">Sin abono</span>`;
 
     return `
@@ -3122,7 +3353,7 @@ function renderListaPedidos(){
               <span class="badge-estado-pedido ${p.estado || 'pendiente'}">${NOMBRES_ESTADO_PEDIDO[p.estado] || 'Pendiente'}</span>
               ${badgePago}
             </div>
-            <div class="receta-resumen">${p.fechaEntrega || 'sin fecha'} · Monto ${formatoMoneda(p.montoTotal)} · Saldo ${formatoMoneda(saldo > 0 ? saldo : 0)}</div>
+            <div class="receta-resumen">${p.fechaEntrega || 'sin fecha'} · Monto ${formatoMoneda(p.montoTotal)} · <span style="color:${colorSaldo}; font-weight:600;">Saldo ${formatoMoneda(saldo > 0 ? saldo : 0)}</span></div>
           </div>
         </div>
         <div class="receta-head-acciones">
@@ -3680,6 +3911,13 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 .coc-totales{ margin-top:6mm; }
 .coc-totales .coc-fila{ font-size:9.5pt; }
 .coc-totales .coc-fila.coc-destacada{ font-weight:700; color:#a8823a; font-size:10.5pt; }
+/* v1.44: alertas de color del saldo de pedido — mismo criterio que el
+   badge de la tarjeta (rojo=sin abono, amarillo=parcial, verde=pagado).
+   Solo aplica sobre coc-destacada cuando trae esta clase extra, así
+   la fila "Ganancia · Margen" de la ficha de receta no se ve afectada. */
+.coc-totales .coc-fila.coc-destacada.coc-saldo-pagado{ color:#4a934a; }
+.coc-totales .coc-fila.coc-destacada.coc-saldo-abono{ color:#c48a1e; }
+.coc-totales .coc-fila.coc-destacada.coc-saldo-sinpago{ color:#a03228; }
 .coc-footer{
   margin-top:10mm; display:flex; justify-content:space-between;
   font-size:7pt; color:#9a978f; border-top:0.15mm solid #9a978f; padding-top:3mm;
@@ -3951,6 +4189,7 @@ function imprimirPedidoHTML(pedidoId){
 
   const abonado = totalAbonado(p);
   const saldo = (p.montoTotal || 0) - abonado;
+  const claseSaldoPdf = (saldo <= 0 && (p.montoTotal || 0) > 0) ? 'coc-saldo-pagado' : (abonado > 0 ? 'coc-saldo-abono' : 'coc-saldo-sinpago');
   const abonosArrPdf = Array.isArray(p.abonos) ? p.abonos : (p.abonado > 0 ? [{ monto: p.abonado, fecha: '' }] : []);
   const htmlAbonos = abonosArrPdf.length ? `
     <div class="coc-seccion">
@@ -3979,7 +4218,7 @@ function imprimirPedidoHTML(pedidoId){
     <div class="coc-totales">
       <div class="coc-fila"><span class="coc-fila-izq">Total del pedido</span><span class="coc-fila-der">${formatoMoneda(p.montoTotal)}</span></div>
       <div class="coc-fila"><span class="coc-fila-izq">Abonado</span><span class="coc-fila-der">${formatoMoneda(abonado)}</span></div>
-      <div class="coc-fila coc-destacada"><span>Saldo pendiente</span><span>${formatoMoneda(saldo > 0 ? saldo : 0)}</span></div>
+      <div class="coc-fila coc-destacada ${claseSaldoPdf}"><span>Saldo pendiente</span><span>${formatoMoneda(saldo > 0 ? saldo : 0)}</span></div>
     </div>
 
     <div class="coc-footer">
