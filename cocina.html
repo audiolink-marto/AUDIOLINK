@@ -3,8 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.66)</title>
-<!-- AUDIOLINK · cocina.html · v1.66
+<title>Audiolink — Cocina (v1.68)</title>
+<!-- AUDIOLINK · cocina.html · v1.68
+     v1.68: (a pedido) el filtro de "ocultar ingrediente de la ficha del
+     cliente" de v1.67 ahora también aplica a menu.html (portal público).
+     menu.html no tiene lectura en vivo de insumos/categorías — lee un
+     espejo (menuPublico/{recetaId}) que cocina.html sincroniza vía
+     _cocSincronizarMenuPublico() cada vez que se guarda/publica una
+     receta. Se agregó el mismo filtro (categoria.ocultaEnFicha /
+     insumo.ocultoEnFicha, resuelto en vivo contra
+     insumosCache/categoriasCache) justo antes de armar insumosPublicos,
+     así los insumos ocultos ni siquiera llegan a escribirse en el
+     espejo público. Limitación conocida y aceptada: si cambiás el flag
+     de un insumo/categoría DESPUÉS de publicar una receta, el espejo no
+     se actualiza solo — se refresca recién la próxima vez que se guarde
+     esa receta puntual (no se agregó re-sincronización automática ni
+     botón de forzado, a pedido). No se tocó menu.html — es un archivo
+     aparte, este cambio es 100% del lado de cocina.html.
+     v1.67: (a pedido) 3 cambios:
+     1) Ocultar ingredientes de la FICHA PÚBLICA del cliente (PDF vía
+        imprimirRecetaClienteHTML), sin tocar la ficha interna de
+        costeo: (a) checkbox "Ocultar en ficha cliente" por categoría
+        (categoria.ocultaEnFicha, en la lista de Categorías — pensado
+        para DESECHABLES, que nunca son un ingrediente real); (b)
+        checkbox "No mostrar en ficha del cliente" por insumo
+        (insumo.ocultoEnFicha, en el form de Insumos — pensado para
+        ajo/cebolla u otra base que no se quiera revelar). Ambos se
+        resuelven EN VIVO contra insumosCache/categoriasCache al armar
+        htmlIngredientes, no contra el snapshot guardado en la receta.
+        NOTA: menu.html (portal público) es un archivo aparte que no
+        tengo cargado acá — este filtro no le llega automáticamente;
+        avisar si también hay que replicarlo ahí.
+     2) Fix — "ha ocurrido un problema" al imprimir/guardar PDF desde
+        el preview en móvil, en recetas con imagen. Causa más probable:
+        el botón llamaba a window.print() sin esperar a que la imagen
+        (coc-imagen-header) terminara de cargar — en redes móviles más
+        lentas, el navegador intentaba imprimir a medio cargar. Ahora
+        _cocEsperarImagenes() espera a que todas las <img> del documento
+        terminen (load o error) antes de imprimir, con tope de 4s para
+        no colgar el botón si alguna nunca carga. También se agregó
+        <meta name="viewport"> a la ventana de preview (buena práctica
+        para renderizado en móvil, no debería cambiar nada en
+        escritorio). Mismo fix aplica a TODAS las fichas que usan
+        _cocAbrirPreview (receta interna, receta cliente, pedidos,
+        catálogo de insumos, compras) porque está centralizado ahí.
+     3) (consecuencia del punto 1) datosInsumo ahora también guarda
+        ocultoEnFicha; se agregó a guardarInsumo()/habilitarEdicionInsumo()/
+        cancelarEdicionInsumo(), mismo patrón que trackearStock.
      v1.66: (a pedido) ajuste sobre los 2 filtros de categoría agregados
      en v1.64/v1.65 (armado de receta y detalle de receta guardada):
      1) Cada chip ahora suma y muestra SU PROPIO subtotal (ej. "🟢
@@ -1678,6 +1723,9 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
         <div class="field">
           <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkInsumoTrackearStock" style="width:auto; margin:0;" onchange="alCambiarTrackearStockInsumo(this.checked)"> Trackear stock (para insumos que sobran: aluminio, guantes, huevos, etc.)</label>
         </div>
+        <div class="field">
+          <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkInsumoOcultoFicha" style="width:auto; margin:0;"> No mostrar en ficha del cliente (ej. ajo, cebolla — receta base que no quieres revelar)</label>
+        </div>
         <div class="field" id="filaInsumoStockActual" style="display:none;">
           <label for="inputInsumoStockActual">Stock actual (en la misma unidad de arriba)</label>
           <input type="number" id="inputInsumoStockActual" min="0" step="0.01" placeholder="0">
@@ -2543,9 +2591,24 @@ function renderListaCategorias(){
     <div class="categoria-list-item">
       <input type="text" value="${(c.nombre || '').toString().replace(/"/g,'&quot;')}"
         onchange="renombrarCategoria('${c.id}', this.value)">
+      <label style="display:flex; align-items:center; gap:5px; font-size:0.78rem; color:var(--muted); font-weight:400; white-space:nowrap;">
+        <input type="checkbox" style="width:auto; margin:0;" ${c.ocultaEnFicha ? 'checked' : ''}
+          onchange="toggleCategoriaOcultaEnFicha('${c.id}', this.checked)"> Ocultar en ficha cliente
+      </label>
       <button class="btn-del" title="Eliminar categoría" onclick="eliminarCategoria('${c.id}')">🗑️</button>
     </div>
   `).join('');
+}
+
+// v1.67: (a pedido) categorías enteras (ej. DESECHABLES) que nunca
+// deben salir listadas como "ingrediente" en la ficha pública del
+// cliente (imprimirRecetaClienteHTML) ni en menu.html. Se guarda en el
+// propio documento de categoriasCocina — no crea una colección nueva.
+// La ficha interna de costeo (imprimirRecetaHTML) sigue mostrando todo,
+// sin importar esto.
+function toggleCategoriaOcultaEnFicha(id, valor){
+  db.collection('categoriasCocina').doc(id).update({ ocultaEnFicha: valor })
+    .catch(err => { console.error(err); alert('No se pudo actualizar la categoría.'); renderListaCategorias(); });
 }
 
 function guardarCategoriaNueva(){
@@ -2869,6 +2932,7 @@ function guardarInsumo(){
   // la misma unidad del insumo (sin conversión).
   const trackearStock = document.getElementById('chkInsumoTrackearStock').checked;
   const stockActual = trackearStock ? (parseFloat(document.getElementById('inputInsumoStockActual').value) || 0) : null;
+  const ocultoEnFicha = document.getElementById('chkInsumoOcultoFicha').checked; // v1.67
 
   if(!nombre){ alert('Escribe el nombre del insumo.'); return; }
   if(categoriaId === '__nueva__'){ alert('Termina de guardar la categoría nueva primero (botón "Guardar" junto al nombre).'); return; }
@@ -2877,7 +2941,7 @@ function guardarInsumo(){
     alert('Ya existe un insumo con ese nombre.'); return;
   }
 
-  const datosInsumo = { nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad, trackearStock, stockActual, etiquetas: etiquetasInsumoEnConstruccion };
+  const datosInsumo = { nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad, trackearStock, stockActual, ocultoEnFicha, etiquetas: etiquetasInsumoEnConstruccion };
 
   if(insumoEnEdicionId){
     db.collection('cocinaInsumos').doc(insumoEnEdicionId).update(datosInsumo)
@@ -2895,6 +2959,7 @@ function guardarInsumo(){
       document.getElementById('chkInsumoTrackearStock').checked = false;
       document.getElementById('inputInsumoStockActual').value = '';
       document.getElementById('filaInsumoStockActual').style.display = 'none';
+      document.getElementById('chkInsumoOcultoFicha').checked = false;
       etiquetasInsumoEnConstruccion = [];
       renderEtiquetasInsumo();
     }).catch(err => { console.error(err); alert('No se pudo guardar el insumo.'); });
@@ -2920,6 +2985,7 @@ function habilitarEdicionInsumo(id){
   document.getElementById('chkInsumoTrackearStock').checked = !!i.trackearStock;
   document.getElementById('inputInsumoStockActual').value = (i.stockActual != null) ? i.stockActual : '';
   document.getElementById('filaInsumoStockActual').style.display = i.trackearStock ? '' : 'none';
+  document.getElementById('chkInsumoOcultoFicha').checked = !!i.ocultoEnFicha;
   etiquetasInsumoEnConstruccion = Array.isArray(i.etiquetas) ? [...i.etiquetas] : [];
   renderEtiquetasInsumo();
 
@@ -2941,6 +3007,7 @@ function cancelarEdicionInsumo(){
   document.getElementById('chkInsumoTrackearStock').checked = false;
   document.getElementById('inputInsumoStockActual').value = '';
   document.getElementById('filaInsumoStockActual').style.display = 'none';
+  document.getElementById('chkInsumoOcultoFicha').checked = false;
   etiquetasInsumoEnConstruccion = [];
   renderEtiquetasInsumo();
 
@@ -3441,7 +3508,22 @@ function _cocSincronizarMenuPublico(recetaId, r){
     db.collection('menuPublico').doc(recetaId).delete().catch(() => {});
     return;
   }
-  const insumosPublicos = (r.insumos || []).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, unidad: i.unidad }));
+  // v1.68: mismo filtro de v1.67 (categoria.ocultaEnFicha / insumo.ocultoEnFicha),
+  // resuelto EN VIVO contra insumosCache/categoriasCache al momento de
+  // sincronizar — así menu.html nunca llega a ver esos insumos, ni
+  // siquiera en su propio doc de menuPublico. Si cambiás el flag de un
+  // insumo/categoría DESPUÉS de publicar una receta, el espejo se
+  // actualiza recién la próxima vez que se guarde esa receta puntual
+  // (menuPublico es una copia, no una consulta en vivo).
+  const insumosPublicos = (r.insumos || [])
+    .filter(i => {
+      const insumo = insumosCache.find(ins => ins.id === i.insumoId);
+      if(insumo && insumo.ocultoEnFicha) return false;
+      const cat = insumo ? insumo.categoriaId : null;
+      if(cat && categoriasCache.some(c => c.id === cat && c.ocultaEnFicha)) return false;
+      return true;
+    })
+    .map(i => ({ nombre: i.nombre, cantidad: i.cantidad, unidad: i.unidad }));
   db.collection('menuPublico').doc(recetaId).set({
     nombre: r.nombre || '',
     descripcion: r.descripcion || '',
@@ -4886,6 +4968,7 @@ function _cocAbrirPreview(titulo, htmlDoc){
   }
   win.document.open();
   win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${_cocEsc(titulo)}</title>
     <style>${COC_PRINT_CSS}</style>
   </head><body>
@@ -4896,7 +4979,29 @@ function _cocAbrirPreview(titulo, htmlDoc){
     <div class="coc-preview-espaciador"></div>
     ${htmlDoc}
     <script>
-      document.getElementById('cocBtnImprimir').addEventListener('click', () => window.print());
+      // v1.67: fix — en móvil, "Imprimir" fallaba con "ha ocurrido un
+      // problema" cuando la receta tiene imagen (coc-imagen-header):
+      // el navegador intentaba imprimir mientras la imagen aún estaba
+      // cargando (redes móviles más lentas que escritorio). Ahora el
+      // botón espera a que TODAS las imágenes terminen de cargar (o
+      // fallen) antes de llamar a window.print() — con un tope de 4s
+      // por si alguna imagen nunca termina, para no dejar el botón
+      // colgado. Sin imágenes, imprime igual que antes (sin demora).
+      function _cocEsperarImagenes(cb){
+        const imgs = Array.from(document.images);
+        if(!imgs.length) return cb();
+        let pendientes = imgs.filter(img => !img.complete).length;
+        if(!pendientes) return cb();
+        let listo = false;
+        const terminar = () => { if(!listo){ listo = true; cb(); } };
+        imgs.forEach(img => {
+          if(img.complete) return;
+          img.addEventListener('load', () => { if(--pendientes <= 0) terminar(); });
+          img.addEventListener('error', () => { if(--pendientes <= 0) terminar(); });
+        });
+        setTimeout(terminar, 4000);
+      }
+      document.getElementById('cocBtnImprimir').addEventListener('click', () => _cocEsperarImagenes(() => window.print()));
       document.getElementById('cocBtnCerrar').addEventListener('click', () => window.close());
       window.onafterprint = () => window.close();
     <\/script>
@@ -4971,7 +5076,22 @@ function imprimirRecetaClienteHTML(recetaId){
   const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
 
   const mostrarCantidades = r.mostrarCantidadesCliente !== false;
-  const htmlIngredientes = (r.insumos || []).map(i => mostrarCantidades ? `
+  // v1.67: (a pedido) se excluyen de la ficha PÚBLICA los insumos cuya
+  // categoría está marcada "Ocultar en ficha cliente" (categoria.ocultaEnFicha,
+  // ej. DESECHABLES) o que el insumo mismo tiene "No mostrar en ficha del
+  // cliente" (insumo.ocultoEnFicha, ej. ajo/cebolla). Se resuelve EN VIVO
+  // contra insumosCache/categoriasCache (no contra el snapshot guardado),
+  // así un cambio de hoy en Insumos ya aplica a fichas de recetas viejas.
+  // La ficha INTERNA de costeo (imprimirRecetaHTML) no usa este filtro —
+  // sigue mostrando el 100% de los insumos, con precios.
+  const insumosVisiblesCliente = (r.insumos || []).filter(i => {
+    const insumo = insumosCache.find(ins => ins.id === i.insumoId);
+    if(insumo && insumo.ocultoEnFicha) return false;
+    const cat = insumo ? insumo.categoriaId : null;
+    if(cat && categoriasCache.some(c => c.id === cat && c.ocultaEnFicha)) return false;
+    return true;
+  });
+  const htmlIngredientes = insumosVisiblesCliente.map(i => mostrarCantidades ? `
     <div class="coc-fila">
       <span class="coc-fila-izq">${_cocEsc(i.nombre)}</span>
       <span class="coc-fila-der">${_cocEsc(i.cantidad)} ${_cocEsc(i.unidad)}</span>
