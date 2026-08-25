@@ -3,8 +3,267 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.50)</title>
-<!-- AUDIOLINK · cocina.html · v1.50
+<title>Audiolink — Cocina (v1.66)</title>
+<!-- AUDIOLINK · cocina.html · v1.66
+     v1.66: (a pedido) ajuste sobre los 2 filtros de categoría agregados
+     en v1.64/v1.65 (armado de receta y detalle de receta guardada):
+     1) Cada chip ahora suma y muestra SU PROPIO subtotal (ej. "🟢
+        LACTEOS · $64.000"), no solo el de la categoría activa — se ve
+        el desglose completo de un vistazo, sin ir clic por clic.
+     2) Cada chip usa el mismo chip-dot de color que ya usan los filtros
+        de categoría de Insumos/Compras (colorCategoria(), misma paleta
+        CATEGORIA_COLORES/misma posición en categoriasCache — mismo
+        color en toda la app para la misma categoría), reutilizado tal
+        cual, sin definir una paleta nueva.
+     En el armado de receta, el total junto a la lista
+     (#recetaSubtotalLista) sigue funcionando igual que en v1.64 (total
+     general o el de la categoría filtrada); en el detalle de receta
+     guardada se quitó el span de subtotal aparte de v1.65 porque ahora
+     ese mismo número ya vive en el chip de esa categoría. No se tocó
+     ningún cálculo de costo/margen ni Firestore.
+     v1.65: (a pedido) el mismo filtro por categoría de v1.64 (armado de
+     receta), ahora también en el detalle de cada card de "Recetas
+     guardadas" (renderListaRecetas). Chips independientes por receta
+     (objeto filtroCategoriaDetalleReceta: recetaId -> categoriaId, así
+     el filtro de una receta no afecta a otra) — solo aparecen si esa
+     receta tiene insumos de 2+ categorías. Ocultan/muestran filas de
+     insumos ([data-cat] en cada receta-detalle-fila; las filas de
+     "Unidades por lote"/"Ingresos" no tienen ese atributo y no se ven
+     afectadas) y muestran el subtotal de la categoría filtrada junto a
+     los chips. La categoría de cada insumo se resuelve EN VIVO contra
+     insumosCache (no contra el snapshot guardado en la receta) — si
+     movés un insumo de categoría después de guardar la receta, el
+     filtro ya lo refleja. No se toca el costo total guardado
+     (r.costoTotal, en el encabezado colapsado de la card), ni
+     guardarReceta(), ni ninguna colección de Firestore.
+     v1.64: (a pedido) 2 mejoras en el formulario de Recetas:
+     1) Chips de filtro por categoría junto a la lista de ingredientes
+        (#filtroCategoriaRecetaChips, mismo patrón visual .chip-filtro ya
+        usado en Insumos/Compras) — solo aparecen si la receta actual
+        tiene insumos de 2+ categorías distintas. Al elegir una, oculta
+        (display:none) las filas de otras categorías y el total junto a
+        la lista (#recetaSubtotalLista, de v1.60) pasa a mostrar el
+        subtotal de esa categoría en vez del total general — para
+        calcular rápido cuánto cuesta cada categoría dentro de esa
+        receta puntual. Es solo visual: no quita ni reordena insumos de
+        filasRecetaEnConstruccion, no toca guardarReceta(). El "Costo
+        total" de la caja de margen sigue siendo SIEMPRE el total
+        completo (no se filtra), para no mezclarlo con el cálculo de
+        margen. El filtro se resetea a "Todas" al cargar una receta
+        nueva, para editar o al duplicar (variable
+        filtroCategoriaRecetaActual), para no dejar filas ocultas sin
+        que el usuario lo note al cambiar de receta.
+     2) Costo unitario: nueva caja en el resumen de margen (junto a
+        Costo total / Ingresos / Margen) = costo total del lote ÷
+        "Unidades por lote". Se recalcula en recalcularMargenReceta()
+        junto con el resto, mismo trigger (oninput en unidades/precio).
+        Si "Unidades por lote" está vacío o es 0 muestra "—" (evita
+        dividir por cero). El grid de esas cajas pasó de 3 a 4 columnas
+        en escritorio para que la nueva quede alineada (en móvil ya
+        usaba 2 columnas, sigue igual). No se tocó "Ingresos de venta"
+        ni "Margen de ganancia".
+     v1.63: (a pedido) fix — franjas/fondo blanco en el desplegable
+     nativo de los <select> en tema oscuro. El <select> en sí ya estaba
+     bien pintado (fondo/texto vía .field select), pero el navegador
+     dibujaba la LISTA de opciones al abrirla con la paleta nativa del
+     sistema (blanca por defecto) porque el archivo nunca declaraba
+     color-scheme. Se agregó "color-scheme: dark;" en :root (tema base)
+     y "color-scheme: light;" en :root[data-tema="light"] — 2 líneas,
+     no tocan ningún color/variable existente, solo indican al navegador
+     qué paleta nativa usar para selects/checkboxes/scrollbars.
+     v1.62: (a pedido) alerta de insumo repetido en Recetas — si eliges
+     un insumo que ya está puesto en otra fila de la misma receta en
+     construcción, se muestra un toast de aviso ("⚠️ ... ya está en la
+     receta, en otra fila") con mostrarToast() (mismo patrón centralizado
+     ya usado en el resto del sitio, tipo 'warn'). Solo avisa, no
+     bloquea: la selección se guarda igual (puede ser intencional, ej.
+     mismo insumo en dos pasos con cantidades distintas). Se agregó
+     dentro de actualizarFilaReceta(), sin tocar recalcularCostoReceta(),
+     guardarReceta() ni ninguna otra lógica.
+     v1.61: (a pedido) botón manual "🔤 Ordenar A-Z" junto a "➕ Agregar
+     insumo", en el formulario de Recetas. Se restaura
+     reordenarFilasInsumosReceta() (misma lógica de v1.59: ordena las
+     filas de #filasInsumosReceta por nombre de insumo, A→Z en español;
+     las filas sin insumo elegido quedan al final), pero a diferencia de
+     v1.59 ahora es 100% manual — solo se dispara con el clic del botón,
+     nunca automáticamente al elegir un insumo ni al cargar una receta
+     para editar/duplicar (eso quedó revertido en v1.60 y sigue así). No
+     se agrupa por categoría en esta lista (se evaluó y se descartó: con
+     pocos insumos por receta no aporta, y la categoría de cada insumo ya
+     es visible en su <select>) — sí tiene sentido en catálogo de
+     Insumos/lista de Compras, donde ya existe.
+     v1.60: (a pedido) 2 ajustes sobre el formulario de Recetas:
+     1) Se revierte el orden alfabético automático de v1.59 (dificultaba
+        ubicar la fila recién agregada antes de terminar de cargarle el
+        precio/cantidad). Se quitan las 3 llamadas a
+        reordenarFilasInsumosReceta() (en actualizarFilaReceta,
+        habilitarEdicionReceta y duplicarReceta) y se elimina la función,
+        que quedó sin uso. Las filas vuelven a quedarse en el orden en
+        que se van agregando/cargando, como antes de v1.59.
+     2) Total acumulado visible junto a la lista: se agrega
+        #recetaSubtotalLista, una segunda etiqueta con el mismo valor que
+        ya calculaba recalcularCostoReceta() (el mismo costoTotal que
+        alimenta #recetaCostoTotal), ahora mostrado también justo debajo
+        de las filas de insumos — no duplica el cálculo, solo el punto
+        donde se pinta el mismo número, así se ve sin bajar hasta la caja
+        de "Costo total" más abajo. No se tocó recalcularMargenReceta()
+        ni ningún otro cálculo.
+     v1.59: (a pedido) 2 mejoras en Insumos/Recetas, ambas de bajo riesgo:
+     1) Orden alfabético de ingredientes al armar/editar/duplicar una
+        receta: nueva función reordenarFilasInsumosReceta() ordena las
+        filas de #filasInsumosReceta por nombre de insumo (A→Z, es) cada
+        vez que se elige/cambia un insumo en una fila (actualizarFilaReceta)
+        y también al terminar de cargar filas en habilitarEdicionReceta()
+        y duplicarReceta(). Las filas sin insumo elegido todavía quedan al
+        final. Solo reordena el array y reinserta los <div> ya existentes
+        (appendChild los mueve, no los duplica) — no crea filas, no
+        recalcula costos, no toca Firestore. quitarFilaInsumoReceta(),
+        recalcularCostoReceta() y guardarReceta() quedan sin cambios.
+     2) Fix: las sugerencias de etiquetas del formulario "Registrar
+        insumo" (chip-input bajo "Etiquetas de uso", v1.47) no se
+        refrescaban al cargar la página ni al llegar cambios del catálogo
+        por Firestore — solo se actualizaban si el usuario tocaba una
+        etiqueta manualmente dentro del propio formulario. Causa:
+        escucharInsumos() nunca llamaba a renderSugerenciasEtiquetaInsumo().
+        Se agregó esa llamada junto a los demás refrescos del listener
+        (renderFiltroEtiquetaChips, renderFiltroEtiquetaComprasChips,
+        etc.). No se tocó la lógica de agregar/quitar etiquetas ni el
+        guardado del insumo.
+     v1.58: (a pedido) botón 📋 "Duplicar receta" en cada tarjeta de
+     Recetas — caso "Lasaña Junior": misma receta, insumos en menor
+     cantidad. Pide un factor de escala (prompt, ej: 0.5 = mitad) y
+     carga el formulario en modo "nueva receta" (NO crea el documento
+     solo, para que el usuario revise antes de guardar):
+       - cada insumo: cantidad × factor (mismo insumoId, mismo precio
+         por unidad — el insumo no cambia de precio, solo la cantidad)
+       - "unidades por lote": también × factor por defecto (asume que
+         un lote más chico rinde menos porciones — caso más común),
+         pero queda editable antes de guardar por si el caso real es
+         al revés (mismo lote, porciones más chicas → más unidades)
+       - precio de venta: se deja vacío a propósito, no se asume
+         proporcional (decisión comercial del usuario)
+       - nombre: "[Original] (COPIA)", editable antes de guardar
+     No modifica la receta original ni guardarReceta()/
+     habilitarEdicionReceta() — es una función nueva que reutiliza el
+     mismo formulario y el mismo array filasRecetaEnConstruccion.
+     v1.57: (a pedido) "tuneo" de la pestaña Ventas, que había quedado
+     sin cambios desde v1.0 mientras el resto del sitio avanzaba. 4
+     mejoras, todas de bajo riesgo (no se tocó guardarVenta más allá de
+     lo estrictamente necesario para sumar edición):
+     1) Editar venta: botón ✏️ en cada fila (antes solo se podía
+        eliminar). habilitarEdicionVenta()/cancelarEdicionVenta(),
+        mismo patrón visual que ya usan Insumos/Recetas/Pedidos.
+     2) Filtros del historial: rango de fecha (Desde/Hasta) + producto.
+        Solo afectan la tabla y las exportaciones — el KPI "Total
+        acumulado" de arriba sigue siendo el total histórico completo,
+        sin filtrar, para no confundir esa cifra con un subtotal.
+     3) Exportar ventas a PDF/Excel/CSV — mismo patrón ya armado para
+        Insumos (v1.55/v1.56), reutilizando _cocAbrirPreview() y
+        cargarSheetJS() sin duplicarlas.
+     4) Columna "Margen" por venta: cruza el "producto" de Ventas con
+        el catálogo de Recetas por NOMBRE normalizado (no hay relación
+        por id entre ambas colecciones — mismo cruce que ya usaba
+        autocompletarPrecioDesdeReceta desde v1.4/v1.5). Usa el costo
+        vigente de insumos (costoActualReceta, sin tocarla) dividido
+        entre unidadesPorLote. Si no hay receta con nombre coincidente,
+        o falta unidadesPorLote, muestra "—" en vez de inventar un
+        número: el cruce por nombre es "best effort", no una relación
+        garantizada, así que si renombrás una receta sin renombrar el
+        producto de Ventas (o viceversa), el margen deja de calcularse
+        hasta que los nombres vuelvan a coincidir exactamente.
+     v1.56: (a pedido) tercer botón de exportar insumos: 📗 Excel
+     (.xlsx real, encabezado en negrita + columna "Valor unidad" con
+     formato de moneda), usando xlsx-js-style cargada de forma
+     perezosa (solo al hacer clic, no al abrir el sitio). El botón CSV
+     (v1.55) se mantiene sin cambios como alternativa liviana por si
+     falla la carga del CDN de Excel en ese momento — el propio botón
+     Excel avisa y sugiere el CSV si la librería no carga. No se tocó
+     insumosParaExportar() ni ninguna función previa.
+     v1.55: (a pedido) exportar catálogo de insumos — 2 botones nuevos
+     (📄 PDF / 📊 CSV) junto al título de la sección Insumos. Ambos
+     exportan exactamente lo que está filtrado en pantalla en ese
+     momento (misma lógica de filtro que ya usa renderTablaInsumos,
+     reutilizada sin tocarla, ver insumosParaExportar()). El PDF usa el
+     mismo patrón window.print() + _cocAbrirPreview() ya validado para
+     Recetas/Pedidos/Compras, con una tabla nueva (.coc-tabla-cat)
+     agregada al final de COC_PRINT_CSS sin tocar ni una línea de los
+     estilos existentes. El CSV se genera 100% en el navegador (Blob +
+     descarga), sin librerías externas, con BOM UTF-8 para que Excel no
+     rompa tildes/ñ. No se modificó ninguna función previa.
+     v1.54: (a pedido) fix de contraste en tema claro — los campos de
+     texto/select (.field input/select), la miniatura de imagen de
+     receta (.receta-imagen-preview) y el mini-formulario de "comprar"
+     dentro de un ítem de Compras (.compra-comprar-form input) tenían
+     el fondo hardcodeado en #0f0f11 (casi negro), fijo sin importar el
+     tema — por eso en modo claro quedaban negros con texto oscuro
+     encima, sin contraste. Se reemplaza por var(--surf-light) (alias
+     ya existente, apunta a --bg-card-alt, YA definida en el bloque de
+     tema claro de v1.52) — mismo patrón que ya usa proyecto.html para
+     sus inputs. Efecto secundario menor esperado: en tema OSCURO el
+     fondo de esos inputs pasa de #0f0f11 a --bg-card-alt (#1a1a1d),
+     tonos muy cercanos, alineado con el resto de superficies "alt" del
+     archivo. Pendiente (no resuelto en esta pasada, queda para decidir
+     aparte): varios chips (.chip-categoria, .chip-filtro, el chip de
+     sugerencia punteado) usan rgba(255,255,255,0.04) como fondo,
+     pensado para dar textura sobre fondo oscuro — en claro casi no se
+     ve. El portal compras.html es un archivo aparte, no revisado acá
+     por no estar disponible en esta sesión.
+     v1.53: (a pedido) conexión a utils.js (ecosistema compartido) +
+     mostrarToast() centralizada. (1) Se agrega
+     <script src="utils.js"></script> después de firebase-config.js —
+     antes cocina.html no lo cargaba. (2) mostrarToast() se retira de
+     acá y pasa a vivir en utils.js v1.5 (recibe el id del contenedor
+     como parámetro, default 'toast-cocina' — el mismo que ya usaba
+     este archivo), así que ningún llamado existente cambió. El
+     CSS (.toast-item y compañía) y el <div id="toast-cocina"> se
+     quedan como estaban acá — se decidió NO centralizar esas dos
+     piezas en nav.css/nav.js todavía, para no tocar archivos que
+     corren en todo el ecosistema en la misma pasada (queda como
+     posible paso futuro). formatCOP() de utils.js NO se adoptó a
+     propósito: da un look distinto ("$ 15.000" con espacio, negativos
+     distintos) al formatoMoneda() que ya usa Cocina ("$15.000") — se
+     decidió mantener el look actual sin cambios visuales no pedidos.
+     escapeHtml() de utils.js queda disponible pero tampoco se
+     reemplazaron los escapes manuales existentes en esta pasada (no
+     se pidió, y son muchos sitios — mejor evaluarlo aparte).
+     v1.52: (a pedido) tema claro — el botón 🌙/☀️ del nav (compartido
+     por todo el ecosistema vía nav.js/nav.css) ya estaba activo acá y
+     cambiaba data-tema en <html>, pero cocina.html no tenía ningún CSS
+     que reaccionara a eso, así que no pasaba nada visualmente. Se
+     confirmó que el ecosistema NO tiene una paleta de tema claro
+     centralizada — nav.css solo espera que cada página defina sus
+     propias variables de tema en su :root (documentado en su propia
+     cabecera); cada HTML define la suya (ver proyecto.html). Acá se
+     agregó una paleta PROPIA (no copiada de proyecto.html), cálida y
+     coherente con el dorado/oscuro que ya usa Cocina, en un bloque
+     nuevo :root[data-tema="light"]{...} justo después del :root base.
+     Solo se sobreescriben las variables base (--bg, --bg-card, --gold,
+     etc.); los alias que ya pedía nav.css (--surf, --brd, --txt,
+     --gold-bg) apuntan a esas mismas variables con var(), así que se
+     actualizan solos — no se tocaron. No se tocó ninguna lógica,
+     ningún dato de Firestore, ni las paletas de ETIQUETA_COLORES/
+     CATEGORIA_COLORES (colores fijos con buen contraste en ambos
+     modos, no forman parte del sistema de tema).
+     v1.51: (a pedido) editar/eliminar etiquetas de forma global, mobile
+     first — antes una etiqueta solo se podía quitar chip por chip,
+     insumo por insumo (con 200 insumos, no escala). Ahora cada chip de
+     #filtroEtiquetaChips (pestaña Insumos) tiene un botón ✎ que abre
+     un modal (mismo patrón que #modalConfirmarStockOverlay: overlay +
+     card centrada, botones grandes tipo tap, sin depender de hover) con:
+     input para renombrar (Guardar → renombrarEtiquetaGlobal, recorre
+     insumosCache y actualiza en Firestore solo los insumos que tienen
+     esa etiqueta; si el nuevo nombre ya existía en un insumo, se
+     fusionan sin duplicar) y botón Eliminar etiqueta (pide confirm()
+     antes, mismo estilo que eliminarInsumo(); quita la etiqueta de
+     todos los insumos afectados vía eliminarEtiquetaGlobal). Los chips
+     de Insumos/Recetario/Compras se actualizan solos por los listeners
+     ya existentes. No se creó ninguna colección nueva ni se tocó el
+     resto de cada documento de insumo (precio, stock, categoría, etc.).
+     FIX (mismo día): el modal había quedado insertado dentro de
+     #tabCompras, que tiene display:none cuando esa pestaña no está
+     activa — por eso el ✎ no respondía al clic estando en Insumos.
+     Se movió a nivel raíz, junto a #modalConfirmarStockOverlay, fuera
+     de cualquier tab-panel.
      v1.50: (a pedido) color propio por etiqueta de uso — antes todos
      los chips de etiqueta (Insumos, Recetario, Compras) eran dorados
      fijos, iguales entre sí y parecidos a los chips de categoría, así
@@ -710,10 +969,12 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
+<script src="utils.js"></script>
 <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
 <link rel="stylesheet" href="nav.css">
 <style>
 :root{
+  color-scheme: dark;
   --bg:#0b0b0d;
   --bg-card:#151517;
   --bg-card-alt:#1a1a1d;
@@ -739,6 +1000,29 @@
   --err:var(--danger);
   --warn:#d4a017;
   --S:'Inter', -apple-system, sans-serif;
+}
+/* v1.52: paleta propia de tema claro — el botón 🌙/☀️ ya venía activo
+   vía nav.js (compartido por el ecosistema) pero cocina.html no tenía
+   este bloque, así que el atributo cambiaba y nada pasaba visualmente.
+   Solo se sobreescriben las variables BASE (--bg, --bg-card, --gold,
+   etc.); los alias que pide nav.css (--surf, --brd, --txt, --gold-bg)
+   ya apuntan a estas mismas variables, así que se actualizan solos sin
+   tocarlos. No es la misma paleta que usa proyecto.html — es propia,
+   pensada para mantener el look dorado/cálido de Cocina en modo claro. */
+:root[data-tema="light"]{
+  color-scheme: light;
+  --bg:#faf6ee;
+  --bg-card:#ffffff;
+  --bg-card-alt:#f4efe2;
+  --border:#e3dac4;
+  --gold:#9c7228;
+  --gold-soft:rgba(156,114,40,0.12);
+  --text:#2b2620;
+  --muted:#7a7266;
+  --faint:#a49c8c;
+  --danger:#a8362b;
+  --ok:#3a8f5f;
+  --warn:#a8792f;
 }
 *{box-sizing:border-box;}
 body{
@@ -803,7 +1087,7 @@ body{
 .field{ display:flex; flex-direction:column; gap:5px; }
 .field label{ font-size:0.85rem; color:var(--muted); }
 .field input, .field select{
-  background:#0f0f11; border:1px solid var(--border); border-radius:8px;
+  background:var(--surf-light); border:1px solid var(--border); border-radius:8px;
   color:var(--text); padding:10px 12px; font-size:0.96rem; min-height:42px;
   font-family:inherit;
 }
@@ -828,7 +1112,7 @@ input[type="checkbox"]{
 .receta-imagen-upload{ display:flex; gap:12px; align-items:center; }
 .receta-imagen-preview{
   width:72px; height:72px; border-radius:10px; overflow:hidden; flex-shrink:0;
-  background:#0f0f11; border:1px solid var(--border);
+  background:var(--surf-light); border:1px solid var(--border);
   display:flex; align-items:center; justify-content:center;
 }
 .receta-imagen-preview img{ width:100%; height:100%; object-fit:cover; }
@@ -885,7 +1169,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 }
 .receta-insumo-row .subtotal{ font-family:var(--M); font-size:0.92rem; color:var(--muted); text-align:right; }
 .margen-grid{
-  display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:14px;
+  display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-top:14px;
 }
 .margen-box{
   background:var(--bg-card-alt); border:1px solid var(--border); border-radius:10px;
@@ -1126,7 +1410,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 }
 .compra-comprar-form.activo{ display:grid; }
 .compra-comprar-form input{
-  background:#0f0f11; border:1px solid var(--border); border-radius:8px;
+  background:var(--surf-light); border:1px solid var(--border); border-radius:8px;
   color:var(--text); padding:10px 12px; font-size:0.98rem; min-height:42px;
 }
 
@@ -1246,7 +1530,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
     </div>
 
     <div class="card">
-      <h3>➕ Registrar venta</h3>
+      <h3 id="tituloFormVenta">➕ Registrar venta <span class="badge-edicion" id="badgeModoEdicionVenta" style="display:none;">✏️ Editando</span></h3>
       <div class="card-sub">&nbsp;</div>
       <div class="form-grid">
         <div class="field">
@@ -1278,15 +1562,44 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
           <span class="val" id="totalFormPreview">$0</span>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn" onclick="guardarVenta()">Guardar venta</button>
+          <button type="button" class="btn" id="btnGuardarVenta" onclick="guardarVenta()">Guardar venta</button>
+          <button type="button" class="btn-ghost" id="btnCancelarEdicionVenta" style="display:none;" onclick="cancelarEdicionVenta()">Cancelar</button>
         </div>
       </div>
     </div>
 
     <div class="card" style="padding:0; overflow:hidden;">
       <div style="padding:18px 20px 0;">
-        <h3 style="margin-bottom:4px;">📋 Historial de ventas</h3>
-        <div class="card-sub">Ordenado por fecha, más reciente primero.</div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div>
+            <h3 style="margin-bottom:4px;">📋 Historial de ventas</h3>
+            <div class="card-sub">Ordenado por fecha, más reciente primero.</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-shrink:0;">
+            <button type="button" class="btn-ghost" title="Exportar historial filtrado a PDF" onclick="imprimirVentasHTML()">📄 PDF</button>
+            <button type="button" class="btn-ghost" title="Exportar historial filtrado a Excel (.xlsx)" onclick="exportarVentasXLSX()">📗 Excel</button>
+            <button type="button" class="btn-ghost" title="Exportar historial filtrado a CSV" onclick="exportarVentasCSV()">📊 CSV</button>
+          </div>
+        </div>
+        <div class="form-grid" style="margin-bottom:14px;">
+          <div class="field">
+            <label for="filtroVentaDesde">Desde</label>
+            <input type="date" id="filtroVentaDesde" onchange="alCambiarFiltroVentas()">
+          </div>
+          <div class="field">
+            <label for="filtroVentaHasta">Hasta</label>
+            <input type="date" id="filtroVentaHasta" onchange="alCambiarFiltroVentas()">
+          </div>
+          <div class="field">
+            <label for="filtroVentaProducto">Producto</label>
+            <select id="filtroVentaProducto" onchange="alCambiarFiltroVentas()">
+              <option value="">Todos los productos</option>
+            </select>
+          </div>
+          <div class="btn-row" style="align-self:flex-end;">
+            <button type="button" class="btn-ghost" onclick="limpiarFiltrosVentas()">Limpiar filtros</button>
+          </div>
+        </div>
       </div>
       <div class="tabla-wrap">
         <table class="hoja">
@@ -1298,11 +1611,12 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
               <th class="num">Cantidad</th>
               <th class="num">Precio unit.</th>
               <th class="num">Total</th>
+              <th class="num">Margen</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="tbodyVentas">
-            <tr><td colspan="7" class="vacio">Cargando…</td></tr>
+            <tr><td colspan="8" class="vacio">Cargando…</td></tr>
           </tbody>
         </table>
       </div>
@@ -1386,8 +1700,17 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 
     <div class="card" style="padding:0; overflow:hidden;">
       <div style="padding:18px 20px 0;">
-        <h3 style="margin-bottom:4px;">🥑 Catálogo de insumos</h3>
-        <div class="card-sub">Orden alfabético. Estos insumos se usarán en las recetas (próximo paso).</div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div>
+            <h3 style="margin-bottom:4px;">🥑 Catálogo de insumos</h3>
+            <div class="card-sub">Orden alfabético. Estos insumos se usarán en las recetas (próximo paso).</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-shrink:0;">
+            <button type="button" class="btn-ghost" title="Exportar catálogo filtrado a PDF" onclick="imprimirCatalogoInsumosHTML()">📄 PDF</button>
+            <button type="button" class="btn-ghost" title="Exportar catálogo filtrado a Excel (.xlsx)" onclick="exportarInsumosXLSX()">📗 Excel</button>
+            <button type="button" class="btn-ghost" title="Exportar catálogo filtrado a CSV (alternativa liviana si Excel falla)" onclick="exportarInsumosCSV()">📊 CSV</button>
+          </div>
+        </div>
         <div class="field" style="margin-bottom:14px;">
           <label>Filtrar por categoría</label>
           <div class="filtro-chips" id="filtroCategoriaChips"></div>
@@ -1469,9 +1792,14 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
         <div class="hint-campo">Si lo desmarcas, el menú público solo muestra el precio "c/u", sin mencionar el lote, aunque la receta maneje más de 1 unidad por lote. Útil cuando el lote es un dato de producción interno y no algo que el cliente compra.</div>
       </div>
 
+      <div class="filtro-chips" id="filtroCategoriaRecetaChips" style="margin-bottom:8px;"></div>
       <div id="filasInsumosReceta"></div>
-      <div class="hint-campo">Las cantidades de cada insumo son para <strong>1 lote completo</strong> (ej. la bandeja entera), no por porción individual.</div>
-      <button type="button" class="btn-ghost" onclick="agregarFilaInsumoReceta()" style="margin:8px 0 16px;">➕ Agregar insumo</button>
+      <div class="hint-campo" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Las cantidades de cada insumo son para <strong>1 lote completo</strong> (ej. la bandeja entera), no por porción individual.</span>
+        <strong id="recetaSubtotalLista" style="white-space:nowrap; margin-left:10px;">$0</strong>
+      </div>
+      <button type="button" class="btn-ghost" onclick="agregarFilaInsumoReceta()" style="margin:8px 8px 16px 0;">➕ Agregar insumo</button>
+      <button type="button" class="btn-ghost" onclick="reordenarFilasInsumosReceta()" style="margin:8px 0 16px;">🔤 Ordenar A-Z</button>
 
       <div class="form-grid">
         <div class="field">
@@ -1495,6 +1823,10 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
         <div class="margen-box">
           <div class="lbl">Costo total</div>
           <div class="val" id="recetaCostoTotal">$0</div>
+        </div>
+        <div class="margen-box">
+          <div class="lbl">Costo unitario</div>
+          <div class="val" id="recetaCostoUnitario">—</div>
         </div>
         <div class="margen-box">
           <div class="lbl">Ingresos de venta</div>
@@ -1701,6 +2033,23 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
     </div>
   </div>
 </div>
+    <!-- v1.51: modal para editar/eliminar una etiqueta en TODOS los insumos que la usan -->
+    <div id="modalEtiquetaOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:16px;">
+      <div class="card" style="max-width:420px; width:100%;">
+        <h3 style="margin:0 0 4px;">✎ Editar etiqueta</h3>
+        <div class="card-sub" id="modalEtiquetaSub"></div>
+        <div class="field" style="margin-top:10px;">
+          <label for="inputEditarEtiqueta">Nombre</label>
+          <input type="text" id="inputEditarEtiqueta">
+        </div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button type="button" class="btn" onclick="guardarEdicionEtiqueta()">Guardar</button>
+          <button type="button" class="btn-ghost" onclick="confirmarEliminarEtiquetaGlobal()" style="color:#e07a5f;">Eliminar etiqueta</button>
+          <button type="button" class="btn-ghost" onclick="cerrarModalEtiqueta()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
 </main>
 
 <script>
@@ -1712,12 +2061,15 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 <script>
 const db = crearDB();
 let ventasCache = [];
+// v1.57: id de la venta en edición (null = modo "nueva venta")
+let ventaEnEdicionId = null;
 let productosCache = [];
 let insumosCache = [];
 let recetasCache = [];
 let categoriasCache = [];
 let filtroCategoriaActual = ''; // v1.11: reemplaza el .value del select de filtro (ahora chips)
 let filtroEtiquetaActual = ''; // v1.46: chips de filtro por etiqueta de uso
+let filtroCategoriaRecetaActual = ''; // v1.64: chips de filtro por categoría dentro del armado de receta (solo visual, no afecta lo que se guarda)
 let filtroEtiquetaRecetaActual = ''; // v1.46: mismo filtro, aplicado en Recetario
 let etiquetasInsumoEnConstruccion = []; // v1.46: [string,...] del insumo en el formulario
 let filtroCategoriaCompras = ''; // v1.12: mismo patrón, para la Lista de compras
@@ -1781,16 +2133,11 @@ function guardarPinCompras(){
     .catch(err => { console.error(err); alert('No se pudo guardar el PIN.'); });
 }
 
-// v1.15: toast de confirmación, mismo patrón que RECETARIO.html
-function mostrarToast(msg, tipo = 'info', dur = 3500){
-  const cont = document.getElementById('toast-cocina');
-  if(!cont) return;
-  const el = document.createElement('div');
-  el.className = `toast-item t-${tipo}`;
-  el.textContent = msg;
-  cont.appendChild(el);
-  setTimeout(() => { el.classList.add('saliendo'); setTimeout(() => el.remove(), 400); }, dur);
-}
+// v1.53: mostrarToast() se retira de acá — ahora vive en utils.js
+// (v1.5), compartida por el ecosistema. Mismo nombre, mismo
+// comportamiento (usa 'toast-cocina' como contenedor por defecto,
+// que es justo el que ya declara este archivo), así que ningún
+// llamado existente en el resto de cocina.html necesitó cambiar.
 
 // v1.13: imagen de receta vía Cloudinary Upload Widget (unsigned preset)
 const CLOUDINARY_CLOUD_NAME = 'dv7lelmoy';
@@ -1895,6 +2242,15 @@ function renderSelectProductos(){
     productosCache.map(p => `<option value="${p.nombre.replace(/"/g,'&quot;')}">${p.nombre}</option>`).join('') +
     '<option value="__nuevo__">➕ Agregar nuevo producto…</option>';
   if(productosCache.some(p => p.nombre === valorActual)) sel.value = valorActual;
+
+  // v1.57: mismo catálogo de productos, para el filtro del historial
+  const selFiltro = document.getElementById('filtroVentaProducto');
+  if(selFiltro){
+    const filtroActual = selFiltro.value;
+    selFiltro.innerHTML = '<option value="">Todos los productos</option>' +
+      productosCache.map(p => `<option value="${p.nombre.replace(/"/g,'&quot;')}">${p.nombre}</option>`).join('');
+    if(productosCache.some(p => p.nombre === filtroActual)) selFiltro.value = filtroActual;
+  }
 }
 
 function alCambiarProducto(valor){
@@ -1967,20 +2323,112 @@ function guardarVenta(){
   if(isNaN(precioUnitario) || precioUnitario < 0){ alert('Ingresa un precio unitario válido.'); return; }
 
   const total = cantidad * precioUnitario;
+  const datos = { fecha, producto, cantidad, precioUnitario, total };
 
-  db.collection('ventasCocina').add({
-    fecha, producto, cantidad, precioUnitario, total,
-    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(() => {
+  // v1.57: si hay una venta en edición, actualiza el documento existente
+  // en vez de crear uno nuevo. No se toca creadoEn del documento original.
+  const promesa = ventaEnEdicionId
+    ? db.collection('ventasCocina').doc(ventaEnEdicionId).update(datos)
+    : db.collection('ventasCocina').add({ ...datos, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+
+  promesa.then(() => {
+    const eraEdicion = !!ventaEnEdicionId;
     document.getElementById('inputFecha').value = '';
     document.getElementById('selectProducto').value = '';
     document.getElementById('inputCantidad').value = '';
     document.getElementById('inputPrecio').value = '';
     document.getElementById('totalFormPreview').textContent = '$0';
+    if(eraEdicion){ cancelarEdicionVenta(); mostrarToast('✅ Venta actualizada', 'ok'); }
   }).catch(err => { console.error(err); alert('No se pudo guardar la venta.'); });
 }
 
+function habilitarEdicionVenta(id){
+  const v = ventasCache.find(x => x.id === id);
+  if(!v) return;
+  ventaEnEdicionId = id;
+
+  document.getElementById('inputFecha').value = v.fecha || '';
+  document.getElementById('selectProducto').value = v.producto || '';
+  document.getElementById('inputCantidad').value = v.cantidad || '';
+  document.getElementById('inputPrecio').value = v.precioUnitario || '';
+  recalcularTotalForm();
+  document.getElementById('filaProductoNuevo').classList.remove('activo');
+
+  document.getElementById('tituloFormVenta').firstChild.textContent = '✏️ Editando venta ';
+  document.getElementById('badgeModoEdicionVenta').style.display = '';
+  document.getElementById('btnGuardarVenta').textContent = 'Guardar cambios';
+  document.getElementById('btnCancelarEdicionVenta').style.display = '';
+
+  document.getElementById('tabVentas').scrollIntoView({ behavior:'smooth', block:'start' });
+  mostrarToast('✏️ Venta cargada en el formulario para editar', 'info');
+}
+
+function cancelarEdicionVenta(){
+  ventaEnEdicionId = null;
+  document.getElementById('inputFecha').value = '';
+  document.getElementById('selectProducto').value = '';
+  document.getElementById('inputCantidad').value = '';
+  document.getElementById('inputPrecio').value = '';
+  document.getElementById('totalFormPreview').textContent = '$0';
+  document.getElementById('hintPrecioSugerido').textContent = '';
+  document.getElementById('filaProductoNuevo').classList.remove('activo');
+
+  document.getElementById('tituloFormVenta').firstChild.textContent = '➕ Registrar venta ';
+  document.getElementById('badgeModoEdicionVenta').style.display = 'none';
+  document.getElementById('btnGuardarVenta').textContent = 'Guardar venta';
+  document.getElementById('btnCancelarEdicionVenta').style.display = 'none';
+}
+
 // ---------- Historial (ventasCocina) ----------
+// v1.57: filtros del historial (rango de fecha + producto). Solo
+// afectan la tabla y las exportaciones — el KPI "Total acumulado" de
+// arriba sigue mostrando el total histórico completo, sin filtrar.
+let filtroVentaDesde = '';
+let filtroVentaHasta = '';
+let filtroVentaProducto = '';
+
+function alCambiarFiltroVentas(){
+  filtroVentaDesde = document.getElementById('filtroVentaDesde').value;
+  filtroVentaHasta = document.getElementById('filtroVentaHasta').value;
+  filtroVentaProducto = document.getElementById('filtroVentaProducto').value;
+  renderTabla();
+}
+
+function limpiarFiltrosVentas(){
+  document.getElementById('filtroVentaDesde').value = '';
+  document.getElementById('filtroVentaHasta').value = '';
+  document.getElementById('filtroVentaProducto').value = '';
+  filtroVentaDesde = '';
+  filtroVentaHasta = '';
+  filtroVentaProducto = '';
+  renderTabla();
+}
+
+function ventasFiltradas(){
+  return ventasCache.filter(v => {
+    if(filtroVentaDesde && v.fecha < filtroVentaDesde) return false;
+    if(filtroVentaHasta && v.fecha > filtroVentaHasta) return false;
+    if(filtroVentaProducto && v.producto !== filtroVentaProducto) return false;
+    return true;
+  });
+}
+
+// v1.57: margen de una venta puntual, cruzando por NOMBRE con el
+// catálogo de Recetas (no hay relación por id entre "producto" de
+// Ventas y "receta" — mismo cruce por nombre normalizado que ya usa
+// autocompletarPrecioDesdeReceta). Si no hay receta con ese nombre
+// exacto (o la receta no tiene unidadesPorLote), no se puede calcular
+// y se muestra "—" en vez de arriesgar un número inventado.
+function margenVenta(v){
+  const clave = normalizarNombre(v.producto);
+  const receta = recetasCache.find(r => normalizarNombre(r.nombre) === clave);
+  if(!receta || !receta.unidadesPorLote) return null;
+  const costoUnitario = costoActualReceta(receta) / receta.unidadesPorLote;
+  const margen = (v.total || 0) - (costoUnitario * (v.cantidad || 0));
+  const margenPct = v.total > 0 ? (margen / v.total) * 100 : 0;
+  return { margen, margenPct };
+}
+
 function escucharVentas(){
   db.collection('ventasCocina').orderBy('fecha', 'desc').onSnapshot(snap => {
     ventasCache = [];
@@ -1989,27 +2437,38 @@ function escucharVentas(){
     renderTotal();
   }, err => {
     console.error('No se pudo leer ventasCocina:', err);
-    document.getElementById('tbodyVentas').innerHTML = '<tr><td colspan="7" class="vacio">Error al cargar el historial.</td></tr>';
+    document.getElementById('tbodyVentas').innerHTML = '<tr><td colspan="8" class="vacio">Error al cargar el historial.</td></tr>';
   });
 }
 
 function renderTabla(){
   const tbody = document.getElementById('tbodyVentas');
-  if(!ventasCache.length){
-    tbody.innerHTML = '<tr><td colspan="7" class="vacio">Aún no hay ventas registradas.</td></tr>';
+  const filas = ventasFiltradas();
+  if(!filas.length){
+    tbody.innerHTML = `<tr><td colspan="8" class="vacio">${ventasCache.length ? 'Ningún resultado con este filtro.' : 'Aún no hay ventas registradas.'}</td></tr>`;
     return;
   }
-  tbody.innerHTML = ventasCache.map((v, i) => `
+  tbody.innerHTML = filas.map((v, i) => {
+    const m = margenVenta(v);
+    const margenHTML = m
+      ? `${formatoMoneda(m.margen)} <span style="opacity:.65;">(${m.margenPct.toFixed(1).replace('.', ',')}%)</span>`
+      : '—';
+    return `
     <tr>
-      <td>${ventasCache.length - i}</td>
+      <td>${filas.length - i}</td>
       <td class="fecha">${formatoFecha(v.fecha)}</td>
       <td class="producto">${(v.producto || '—').toString().replace(/</g,'&lt;')}</td>
       <td class="num">${v.cantidad}</td>
       <td class="num">${formatoMoneda(v.precioUnitario)}</td>
       <td class="num total">${formatoMoneda(v.total)}</td>
-      <td><button class="btn-del" title="Eliminar venta" onclick="eliminarVenta('${v.id}')">🗑️</button></td>
+      <td class="num">${margenHTML}</td>
+      <td class="btn-row">
+        <button type="button" class="btn-ghost" title="Editar venta" onclick="habilitarEdicionVenta('${v.id}')">✏️</button>
+        <button class="btn-del" title="Eliminar venta" onclick="eliminarVenta('${v.id}')">🗑️</button>
+      </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderTotal(){
@@ -2195,6 +2654,64 @@ function seleccionarFiltroCategoria(valor){
   renderTablaInsumos();
 }
 
+// v1.51: editar (renombrar) o eliminar una etiqueta en TODOS los
+// insumos que la usan, de una sola vez — evita tener que tocar chip
+// por chip en cada insumo (con 200 insumos, eso no escala).
+let etiquetaEnEdicion = '';
+
+function abrirModalEtiqueta(nombre){
+  etiquetaEnEdicion = nombre;
+  const n = insumosCache.filter(i => Array.isArray(i.etiquetas) && i.etiquetas.includes(nombre)).length;
+  document.getElementById('modalEtiquetaSub').textContent =
+    `Se usa en ${n} insumo${n === 1 ? '' : 's'}. Cambiar el nombre o eliminarla afecta a todos esos insumos.`;
+  document.getElementById('inputEditarEtiqueta').value = nombre;
+  document.getElementById('modalEtiquetaOverlay').style.display = 'flex';
+}
+
+function cerrarModalEtiqueta(){
+  document.getElementById('modalEtiquetaOverlay').style.display = 'none';
+  etiquetaEnEdicion = '';
+}
+
+function guardarEdicionEtiqueta(){
+  const nueva = document.getElementById('inputEditarEtiqueta').value.trim().toLowerCase();
+  if(!nueva){ alert('Escribí un nombre para la etiqueta.'); return; }
+  if(nueva === etiquetaEnEdicion){ cerrarModalEtiqueta(); return; }
+  renombrarEtiquetaGlobal(etiquetaEnEdicion, nueva);
+  cerrarModalEtiqueta();
+}
+
+function confirmarEliminarEtiquetaGlobal(){
+  const nombre = etiquetaEnEdicion;
+  const n = insumosCache.filter(i => Array.isArray(i.etiquetas) && i.etiquetas.includes(nombre)).length;
+  const ok = confirm(`¿Eliminar la etiqueta "${nombre}" de ${n} insumo${n === 1 ? '' : 's'}? Esta acción no se puede deshacer.`);
+  if(!ok) return;
+  eliminarEtiquetaGlobal(nombre);
+  cerrarModalEtiqueta();
+}
+
+// Recorre insumosCache y actualiza en Firestore solo los insumos que
+// tienen la etiqueta vieja, reemplazándola por la nueva. Si un insumo
+// ya tenía también la nueva, se fusionan (no queda duplicada).
+function renombrarEtiquetaGlobal(vieja, nueva){
+  const afectados = insumosCache.filter(i => Array.isArray(i.etiquetas) && i.etiquetas.includes(vieja));
+  afectados.forEach(i => {
+    const set = new Set(i.etiquetas.filter(e => e !== vieja));
+    set.add(nueva);
+    db.collection('cocinaInsumos').doc(i.id).update({ etiquetas: [...set] })
+      .catch(err => console.error('No se pudo renombrar la etiqueta en', i.id, err));
+  });
+}
+
+function eliminarEtiquetaGlobal(nombre){
+  const afectados = insumosCache.filter(i => Array.isArray(i.etiquetas) && i.etiquetas.includes(nombre));
+  afectados.forEach(i => {
+    const restantes = i.etiquetas.filter(e => e !== nombre);
+    db.collection('cocinaInsumos').doc(i.id).update({ etiquetas: restantes })
+      .catch(err => console.error('No se pudo eliminar la etiqueta en', i.id, err));
+  });
+}
+
 // v1.46: chip-input de etiquetas dentro del formulario de insumo —
 // mismo patrón que notas/abonos de Pedidos (lista en memoria + render).
 function agregarEtiquetaInsumo(){
@@ -2261,8 +2778,13 @@ function renderFiltroEtiquetaChips(){
   if(!etiquetas.length){ cont.innerHTML = '<div class="hint-campo" style="margin:0;">Aún no hay etiquetas creadas.</div>'; return; }
   const opciones = [{ valor:'', nombre:'Todas' }, ...etiquetas.map(e => ({ valor:e, nombre:e }))];
   cont.innerHTML = opciones.map(o => `
-    <button type="button" class="chip-filtro ${filtroEtiquetaActual === o.valor ? 'activo' : ''}"
-      onclick="seleccionarFiltroEtiqueta('${o.valor}')">${o.nombre.toString().replace(/</g,'&lt;')}</button>
+    <span style="display:inline-flex; align-items:center;">
+      <button type="button" class="chip-filtro ${filtroEtiquetaActual === o.valor ? 'activo' : ''}"
+        onclick="seleccionarFiltroEtiqueta('${o.valor.toString().replace(/'/g,"\\'")}')">${o.nombre.toString().replace(/</g,'&lt;')}</button>
+      ${o.valor ? `<button type="button" onclick="abrirModalEtiqueta('${o.valor.toString().replace(/'/g,"\\'")}')"
+        style="background:none; border:none; color:var(--gold); opacity:0.7; cursor:pointer; font-size:0.85rem; padding:4px 6px; margin-left:-4px;"
+        aria-label="Editar etiqueta ${o.nombre.toString().replace(/</g,'&lt;')}">✎</button>` : ''}
+    </span>
   `).join('');
 }
 
@@ -2457,6 +2979,7 @@ function escucharInsumos(){
     renderTablaInsumos();
     renderFiltroEtiquetaChips();
     renderFiltroEtiquetaComprasChips(); // v1.49: los insumos cambiaron, refrescar chips de etiqueta en Compras
+    renderSugerenciasEtiquetaInsumo(); // v1.59: fix — las sugerencias del formulario de insumo no se refrescaban al cargar/actualizar el catálogo, solo al tocar el chip-input manualmente
     renderSelectInsumoSuelto();
     if(recetasCache.length){ renderListaRecetas(); renderFiltroEtiquetaRecetaChips(); }
     renderListaCompras(); // v1.49: refleja etiquetas actualizadas del insumo en la lista ya renderizada
@@ -2523,7 +3046,43 @@ function actualizarFilaReceta(filaId, campo, valor){
   const fila = filasRecetaEnConstruccion.find(f => f.filaId === filaId);
   if(!fila) return;
   fila[campo] = campo === 'cantidad' ? parseFloat(valor) || 0 : valor;
+  if(campo === 'insumoId' && valor){
+    const repetido = filasRecetaEnConstruccion.some(f => f.filaId !== filaId && f.insumoId === valor);
+    if(repetido){
+      const insumo = insumosCache.find(i => i.id === valor);
+      mostrarToast(`⚠️ "${(insumo ? insumo.nombre : 'Este insumo')}" ya está en la receta, en otra fila`, 'warn');
+    }
+  }
   recalcularCostoReceta();
+}
+
+// v1.61: (a pedido) ordena alfabéticamente (A→Z, es) las filas de
+// ingredientes de la receta en construcción, según el nombre del
+// insumo elegido en cada fila. Las filas sin insumo elegido todavía
+// quedan al final, sin cambiar de orden entre sí. Solo reordena el
+// array filasRecetaEnConstruccion y reinserta los <div> ya existentes
+// en el DOM (appendChild sobre un nodo existente lo mueve, no lo
+// duplica) — no crea ni recalcula nada, no toca Firestore. A
+// diferencia de v1.59, ahora es 100% manual: solo se dispara desde el
+// botón "🔤 Ordenar A-Z", nunca automáticamente al agregar/editar filas.
+function reordenarFilasInsumosReceta(){
+  const cont = document.getElementById('filasInsumosReceta');
+  if(!cont) return;
+  const conNombre = filasRecetaEnConstruccion.map(fila => {
+    const insumo = insumosCache.find(i => i.id === fila.insumoId);
+    return { fila, nombre: (insumo ? insumo.nombre : '').toString().toLowerCase() };
+  });
+  conNombre.sort((a, b) => {
+    if(!a.fila.insumoId && !b.fila.insumoId) return 0;
+    if(!a.fila.insumoId) return 1;
+    if(!b.fila.insumoId) return -1;
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+  filasRecetaEnConstruccion = conNombre.map(x => x.fila);
+  conNombre.forEach(x => {
+    const el = document.getElementById(x.fila.filaId);
+    if(el) cont.appendChild(el);
+  });
 }
 
 function quitarFilaInsumoReceta(filaId){
@@ -2543,7 +3102,84 @@ function recalcularCostoReceta(){
     costoTotal += subtotal;
   });
   document.getElementById('recetaCostoTotal').textContent = formatoMoneda(costoTotal);
+  const subtotalListaEl = document.getElementById('recetaSubtotalLista');
+  if(subtotalListaEl) subtotalListaEl.textContent = formatoMoneda(costoTotal); // v1.60: mismo total, mostrado también junto a la lista
+  renderFiltroCategoriaRecetaChips(); // v1.64: puede sobreescribir recetaSubtotalLista con el subtotal de la categoría filtrada
   recalcularMargenReceta();
+}
+
+// v1.64: (a pedido) chips de filtro por categoría dentro del armado de
+// receta — para calcular rápido cuánto cuesta cada categoría dentro de
+// esta receta puntual (ej. "cuánto de esto es LACTEOS"). Es solo
+// visual: oculta/muestra filas ya cargadas, no agrega ni quita insumos,
+// no toca filasRecetaEnConstruccion salvo el orden en pantalla. Solo se
+// muestran chips si la receta actual tiene insumos de 2+ categorías
+// distintas (con 0 o 1 categoría no aporta nada mostrar el filtro).
+// v1.66: (a pedido) cada chip suma su propio subtotal (no solo el de la
+// categoría activa) y usa el mismo chip-dot de color que ya usan los
+// filtros de categoría de Insumos/Compras (colorCategoria(), misma
+// paleta CATEGORIA_COLORES) — así se ve el desglose completo sin tener
+// que ir clic por clic.
+function renderFiltroCategoriaRecetaChips(){
+  const cont = document.getElementById('filtroCategoriaRecetaChips');
+  if(!cont) return;
+  const catIds = [...new Set(filasRecetaEnConstruccion
+    .map(f => insumosCache.find(i => i.id === f.insumoId))
+    .filter(Boolean)
+    .map(i => i.categoriaId || ''))];
+  if(filtroCategoriaRecetaActual && !catIds.includes(filtroCategoriaRecetaActual)) filtroCategoriaRecetaActual = '';
+  if(catIds.length < 2){
+    cont.innerHTML = '';
+    aplicarFiltroCategoriaReceta();
+    return;
+  }
+  const subtotalPorCategoria = catIds.reduce((acc, catId) => {
+    acc[catId] = filasRecetaEnConstruccion.reduce((sum, fila) => {
+      const insumo = insumosCache.find(i => i.id === fila.insumoId);
+      const cat = insumo ? (insumo.categoriaId || '') : null;
+      return cat === catId ? sum + insumo.valorUnidad * (fila.cantidad || 0) : sum;
+    }, 0);
+    return acc;
+  }, {});
+  const opciones = [{ valor:'', nombre:'Todas' }, ...catIds.map(id => ({ valor:id, nombre:nombreCategoria(id) }))];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroCategoriaRecetaActual === o.valor ? 'activo' : ''}"
+      onclick="seleccionarFiltroCategoriaReceta('${o.valor.toString().replace(/'/g,"\\'")}')">${o.valor ? `<span class="chip-dot" style="background:${colorCategoria(o.valor)}"></span>` : ''}${o.nombre.toString().replace(/</g,'&lt;')}${o.valor ? ` · ${formatoMoneda(subtotalPorCategoria[o.valor])}` : ''}</button>
+  `).join('');
+  aplicarFiltroCategoriaReceta();
+}
+
+function seleccionarFiltroCategoriaReceta(valor){
+  filtroCategoriaRecetaActual = valor;
+  renderFiltroCategoriaRecetaChips();
+}
+
+// Oculta/muestra filas según filtroCategoriaRecetaActual y actualiza
+// recetaSubtotalLista con el subtotal de la categoría filtrada (o el
+// total general si el filtro está en "Todas"). No toca recetaCostoTotal
+// (siempre el total completo, para no mezclarlo con el margen de abajo).
+function aplicarFiltroCategoriaReceta(){
+  const hayFiltro = !!filtroCategoriaRecetaActual;
+  let subtotalFiltrado = 0;
+  filasRecetaEnConstruccion.forEach(fila => {
+    const el = document.getElementById(fila.filaId);
+    const insumo = insumosCache.find(i => i.id === fila.insumoId);
+    const cat = insumo ? (insumo.categoriaId || '') : '';
+    const visible = !hayFiltro || cat === filtroCategoriaRecetaActual;
+    if(el) el.style.display = visible ? '' : 'none';
+    if(hayFiltro && visible) subtotalFiltrado += insumo ? (insumo.valorUnidad * (fila.cantidad || 0)) : 0;
+  });
+  const subtotalListaEl = document.getElementById('recetaSubtotalLista');
+  if(!subtotalListaEl) return;
+  if(hayFiltro){
+    subtotalListaEl.textContent = `${nombreCategoria(filtroCategoriaRecetaActual)}: ${formatoMoneda(subtotalFiltrado)}`;
+  } else {
+    const costoTotal = filasRecetaEnConstruccion.reduce((acc, fila) => {
+      const insumo = insumosCache.find(i => i.id === fila.insumoId);
+      return acc + (insumo ? insumo.valorUnidad * (fila.cantidad || 0) : 0);
+    }, 0);
+    subtotalListaEl.textContent = formatoMoneda(costoTotal);
+  }
 }
 
 function recalcularMargenReceta(){
@@ -2558,6 +3194,12 @@ function recalcularMargenReceta(){
   const ganancia = ingresos - costoTotal;
   const margenPct = ingresos > 0 ? (ganancia / ingresos) * 100 : 0;
 
+  // v1.64: costo unitario = costo total del lote ÷ unidades por lote —
+  // cuánto cuesta producir 1 unidad, distinto del "precio de venta" que
+  // se escribe a mano arriba. Si aún no hay "unidades por lote" cargado,
+  // muestra "—" en vez de dividir por 0.
+  document.getElementById('recetaCostoUnitario').textContent = unidades > 0 ? formatoMoneda(costoTotal / unidades) : '—';
+
   document.getElementById('recetaIngresos').textContent = formatoMoneda(ingresos);
   const margenEl = document.getElementById('recetaMargen');
   margenEl.textContent = `${margenPct.toFixed(2).replace('.', ',')}% · ${formatoMoneda(ganancia)}`;
@@ -2571,6 +3213,7 @@ function habilitarEdicionReceta(id){
   const r = recetasCache.find(x => x.id === id);
   if(!r) return;
   recetaEnEdicionId = id;
+  filtroCategoriaRecetaActual = ''; // v1.64: no arrastrar el filtro de otra receta
 
   document.getElementById('inputRecetaNombre').value = r.nombre || '';
   document.getElementById('inputRecetaDescripcion').value = r.descripcion || '';
@@ -2612,6 +3255,7 @@ function habilitarEdicionReceta(id){
 
 function cancelarEdicionReceta(){
   recetaEnEdicionId = null;
+  filtroCategoriaRecetaActual = ''; // v1.64
   document.getElementById('inputRecetaNombre').value = '';
   document.getElementById('inputRecetaDescripcion').value = '';
   document.getElementById('chkMostrarCantidadesCliente').checked = true;
@@ -2631,6 +3275,70 @@ function cancelarEdicionReceta(){
   document.getElementById('btnGuardarReceta').textContent = 'Guardar receta';
   document.getElementById('btnCancelarEdicionReceta').style.display = 'none';
   mostrarToast('Edición cancelada', 'warn');
+}
+
+// v1.58: duplicar receta con factor de escala (a pedido — caso "Lasaña
+// Junior": misma receta, insumos en menor cantidad). Pide el factor,
+// multiplica la cantidad de cada insumo y (por defecto) también
+// "unidades por lote" por ese mismo factor — asumiendo que el lote más
+// chico rinde proporcionalmente menos porciones (caso más común). Ese
+// campo queda editable en el formulario antes de guardar, por si el
+// caso real es al revés (mismo lote, porciones más chicas → rendiría
+// MÁS unidades, no menos). El precio de venta se deja vacío a propósito:
+// no se asume que sea proporcional, es una decisión comercial del
+// usuario. No modifica la receta original — solo carga el formulario
+// en modo "nueva receta" (recetaEnEdicionId queda en null) para que el
+// usuario revise antes de guardar, igual que cualquier receta nueva.
+function duplicarReceta(id){
+  const r = recetasCache.find(x => x.id === id);
+  if(!r) return;
+
+  const factorTxt = prompt('Factor de escala respecto a "' + (r.nombre || 'esta receta') + '"\n\nEj: 0.5 = mitad de cantidad en cada insumo · 2 = el doble\n\n"Unidades por lote" se escala igual (podés corregirlo antes de guardar).', '0.5');
+  if(factorTxt === null) return; // canceló
+  const factor = parseFloat(factorTxt.replace(',', '.'));
+  if(isNaN(factor) || factor <= 0){ alert('Ingresa un factor numérico mayor a 0 (ej: 0.5).'); return; }
+
+  // Modo "nueva receta": recetaEnEdicionId se deja en null a propósito.
+  recetaEnEdicionId = null;
+  filtroCategoriaRecetaActual = ''; // v1.64
+
+  document.getElementById('inputRecetaNombre').value = (r.nombre || '') + ' (COPIA)';
+  document.getElementById('inputRecetaDescripcion').value = r.descripcion || '';
+  document.getElementById('chkMostrarCantidadesCliente').checked = r.mostrarCantidadesCliente !== false;
+  document.getElementById('chkVisibleMenu').checked = false; // nueva receta no sale al menú público sin revisión
+  document.getElementById('chkMostrarLote').checked = r.mostrarLotePublico !== false;
+  document.getElementById('inputRecetaUnidadesVendidas').value = r.unidadesPorLote ? Math.round(r.unidadesPorLote * factor * 100) / 100 : '';
+  document.getElementById('inputRecetaPrecioVenta').value = ''; // a propósito: no se asume proporcional
+  document.getElementById('inputRecetaPrecioSinExtras').value = '';
+
+  imagenRecetaEnConstruccion = r.imagenUrl || '';
+  renderPreviewImagenReceta();
+
+  document.getElementById('filasInsumosReceta').innerHTML = '';
+  filasRecetaEnConstruccion = [];
+  (r.insumos || []).forEach(ins => {
+    agregarFilaInsumoReceta();
+    const filaAgregada = filasRecetaEnConstruccion[filasRecetaEnConstruccion.length - 1];
+    const cantidadEscalada = Math.round(ins.cantidad * factor * 100) / 100;
+    filaAgregada.insumoId = ins.insumoId;
+    filaAgregada.cantidad = cantidadEscalada;
+    const filaEl = document.getElementById(filaAgregada.filaId);
+    if(filaEl){
+      const sel = filaEl.querySelector('select');
+      const inp = filaEl.querySelector('input[type="number"]');
+      if(sel) sel.value = ins.insumoId;
+      if(inp) inp.value = cantidadEscalada;
+    }
+  });
+  recalcularCostoReceta();
+
+  document.getElementById('tituloFormReceta').firstChild.textContent = '🧮 Nueva receta ';
+  document.getElementById('badgeModoEdicion').style.display = 'none';
+  document.getElementById('btnGuardarReceta').textContent = 'Guardar receta';
+  document.getElementById('btnCancelarEdicionReceta').style.display = 'none';
+
+  document.getElementById('tabRecetas').scrollIntoView({ behavior:'smooth', block:'start' });
+  mostrarToast(`📋 Copia cargada con factor ${factor} — revisá el nombre, el precio de venta y "unidades por lote" antes de guardar`, 'info');
 }
 
 function guardarReceta(){
@@ -2850,18 +3558,23 @@ function renderListaRecetas(){
         </div>
         <div class="receta-head-acciones">
           <button type="button" class="btn-ghost" title="Editar receta" onclick="event.stopPropagation(); habilitarEdicionReceta('${r.id}')">✏️</button>
+          <button type="button" class="btn-ghost" title="Duplicar receta (versión chica/grande, etc.)" onclick="event.stopPropagation(); duplicarReceta('${r.id}')">📋</button>
           <button type="button" class="btn-ghost" title="Imprimir / PDF interno de esta receta" onclick="event.stopPropagation(); imprimirRecetaHTML('${r.id}')">🖨️</button>
           <button type="button" class="btn-ghost" title="PDF para el cliente (sin costos)" onclick="event.stopPropagation(); imprimirRecetaClienteHTML('${r.id}')">🧾</button>
           <button type="button" class="btn-del" title="Eliminar receta" onclick="event.stopPropagation(); eliminarReceta('${r.id}')">🗑️</button>
         </div>
       </div>
       <div class="receta-detalle" id="detalle-${r.id}">
-        ${(r.insumos || []).map(i => `
-          <div class="receta-detalle-fila">
+        <div class="filtro-chips" id="filtroCatDetalle-${r.id}" style="margin-bottom:8px;"></div>
+        ${(r.insumos || []).map(i => {
+          const insumoActual = insumosCache.find(ins => ins.id === i.insumoId);
+          const catId = insumoActual ? (insumoActual.categoriaId || '') : '';
+          return `
+          <div class="receta-detalle-fila" data-cat="${catId}">
             <span>${i.nombre} × ${i.cantidad} ${i.unidad}</span>
             <span>${formatoMoneda(i.subtotal)}</span>
-          </div>
-        `).join('')}
+          </div>`;
+        }).join('')}
         <div class="receta-detalle-fila">
           <span>Unidades por lote / Precio venta</span>
           <span>${r.unidadesPorLote || 0} / ${formatoMoneda(r.precioVenta)}</span>
@@ -2879,6 +3592,60 @@ function renderListaRecetas(){
     </div>
   `;
   }).join('');
+  recetas.forEach(r => renderFiltroCategoriaDetalle(r.id)); // v1.65
+}
+
+// v1.65: (a pedido) mismo filtro por categoría de v1.64, ahora también en
+// la card de "Recetas guardadas" — un filtro independiente por receta
+// (filtroCategoriaDetalleReceta: recetaId -> categoriaId), para no
+// mezclar el filtro de una receta con el de otra. Solo oculta/muestra
+// filas ya renderizadas ([data-cat], las de "Unidades por lote"/
+// "Ingresos" no tienen ese atributo y no se ven afectadas) y muestra el
+// subtotal de la categoría elegida junto a los chips — no toca el
+// costo total guardado (r.costoTotal, en el encabezado de la card) ni
+// ninguna colección de Firestore. La categoría se resuelve contra
+// insumosCache EN VIVO (no contra el snapshot guardado en la receta),
+// así refleja si moviste un insumo de categoría después de guardar la
+// receta.
+let filtroCategoriaDetalleReceta = {};
+function renderFiltroCategoriaDetalle(id){
+  const r = recetasCache.find(x => x.id === id);
+  const cont = document.getElementById('filtroCatDetalle-' + id);
+  if(!r || !cont) return;
+  const catIds = [...new Set((r.insumos || []).map(i => {
+    const insumo = insumosCache.find(ins => ins.id === i.insumoId);
+    return insumo ? (insumo.categoriaId || '') : null;
+  }).filter(c => c !== null))];
+  if(filtroCategoriaDetalleReceta[id] && !catIds.includes(filtroCategoriaDetalleReceta[id])) filtroCategoriaDetalleReceta[id] = '';
+  const filtroActivo = filtroCategoriaDetalleReceta[id] || '';
+
+  document.querySelectorAll(`#detalle-${id} .receta-detalle-fila[data-cat]`).forEach(fila => {
+    const visible = !filtroActivo || fila.getAttribute('data-cat') === filtroActivo;
+    fila.style.display = visible ? '' : 'none';
+  });
+
+  if(catIds.length < 2){ cont.innerHTML = ''; return; }
+
+  // v1.66: subtotal propio de CADA categoría (no solo la activa), para
+  // ver el desglose completo sin ir clic por clic.
+  const subtotalPorCategoria = catIds.reduce((acc, catId) => {
+    acc[catId] = (r.insumos || []).reduce((sum, i) => {
+      const insumo = insumosCache.find(ins => ins.id === i.insumoId);
+      const cat = insumo ? (insumo.categoriaId || '') : null;
+      return cat === catId ? sum + (i.subtotal || 0) : sum;
+    }, 0);
+    return acc;
+  }, {});
+  const opciones = [{ valor:'', nombre:'Todas' }, ...catIds.map(cid => ({ valor:cid, nombre:nombreCategoria(cid) }))];
+  cont.innerHTML = opciones.map(o => `
+    <button type="button" class="chip-filtro ${filtroActivo === o.valor ? 'activo' : ''}"
+      onclick="event.stopPropagation(); seleccionarFiltroCategoriaDetalle('${id}', '${o.valor.toString().replace(/'/g,"\\'")}')">${o.valor ? `<span class="chip-dot" style="background:${colorCategoria(o.valor)}"></span>` : ''}${o.nombre.toString().replace(/</g,'&lt;')}${o.valor ? ` · ${formatoMoneda(subtotalPorCategoria[o.valor])}` : ''}</button>
+  `).join('');
+}
+
+function seleccionarFiltroCategoriaDetalle(id, valor){
+  filtroCategoriaDetalleReceta[id] = valor;
+  renderFiltroCategoriaDetalle(id);
 }
 
 // ---------- PEDIDOS (v1.35, colección cocinaPedidos) ----------
@@ -4068,6 +4835,16 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 .coc-linea-pedido-cant{ color:#505050; font-size:8pt; margin-top:0.5mm; }
 .coc-linea-pedido-precio{ color:#505050; font-family:monospace; font-size:9pt; text-align:right; flex-shrink:0; }
 .coc-nota-pdf{ font-size:9pt; padding:1.5mm 0; display:flex; gap:2mm; }
+/* v1.55: tabla del PDF de "Catálogo de insumos" (exportar) */
+.coc-tabla-cat{ width:100%; border-collapse:collapse; font-size:8.5pt; }
+.coc-tabla-cat th{
+  text-align:left; font-size:7.5pt; font-weight:700; color:#c9a24b;
+  text-transform:uppercase; letter-spacing:0.03em; padding:2mm 2mm;
+  border-bottom:0.4mm solid #c9a24b;
+}
+.coc-tabla-cat td{ padding:2mm 2mm; color:#1e1e1e; border-bottom:0.15mm solid #e5e1d6; }
+.coc-tabla-cat tr:nth-child(even) td{ background:#f6f4ef; }
+.coc-tabla-cat-num{ text-align:right; font-family:monospace; }
 `;
 
 // Abre la ventana de preview con barra flotante + botón imprimir —
@@ -4334,6 +5111,276 @@ function imprimirPedidoHTML(pedidoId){
 // o para usarse tal cual en la ventana de preview desde el celular
 // mientras se está en la tienda (checkboxes grandes, sin necesidad de
 // imprimir de verdad).
+// v1.55: exportar catálogo de insumos (PDF vía window.print(), mismo
+// patrón que imprimirListaComprasHTML, y CSV para hoja de cálculo).
+// Ambos exportan exactamente lo que está filtrado en pantalla en ese
+// momento (misma lógica de filtro que ya usa renderTablaInsumos, no se
+// tocó esa función original).
+function insumosParaExportar(){
+  const filtro = filtroCategoriaActual;
+  let filas = insumosCache;
+  if(filtro === '__sin__') filas = filas.filter(i => !i.categoriaId);
+  else if(filtro) filas = filas.filter(i => i.categoriaId === filtro);
+  if(filtroEtiquetaActual) filas = filas.filter(i => Array.isArray(i.etiquetas) && i.etiquetas.includes(filtroEtiquetaActual));
+  return filas;
+}
+
+function imprimirCatalogoInsumosHTML(){
+  const filas = insumosParaExportar();
+  if(!filas.length){ alert('No hay insumos para exportar con el filtro actual.'); return; }
+  const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  const htmlFilas = filas.map(i => `
+    <tr>
+      <td>${_cocEsc(i.nombre || '—')}</td>
+      <td>${_cocEsc(nombreCategoria(i.categoriaId))}</td>
+      <td>${_cocEsc(Array.isArray(i.etiquetas) && i.etiquetas.length ? i.etiquetas.join(', ') : '—')}</td>
+      <td>${_cocEsc(i.unidad || '—')}</td>
+      <td class="coc-tabla-cat-num">${formatoMoneda(i.valorUnidad)}</td>
+      <td class="coc-tabla-cat-num">${i.trackearStock ? _cocEsc((i.stockActual != null ? i.stockActual : 0) + ' ' + (i.unidad || '')) : '—'}</td>
+    </tr>`).join('');
+
+  const htmlDoc = `
+  <div class="coc-page">
+    <div class="coc-header">
+      <div>
+        <div class="coc-header-marca">AUDIOLINK · COCINA</div>
+        <div class="coc-header-sub">Catálogo de insumos</div>
+      </div>
+      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
+    </div>
+    <table class="coc-tabla-cat">
+      <thead>
+        <tr>
+          <th>Insumo</th><th>Categoría</th><th>Etiquetas</th><th>Unidad</th>
+          <th class="coc-tabla-cat-num">Valor unidad</th><th class="coc-tabla-cat-num">Stock</th>
+        </tr>
+      </thead>
+      <tbody>${htmlFilas}</tbody>
+    </table>
+    <div class="coc-footer">
+      <span>AUDIOLINK — Cocina / Costeo interno</span>
+      <span>${filas.length} insumo(s)</span>
+    </div>
+  </div>`;
+
+  _cocAbrirPreview('Catálogo de insumos', htmlDoc);
+}
+
+// v1.56: exportar catálogo de insumos a Excel real (.xlsx). Usa
+// xlsx-js-style (fork de SheetJS con la misma API, pero que SÍ aplica
+// negrita/estilos de celda — la versión gratuita estándar de SheetJS
+// ignora ws[addr].s en silencio, solo la versión paga lo soporta). La
+// librería NO se carga al abrir el sitio — recién se pide al CDN la
+// primera vez que alguien hace clic en "Excel" (cargarSheetJS, con
+// caché en window para no volver a pedirla en la misma sesión). Si
+// falla la descarga (sin internet, CDN caído), se avisa y se sugiere
+// usar el botón CSV de al lado, que no depende de ninguna librería.
+function cargarSheetJS(){
+  if(window.XLSX) return Promise.resolve();
+  if(window._cocSheetJSPromise) return window._cocSheetJSPromise;
+  window._cocSheetJSPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+    script.onload = () => resolve();
+    script.onerror = () => { window._cocSheetJSPromise = null; reject(new Error('No se pudo cargar la librería de Excel.')); };
+    document.head.appendChild(script);
+  });
+  return window._cocSheetJSPromise;
+}
+
+async function exportarInsumosXLSX(){
+  const filas = insumosParaExportar();
+  if(!filas.length){ alert('No hay insumos para exportar con el filtro actual.'); return; }
+
+  try{
+    await cargarSheetJS();
+  }catch(err){
+    console.error(err);
+    alert('No se pudo generar el Excel (sin conexión al servidor de la librería). Probá con el botón CSV, que funciona sin conexión externa.');
+    return;
+  }
+
+  const encabezados = ['Insumo','Categoría','Etiquetas','Unidad','Valor unidad','Stock'];
+  const datos = filas.map(i => [
+    i.nombre || '',
+    nombreCategoria(i.categoriaId),
+    Array.isArray(i.etiquetas) ? i.etiquetas.join(', ') : '',
+    i.unidad || '',
+    i.valorUnidad != null ? i.valorUnidad : 0,
+    i.trackearStock ? (i.stockActual != null ? i.stockActual : 0) : ''
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([encabezados, ...datos]);
+  ws['!cols'] = [ { wch:28 }, { wch:16 }, { wch:24 }, { wch:10 }, { wch:14 }, { wch:10 } ];
+  // Encabezado en negrita
+  encabezados.forEach((_, col) => {
+    const addr = XLSX.utils.encode_cell({ r:0, c:col });
+    if(ws[addr]) ws[addr].s = { font:{ bold:true } };
+  });
+  // Columna "Valor unidad" (índice 4) con formato de moneda colombiana
+  datos.forEach((_, row) => {
+    const addr = XLSX.utils.encode_cell({ r:row + 1, c:4 });
+    if(ws[addr]) ws[addr].z = '$#,##0';
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Insumos');
+  XLSX.writeFile(wb, `insumos-audiolink-${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportarInsumosCSV(){
+  const filas = insumosParaExportar();
+  if(!filas.length){ alert('No hay insumos para exportar con el filtro actual.'); return; }
+  const escCSV = v => `"${String(v == null ? '' : v).replace(/"/g,'""')}"`;
+  const encabezados = ['Insumo','Categoría','Etiquetas','Unidad','Valor unidad','Stock'].map(escCSV).join(',');
+  const filasCSV = filas.map(i => [
+    i.nombre || '',
+    nombreCategoria(i.categoriaId),
+    Array.isArray(i.etiquetas) ? i.etiquetas.join(' | ') : '',
+    i.unidad || '',
+    i.valorUnidad != null ? i.valorUnidad : '',
+    i.trackearStock ? (i.stockActual != null ? i.stockActual : 0) : ''
+  ].map(escCSV).join(','));
+  // \uFEFF (BOM) para que Excel detecte UTF-8 y no rompa tildes/ñ.
+  const csv = '\uFEFF' + [encabezados, ...filasCSV].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `insumos-audiolink-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// v1.57: exportar historial de VENTAS (PDF/Excel/CSV), mismo patrón que
+// las 3 funciones de arriba para Insumos. Exporta exactamente lo que
+// esté filtrado en pantalla (ventasFiltradas — rango de fecha y/o
+// producto). Incluye la columna "Margen" cuando se puede calcular
+// (ver margenVenta); si no hay receta con ese nombre, exporta "—".
+function imprimirVentasHTML(){
+  const filas = ventasFiltradas();
+  if(!filas.length){ alert('No hay ventas para exportar con el filtro actual.'); return; }
+  const fechaGeneracion = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+  const totalFiltrado = filas.reduce((acc, v) => acc + (v.total || 0), 0);
+
+  const htmlFilas = filas.map(v => {
+    const m = margenVenta(v);
+    return `
+    <tr>
+      <td>${_cocEsc(formatoFecha(v.fecha))}</td>
+      <td>${_cocEsc(v.producto || '—')}</td>
+      <td class="coc-tabla-cat-num">${_cocEsc(v.cantidad)}</td>
+      <td class="coc-tabla-cat-num">${formatoMoneda(v.precioUnitario)}</td>
+      <td class="coc-tabla-cat-num">${formatoMoneda(v.total)}</td>
+      <td class="coc-tabla-cat-num">${m ? formatoMoneda(m.margen) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const htmlDoc = `
+  <div class="coc-page">
+    <div class="coc-header">
+      <div>
+        <div class="coc-header-marca">AUDIOLINK · COCINA</div>
+        <div class="coc-header-sub">Historial de ventas</div>
+      </div>
+      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
+    </div>
+    <table class="coc-tabla-cat">
+      <thead>
+        <tr>
+          <th>Fecha</th><th>Producto</th>
+          <th class="coc-tabla-cat-num">Cant.</th>
+          <th class="coc-tabla-cat-num">Precio unit.</th>
+          <th class="coc-tabla-cat-num">Total</th>
+          <th class="coc-tabla-cat-num">Margen</th>
+        </tr>
+      </thead>
+      <tbody>${htmlFilas}</tbody>
+    </table>
+    <div class="coc-footer">
+      <span>AUDIOLINK — Cocina / Costeo interno</span>
+      <span>${filas.length} venta(s) · Total ${formatoMoneda(totalFiltrado)}</span>
+    </div>
+  </div>`;
+
+  _cocAbrirPreview('Historial de ventas', htmlDoc);
+}
+
+async function exportarVentasXLSX(){
+  const filas = ventasFiltradas();
+  if(!filas.length){ alert('No hay ventas para exportar con el filtro actual.'); return; }
+
+  try{
+    await cargarSheetJS();
+  }catch(err){
+    console.error(err);
+    alert('No se pudo generar el Excel (sin conexión al servidor de la librería). Probá con el botón CSV, que funciona sin conexión externa.');
+    return;
+  }
+
+  const encabezados = ['Fecha','Producto','Cantidad','Precio unitario','Total','Margen'];
+  const datos = filas.map(v => {
+    const m = margenVenta(v);
+    return [
+      formatoFecha(v.fecha),
+      v.producto || '',
+      v.cantidad || 0,
+      v.precioUnitario || 0,
+      v.total || 0,
+      m ? Math.round(m.margen) : ''
+    ];
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([encabezados, ...datos]);
+  ws['!cols'] = [ { wch:12 }, { wch:26 }, { wch:10 }, { wch:14 }, { wch:14 }, { wch:14 } ];
+  encabezados.forEach((_, col) => {
+    const addr = XLSX.utils.encode_cell({ r:0, c:col });
+    if(ws[addr]) ws[addr].s = { font:{ bold:true } };
+  });
+  // Columnas de dinero (Precio unitario=3, Total=4, Margen=5) con formato moneda
+  datos.forEach((_, row) => {
+    [3,4,5].forEach(col => {
+      const addr = XLSX.utils.encode_cell({ r:row + 1, c:col });
+      if(ws[addr] && ws[addr].v !== '') ws[addr].z = '$#,##0';
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
+  XLSX.writeFile(wb, `ventas-audiolink-${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportarVentasCSV(){
+  const filas = ventasFiltradas();
+  if(!filas.length){ alert('No hay ventas para exportar con el filtro actual.'); return; }
+  const escCSV = v => `"${String(v == null ? '' : v).replace(/"/g,'""')}"`;
+  const encabezados = ['Fecha','Producto','Cantidad','Precio unitario','Total','Margen'].map(escCSV).join(',');
+  const filasCSV = filas.map(v => {
+    const m = margenVenta(v);
+    return [
+      formatoFecha(v.fecha),
+      v.producto || '',
+      v.cantidad != null ? v.cantidad : '',
+      v.precioUnitario != null ? v.precioUnitario : '',
+      v.total != null ? v.total : '',
+      m ? Math.round(m.margen) : ''
+    ].map(escCSV).join(',');
+  });
+  const csv = '\uFEFF' + [encabezados, ...filasCSV].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ventas-audiolink-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function imprimirListaComprasHTML(){
   const items = checkComprasCache.items || [];
   if(!items.length){ alert('La lista de compras está vacía.'); return; }

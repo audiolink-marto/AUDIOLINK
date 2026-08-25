@@ -1,14 +1,4 @@
-/* AUDIOLINK · utils.js · v1.5
-   v1.5: se centraliza mostrarToast() — vivía copiada igual (mismo
-   patrón visual) en cocina.html y RECETARIO.html. Recibe el id del
-   contenedor como 4to parámetro (default 'toast-cocina', el nombre
-   que ya usaba cocina.html) porque cada página sigue declarando su
-   propio <div id="toast-..."> y su propio bloque CSS de .toast-item
-   (NO se centraliza CSS/contenedor en esta pasada — decisión explícita
-   para no tocar nav.css/nav.js, que corren en todo el ecosistema; ver
-   ARQUITECTURA.md si se decide dar ese paso más adelante). Se retiró
-   la copia local solo de cocina.html por ahora.
-
+/* AUDIOLINK · utils.js · v1.4
    v1.4: se centralizan tiempoRelativo() y estadoRecordatorio() — vivían
    solo en recordatorios.html (v1.3) y el widget del Dashboard
    (index.html) necesitaba el mismo cálculo para mostrar el mismo badge/
@@ -114,19 +104,4 @@ function estadoRecordatorio(fecha){
   if(esFechaVencida(fecha)) return { texto: 'Vencido', clase: 'err' };
   if(fecha === hoyISO()) return { texto: 'Hoy', clase: 'warn' };
   return { texto: 'Próximo', clase: 'ok' };
-}
-
-// v1.5: toast de confirmación — mismo patrón visual que ya usaban
-// cocina.html/RECETARIO.html por separado. Requiere que la página
-// consumidora tenga su propio <div id="{contenedorId}"></div> y su
-// propio CSS .toast-item/.t-ok/.t-warn/.t-error/.t-info (no se
-// centraliza CSS/contenedor acá, ver comentario de cabecera v1.5).
-function mostrarToast(msg, tipo = 'info', dur = 3500, contenedorId = 'toast-cocina'){
-  const cont = document.getElementById(contenedorId);
-  if(!cont) return;
-  const el = document.createElement('div');
-  el.className = `toast-item t-${tipo}`;
-  el.textContent = msg;
-  cont.appendChild(el);
-  setTimeout(() => { el.classList.add('saliendo'); setTimeout(() => el.remove(), 400); }, dur);
 }

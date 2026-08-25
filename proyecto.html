@@ -4,7 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.39
+<!-- AUDIOLINK · proyecto.html · v5.41
+     v5.41: primer uso real del toast (sistema agregado en v5.40, hasta
+     ahora sin ningún llamado). guardarProyecto() ahora muestra
+     "✅ Proyecto creado" / "✅ Proyecto actualizado" al guardar bien —
+     antes cerraba el modal en silencio, sin ninguna confirmación
+     visual. No se tocó el resto de la función (validación, guardado en
+     Firestore, manejo de error existente con alert() se deja igual).
+     v5.40: (a pedido) sistema de toast — utils.js ya estaba conectado
+     acá desde antes (mostrarToast() vive ahí desde su v1.5), pero
+     faltaban el contenedor (#toast-proyecto, junto a #nav-mount) y el
+     CSS (.toast-item, mismo patrón visual que cocina.html/
+     RECETARIO.html, adaptado a las variables de tema que ya usa este
+     archivo: --ok/--warn/--err/--gold). Se agrega también toast(msg,
+     tipo, dur) como atajo local — llama a mostrarToast() pasando
+     'toast-proyecto' automáticamente, para no repetir el nombre del
+     contenedor en cada llamado nuevo. proyecto.html no tenía ningún
+     llamado previo a mostrarToast()/toast() — no se tocó nada
+     existente, solo se dejó el sistema listo para usarse de acá en
+     adelante. Nota: el fondo de cada .toast-item queda fijo (oscuro,
+     mismo criterio que cocina.html) incluso en tema claro — no se
+     ajustó por variable, mismo comportamiento que ya tenía Cocina.
      v5.39: el backLink "← Volver a Logística" (v5.38) ahora reenvía
      también el parámetro &sesion={id} si vino en la URL (logistica.html
      lo manda desde v2.82), para volver exactamente a la sesión de
@@ -785,6 +805,26 @@
   --warn:#b8842f;
   --err:#b8453a;
 }
+/* v5.40: toast de confirmación — mismo patrón visual que ya usa
+   cocina.html/RECETARIO.html. La función mostrarToast() vive en
+   utils.js (v1.5); acá solo faltaba el contenedor (#toast-proyecto,
+   agregado en el <body>) y este CSS. */
+#toast-proyecto{
+  position:fixed; bottom:20px; right:20px; z-index:200;
+  display:flex; flex-direction:column; gap:8px; pointer-events:none;
+}
+.toast-item{
+  padding:12px 16px; border-radius:8px; font-size:0.9rem; font-family:var(--S);
+  border:1px solid; backdrop-filter:blur(8px); animation:proy-toast-in 0.28s ease;
+  max-width:320px; pointer-events:auto;
+}
+.toast-item.t-ok{ color:var(--ok); border-color:var(--ok); background:rgba(10,25,15,0.94); }
+.toast-item.t-warn{ color:var(--warn); border-color:var(--warn); background:rgba(22,18,4,0.94); }
+.toast-item.t-error{ color:var(--err); border-color:var(--err); background:rgba(28,8,8,0.94); }
+.toast-item.t-info{ color:var(--gold); border-color:var(--gold); background:rgba(20,16,4,0.94); }
+.toast-item.saliendo{ animation:proy-toast-out 0.4s ease forwards; }
+@keyframes proy-toast-in{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+@keyframes proy-toast-out{ from{opacity:1; transform:translateY(0);} to{opacity:0; transform:translateY(10px);} }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
   background:var(--bg);
@@ -1401,6 +1441,10 @@ window.NAV_CONFIG = {
 </script>
 <div id="nav-mount"></div>
 <script src="nav.js"></script>
+<!-- v5.40: contenedor de toast, mismo patrón que cocina.html/RECETARIO.html.
+     mostrarToast() ahora vive en utils.js (v1.5, ya cargado acá) — solo
+     faltaba este contenedor + el CSS de .toast-item para que funcione. -->
+<div id="toast-proyecto"></div>
 
 <div class="main-wrap" id="mainWrap">
 <header>
@@ -1674,6 +1718,12 @@ firebase.initializeApp(firebaseConfig);
 // está en false (default, como hoy en producción), devuelve
 // firebase.firestore() real — cero cambio de comportamiento.
 const db = crearDB();
+
+// v5.40: atajo para no repetir 'toast-proyecto' en cada llamado —
+// mostrarToast() vive en utils.js y necesita el nombre del contenedor
+// como 4to parámetro porque cada página del ecosistema declara el
+// suyo propio (acá es #toast-proyecto, agregado junto a #nav-mount).
+function toast(msg, tipo, dur){ mostrarToast(msg, tipo, dur, 'toast-proyecto'); }
 const auth = firebase.auth();
 
 // v5.26: offline persistence (piloto del ecosistema). Si falla, la app
@@ -2939,6 +2989,9 @@ async function guardarProyecto(){
     }
     cerrarModal();
     verDetalle(proyectoActualId);
+    // v5.41: primer uso real del sistema de toast (v5.40) — antes
+    // guardar cerraba el modal en silencio, sin ninguna confirmación.
+    toast(editando ? '✅ Proyecto actualizado' : '✅ Proyecto creado', 'ok');
   } catch(err){
     console.error(err);
     alert('Error guardando el proyecto. Revisa la consola.');
