@@ -3,8 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.89)</title>
-<!-- AUDIOLINK · cocina.html · v1.89
+<title>Audiolink — Cocina (v1.90)</title>
+<!-- AUDIOLINK · cocina.html · v1.90
+     v1.90: FIX — v1.89 ya no daba error ni se colgaba, pero el PDF
+     salía en blanco (hoja generada, "1/1", sin contenido). Causa: la
+     app principal probablemente tiene html/body con altura fija y
+     overflow:hidden (layout típico a pantalla completa) — en pantalla
+     no se notaba porque el overlay usa position:fixed (ignora ese
+     recorte), pero al imprimir se cambiaba a position:static para que
+     fluyera como página normal, y ahí quedaba atrapado dentro de ese
+     overflow:hidden/altura fija del body real de la app, recortando
+     todo el contenido. Se agrega, SOLO dentro de @media print y SOLO
+     mientras el overlay de pedido está abierto: html,body{height:auto;
+     overflow:visible}. No se toca el overflow/altura fuera de impresión
+     ni en ningún otro momento — apenas se cierra el overlay (botón
+     Cerrar o al terminar de imprimir) esas reglas dejan de aplicar
+     porque el <style> completo se puede volver a usar sin cambios para
+     los próximos PDFs de pedido. _cocAbrirPreview() y los otros 5 PDFs
+     siguen sin tocarse.
      v1.89: PRUEBA — el fix de v1.88 (imagen liviana + tope 8s) no
      resolvió el error de Android ("Preparando vista previa" colgado al
      Reintentar). Causa real: Android/Chrome no imprime confiablemente
@@ -5323,8 +5339,9 @@ function _cocAbrirPreviewInline(titulo, htmlDoc){
     style.textContent = `
       #cocInlinePreviewOverlay{ position:fixed; inset:0; z-index:99999; overflow:auto; }
       @media print{
+        html, body{ height:auto !important; overflow:visible !important; }
         body > *:not(#cocInlinePreviewOverlay){ display:none !important; }
-        #cocInlinePreviewOverlay{ position:static !important; overflow:visible !important; }
+        #cocInlinePreviewOverlay{ position:static !important; overflow:visible !important; height:auto !important; }
       }
       ${cssAdaptado}
     `;
