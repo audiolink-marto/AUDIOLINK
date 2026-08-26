@@ -3,8 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.91)</title>
-<!-- AUDIOLINK · cocina.html · v1.91
+<title>Audiolink — Cocina (v1.92)</title>
+<!-- AUDIOLINK · cocina.html · v1.92
+     v1.92: (1) PRUEBA aislada #3 para el error de impresión del PDF de
+     pedido — nueva _cocAbrirPreviewIframe(): iframe oculto + barra
+     flotante propia en la página principal (no usa window.open ni
+     overlay). Se reactiva la imagen en imprimirPedidoHTML (v1.91
+     confirmó que no era la causa). _cocAbrirPreview() sigue intacta,
+     usada por los otros 5 PDFs. (2) A pedido: se sube tamaño/peso de
+     los textos pequeños y claros que salían minúsculos en el PDF
+     impreso real — header sub/fecha (7.5→8.5pt +peso), footer
+     (7→8pt +peso), descripción e ingredientes de línea de pedido
+     (7.5-7.8→8.3-8.5pt +peso), cantidad de línea (8→8.8pt). Estas
+     reglas viven en COC_PRINT_CSS (compartida), así que el ajuste se
+     refleja en los 6 PDFs por igual — no hay versión aislada solo para
+     pedido. No se tocó tamaño de precios, totales, nombres de plato ni
+     ningún otro estilo fuera de los mencionados.
      v1.91: PRUEBA DE AISLAMIENTO — v1.89/v1.90 (overlay en misma
      pestaña) dejó de dar error pero el PDF salía en blanco; se revisó
      html/body de la app y NO tienen overflow:hidden/altura fija (esa
@@ -5172,8 +5186,8 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   background:linear-gradient(to right, transparent 0%, #c9a24b 15%, #c9a24b 85%, transparent 100%);
 }
 .coc-header-marca{ font-size:9pt; font-weight:700; letter-spacing:0.04em; color:#1e1e1e; }
-.coc-header-sub{ font-size:7.5pt; color:#9a978f; margin-top:1mm; }
-.coc-header-fecha{ font-size:7.5pt; color:#9a978f; text-align:right; }
+.coc-header-sub{ font-size:8.5pt; font-weight:600; color:#847c6e; margin-top:1mm; }
+.coc-header-fecha{ font-size:8.5pt; font-weight:600; color:#847c6e; text-align:right; }
 .coc-hero{ margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm; }
 .coc-hero-titulo{ font-size:15pt; font-weight:700; color:#1e1e1e; }
 .coc-hero-meta{ font-size:8.5pt; color:#8b7ec8; margin-top:2mm; }
@@ -5192,8 +5206,8 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   background:linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0) 100%);
 }
 .coc-imagen-header-marca{ font-size:9pt; font-weight:700; letter-spacing:0.04em; color:#fff; }
-.coc-imagen-header-sub{ font-size:7.5pt; color:#f0e6d0; margin-top:1mm; }
-.coc-imagen-header-fecha{ font-size:7.5pt; color:#f0e6d0; text-align:right; }
+.coc-imagen-header-sub{ font-size:8.5pt; font-weight:600; color:#f0e6d0; margin-top:1mm; }
+.coc-imagen-header-fecha{ font-size:8.5pt; font-weight:600; color:#f0e6d0; text-align:right; }
 .coc-descripcion-texto{ font-size:9pt; color:#3a3a3a; line-height:1.5; white-space:pre-line; }
 .coc-cliente-imagen{ margin:0 0 6mm; text-align:center; }
 .coc-cliente-imagen img{ max-width:100%; max-height:70mm; border-radius:2.5mm; object-fit:cover; }
@@ -5223,7 +5237,7 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 .coc-totales .coc-fila.coc-destacada.coc-saldo-sinpago{ color:#a03228; }
 .coc-footer{
   margin-top:10mm; display:flex; justify-content:space-between;
-  font-size:7pt; color:#9a978f; border-top:none; padding-top:3mm;
+  font-size:8pt; font-weight:600; color:#847c6e; border-top:none; padding-top:3mm;
   position:relative;
 }
 .coc-footer::before{
@@ -5273,14 +5287,14 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 }
 .coc-linea-pedido-info{ flex:1; }
 .coc-linea-pedido-nombre{ color:#1e1e1e; font-weight:700; font-family:'Playfair Display', serif; font-size:11pt; }
-.coc-linea-pedido-desc{ color:#9a978f; font-size:7.8pt; margin-top:0.5mm; }
-.coc-linea-pedido-ing{ color:#a79bd4; font-size:7.5pt; font-style:italic; margin-top:0.5mm; }
+.coc-linea-pedido-desc{ color:#7a7266; font-size:8.5pt; font-weight:500; margin-top:0.5mm; }
+.coc-linea-pedido-ing{ color:#8b7ec8; font-size:8.3pt; font-weight:500; font-style:italic; margin-top:0.5mm; }
 .coc-linea-pedido-porcionado{
   color:#a8823a; font-size:8.5pt; font-weight:700; font-style:normal;
   margin-top:1.2mm; padding:1.5mm 2.5mm; background:#fcf5e6;
   border-left:2.5pt solid #c9a24b; border-radius:1mm;
 }
-.coc-linea-pedido-cant{ color:#505050; font-size:8pt; margin-top:0.5mm; }
+.coc-linea-pedido-cant{ color:#505050; font-size:8.8pt; margin-top:0.5mm; }
 .coc-linea-pedido-precio{ color:#505050; font-family:monospace; font-size:9pt; text-align:right; flex-shrink:0; }
 .coc-nota-pdf{ font-size:9pt; padding:1.5mm 0; display:flex; gap:2mm; }
 /* v1.55: tabla del PDF de "Catálogo de insumos" (exportar) */
@@ -5327,59 +5341,54 @@ function _cocEncabezado(r, fechaGeneracion, subtitulo){
     </div>`;
 }
 
-// v1.89: PRUEBA aislada — solo para el PDF de pedido (imprimirPedidoHTML).
-// _cocAbrirPreview (arriba) sigue exactamente igual y la siguen usando
-// los otros 5 PDFs. Esta variante NO abre ventana nueva (window.open):
-// el bug "Hubo un problema al imprimir" / "Preparando vista previa"
-// colgado en Android es de imprimir una ventana secundaria — Android
-// solo imprime confiablemente la pestaña activa. Acá se inserta la
-// ficha como overlay a pantalla completa DENTRO de la misma pestaña, y
-// @media print oculta todo lo demás de la app para que solo se imprima
-// la ficha. Si esto funciona bien en tu celular, se replica luego a los
-// otros 5; si falla, se revierte solo esta función sin tocar nada más.
-function _cocAbrirPreviewInline(titulo, htmlDoc){
-  const previo = document.getElementById('cocInlinePreviewOverlay');
-  if(previo) previo.remove();
+// v1.92: PRUEBA aislada #3 — solo para el PDF de pedido
+// (imprimirPedidoHTML). _cocAbrirPreview (abajo) sigue exactamente
+// igual y la siguen usando los otros 5 PDFs.
+// Historial de por qué se llegó acá:
+//   - v1.86 y antes: window.open() + document.write() → Android daba
+//     "Hubo un problema al imprimir la página".
+//   - v1.89/90: overlay en la misma pestaña (sin ventana nueva) → ya
+//     no daba error, pero el PDF salía en blanco (causa no confirmada).
+//   - v1.91: se volvió a window.open() SIN imagen, para descartar la
+//     imagen como causa → volvió el error original, confirmando que la
+//     imagen NUNCA fue la causa; el problema es window.open() en sí en
+//     este teléfono/página.
+// v1.92 usa un <iframe> OCULTO (no ventana emergente, documento propio
+// y aislado — no depende de ocultar/recortar la página principal como
+// dependía el overlay). Se muestra una barra flotante en la página
+// principal (fuera del iframe) con los botones Imprimir/Cerrar,
+// porque el iframe está oculto y no se puede tocar directamente.
+function _cocAbrirPreviewIframe(titulo, htmlDoc){
+  const iframePrevio = document.getElementById('cocPrintIframe');
+  if(iframePrevio) iframePrevio.remove();
+  const barraPrevia = document.getElementById('cocPrintIframeBarra');
+  if(barraPrevia) barraPrevia.remove();
 
-  if(!document.getElementById('cocInlinePreviewStyle')){
-    // Reusa COC_PRINT_CSS (mismas clases .coc-page, .coc-barra-preview,
-    // etc. que ya están validadas), pero la regla "body{...}" de esa
-    // hoja NO puede aplicarse al body real de la app (tiene su propio
-    // fondo/layout) — se re-apunta esa única regla al overlay.
-    const cssAdaptado = COC_PRINT_CSS
-      .replace('body{ margin:0; background:#3a3a3a; padding:32px 0; }', '#cocInlinePreviewOverlay{ margin:0; background:#3a3a3a; padding:32px 0; }')
-      .replace('@media print{ body{ background:none; padding:0; } }', '@media print{ #cocInlinePreviewOverlay{ background:none; padding:0; } }');
-    const style = document.createElement('style');
-    style.id = 'cocInlinePreviewStyle';
-    style.textContent = `
-      #cocInlinePreviewOverlay{ position:fixed; inset:0; z-index:99999; overflow:auto; }
-      @media print{
-        html, body{ height:auto !important; overflow:visible !important; }
-        body > *:not(#cocInlinePreviewOverlay){ display:none !important; }
-        #cocInlinePreviewOverlay{ position:static !important; overflow:visible !important; height:auto !important; }
-      }
-      ${cssAdaptado}
-    `;
-    document.head.appendChild(style);
-  }
+  const iframe = document.createElement('iframe');
+  iframe.id = 'cocPrintIframe';
+  iframe.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;';
+  document.body.appendChild(iframe);
 
-  const overlay = document.createElement('div');
-  overlay.id = 'cocInlinePreviewOverlay';
-  overlay.innerHTML = `
-    <div class="coc-barra-preview">
-      <button id="cocBtnImprimirInline">🖨️ Imprimir / Guardar PDF</button>
-      <button id="cocBtnCerrarInline">Cerrar</button>
-    </div>
-    <div class="coc-preview-espaciador"></div>
-    ${htmlDoc}
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${_cocEsc(titulo)}</title>
+    <style>${COC_PRINT_CSS}</style>
+  </head><body>${htmlDoc}</body></html>`);
+  doc.close();
+
+  const barra = document.createElement('div');
+  barra.id = 'cocPrintIframeBarra';
+  barra.style.cssText = 'position:fixed; left:0; right:0; bottom:0; z-index:99999; display:flex; gap:8px; padding:10px 14px; background:#1e1e1e; box-shadow:0 -2px 10px rgba(0,0,0,.3);';
+  barra.innerHTML = `
+    <button id="cocBtnImprimirIframe" style="flex:1; padding:12px; border:none; border-radius:6px; background:#c9a24b; color:#1e1e1e; font-weight:700; font-size:14px;">🖨️ Imprimir / Guardar PDF</button>
+    <button id="cocBtnCerrarIframe" style="padding:12px 16px; border:none; border-radius:6px; background:#3a3a3a; color:#fff; font-size:14px;">Cerrar</button>
   `;
-  document.body.appendChild(overlay);
+  document.body.appendChild(barra);
 
-  const tituloOriginal = document.title;
-  document.title = titulo;
-
-  function _cocEsperarImagenesInline(cb){
-    const imgs = Array.from(overlay.querySelectorAll('img'));
+  function _cocEsperarImagenesIframe(cb){
+    const imgs = Array.from(doc.images);
     if(!imgs.length) return cb();
     let pendientes = imgs.filter(img => !img.complete).length;
     if(!pendientes) return cb();
@@ -5394,14 +5403,18 @@ function _cocAbrirPreviewInline(titulo, htmlDoc){
   }
 
   function cerrar(){
-    overlay.remove();
-    document.title = tituloOriginal;
-    window.onafterprint = null;
+    iframe.remove();
+    barra.remove();
   }
 
-  document.getElementById('cocBtnImprimirInline').addEventListener('click', () => _cocEsperarImagenesInline(() => window.print()));
-  document.getElementById('cocBtnCerrarInline').addEventListener('click', cerrar);
-  window.onafterprint = cerrar;
+  document.getElementById('cocBtnImprimirIframe').addEventListener('click', () => {
+    _cocEsperarImagenesIframe(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    });
+  });
+  document.getElementById('cocBtnCerrarIframe').addEventListener('click', cerrar);
+  iframe.contentWindow.onafterprint = cerrar;
 }
 
 function _cocAbrirPreview(titulo, htmlDoc){
@@ -5613,13 +5626,9 @@ function imprimirPedidoHTML(pedidoId){
     return r && r.imagenUrl;
   });
   const recetaParaHeader = lineaConImagen ? recetasCache.find(x => x.id === lineaConImagen.refId) : null;
-  // v1.91 PRUEBA: se deja de usar recetaParaHeader.imagenUrl en el PDF
-  // (aislando si la imagen es la causa del PDF en blanco/error en
-  // Android). pseudoRecetaHeader ya no lleva imagenUrl — el header cae
-  // en la variante de texto plano de _cocEncabezado(). No se tocó
-  // recetaParaHeader ni imagenUrl en ningún otro lado (tarjeta, PDF
-  // interno, PDF cliente siguen mostrando la imagen normalmente).
-  const pseudoRecetaHeader = { nombre: p.cliente || 'Pedido', imagenUrl: '' };
+  // v1.92: la imagen se reactiva — v1.91 confirmó que NO era la causa
+  // del error original.
+  const pseudoRecetaHeader = { nombre: p.cliente || 'Pedido', imagenUrl: recetaParaHeader ? recetaParaHeader.imagenUrl : '' };
 
   const htmlLineas = (p.lineas || []).map(l => {
     const r = (l.tipo === 'receta' && l.refId) ? recetasCache.find(x => x.id === l.refId) : null;
@@ -5647,10 +5656,7 @@ function imprimirPedidoHTML(pedidoId){
       : '';
     return `
     <div class="coc-linea-pedido">
-      ${/* v1.91 PRUEBA: imagen de línea deshabilitada temporalmente en
-           el PDF de pedido para aislar si la imagen es la causa del
-           problema en Android. La tarjeta en pantalla y los demás PDFs
-           no se tocaron. */ ''}
+      ${r && r.imagenUrl ? `<img src="${cocCloudinaryThumb(r.imagenUrl, 400)}" class="coc-linea-pedido-img" alt="">` : ''}
       <div class="coc-linea-pedido-info">
         <div class="coc-linea-pedido-nombre">${_cocEsc(l.nombre || '—')}${extrasNota}</div>
         ${r && r.descripcion ? `<div class="coc-linea-pedido-desc">${_cocEsc(r.descripcion)}</div>` : ''}
@@ -5710,11 +5716,8 @@ function imprimirPedidoHTML(pedidoId){
   </div>`;
 
   const tituloVentana = `Pedido - ${p.cliente || 'Cliente'}`;
-  // v1.91 PRUEBA: se vuelve a _cocAbrirPreview (ventana nueva), igual
-  // que los otros 5 PDFs y que vaca.html. _cocAbrirPreviewInline()
-  // queda en el archivo sin usarse (por si se retoma después), pero
-  // ya no se llama desde acá.
-  _cocAbrirPreview(tituloVentana, htmlDoc);
+  // v1.92: PRUEBA — iframe oculto en vez de ventana nueva o overlay.
+  _cocAbrirPreviewIframe(tituloVentana, htmlDoc);
 }
 
 // Checklist de compras agrupado por categoría (mismo orden que
