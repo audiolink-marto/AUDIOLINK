@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Menú</title>
-<!-- AUDIOLINK · menu.html · v1.8
+<!-- AUDIOLINK · menu.html · v1.9
+     v1.9: (a pedido) fondo con patrón sutil de corazoncitos (❤) en
+     todo el body, SIN cargar ninguna imagen externa — es un SVG
+     inline codificado como data-URI en la variable --patron-fondo
+     (ver comentario junto a :root en el CSS para cómo cambiarlo:
+     símbolo, color u opacidad — todo vive en ese único bloque). Hay
+     una variante para tema claro y otra para oscuro (colores ya
+     "quemados" en cada SVG — un var() de color no funciona dentro de
+     un data-URI, por eso son 2 bloques separados en vez de 1
+     reutilizable). Repetido cada 56px (--patron-fondo-tamano), muy
+     suave (opacidad 0.05-0.06) para no interferir con la lectura. No
+     se tocó ningún otro estilo ni la lógica de la app.
      v1.8: (a pedido) cuando la receta tiene "Mostrar cantidades al
      cliente" DESACTIVADO, los ingredientes del modal de detalle ahora
      se muestran como párrafo corrido (reutiliza .menu-modal-desc,
@@ -116,6 +127,24 @@
   --faint:#b5ab99;
   --T:'Playfair Display', serif;
   --M:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;
+  /* v1.9: patrón de fondo, sutil, sin cargar imagen externa (SVG
+     inline en data-URI, va como texto plano — un var() de color NO
+     funciona dentro del data-URI, por eso el color ya viene "quemado"
+     en el propio SVG de cada variante claro/oscuro).
+     PARA CAMBIAR ESTO DESPUÉS — todo vive en este único bloque:
+     - Símbolo: %E2%9D%A4 = ❤ (codificado). Para otro símbolo, hay que
+       generar su nuevo %XX%XX... (buscar "URL encode" + el emoji).
+     - Color: fill='%23c2703d' → %23 es # (así que %23c2703d = #c2703d).
+     - Opacidad: opacity='0.05' (0 a 1).
+     - Tamaño del patrón: --patron-fondo-tamano (px) — separado, si
+       fuera él solo, sin tocar el SVG.
+     - Hay 2 variantes (clara/oscura) porque el color no se puede
+       heredar del tema — al cambiar el símbolo, hay que pegarlo en
+       ambos: --patron-fondo aquí en :root, y --patron-fondo otra vez
+       dentro del bloque body[data-tema="oscuro"] más abajo (mismo
+       nombre de variable, valor distinto por tema). */
+  --patron-fondo-tamano:56px;
+  --patron-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Ctext x='8' y='24' font-size='16' fill='%23c2703d' opacity='0.05'%3E%E2%9D%A4%3C/text%3E%3Ctext x='34' y='50' font-size='16' fill='%23c2703d' opacity='0.05'%3E%E2%9D%A4%3C/text%3E%3C/svg%3E");
 }
 body[data-tema="oscuro"]{
   --bg:#0b0b0d;
@@ -126,10 +155,11 @@ body[data-tema="oscuro"]{
   --text:#f2efe6;
   --muted:#9a978f;
   --faint:#6f6c66;
+  --patron-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Ctext x='8' y='24' font-size='16' fill='%23c4982c' opacity='0.06'%3E%E2%9D%A4%3C/text%3E%3Ctext x='34' y='50' font-size='16' fill='%23c4982c' opacity='0.06'%3E%E2%9D%A4%3C/text%3E%3C/svg%3E");
 }
 *{ box-sizing:border-box; }
 body{
-  margin:0; background:var(--bg); color:var(--text);
+  margin:0; background:var(--bg) var(--patron-fondo) repeat 0 0/var(--patron-fondo-tamano) var(--patron-fondo-tamano); color:var(--text);
   font-family:var(--M); -webkit-font-smoothing:antialiased;
   transition:background-color .2s ease, color .2s ease;
 }
