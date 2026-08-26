@@ -3,8 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.88)</title>
-<!-- AUDIOLINK · cocina.html · v1.88
+<title>Audiolink — Cocina (v1.89)</title>
+<!-- AUDIOLINK · cocina.html · v1.89
+     v1.89: PRUEBA — el fix de v1.88 (imagen liviana + tope 8s) no
+     resolvió el error de Android ("Preparando vista previa" colgado al
+     Reintentar). Causa real: Android/Chrome no imprime confiablemente
+     una ventana secundaria abierta con window.open(), que es como
+     funcionan los 6 PDFs vía _cocAbrirPreview(). SOLO para el PDF de
+     pedido (imprimirPedidoHTML) se agrega _cocAbrirPreviewInline():
+     misma ficha, mismos botones, pero como overlay DENTRO de la misma
+     pestaña (sin ventana nueva) — @media print oculta el resto de la
+     app para imprimir solo la ficha. _cocAbrirPreview() NO se tocó y
+     los otros 5 PDFs (receta interna, receta cliente, historial,
+     catálogo, lista de compras) siguen exactamente igual, sin cambios.
+     Si esto resuelve el problema en Android, se replica el mismo
+     patrón a los otros 5 después; si no, se revierte solo esta función
+     y el llamado en imprimirPedidoHTML, sin afectar nada más.
      v1.88: FIX — "Hubo un problema al imprimir la página" al exportar
      el PDF de pedido en Android/Chrome. Causa: imprimirPedidoHTML()
      insertaba la imagen de la receta (coc-linea-pedido-img) con la URL
@@ -5282,6 +5296,82 @@ function _cocEncabezado(r, fechaGeneracion, subtitulo){
     </div>`;
 }
 
+// v1.89: PRUEBA aislada — solo para el PDF de pedido (imprimirPedidoHTML).
+// _cocAbrirPreview (arriba) sigue exactamente igual y la siguen usando
+// los otros 5 PDFs. Esta variante NO abre ventana nueva (window.open):
+// el bug "Hubo un problema al imprimir" / "Preparando vista previa"
+// colgado en Android es de imprimir una ventana secundaria — Android
+// solo imprime confiablemente la pestaña activa. Acá se inserta la
+// ficha como overlay a pantalla completa DENTRO de la misma pestaña, y
+// @media print oculta todo lo demás de la app para que solo se imprima
+// la ficha. Si esto funciona bien en tu celular, se replica luego a los
+// otros 5; si falla, se revierte solo esta función sin tocar nada más.
+function _cocAbrirPreviewInline(titulo, htmlDoc){
+  const previo = document.getElementById('cocInlinePreviewOverlay');
+  if(previo) previo.remove();
+
+  if(!document.getElementById('cocInlinePreviewStyle')){
+    // Reusa COC_PRINT_CSS (mismas clases .coc-page, .coc-barra-preview,
+    // etc. que ya están validadas), pero la regla "body{...}" de esa
+    // hoja NO puede aplicarse al body real de la app (tiene su propio
+    // fondo/layout) — se re-apunta esa única regla al overlay.
+    const cssAdaptado = COC_PRINT_CSS
+      .replace('body{ margin:0; background:#3a3a3a; padding:32px 0; }', '#cocInlinePreviewOverlay{ margin:0; background:#3a3a3a; padding:32px 0; }')
+      .replace('@media print{ body{ background:none; padding:0; } }', '@media print{ #cocInlinePreviewOverlay{ background:none; padding:0; } }');
+    const style = document.createElement('style');
+    style.id = 'cocInlinePreviewStyle';
+    style.textContent = `
+      #cocInlinePreviewOverlay{ position:fixed; inset:0; z-index:99999; overflow:auto; }
+      @media print{
+        body > *:not(#cocInlinePreviewOverlay){ display:none !important; }
+        #cocInlinePreviewOverlay{ position:static !important; overflow:visible !important; }
+      }
+      ${cssAdaptado}
+    `;
+    document.head.appendChild(style);
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'cocInlinePreviewOverlay';
+  overlay.innerHTML = `
+    <div class="coc-barra-preview">
+      <button id="cocBtnImprimirInline">🖨️ Imprimir / Guardar PDF</button>
+      <button id="cocBtnCerrarInline">Cerrar</button>
+    </div>
+    <div class="coc-preview-espaciador"></div>
+    ${htmlDoc}
+  `;
+  document.body.appendChild(overlay);
+
+  const tituloOriginal = document.title;
+  document.title = titulo;
+
+  function _cocEsperarImagenesInline(cb){
+    const imgs = Array.from(overlay.querySelectorAll('img'));
+    if(!imgs.length) return cb();
+    let pendientes = imgs.filter(img => !img.complete).length;
+    if(!pendientes) return cb();
+    let listo = false;
+    const terminar = () => { if(!listo){ listo = true; cb(); } };
+    imgs.forEach(img => {
+      if(img.complete) return;
+      img.addEventListener('load', () => { if(--pendientes <= 0) terminar(); });
+      img.addEventListener('error', () => { if(--pendientes <= 0) terminar(); });
+    });
+    setTimeout(terminar, 8000);
+  }
+
+  function cerrar(){
+    overlay.remove();
+    document.title = tituloOriginal;
+    window.onafterprint = null;
+  }
+
+  document.getElementById('cocBtnImprimirInline').addEventListener('click', () => _cocEsperarImagenesInline(() => window.print()));
+  document.getElementById('cocBtnCerrarInline').addEventListener('click', cerrar);
+  window.onafterprint = cerrar;
+}
+
 function _cocAbrirPreview(titulo, htmlDoc){
   const win = window.open('', '_blank', 'width=640,height=700,resizable=yes,scrollbars=yes');
   if(!win){
@@ -5579,7 +5669,10 @@ function imprimirPedidoHTML(pedidoId){
   </div>`;
 
   const tituloVentana = `Pedido - ${p.cliente || 'Cliente'}`;
-  _cocAbrirPreview(tituloVentana, htmlDoc);
+  // v1.89: PRUEBA — solo este PDF usa la variante inline (misma
+  // pestaña, sin window.open). Los otros 5 PDFs siguen llamando a
+  // _cocAbrirPreview() sin cambios.
+  _cocAbrirPreviewInline(tituloVentana, htmlDoc);
 }
 
 // Checklist de compras agrupado por categoría (mismo orden que
