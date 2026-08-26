@@ -3,32 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.86)</title>
-<!-- AUDIOLINK · cocina.html · v1.86
-     v1.86: (a pedido) el aviso de porcionado en el PDF de pedido
-     ("N personales de... rinde M") se veía igual de discreto que la
-     lista de ingredientes (mismo gris/cursiva chica) y se perdía —
-     a pedido, es importante que resalte. Nueva clase
-     .coc-linea-pedido-porcionado: fondo crema, borde izquierdo
-     dorado, texto en negrita color dorado (#a8823a, mismo acento ya
-     usado en "Ganancia · Margen" del PDF interno), con un ícono 📏
-     delante. Se aplica SOLO cuando personasBase > 0 (el caso con dato
-     real que hay que resaltar); el texto genérico "También disponible
-     en {alterna}" (sin personasBase) se queda con el estilo discreto
-     de siempre (.coc-linea-pedido-ing), sin cambios. No se tocó nada
-     más del PDF de pedido ni de otros documentos.
-     v1.85: (a pedido) el nombre de cada plato en el PDF de pedido
-     (.coc-linea-pedido-nombre, imprimirPedidoHTML) ahora usa Playfair
-     Display (misma serif que ya usa menu.html en sus títulos), para
-     dar consistencia de marca con lo que el cliente ve en el menú
-     público. Se agregó el @import de Google Fonts al inicio de
-     COC_PRINT_CSS (afecta a los 6 PDFs por venir de la misma hoja de
-     estilos compartida, pero SOLO esta clase puntual cambia de
-     tipografía). A propósito NO se tocó .coc-hero-titulo (en el PDF
-     de pedido muestra el NOMBRE DEL CLIENTE, no el plato — ej. "GABY"
-     — se decidió no vestirlo) ni el PDF interno de costeo (documento
-     de trabajo, no de cara al cliente). El resto del PDF de pedido
-     sigue en DM Sans.
+<title>Audiolink — Cocina (v1.84)</title>
+<!-- AUDIOLINK · cocina.html · v1.84
      v1.84: (a pedido) _cocSincronizarMenuPublico() ahora también
      copia al espejo menuPublico los 4 campos del tamaño alterno
      (tieneTamanoAlterno, personasBase, tamanoBaseEtiqueta,
@@ -5045,7 +5021,6 @@ function _cocEsc(str){
 }
 
 const COC_PRINT_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
 @page{ size:letter; margin:20mm 18mm; }
 body{ margin:0; background:#3a3a3a; padding:32px 0; }
 @media print{ body{ background:none; padding:0; } }
@@ -5166,14 +5141,9 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   width:12mm; height:12mm; border-radius:1.5mm; object-fit:cover; flex-shrink:0;
 }
 .coc-linea-pedido-info{ flex:1; }
-.coc-linea-pedido-nombre{ color:#1e1e1e; font-weight:700; font-family:'Playfair Display', serif; font-size:11pt; }
+.coc-linea-pedido-nombre{ color:#1e1e1e; font-weight:600; }
 .coc-linea-pedido-desc{ color:#9a978f; font-size:7.8pt; margin-top:0.5mm; }
 .coc-linea-pedido-ing{ color:#a79bd4; font-size:7.5pt; font-style:italic; margin-top:0.5mm; }
-.coc-linea-pedido-porcionado{
-  color:#a8823a; font-size:8.5pt; font-weight:700; font-style:normal;
-  margin-top:1.2mm; padding:1.5mm 2.5mm; background:#fcf5e6;
-  border-left:2.5pt solid #c9a24b; border-radius:1mm;
-}
 .coc-linea-pedido-cant{ color:#505050; font-size:8pt; margin-top:0.5mm; }
 .coc-linea-pedido-precio{ color:#505050; font-family:monospace; font-size:9pt; text-align:right; flex-shrink:0; }
 .coc-nota-pdf{ font-size:9pt; padding:1.5mm 0; display:flex; gap:2mm; }
@@ -5452,9 +5422,9 @@ function imprimirPedidoHTML(pedidoId){
       ? `<div class="coc-linea-pedido-ing">${insumosVisiblesLinea.map(i => _cocEsc(i.nombre)).join(', ')}</div>`
       : '';
     const htmlTamanoAlternoLinea = (r && r.tieneTamanoAlterno)
-      ? ((r.personasBase || 0) > 0
-          ? `<div class="coc-linea-pedido-porcionado">📏 ${_cocEsc(r.personasBase)} personales de ${_cocEsc(r.tamanoBaseEtiqueta || 'este tamaño')} · en porciones de ${_cocEsc(r.tamanoAltEtiqueta || 'tamaño menor')} rinde ${_cocEsc(r.personasBase * 2)}</div>`
-          : `<div class="coc-linea-pedido-ing">También disponible en ${_cocEsc(r.tamanoAltEtiqueta || 'tamaño menor')}</div>`)
+      ? `<div class="coc-linea-pedido-ing">${(r.personasBase || 0) > 0
+          ? `${_cocEsc(r.personasBase)} personales de ${_cocEsc(r.tamanoBaseEtiqueta || 'este tamaño')} · en porciones de ${_cocEsc(r.tamanoAltEtiqueta || 'tamaño menor')} rinde ${_cocEsc(r.personasBase * 2)}`
+          : `También disponible en ${_cocEsc(r.tamanoAltEtiqueta || 'tamaño menor')}`}</div>`
       : '';
     return `
     <div class="coc-linea-pedido">
