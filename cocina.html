@@ -3,8 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.90)</title>
-<!-- AUDIOLINK · cocina.html · v1.90
+<title>Audiolink — Cocina (v1.91)</title>
+<!-- AUDIOLINK · cocina.html · v1.91
+     v1.91: PRUEBA DE AISLAMIENTO — v1.89/v1.90 (overlay en misma
+     pestaña) dejó de dar error pero el PDF salía en blanco; se revisó
+     html/body de la app y NO tienen overflow:hidden/altura fija (esa
+     hipótesis era incorrecta). Se vuelve a _cocAbrirPreview() (ventana
+     nueva), igual que los otros 5 PDFs y que vaca.html — que sí
+     funciona en Android. Diferencia real detectada: vaca.html jamás
+     incrusta una imagen dentro del documento que se imprime. Como
+     prueba, se QUITA temporalmente la imagen (header y línea) SOLO del
+     documento que se imprime en imprimirPedidoHTML — la tarjeta en
+     pantalla, el PDF interno y el PDF cliente siguen mostrando la
+     imagen normalmente, sin cambios. _cocAbrirPreviewInline() queda
+     en el archivo sin usarse, sin borrar, por si se retoma. Si con
+     esto el PDF de pedido imprime bien, confirma que la imagen
+     incrustada es la causa y se busca cómo reintegrarla de forma
+     seguura; si sigue fallando, se descarta la imagen como causa.
      v1.90: FIX — v1.89 ya no daba error ni se colgaba, pero el PDF
      salía en blanco (hoja generada, "1/1", sin contenido). Causa: la
      app principal probablemente tiene html/body con altura fija y
@@ -5598,7 +5613,13 @@ function imprimirPedidoHTML(pedidoId){
     return r && r.imagenUrl;
   });
   const recetaParaHeader = lineaConImagen ? recetasCache.find(x => x.id === lineaConImagen.refId) : null;
-  const pseudoRecetaHeader = { nombre: p.cliente || 'Pedido', imagenUrl: recetaParaHeader ? recetaParaHeader.imagenUrl : '' };
+  // v1.91 PRUEBA: se deja de usar recetaParaHeader.imagenUrl en el PDF
+  // (aislando si la imagen es la causa del PDF en blanco/error en
+  // Android). pseudoRecetaHeader ya no lleva imagenUrl — el header cae
+  // en la variante de texto plano de _cocEncabezado(). No se tocó
+  // recetaParaHeader ni imagenUrl en ningún otro lado (tarjeta, PDF
+  // interno, PDF cliente siguen mostrando la imagen normalmente).
+  const pseudoRecetaHeader = { nombre: p.cliente || 'Pedido', imagenUrl: '' };
 
   const htmlLineas = (p.lineas || []).map(l => {
     const r = (l.tipo === 'receta' && l.refId) ? recetasCache.find(x => x.id === l.refId) : null;
@@ -5626,7 +5647,10 @@ function imprimirPedidoHTML(pedidoId){
       : '';
     return `
     <div class="coc-linea-pedido">
-      ${r && r.imagenUrl ? `<img src="${cocCloudinaryThumb(r.imagenUrl, 400)}" class="coc-linea-pedido-img" alt="">` : ''}
+      ${/* v1.91 PRUEBA: imagen de línea deshabilitada temporalmente en
+           el PDF de pedido para aislar si la imagen es la causa del
+           problema en Android. La tarjeta en pantalla y los demás PDFs
+           no se tocaron. */ ''}
       <div class="coc-linea-pedido-info">
         <div class="coc-linea-pedido-nombre">${_cocEsc(l.nombre || '—')}${extrasNota}</div>
         ${r && r.descripcion ? `<div class="coc-linea-pedido-desc">${_cocEsc(r.descripcion)}</div>` : ''}
@@ -5686,10 +5710,11 @@ function imprimirPedidoHTML(pedidoId){
   </div>`;
 
   const tituloVentana = `Pedido - ${p.cliente || 'Cliente'}`;
-  // v1.89: PRUEBA — solo este PDF usa la variante inline (misma
-  // pestaña, sin window.open). Los otros 5 PDFs siguen llamando a
-  // _cocAbrirPreview() sin cambios.
-  _cocAbrirPreviewInline(tituloVentana, htmlDoc);
+  // v1.91 PRUEBA: se vuelve a _cocAbrirPreview (ventana nueva), igual
+  // que los otros 5 PDFs y que vaca.html. _cocAbrirPreviewInline()
+  // queda en el archivo sin usarse (por si se retoma después), pero
+  // ya no se llama desde acá.
+  _cocAbrirPreview(tituloVentana, htmlDoc);
 }
 
 // Checklist de compras agrupado por categoría (mismo orden que
