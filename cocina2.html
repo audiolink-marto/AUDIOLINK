@@ -3,25 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.88)</title>
-<!-- AUDIOLINK · cocina.html · v1.88
-     v1.88: FIX — "Hubo un problema al imprimir la página" al exportar
-     el PDF de pedido en Android/Chrome. Causa: imprimirPedidoHTML()
-     insertaba la imagen de la receta (coc-linea-pedido-img) con la URL
-     ORIGINAL de Cloudinary (sin transformación), pesada para una
-     miniatura que se ve chiquita — el motor de impresión de Android
-     falla más seguido con imágenes externas grandes dentro de una
-     ventana popup. Mismo patrón ya validado en vaca.html
-     (cloudinaryThumb): 1) nueva función cocCloudinaryThumb(url,w) —
-     solo inserta w_/q_auto/f_auto en la URL ya guardada, no sube nada
-     nuevo ni toca imagenUrl en Firestore; 2) usada ÚNICAMENTE en el
-     <img> del PDF de pedido (w_400 — de sobra para el tamaño en que se
-     ve, q_auto/f_auto no baja la nitidez visible). El resto de los 6
-     PDFs (imagen de receta interna/cliente, tarjetas en pantalla, etc.)
-     sigue usando imagenUrl tal cual, sin cambios. 3) el tope de espera
-     de _cocEsperarImagenes (v1.67) sube de 4s a 8s como colchón extra
-     en redes lentas. No se tocó cálculo de costos/márgenes ni ningún
-     otro PDF.
+<title>Audiolink — Cocina (v1.87)</title>
+<!-- AUDIOLINK · cocina.html · v1.87
      v1.87: (a pedido) fondo con patrón sutil de corazoncitos (❤) SOLO
      en el PDF de pedido (nueva clase .coc-page-decorado, aplicada
      únicamente al htmlDoc de imprimirPedidoHTML) — sin cargar ninguna
@@ -5070,23 +5053,6 @@ function _cocEsc(str){
   return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// v1.88: mismo patrón ya validado en vaca.html (cloudinaryThumb) — no
-// sube nada nuevo a Cloudinary, solo inserta parámetros de
-// transformación en la URL ya guardada, para pedir una versión más
-// liviana (ancho fijo + q_auto/f_auto) en vez del original. Usada
-// ÚNICAMENTE en la imagen del PDF de pedido (imprimirPedidoHTML), que
-// es donde una imagen pesada sin transformar dispara el error "Hubo un
-// problema al imprimir la página" en Android/Chrome. No se tocó
-// imagenUrl en ningún otro lugar (tarjetas, PDF interno, PDF cliente).
-function cocCloudinaryThumb(url, ancho){
-  if(!url) return url;
-  const marcador = '/upload/';
-  const i = url.indexOf(marcador);
-  if(i === -1) return url;
-  const inicio = i + marcador.length;
-  return url.slice(0, inicio) + `w_${ancho},q_auto,f_auto/` + url.slice(inicio);
-}
-
 const COC_PRINT_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
 @page{ size:letter; margin:20mm 18mm; }
@@ -5321,7 +5287,7 @@ function _cocAbrirPreview(titulo, htmlDoc){
           img.addEventListener('load', () => { if(--pendientes <= 0) terminar(); });
           img.addEventListener('error', () => { if(--pendientes <= 0) terminar(); });
         });
-        setTimeout(terminar, 8000);
+        setTimeout(terminar, 4000);
       }
       document.getElementById('cocBtnImprimir').addEventListener('click', () => _cocEsperarImagenes(() => window.print()));
       document.getElementById('cocBtnCerrar').addEventListener('click', () => window.close());
@@ -5519,7 +5485,7 @@ function imprimirPedidoHTML(pedidoId){
       : '';
     return `
     <div class="coc-linea-pedido">
-      ${r && r.imagenUrl ? `<img src="${cocCloudinaryThumb(r.imagenUrl, 400)}" class="coc-linea-pedido-img" alt="">` : ''}
+      ${r && r.imagenUrl ? `<img src="${r.imagenUrl}" class="coc-linea-pedido-img" alt="">` : ''}
       <div class="coc-linea-pedido-info">
         <div class="coc-linea-pedido-nombre">${_cocEsc(l.nombre || '—')}${extrasNota}</div>
         ${r && r.descripcion ? `<div class="coc-linea-pedido-desc">${_cocEsc(r.descripcion)}</div>` : ''}
