@@ -3,8 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.92)</title>
-<!-- AUDIOLINK · cocina.html · v1.92
+<title>Audiolink — Cocina (v1.93)</title>
+<!-- AUDIOLINK · cocina.html · v1.93
+     v1.93: (1) FIX — en móvil el botón "Imprimir" del iframe (v1.92)
+     dejaba de responder. Causa: se esperaba a que las imágenes
+     cargaran (evento 'load', asíncrono) antes de llamar
+     iframe.contentWindow.print() — en escritorio las imágenes ya
+     estaban en caché y el callback corría al instante (dentro del
+     mismo toque), pero en móvil corría más tarde, ya FUERA de la
+     cadena del gesto del usuario, y Android bloquea silenciosamente
+     print() si no viene directo de un toque. Ahora el botón imprime
+     de inmediato en el mismo click, sin esperar imágenes (ya cargan
+     rápido gracias a la miniatura liviana de Cloudinary de v1.88).
+     (2) A pedido: segunda subida de tamaño/peso en TODA la hoja de
+     impresión (COC_PRINT_CSS, compartida por los 6 PDFs) — headers,
+     hero, secciones, filas/totales, notas, checklist y línea de
+     pedido (nombre, descripción, ingredientes, cantidad, precio)
+     suben entre 1 y 2.5pt adicionales sobre el ajuste de v1.92, y se
+     aclararon un poco los grises más oscuros para mejor contraste.
+     No se tocó ningún cálculo, ni clases fuera de COC_PRINT_CSS.
      v1.92: (1) PRUEBA aislada #3 para el error de impresión del PDF de
      pedido — nueva _cocAbrirPreviewIframe(): iframe oculto + barra
      flotante propia en la página principal (no usa window.open ni
@@ -5185,12 +5202,12 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   content:""; position:absolute; left:0; right:0; bottom:0; height:0.7mm;
   background:linear-gradient(to right, transparent 0%, #c9a24b 15%, #c9a24b 85%, transparent 100%);
 }
-.coc-header-marca{ font-size:9pt; font-weight:700; letter-spacing:0.04em; color:#1e1e1e; }
-.coc-header-sub{ font-size:8.5pt; font-weight:600; color:#847c6e; margin-top:1mm; }
-.coc-header-fecha{ font-size:8.5pt; font-weight:600; color:#847c6e; text-align:right; }
+.coc-header-marca{ font-size:10.5pt; font-weight:700; letter-spacing:0.04em; color:#1e1e1e; }
+.coc-header-sub{ font-size:10pt; font-weight:600; color:#6e6759; margin-top:1mm; }
+.coc-header-fecha{ font-size:10pt; font-weight:600; color:#6e6759; text-align:right; }
 .coc-hero{ margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm; }
-.coc-hero-titulo{ font-size:15pt; font-weight:700; color:#1e1e1e; }
-.coc-hero-meta{ font-size:8.5pt; color:#8b7ec8; margin-top:2mm; }
+.coc-hero-titulo{ font-size:17pt; font-weight:700; color:#1e1e1e; }
+.coc-hero-meta{ font-size:10pt; font-weight:600; color:#8b7ec8; margin-top:2mm; }
 /* v1.19: header tipo banner cuando la receta tiene imagen — full-bleed
    (cancela el padding de .coc-page con márgenes negativos), con el
    texto de marca/fecha superpuesto en degradado. Reemplaza a
@@ -5205,15 +5222,15 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   display:flex; justify-content:space-between; align-items:flex-start;
   background:linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0) 100%);
 }
-.coc-imagen-header-marca{ font-size:9pt; font-weight:700; letter-spacing:0.04em; color:#fff; }
-.coc-imagen-header-sub{ font-size:8.5pt; font-weight:600; color:#f0e6d0; margin-top:1mm; }
-.coc-imagen-header-fecha{ font-size:8.5pt; font-weight:600; color:#f0e6d0; text-align:right; }
-.coc-descripcion-texto{ font-size:9pt; color:#3a3a3a; line-height:1.5; white-space:pre-line; }
+.coc-imagen-header-marca{ font-size:10.5pt; font-weight:700; letter-spacing:0.04em; color:#fff; }
+.coc-imagen-header-sub{ font-size:10pt; font-weight:600; color:#f0e6d0; margin-top:1mm; }
+.coc-imagen-header-fecha{ font-size:10pt; font-weight:600; color:#f0e6d0; text-align:right; }
+.coc-descripcion-texto{ font-size:10.5pt; color:#3a3a3a; line-height:1.5; white-space:pre-line; }
 .coc-cliente-imagen{ margin:0 0 6mm; text-align:center; }
 .coc-cliente-imagen img{ max-width:100%; max-height:70mm; border-radius:2.5mm; object-fit:cover; }
 .coc-seccion{ margin:0 0 6mm; background:#f6f4ef; border-radius:2.5mm; padding:6mm; break-inside:avoid; }
 .coc-titulo-seccion{
-  font-size:7.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.04em;
+  font-size:9pt; font-weight:700; color:#c9a24b; letter-spacing:0.04em;
   text-transform:uppercase; border-bottom:none; padding-bottom:2mm; margin-bottom:4mm;
   position:relative;
 }
@@ -5221,13 +5238,13 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   content:""; position:absolute; left:0; right:0; bottom:0; height:0.4mm;
   background:linear-gradient(to right, #c9a24b 0%, #c9a24b 40%, transparent 100%);
 }
-.coc-fila{ display:flex; justify-content:space-between; gap:4mm; padding:2.2mm 1mm; font-size:9pt; }
+.coc-fila{ display:flex; justify-content:space-between; gap:4mm; padding:2.2mm 1mm; font-size:10.5pt; }
 .coc-fila:nth-child(even){ background:#ffffff; }
 .coc-fila-izq{ color:#1e1e1e; }
 .coc-fila-der{ color:#505050; font-family:monospace; }
 .coc-totales{ margin-top:6mm; }
-.coc-totales .coc-fila{ font-size:9.5pt; }
-.coc-totales .coc-fila.coc-destacada{ font-weight:700; color:#a8823a; font-size:10.5pt; }
+.coc-totales .coc-fila{ font-size:11pt; }
+.coc-totales .coc-fila.coc-destacada{ font-weight:700; color:#a8823a; font-size:12.5pt; }
 /* v1.44: alertas de color del saldo de pedido — mismo criterio que el
    badge de la tarjeta (rojo=sin abono, amarillo=parcial, verde=pagado).
    Solo aplica sobre coc-destacada cuando trae esta clase extra, así
@@ -5237,7 +5254,7 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 .coc-totales .coc-fila.coc-destacada.coc-saldo-sinpago{ color:#a03228; }
 .coc-footer{
   margin-top:10mm; display:flex; justify-content:space-between;
-  font-size:8pt; font-weight:600; color:#847c6e; border-top:none; padding-top:3mm;
+  font-size:9.5pt; font-weight:600; color:#6e6759; border-top:none; padding-top:3mm;
   position:relative;
 }
 .coc-footer::before{
@@ -5247,7 +5264,7 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 /* Checklist de compras */
 .coc-grupo-cat{ margin-bottom:6mm; break-inside:avoid; }
 .coc-grupo-cat-nombre{
-  font-size:8.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.03em;
+  font-size:10pt; font-weight:700; color:#c9a24b; letter-spacing:0.03em;
   text-transform:uppercase; margin-bottom:2mm;
 }
 .coc-check-item{
@@ -5258,7 +5275,7 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   width:5mm; height:5mm; border:0.5mm solid #1e1e1e; border-radius:1mm; flex-shrink:0;
 }
 .coc-check-nombre{ flex:1; color:#1e1e1e; }
-.coc-check-cant{ color:#505050; font-family:monospace; font-size:9pt; }
+.coc-check-cant{ color:#505050; font-family:monospace; font-size:10.5pt; }
 /* Barra flotante de preview — igual patrón que .ph-barra-preview */
 .coc-barra-preview{
   position:fixed; top:0; left:0; right:0; z-index:999;
@@ -5286,17 +5303,17 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   width:12mm; height:12mm; border-radius:1.5mm; object-fit:cover; flex-shrink:0;
 }
 .coc-linea-pedido-info{ flex:1; }
-.coc-linea-pedido-nombre{ color:#1e1e1e; font-weight:700; font-family:'Playfair Display', serif; font-size:11pt; }
-.coc-linea-pedido-desc{ color:#7a7266; font-size:8.5pt; font-weight:500; margin-top:0.5mm; }
-.coc-linea-pedido-ing{ color:#8b7ec8; font-size:8.3pt; font-weight:500; font-style:italic; margin-top:0.5mm; }
+.coc-linea-pedido-nombre{ color:#1e1e1e; font-weight:700; font-family:'Playfair Display', serif; font-size:13pt; }
+.coc-linea-pedido-desc{ color:#6e6759; font-size:10pt; font-weight:500; margin-top:0.5mm; }
+.coc-linea-pedido-ing{ color:#7a6cc4; font-size:9.8pt; font-weight:500; font-style:italic; margin-top:0.5mm; }
 .coc-linea-pedido-porcionado{
-  color:#a8823a; font-size:8.5pt; font-weight:700; font-style:normal;
+  color:#a8823a; font-size:10pt; font-weight:700; font-style:normal;
   margin-top:1.2mm; padding:1.5mm 2.5mm; background:#fcf5e6;
   border-left:2.5pt solid #c9a24b; border-radius:1mm;
 }
-.coc-linea-pedido-cant{ color:#505050; font-size:8.8pt; margin-top:0.5mm; }
-.coc-linea-pedido-precio{ color:#505050; font-family:monospace; font-size:9pt; text-align:right; flex-shrink:0; }
-.coc-nota-pdf{ font-size:9pt; padding:1.5mm 0; display:flex; gap:2mm; }
+.coc-linea-pedido-cant{ color:#505050; font-size:10.3pt; margin-top:0.5mm; }
+.coc-linea-pedido-precio{ color:#505050; font-family:monospace; font-size:10.8pt; text-align:right; flex-shrink:0; }
+.coc-nota-pdf{ font-size:10.5pt; padding:1.5mm 0; display:flex; gap:2mm; }
 /* v1.55: tabla del PDF de "Catálogo de insumos" (exportar) */
 .coc-tabla-cat{ width:100%; border-collapse:collapse; font-size:8.5pt; }
 .coc-tabla-cat th{
@@ -5407,11 +5424,18 @@ function _cocAbrirPreviewIframe(titulo, htmlDoc){
     barra.remove();
   }
 
+  // v1.93 FIX — en móvil el botón dejaba de responder: cuando las
+  // imágenes tardaban en cargar, print() se disparaba DESPUÉS del
+  // evento 'load' (asíncrono), fuera de la cadena del toque del
+  // usuario — Android bloquea silenciosamente print() si no viene
+  // directo de un gesto del usuario. En escritorio no se notaba porque
+  // las imágenes ya estaban en caché y el callback corría al instante
+  // (síncrono). Ahora imprime siempre de inmediato, en el mismo click;
+  // ya no se espera a las imágenes (con la miniatura liviana de
+  // Cloudinary de v1.88 cargan prácticamente al abrir la ficha).
   document.getElementById('cocBtnImprimirIframe').addEventListener('click', () => {
-    _cocEsperarImagenesIframe(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    });
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
   });
   document.getElementById('cocBtnCerrarIframe').addEventListener('click', cerrar);
   iframe.contentWindow.onafterprint = cerrar;
