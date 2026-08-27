@@ -3,114 +3,187 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.94)</title>
-<!-- AUDIOLINK · cocina.html · v1.94
-     v1.94: FIX — v1.93 ya imprimía sin colgarse, pero el PDF salía con
-     el contenido equivocado (el dashboard/nav de la app, no la ficha
-     del pedido). Causa: el iframe estaba oculto (visibility:hidden,
-     0×0) para que no se viera en pantalla — en este navegador Android,
-     al no encontrar contenido "imprimible" en un iframe invisible,
-     termina imprimiendo la página principal completa. Ahora el iframe
-     se muestra a pantalla completa (vista previa real, fondo oscuro,
-     con su propio scroll) para que el navegador SÍ lo tome como el
-     contenido a imprimir. También (reportado): la barra de
-     Imprimir/Cerrar quedaba al final de la página y no se veía sin
-     hacer scroll — ahora queda fija ARRIBA, siempre visible. Se agregó
-     un padding-top únicamente de pantalla (no afecta el PDF impreso)
-     para que el contenido no quede tapado por esa barra.
-     v1.93: (1) FIX — en móvil el botón "Imprimir" del iframe (v1.92)
-     dejaba de responder. Causa: se esperaba a que las imágenes
-     cargaran (evento 'load', asíncrono) antes de llamar
-     iframe.contentWindow.print() — en escritorio las imágenes ya
-     estaban en caché y el callback corría al instante (dentro del
-     mismo toque), pero en móvil corría más tarde, ya FUERA de la
-     cadena del gesto del usuario, y Android bloquea silenciosamente
-     print() si no viene directo de un toque. Ahora el botón imprime
-     de inmediato en el mismo click, sin esperar imágenes (ya cargan
-     rápido gracias a la miniatura liviana de Cloudinary de v1.88).
-     (2) A pedido: segunda subida de tamaño/peso en TODA la hoja de
-     impresión (COC_PRINT_CSS, compartida por los 6 PDFs) — headers,
-     hero, secciones, filas/totales, notas, checklist y línea de
-     pedido (nombre, descripción, ingredientes, cantidad, precio)
-     suben entre 1 y 2.5pt adicionales sobre el ajuste de v1.92, y se
-     aclararon un poco los grises más oscuros para mejor contraste.
-     No se tocó ningún cálculo, ni clases fuera de COC_PRINT_CSS.
-     v1.92: (1) PRUEBA aislada #3 para el error de impresión del PDF de
-     pedido — nueva _cocAbrirPreviewIframe(): iframe oculto + barra
-     flotante propia en la página principal (no usa window.open ni
-     overlay). Se reactiva la imagen en imprimirPedidoHTML (v1.91
-     confirmó que no era la causa). _cocAbrirPreview() sigue intacta,
-     usada por los otros 5 PDFs. (2) A pedido: se sube tamaño/peso de
-     los textos pequeños y claros que salían minúsculos en el PDF
-     impreso real — header sub/fecha (7.5→8.5pt +peso), footer
-     (7→8pt +peso), descripción e ingredientes de línea de pedido
-     (7.5-7.8→8.3-8.5pt +peso), cantidad de línea (8→8.8pt). Estas
-     reglas viven en COC_PRINT_CSS (compartida), así que el ajuste se
-     refleja en los 6 PDFs por igual — no hay versión aislada solo para
-     pedido. No se tocó tamaño de precios, totales, nombres de plato ni
-     ningún otro estilo fuera de los mencionados.
-     v1.91: PRUEBA DE AISLAMIENTO — v1.89/v1.90 (overlay en misma
-     pestaña) dejó de dar error pero el PDF salía en blanco; se revisó
-     html/body de la app y NO tienen overflow:hidden/altura fija (esa
-     hipótesis era incorrecta). Se vuelve a _cocAbrirPreview() (ventana
-     nueva), igual que los otros 5 PDFs y que vaca.html — que sí
-     funciona en Android. Diferencia real detectada: vaca.html jamás
-     incrusta una imagen dentro del documento que se imprime. Como
-     prueba, se QUITA temporalmente la imagen (header y línea) SOLO del
-     documento que se imprime en imprimirPedidoHTML — la tarjeta en
-     pantalla, el PDF interno y el PDF cliente siguen mostrando la
-     imagen normalmente, sin cambios. _cocAbrirPreviewInline() queda
-     en el archivo sin usarse, sin borrar, por si se retoma. Si con
-     esto el PDF de pedido imprime bien, confirma que la imagen
-     incrustada es la causa y se busca cómo reintegrarla de forma
-     seguura; si sigue fallando, se descarta la imagen como causa.
-     v1.90: FIX — v1.89 ya no daba error ni se colgaba, pero el PDF
-     salía en blanco (hoja generada, "1/1", sin contenido). Causa: la
-     app principal probablemente tiene html/body con altura fija y
-     overflow:hidden (layout típico a pantalla completa) — en pantalla
-     no se notaba porque el overlay usa position:fixed (ignora ese
-     recorte), pero al imprimir se cambiaba a position:static para que
-     fluyera como página normal, y ahí quedaba atrapado dentro de ese
-     overflow:hidden/altura fija del body real de la app, recortando
-     todo el contenido. Se agrega, SOLO dentro de @media print y SOLO
-     mientras el overlay de pedido está abierto: html,body{height:auto;
-     overflow:visible}. No se toca el overflow/altura fuera de impresión
-     ni en ningún otro momento — apenas se cierra el overlay (botón
-     Cerrar o al terminar de imprimir) esas reglas dejan de aplicar
-     porque el <style> completo se puede volver a usar sin cambios para
-     los próximos PDFs de pedido. _cocAbrirPreview() y los otros 5 PDFs
-     siguen sin tocarse.
-     v1.89: PRUEBA — el fix de v1.88 (imagen liviana + tope 8s) no
-     resolvió el error de Android ("Preparando vista previa" colgado al
-     Reintentar). Causa real: Android/Chrome no imprime confiablemente
-     una ventana secundaria abierta con window.open(), que es como
-     funcionan los 6 PDFs vía _cocAbrirPreview(). SOLO para el PDF de
-     pedido (imprimirPedidoHTML) se agrega _cocAbrirPreviewInline():
-     misma ficha, mismos botones, pero como overlay DENTRO de la misma
-     pestaña (sin ventana nueva) — @media print oculta el resto de la
-     app para imprimir solo la ficha. _cocAbrirPreview() NO se tocó y
-     los otros 5 PDFs (receta interna, receta cliente, historial,
-     catálogo, lista de compras) siguen exactamente igual, sin cambios.
-     Si esto resuelve el problema en Android, se replica el mismo
-     patrón a los otros 5 después; si no, se revierte solo esta función
-     y el llamado en imprimirPedidoHTML, sin afectar nada más.
-     v1.88: FIX — "Hubo un problema al imprimir la página" al exportar
-     el PDF de pedido en Android/Chrome. Causa: imprimirPedidoHTML()
-     insertaba la imagen de la receta (coc-linea-pedido-img) con la URL
-     ORIGINAL de Cloudinary (sin transformación), pesada para una
-     miniatura que se ve chiquita — el motor de impresión de Android
-     falla más seguido con imágenes externas grandes dentro de una
-     ventana popup. Mismo patrón ya validado en vaca.html
-     (cloudinaryThumb): 1) nueva función cocCloudinaryThumb(url,w) —
-     solo inserta w_/q_auto/f_auto en la URL ya guardada, no sube nada
-     nuevo ni toca imagenUrl en Firestore; 2) usada ÚNICAMENTE en el
-     <img> del PDF de pedido (w_400 — de sobra para el tamaño en que se
-     ve, q_auto/f_auto no baja la nitidez visible). El resto de los 6
-     PDFs (imagen de receta interna/cliente, tarjetas en pantalla, etc.)
-     sigue usando imagenUrl tal cual, sin cambios. 3) el tope de espera
-     de _cocEsperarImagenes (v1.67) sube de 4s a 8s como colchón extra
-     en redes lentas. No se tocó cálculo de costos/márgenes ni ningún
-     otro PDF.
+<title>Audiolink — Cocina (v1.98)</title>
+<!-- AUDIOLINK · cocina.html · v1.98
+     v1.98: (a pedido) ambos selectores de ícono (el de cada pedido y
+     el de fondo general del portal) ahora son colapsables
+     (<details>/<summary>) y el catálogo (colección avataresIconos
+     completa) se carga PEREZOSO — recién la primera vez que alguien
+     abre cualquiera de los 2, no más al abrir la app. Con un flag
+     (iconosDecoradosCargados) para que abrir ambos en la misma sesión
+     no dispare 2 lecturas.
+       - Al editar un pedido que YA tenía ícono elegido, el colapsable
+         se abre solo y dispara la carga, para que se vea marcado en
+         vez de quedar oculto hasta abrirlo a mano.
+       - Corregido de paso: la etiqueta del selector de pedido decía
+         "patrón de fondo del PDF y del portal público" — ya no es
+         cierto desde v1.97 (el portal tiene su config aparte), quedó
+         en "patrón de fondo de este PDF".
+       - escucharConfigMenuPublico() (1 solo documento, no colección)
+         SÍ se sigue cargando al iniciar la app — es barato y hace
+         falta para saber qué ícono mostrar marcado apenas se abra el
+         colapsable del fondo general.
+     v1.97: (a pedido) selector de ícono de fondo GENERAL para el
+     portal público (menu.html) — separado del ícono POR PEDIDO
+     (v1.90), que sigue funcionando igual.
+       - Nueva card "🎨 Fondo del portal público" en el tab Compras,
+         junto al PIN del portal de compras (mismo lugar temático:
+         configuración de algo público).
+       - Reusa el MISMO catálogo avataresIconos ya cargado
+         (iconosDecoradosCache) — no se agregó ninguna consulta nueva
+         a Firestore para el catálogo, solo para leer/guardar la
+         config.
+       - Se guarda en config/menuPublico (doc único, no por pedido):
+         iconoFondoUrl / iconoFondoNombre. Null = corazón por defecto.
+       - escucharIconosDecorados() ahora también refresca este grid al
+         terminar de cargar (evita que quede vacío por orden de carga
+         si la config de Firestore llega antes que el catálogo).
+       - menu.html (v1.10, archivo aparte) lee esta misma config y
+         arma su patrón de fondo dinámico — ver ese archivo para el
+         detalle. Si no hay nada configurado, el corazón de siempre
+         sigue igual.
+     v1.96: (a pedido) 2 ajustes en el PDF de "Lista de compras":
+       (a) Ahora respeta el filtro de categoría activo en pantalla
+           (filtroCategoriaCompras) — antes imprimía SIEMPRE todos los
+           ítems sin importar el filtro visible. Mismo criterio que ya
+           usa renderListaCompras() en pantalla.
+       (b) El subtítulo del encabezado pasó de ser fijo ("Lista de
+           compras") a armarse dinámico: "Lista de compras" + nombre
+           de la categoría filtrada (si hay una activa) + fecha, ej:
+           "Lista de compras · Lácteos · 27 de agosto de 2026". Se
+           quitó el bloque de fecha aparte en la esquina (coc-header-fecha)
+           porque la fecha ya queda incluida en el subtítulo, para no
+           duplicarla.
+     v1.95: (a pedido) el PDF de "Lista de compras" (imprimirListaComprasHTML)
+     ahora muestra, debajo de cada ítem, "Para: [pedido/receta de
+     origen]" — mismo dato (it.recetasOrigen) y mismo criterio que ya
+     usa la pantalla (renderListaCompras, "Para: ..."). Se decidió por
+     ítem y no como un título único arriba del PDF porque la lista
+     mezcla insumos de VARIOS pedidos/recetas a la vez — un título
+     general sería incorrecto/incompleto en cuanto hay más de un
+     origen (que es el caso normal). Nueva clase .coc-check-origen
+     (10pt, gris, debajo del nombre). No se tocó el guardado de
+     checkComprasCache ni ningún cálculo — solo se lee recetasOrigen,
+     que ya existía.
+     v1.94: (a pedido) 2 ajustes en la línea de pedido para ahorrar
+     espacio:
+       (a) Ingredientes (.coc-linea-pedido-ing): 12pt cursiva →
+           10.5pt sin cursiva, peso 600 (antes normal) y color un
+           poco más oscuro (#a79bd4 → #8b7fc7) — más chico pero más
+           legible (la cursiva a tamaño chico y color claro costaba
+           más leer que el mismo texto derecho y con más peso).
+       (b) Cantidad/precio unitario y precio TOTAL vuelven a la misma
+           fila (el total se había bajado a su propia línea en v1.92
+           tras pedido explícito; ahora se revierte esa parte puntual
+           para ahorrar el renglón) — antes:
+             5 und · $90.000 c/u
+             $450.000
+           ahora:
+             5 und · $90.000 c/u          $450.000
+           .coc-linea-pedido-cant se reemplazó por
+           .coc-linea-pedido-cant-total (flex, space-between);
+           .coc-linea-pedido-precio ya no lleva margin-top (va en
+           línea, no debajo). La miniatura condicional de v1.92 (solo
+           si hay más de 1 producto) NO se tocó.
+     v1.93: (a pedido) "colitas" feas en los saltos de página del PDF —
+     solo .coc-seccion y .coc-grupo-cat tenían break-inside:avoid; las
+     filas individuales de ADENTRO no, así que un salto de hoja podía
+     caer a la mitad de una de ellas. Se agregó break-inside:avoid a:
+     .coc-fila (filas de receta/totales), .coc-linea-pedido (cada
+     producto del pedido), .coc-nota-pdf, .coc-check-item (checklist
+     de compras) y .coc-tabla-cat tr (filas del catálogo). Además,
+     .coc-titulo-seccion ahora lleva break-after:avoid para que un
+     título no quede solo al final de una hoja sin nada de contenido
+     debajo. Aplica a los 6 PDFs (comparten COC_PRINT_CSS). Nada de
+     esto cambia el contenido ni el cálculo — solo dónde el navegador
+     decide cortar la hoja.
+     v1.92: (a pedido) reordenó cada línea del PDF de pedido:
+       (a) La miniatura (foto del producto) SOLO se muestra si el
+           pedido tiene MÁS de un producto — con un solo producto, el
+           header ya trae esa misma foto (pseudoRecetaHeader, v1.41),
+           así que mostrarla también en la línea era redundante.
+       (b) El precio total (antes en columna aparte a la derecha,
+           .coc-linea-pedido-precio con text-align:right) ahora va
+           apilado justo debajo de "cantidad · precio unitario c/u",
+           a todo el ancho de .coc-linea-pedido-info — se quitó la
+           columna aparte para que el texto aproveche el máximo ancho
+           disponible en vez de competir con esa columna.
+     No se tocó nada del cálculo (subtotal sigue siendo
+     cantidad×precioUnitario, igual que siempre), ni las demás
+     secciones del PDF, ni la vista en pantalla de la app.
+     v1.91: (a pedido) los tamaños de letra del PDF real (COC_PRINT_CSS)
+     seguían sintiéndose chicos incluso después del +1.5pt de v1.88 —
+     tocaba hacer mucho zoom para leer. Esta vez, en vez de sumar un
+     valor fijo, se subieron ~35% TODOS los font-size del bloque
+     (los mismos 27 de siempre: header, hero, filas de receta/pedido,
+     footer, checklist de compras, tabla de catálogo), redondeando al
+     0.5pt más cercano. Rango antes/después:
+       8.5–16.5pt  →  11.5–22.5pt
+     Se aceptó explícitamente que el PDF ocupe más de una hoja si hace
+     falta — la prioridad ahora es que se lea grande y claro, no que
+     quepa en una sola página. No se tocó ningún layout (los
+     contenedores son flex sin anchos fijos, así que el texto más
+     grande se acomoda solo, no se corta ni se monta) ni ningún otro
+     estilo/color/lógica de cálculo.
+     v1.90: (a pedido) selector de ícono decorado POR PEDIDO, tomado
+     del catálogo avataresIconos (mismo que administra
+     avatares-iconos.html — colección Firestore, filtrado a tipo:'icono'
+     y activo!==false, sin colección/campo nuevo del lado del catálogo).
+       - Nuevo mini-grid en la ficha de pedido ("Ícono decorado"), con
+         miniaturas 150x150 (misma transformación de Cloudinary que ya
+         usa avatares-iconos.html) + opción "Sin decorado".
+       - Se guarda en el pedido: iconoDecoradoUrl / iconoDecoradoNombre.
+         null si eligió "Sin decorado" o si el pedido es de antes de
+         esta versión (no rompe pedidos viejos).
+       - Al editar un pedido, el ícono guardado se recarga marcado; al
+         cancelar edición / pedido nuevo, la selección se limpia.
+       - El PDF de pedido (imprimirPedidoHTML) ahora arma su patrón de
+         fondo con el ícono elegido (mismo mosaico 48x48 y opacidad
+         0.10 que el corazón de v1.87, pero con la imagen real en vez
+         de un emoji) — función nueva _cocEstiloPatronDecorado(). SI EL
+         PEDIDO NO TIENE ÍCONO ELEGIDO, el corazón por defecto de v1.87
+         se sigue viendo exactamente igual (fallback: no se tocó esa
+         regla CSS, solo se le agrega un style inline cuando corresponde).
+       - IMPORTANTE (ya lo hablamos): esto es SOLO el PDF de pedido —
+         el portal público (menu.html) sigue con su fondo fijo por
+         ahora, eso queda pendiente como paso aparte.
+       - No se tocó _cocSincronizarMenuPublico() (esa función sincroniza
+         RECETAS al catálogo público, no pedidos — no le correspondía
+         este campo).
+     v1.89: (a pedido) el documento (PDF real Y vista de preview antes
+     de imprimir) tenía margen duplicado: @page traía 20mm/18mm de
+     margen de impresión Y .coc-page traía ADEMÁS 14mm/16mm/12mm de
+     padding interno — casi 34mm de aire por lado en una hoja carta,
+     achicando el área útil y obligando a que todo se viera más chico
+     de lo necesario.
+       (a) @page ahora usa margin:10mm parejo (antes 20mm/18mm) — el
+           padding interno de .coc-page ya se encarga de separar el
+           contenido del borde, no hacía falta duplicarlo.
+       (b) .coc-page baja su padding a 10mm 12mm 10mm (antes
+           14mm 16mm 12mm), tanto en pantalla como en @media print.
+       (c) .coc-imagen-header (banner con foto, full-bleed) ajusta su
+           margen negativo de -14mm/-16mm a -10mm/-12mm para seguir
+           calzando exacto con el nuevo padding — si no, la foto
+           hubiera quedado descuadrada del borde.
+       (d) NUEVO @media screen (max-width:600px) — SOLO pantalla, no
+           toca @media print ni el PDF real de (a)/(b) — achica más
+           el padding lateral (6mm 5mm 8mm) para el preview en
+           celular, donde antes 16mm de padding fijo comía casi todo
+           el ancho de una pantalla angosta y apretaba el contenido.
+     Fuera de estas 4 reglas (todas dentro de COC_PRINT_CSS) no se
+     tocó nada más — tamaños de letra de v1.88, colores, layout de la
+     app en pantalla y lógica de cálculo quedan exactamente igual.
+     v1.88: (a pedido) en los 6 PDFs (COC_PRINT_CSS) se subieron +1.5pt
+     TODOS los font-size del bloque de impresión (header, hero, filas
+     de receta/pedido, footer, checklist de compras y tabla de
+     catálogo) — antes iban de 7pt a 15pt y en PDF real obligaban a
+     hacer mucho zoom para leerse; ahora van de 8.5pt a 16.5pt,
+     manteniendo la misma jerarquía relativa entre títulos/textos
+     chicos de antes (ningún tamaño cambió de "orden": lo que era más
+     chico sigue siendo más chico que lo que era más grande). NO se
+     tocó ningún otro estilo (colores, márgenes, layout, tipografías)
+     ni nada fuera de COC_PRINT_CSS — la UI de la app (pantalla) queda
+     exactamente igual, este ajuste es SOLO para los PDFs generados.
      v1.87: (a pedido) fondo con patrón sutil de corazoncitos (❤) SOLO
      en el PDF de pedido (nueva clase .coc-page-decorado, aplicada
      únicamente al htmlDoc de imprimirPedidoHTML) — sin cargar ninguna
@@ -1553,6 +1626,15 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
    mismo tamaño que hint-sugerido pero color --faint (no --gold),
    porque no es una sugerencia dinámica sino un texto fijo. */
 .hint-campo{ font-size:0.82rem; color:var(--faint); margin-top:4px; line-height:1.35; }
+.grid-iconos-decorado{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+.item-icono-decorado{
+  width:56px; height:56px; border-radius:10px; border:2px solid var(--border);
+  cursor:pointer; overflow:hidden; position:relative; background:var(--bg-card-alt);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.item-icono-decorado img{ width:100%; height:100%; object-fit:cover; }
+.item-icono-decorado.seleccionado{ border-color:var(--gold); box-shadow:0 0 0 2px var(--gold-soft); }
+.item-icono-decorado.sin-decorado{ font-size:1.4rem; }
 .badge-desactualizada{
   display:inline-block; font-size:0.78rem; font-weight:600; color:var(--danger);
   background:rgba(160,50,40,0.12); border:1px solid rgba(160,50,40,0.3);
@@ -2248,6 +2330,15 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
         </div>
       </div>
 
+      <div class="field" style="margin:14px 0;">
+        <details id="detallesIconoDecoradoPedido" ontoggle="if(this.open) cargarCatalogoIconosSiHaceFalta()">
+          <summary style="cursor:pointer; color:var(--muted); font-size:0.9rem;">🎨 Ícono decorado (opcional — patrón de fondo de este PDF)</summary>
+          <div id="gridIconoDecoradoPedido" class="grid-iconos-decorado" style="margin-top:8px;">
+            <div class="hint-campo">Toca para cargar los íconos del catálogo…</div>
+          </div>
+        </details>
+      </div>
+
       <div id="filasLineasPedido"></div>
       <div class="hint-campo">Cada línea guarda su propio costo y precio de venta al momento de agregarla — si más adelante cambia el precio de un insumo o receta, este pedido no se recalcula solo.</div>
       <div class="btn-row" style="margin:10px 0 16px; flex-wrap:wrap;">
@@ -2322,6 +2413,17 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
         <button type="button" class="btn-ghost" onclick="copiarLinkCompras()">🔗 Copiar link de compras</button>
         <a href="compras.html" target="_blank" rel="noopener" class="btn-ghost" style="text-decoration:none; display:inline-flex; align-items:center;">↗️ Ir al portal</a>
       </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 4px;">🎨 Fondo del portal público (menu.html)</h3>
+      <div class="card-sub">Ícono decorativo de fondo para TODO el catálogo público — se cambia manualmente cuando quieras (temporada, fecha especial, etc.). No tiene relación con el ícono de cada pedido individual.</div>
+      <details id="detallesIconoFondoGeneral" ontoggle="if(this.open) cargarCatalogoIconosSiHaceFalta()" style="margin-top:8px;">
+        <summary style="cursor:pointer; color:var(--muted); font-size:0.9rem;">🎨 Elegir ícono de fondo</summary>
+        <div id="gridIconoFondoGeneral" class="grid-iconos-decorado" style="margin-top:8px;">
+          <div class="hint-campo">Toca para cargar los íconos del catálogo…</div>
+        </div>
+      </details>
     </div>
 
     <div class="card">
@@ -2561,6 +2663,21 @@ let pedidosCache = [];
 let pedidoEnEdicionId = null;
 let lineasPedidoEnConstruccion = []; // [{filaId, tipo, refId, nombre, unidad, cantidad, costoUnitario, precioUnitario}]
 let notasPedidoEnConstruccion = []; // v1.38: [{texto, hecho}]
+// v1.90: (a pedido) catálogo de íconos (colección avataresIconos, ya
+// usada por avatares-iconos.html) y el ícono elegido para decorar
+// ESTE pedido (patrón de fondo del PDF y del portal público).
+let iconosDecoradosCache = []; // [{id, nombre, urlCloudinary}], solo tipo:'icono' y activo!==false
+let iconoDecoradoSeleccionado = null; // {url, nombre} | null (= sin decorado)
+// v1.98: (a pedido) el catálogo (colección completa) ya NO se carga
+// solo por abrir la app — se carga la PRIMERA vez que alguien abre
+// cualquiera de los 2 colapsables que lo usan (ficha de pedido / fondo
+// general del portal), para no gastar esas lecturas de Firestore si
+// nunca se toca ese selector en la sesión.
+let iconosDecoradosCargados = false;
+// v1.97: (a pedido) ícono de fondo GENERAL para menu.html (todo el
+// portal, no por pedido) — vive en config/menuPublico, campo
+// iconoFondoUrl/iconoFondoNombre. Reusa el mismo catálogo de arriba.
+let iconoFondoGeneralActual = null; // {url, nombre} | null (= corazón por defecto de menu.html)
 let abonosPedidoEnConstruccion = []; // v1.43: [{monto, fecha}]
 
 // v1.43: suma el historial de abonos de un pedido. Compatible con
@@ -4100,6 +4217,106 @@ function renderFiltroCategoriaDetalle(id){
   `).join('');
 }
 
+// ============ v1.90: ÍCONO DECORADO DEL PEDIDO ============
+// Lee el mismo catálogo que administra avatares-iconos.html (colección
+// avataresIconos), filtrado a tipo:'icono' y activo!==false. Se carga
+// UNA vez (no en tiempo real: es un catálogo que casi no cambia) y se
+// vuelve a pedir solo si el caché quedó vacío.
+function tipoArrayIconoDecorado(it){
+  if(Array.isArray(it.tipo)) return it.tipo;
+  return it.tipo ? [it.tipo] : [];
+}
+
+function cargarCatalogoIconosSiHaceFalta(){
+  if(iconosDecoradosCargados) return;
+  iconosDecoradosCargados = true;
+  escucharIconosDecorados();
+}
+
+function escucharIconosDecorados(){
+  db.collection('avataresIconos').get().then(snap => {
+    iconosDecoradosCache = snap.docs
+      .map(d => ({ id:d.id, ...d.data() }))
+      .filter(it => tipoArrayIconoDecorado(it).includes('icono') && it.activo !== false);
+    renderGridIconosDecorados();
+    renderGridIconoFondoGeneral(); // v1.97: mismo catálogo, evita que quede vacío por orden de carga
+  }).catch(err => {
+    console.error(err);
+    const cont = document.getElementById('gridIconoDecoradoPedido');
+    if(cont) cont.innerHTML = '<div class="hint-campo">No se pudo cargar el catálogo de íconos.</div>';
+  });
+}
+
+function urlMiniaturaIconoDecorado(urlOriginal){
+  // Mismo criterio que urlMiniatura() en avatares-iconos.html.
+  return urlOriginal.replace('/upload/', '/upload/w_150,h_150,c_fill,f_auto,q_auto/');
+}
+
+function renderGridIconosDecorados(){
+  const cont = document.getElementById('gridIconoDecoradoPedido');
+  if(!cont) return;
+  const sinNada = !iconoDecoradoSeleccionado;
+  let html = `<div class="item-icono-decorado sin-decorado ${sinNada ? 'seleccionado' : ''}"
+    title="Sin decorado" onclick="seleccionarIconoDecorado(null)">🚫</div>`;
+  html += iconosDecoradosCache.map(it => {
+    const marcado = iconoDecoradoSeleccionado && iconoDecoradoSeleccionado.url === it.urlCloudinary;
+    const nombreSeguro = (it.nombre || '').toString().replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `<div class="item-icono-decorado ${marcado ? 'seleccionado' : ''}" title="${nombreSeguro}"
+      onclick="seleccionarIconoDecorado('${it.urlCloudinary}', '${nombreSeguro}')">
+      <img src="${urlMiniaturaIconoDecorado(it.urlCloudinary)}" alt="${nombreSeguro}" loading="lazy">
+    </div>`;
+  }).join('');
+  cont.innerHTML = html || '<div class="hint-campo">No hay íconos activos en el catálogo todavía.</div>';
+}
+
+function seleccionarIconoDecorado(url, nombre){
+  iconoDecoradoSeleccionado = url ? { url, nombre: nombre || '' } : null;
+  renderGridIconosDecorados();
+}
+
+// ============ v1.97: ÍCONO DE FONDO GENERAL (menu.html) ============
+function escucharConfigMenuPublico(){
+  db.collection('config').doc('menuPublico').onSnapshot(doc => {
+    const datos = doc.exists ? doc.data() : {};
+    iconoFondoGeneralActual = datos.iconoFondoUrl ? { url: datos.iconoFondoUrl, nombre: datos.iconoFondoNombre || '' } : null;
+    renderGridIconoFondoGeneral();
+  }, err => {
+    console.error(err);
+    const cont = document.getElementById('gridIconoFondoGeneral');
+    if(cont) cont.innerHTML = '<div class="hint-campo">No se pudo cargar la configuración del portal.</div>';
+  });
+}
+
+function renderGridIconoFondoGeneral(){
+  const cont = document.getElementById('gridIconoFondoGeneral');
+  if(!cont) return;
+  const esCorazonPorDefecto = !iconoFondoGeneralActual;
+  let html = `<div class="item-icono-decorado sin-decorado ${esCorazonPorDefecto ? 'seleccionado' : ''}"
+    title="Corazón por defecto" onclick="guardarIconoFondoGeneral(null)">❤️</div>`;
+  html += iconosDecoradosCache.map(it => {
+    const marcado = iconoFondoGeneralActual && iconoFondoGeneralActual.url === it.urlCloudinary;
+    const nombreSeguro = (it.nombre || '').toString().replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `<div class="item-icono-decorado ${marcado ? 'seleccionado' : ''}" title="${nombreSeguro}"
+      onclick="guardarIconoFondoGeneral('${it.urlCloudinary}', '${nombreSeguro}')">
+      <img src="${urlMiniaturaIconoDecorado(it.urlCloudinary)}" alt="${nombreSeguro}" loading="lazy">
+    </div>`;
+  }).join('');
+  cont.innerHTML = html || '<div class="hint-campo">No hay íconos activos en el catálogo todavía.</div>';
+}
+
+function guardarIconoFondoGeneral(url, nombre){
+  db.collection('config').doc('menuPublico').set({
+    iconoFondoUrl: url || null,
+    iconoFondoNombre: url ? (nombre || '') : null
+  }, { merge: true }).then(() => {
+    mostrarToast('✅ Fondo del portal actualizado', 'ok');
+  }).catch(err => {
+    console.error(err);
+    mostrarToast('❌ No se pudo guardar', 'error');
+  });
+}
+
+
 function seleccionarFiltroCategoriaDetalle(id, valor){
   filtroCategoriaDetalleReceta[id] = valor;
   renderFiltroCategoriaDetalle(id);
@@ -4378,6 +4595,11 @@ function guardarPedido(){
 
   const datosPedido = {
     cliente, telefono, fechaEntrega, notas, lineas, costoTotal, montoTotal, abonos,
+    // v1.90: ícono elegido para decorar este pedido (PDF + portal público).
+    // null si eligieron "Sin decorado" — el CSS del patrón cae a su
+    // comportamiento por defecto en ese caso (definido en el siguiente paso).
+    iconoDecoradoUrl: iconoDecoradoSeleccionado ? iconoDecoradoSeleccionado.url : null,
+    iconoDecoradoNombre: iconoDecoradoSeleccionado ? iconoDecoradoSeleccionado.nombre : null,
     estado: pedidoEnEdicionId ? (pedidosCache.find(p => p.id === pedidoEnEdicionId) || {}).estado || 'pendiente' : 'pendiente'
   };
 
@@ -4399,6 +4621,20 @@ function habilitarEdicionPedido(id){
   document.getElementById('inputPedidoCliente').value = p.cliente || '';
   document.getElementById('inputPedidoTelefono').value = p.telefono || '';
   document.getElementById('inputPedidoFecha').value = p.fechaEntrega || '';
+
+  // v1.90: restaura el ícono decorado guardado con este pedido (o
+  // "sin decorado" si no tenía / es un pedido de antes de esta versión).
+  iconoDecoradoSeleccionado = p.iconoDecoradoUrl ? { url: p.iconoDecoradoUrl, nombre: p.iconoDecoradoNombre || '' } : null;
+  // v1.98: si tenía ícono elegido, se abre el colapsable y se carga el
+  // catálogo de una — si no, quedaría marcado por dentro pero invisible
+  // hasta que la persona abra el colapsable a mano.
+  if(iconoDecoradoSeleccionado){
+    const det = document.getElementById('detallesIconoDecoradoPedido');
+    if(det) det.open = true;
+    cargarCatalogoIconosSiHaceFalta();
+  }
+  renderGridIconosDecorados();
+
 
   // v1.43: abonos como array {monto,fecha}. Pedidos guardados antes de
   // v1.43 tienen `abonado` como número plano — se migran a un abono
@@ -4504,6 +4740,8 @@ function cancelarEdicionPedido(){
   document.getElementById('inputPedidoCliente').value = '';
   document.getElementById('inputPedidoTelefono').value = '';
   document.getElementById('inputPedidoFecha').value = '';
+  iconoDecoradoSeleccionado = null; // v1.90
+  renderGridIconosDecorados();
   renderAbonosPedido();
   renderNotasPedido();
   recalcularTotalesPedido();
@@ -5159,35 +5397,44 @@ function _cocEsc(str){
   return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// v1.88: mismo patrón ya validado en vaca.html (cloudinaryThumb) — no
-// sube nada nuevo a Cloudinary, solo inserta parámetros de
-// transformación en la URL ya guardada, para pedir una versión más
-// liviana (ancho fijo + q_auto/f_auto) en vez del original. Usada
-// ÚNICAMENTE en la imagen del PDF de pedido (imprimirPedidoHTML), que
-// es donde una imagen pesada sin transformar dispara el error "Hubo un
-// problema al imprimir la página" en Android/Chrome. No se tocó
-// imagenUrl en ningún otro lugar (tarjetas, PDF interno, PDF cliente).
-function cocCloudinaryThumb(url, ancho){
-  if(!url) return url;
-  const marcador = '/upload/';
-  const i = url.indexOf(marcador);
-  if(i === -1) return url;
-  const inicio = i + marcador.length;
-  return url.slice(0, inicio) + `w_${ancho},q_auto,f_auto/` + url.slice(inicio);
+// v1.90: (a pedido) arma el style inline que reemplaza el patrón de
+// corazoncitos por defecto (.coc-page-decorado en el CSS) cuando el
+// pedido tiene un ícono elegido del catálogo avataresIconos. Mismo
+// criterio visual que el corazón (mosaico 48x48, opacidad baja) pero
+// con un <image> de SVG en vez de <text>, para poder usar una foto en
+// vez de un emoji. Si el pedido NO tiene ícono elegido (p.iconoDecoradoUrl
+// vacío/null — incluye pedidos guardados antes de esta versión), no
+// devuelve nada y el corazón de siempre (definido en el CSS) se ve
+// exactamente igual que hasta ahora.
+function _cocEstiloPatronDecorado(p){
+  if(!p || !p.iconoDecoradoUrl) return '';
+  const urlSvgSegura = encodeURIComponent(p.iconoDecoradoUrl);
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'>`
+    + `<image href='${urlSvgSegura}' x='16' y='16' width='16' height='16' opacity='0.10'/>`
+    + `</svg>`;
+  const dataUri = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  return ` style="background-image:url(&quot;${dataUri}&quot;);"`;
 }
 
 const COC_PRINT_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
-@page{ size:letter; margin:20mm 18mm; }
+@page{ size:letter; margin:10mm; }
 body{ margin:0; background:#3a3a3a; padding:32px 0; }
 @media print{ body{ background:none; padding:0; } }
 .coc-page{
   width:100%; max-width:215.9mm; margin:0 auto; background:#fff;
   position:relative; box-sizing:border-box; color:#1e1e1e;
   font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;
-  padding:14mm 16mm 12mm; box-shadow:0 10px 40px rgba(0,0,0,.35);
+  padding:10mm 12mm 10mm; box-shadow:0 10px 40px rgba(0,0,0,.35);
 }
-@media print{ .coc-page{ max-width:none; margin:0; padding:14mm 16mm 12mm; box-shadow:none; } }
+@media print{ .coc-page{ max-width:none; margin:0; padding:10mm 12mm 10mm; box-shadow:none; } }
+/* v1.89: (a pedido) en pantallas angostas (celular, viendo el preview
+   ANTES de imprimir/guardar) el padding lateral se achica aún más —
+   esto es SOLO pantalla (no toca @media print ni el PDF real de
+   arriba), para aprovechar mejor el ancho chico del celular. */
+@media screen and (max-width:600px){
+  .coc-page{ padding:6mm 5mm 8mm; }
+}
 /* v1.87: (a pedido) fondo con patrón sutil de corazoncitos (❤), SOLO
    en el PDF de pedido (.coc-page-decorado, aplicado únicamente en
    imprimirPedidoHTML — los otros 5 PDFs no llevan esta clase y quedan
@@ -5215,19 +5462,19 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   content:""; position:absolute; left:0; right:0; bottom:0; height:0.7mm;
   background:linear-gradient(to right, transparent 0%, #c9a24b 15%, #c9a24b 85%, transparent 100%);
 }
-.coc-header-marca{ font-size:10.5pt; font-weight:700; letter-spacing:0.04em; color:#1e1e1e; }
-.coc-header-sub{ font-size:10pt; font-weight:600; color:#6e6759; margin-top:1mm; }
-.coc-header-fecha{ font-size:10pt; font-weight:600; color:#6e6759; text-align:right; }
+.coc-header-marca{ font-size:14pt; font-weight:700; letter-spacing:0.04em; color:#1e1e1e; }
+.coc-header-sub{ font-size:12pt; color:#9a978f; margin-top:1mm; }
+.coc-header-fecha{ font-size:12pt; color:#9a978f; text-align:right; }
 .coc-hero{ margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm; }
-.coc-hero-titulo{ font-size:17pt; font-weight:700; color:#1e1e1e; }
-.coc-hero-meta{ font-size:10pt; font-weight:600; color:#8b7ec8; margin-top:2mm; }
+.coc-hero-titulo{ font-size:22.5pt; font-weight:700; color:#1e1e1e; }
+.coc-hero-meta{ font-size:13.5pt; color:#8b7ec8; margin-top:2mm; }
 /* v1.19: header tipo banner cuando la receta tiene imagen — full-bleed
    (cancela el padding de .coc-page con márgenes negativos), con el
    texto de marca/fecha superpuesto en degradado. Reemplaza a
    .coc-header solo cuando hay imagenUrl; sin imagen se sigue usando
    el .coc-header plano de siempre (ver _cocEncabezado más abajo). */
 .coc-imagen-header{
-  position:relative; margin:-14mm -16mm 8mm; height:40mm; overflow:hidden;
+  position:relative; margin:-10mm -12mm 8mm; height:40mm; overflow:hidden;
 }
 .coc-imagen-header img{ width:100%; height:100%; object-fit:cover; display:block; }
 .coc-imagen-header-overlay{
@@ -5235,29 +5482,29 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
   display:flex; justify-content:space-between; align-items:flex-start;
   background:linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0) 100%);
 }
-.coc-imagen-header-marca{ font-size:10.5pt; font-weight:700; letter-spacing:0.04em; color:#fff; }
-.coc-imagen-header-sub{ font-size:10pt; font-weight:600; color:#f0e6d0; margin-top:1mm; }
-.coc-imagen-header-fecha{ font-size:10pt; font-weight:600; color:#f0e6d0; text-align:right; }
-.coc-descripcion-texto{ font-size:10.5pt; color:#3a3a3a; line-height:1.5; white-space:pre-line; }
+.coc-imagen-header-marca{ font-size:14pt; font-weight:700; letter-spacing:0.04em; color:#fff; }
+.coc-imagen-header-sub{ font-size:12pt; color:#f0e6d0; margin-top:1mm; }
+.coc-imagen-header-fecha{ font-size:12pt; color:#f0e6d0; text-align:right; }
+.coc-descripcion-texto{ font-size:14pt; color:#3a3a3a; line-height:1.5; white-space:pre-line; }
 .coc-cliente-imagen{ margin:0 0 6mm; text-align:center; }
 .coc-cliente-imagen img{ max-width:100%; max-height:70mm; border-radius:2.5mm; object-fit:cover; }
 .coc-seccion{ margin:0 0 6mm; background:#f6f4ef; border-radius:2.5mm; padding:6mm; break-inside:avoid; }
 .coc-titulo-seccion{
-  font-size:9pt; font-weight:700; color:#c9a24b; letter-spacing:0.04em;
+  font-size:12pt; font-weight:700; color:#c9a24b; letter-spacing:0.04em;
   text-transform:uppercase; border-bottom:none; padding-bottom:2mm; margin-bottom:4mm;
-  position:relative;
+  position:relative; break-after:avoid;
 }
 .coc-titulo-seccion::after{
   content:""; position:absolute; left:0; right:0; bottom:0; height:0.4mm;
   background:linear-gradient(to right, #c9a24b 0%, #c9a24b 40%, transparent 100%);
 }
-.coc-fila{ display:flex; justify-content:space-between; gap:4mm; padding:2.2mm 1mm; font-size:10.5pt; }
+.coc-fila{ display:flex; justify-content:space-between; gap:4mm; padding:2.2mm 1mm; font-size:14pt; break-inside:avoid; }
 .coc-fila:nth-child(even){ background:#ffffff; }
 .coc-fila-izq{ color:#1e1e1e; }
 .coc-fila-der{ color:#505050; font-family:monospace; }
 .coc-totales{ margin-top:6mm; }
-.coc-totales .coc-fila{ font-size:11pt; }
-.coc-totales .coc-fila.coc-destacada{ font-weight:700; color:#a8823a; font-size:12.5pt; }
+.coc-totales .coc-fila{ font-size:15pt; }
+.coc-totales .coc-fila.coc-destacada{ font-weight:700; color:#a8823a; font-size:16pt; }
 /* v1.44: alertas de color del saldo de pedido — mismo criterio que el
    badge de la tarjeta (rojo=sin abono, amarillo=parcial, verde=pagado).
    Solo aplica sobre coc-destacada cuando trae esta clase extra, así
@@ -5267,7 +5514,7 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 .coc-totales .coc-fila.coc-destacada.coc-saldo-sinpago{ color:#a03228; }
 .coc-footer{
   margin-top:10mm; display:flex; justify-content:space-between;
-  font-size:9.5pt; font-weight:600; color:#6e6759; border-top:none; padding-top:3mm;
+  font-size:11.5pt; color:#9a978f; border-top:none; padding-top:3mm;
   position:relative;
 }
 .coc-footer::before{
@@ -5277,18 +5524,19 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 /* Checklist de compras */
 .coc-grupo-cat{ margin-bottom:6mm; break-inside:avoid; }
 .coc-grupo-cat-nombre{
-  font-size:10pt; font-weight:700; color:#c9a24b; letter-spacing:0.03em;
+  font-size:13.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.03em;
   text-transform:uppercase; margin-bottom:2mm;
 }
 .coc-check-item{
-  display:flex; align-items:center; gap:4mm; padding:3mm 1mm; font-size:9.5pt;
-  border-bottom:0.15mm solid #e5e1d6;
+  display:flex; align-items:center; gap:4mm; padding:3mm 1mm; font-size:15pt;
+  border-bottom:0.15mm solid #e5e1d6; break-inside:avoid;
 }
 .coc-check-box{
   width:5mm; height:5mm; border:0.5mm solid #1e1e1e; border-radius:1mm; flex-shrink:0;
 }
 .coc-check-nombre{ flex:1; color:#1e1e1e; }
-.coc-check-cant{ color:#505050; font-family:monospace; font-size:10.5pt; }
+.coc-check-origen{ font-size:10pt; color:#9a978f; font-weight:400; margin-top:0.5mm; }
+.coc-check-cant{ color:#505050; font-family:monospace; font-size:14pt; }
 /* Barra flotante de preview — igual patrón que .ph-barra-preview */
 .coc-barra-preview{
   position:fixed; top:0; left:0; right:0; z-index:999;
@@ -5309,33 +5557,34 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
    criterio de v1.14 de no arriesgar el PDF ya validado). */
 .coc-linea-pedido{
   display:flex; align-items:center; gap:4mm; padding:2.5mm 1mm;
-  font-size:9pt; border-bottom:0.15mm solid #e5e1d6;
+  font-size:14pt; border-bottom:0.15mm solid #e5e1d6; break-inside:avoid;
 }
 .coc-linea-pedido:last-child{ border-bottom:none; }
 .coc-linea-pedido-img{
   width:12mm; height:12mm; border-radius:1.5mm; object-fit:cover; flex-shrink:0;
 }
 .coc-linea-pedido-info{ flex:1; }
-.coc-linea-pedido-nombre{ color:#1e1e1e; font-weight:700; font-family:'Playfair Display', serif; font-size:13pt; }
-.coc-linea-pedido-desc{ color:#6e6759; font-size:10pt; font-weight:500; margin-top:0.5mm; }
-.coc-linea-pedido-ing{ color:#7a6cc4; font-size:9.8pt; font-weight:500; font-style:italic; margin-top:0.5mm; }
+.coc-linea-pedido-nombre{ color:#1e1e1e; font-weight:700; font-family:'Playfair Display', serif; font-size:17pt; }
+.coc-linea-pedido-desc{ color:#9a978f; font-size:12.5pt; margin-top:0.5mm; }
+.coc-linea-pedido-ing{ color:#8b7fc7; font-size:10.5pt; font-weight:600; font-style:normal; margin-top:0.5mm; }
 .coc-linea-pedido-porcionado{
-  color:#a8823a; font-size:10pt; font-weight:700; font-style:normal;
+  color:#a8823a; font-size:13.5pt; font-weight:700; font-style:normal;
   margin-top:1.2mm; padding:1.5mm 2.5mm; background:#fcf5e6;
   border-left:2.5pt solid #c9a24b; border-radius:1mm;
 }
-.coc-linea-pedido-cant{ color:#505050; font-size:10.3pt; margin-top:0.5mm; }
-.coc-linea-pedido-precio{ color:#505050; font-family:monospace; font-size:10.8pt; text-align:right; flex-shrink:0; }
-.coc-nota-pdf{ font-size:10.5pt; padding:1.5mm 0; display:flex; gap:2mm; }
+.coc-linea-pedido-cant-total{ display:flex; justify-content:space-between; align-items:baseline; gap:3mm; color:#505050; font-size:13pt; margin-top:0.5mm; }
+.coc-linea-pedido-precio{ color:#1e1e1e; font-family:monospace; font-weight:700; font-size:14pt; flex-shrink:0; }
+.coc-nota-pdf{ font-size:14pt; padding:1.5mm 0; display:flex; gap:2mm; break-inside:avoid; }
 /* v1.55: tabla del PDF de "Catálogo de insumos" (exportar) */
-.coc-tabla-cat{ width:100%; border-collapse:collapse; font-size:8.5pt; }
+.coc-tabla-cat{ width:100%; border-collapse:collapse; font-size:13.5pt; }
 .coc-tabla-cat th{
-  text-align:left; font-size:7.5pt; font-weight:700; color:#c9a24b;
+  text-align:left; font-size:12pt; font-weight:700; color:#c9a24b;
   text-transform:uppercase; letter-spacing:0.03em; padding:2mm 2mm;
   border-bottom:none; background-image:linear-gradient(to right, #c9a24b 0%, #c9a24b 60%, transparent 100%);
   background-position:bottom; background-repeat:no-repeat; background-size:100% 0.4mm;
 }
 .coc-tabla-cat td{ padding:2mm 2mm; color:#1e1e1e; border-bottom:0.15mm solid #e5e1d6; }
+.coc-tabla-cat tr{ break-inside:avoid; }
 .coc-tabla-cat tr:nth-child(even) td{ background:#f6f4ef; }
 .coc-tabla-cat-num{ text-align:right; font-family:monospace; }
 `;
@@ -5369,103 +5618,6 @@ function _cocEncabezado(r, fechaGeneracion, subtitulo){
       </div>
       <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
     </div>`;
-}
-
-// v1.92: PRUEBA aislada #3 — solo para el PDF de pedido
-// (imprimirPedidoHTML). _cocAbrirPreview (abajo) sigue exactamente
-// igual y la siguen usando los otros 5 PDFs.
-// Historial de por qué se llegó acá:
-//   - v1.86 y antes: window.open() + document.write() → Android daba
-//     "Hubo un problema al imprimir la página".
-//   - v1.89/90: overlay en la misma pestaña (sin ventana nueva) → ya
-//     no daba error, pero el PDF salía en blanco (causa no confirmada).
-//   - v1.91: se volvió a window.open() SIN imagen, para descartar la
-//     imagen como causa → volvió el error original, confirmando que la
-//     imagen NUNCA fue la causa; el problema es window.open() en sí en
-//     este teléfono/página.
-// v1.92 usa un <iframe> OCULTO (no ventana emergente, documento propio
-// y aislado — no depende de ocultar/recortar la página principal como
-// dependía el overlay). Se muestra una barra flotante en la página
-// principal (fuera del iframe) con los botones Imprimir/Cerrar,
-// porque el iframe está oculto y no se puede tocar directamente.
-function _cocAbrirPreviewIframe(titulo, htmlDoc){
-  const iframePrevio = document.getElementById('cocPrintIframe');
-  if(iframePrevio) iframePrevio.remove();
-  const barraPrevia = document.getElementById('cocPrintIframeBarra');
-  if(barraPrevia) barraPrevia.remove();
-
-  const iframe = document.createElement('iframe');
-  iframe.id = 'cocPrintIframe';
-  // v1.94 FIX — el iframe oculto (visibility:hidden, tamaño 0) hacía
-  // que Android, al no encontrar nada "imprimible" en el iframe,
-  // terminara imprimiendo la página completa de la app (dashboard,
-  // menú, lista de pedidos) en vez de la ficha. Ahora el iframe se
-  // muestra a pantalla completa (como una vista previa real) para que
-  // el navegador lo tome como el contenido a imprimir.
-  iframe.style.cssText = 'position:fixed; inset:0; width:100%; height:100%; border:0; z-index:99998; background:#3a3a3a;';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${_cocEsc(titulo)}</title>
-    <style>${COC_PRINT_CSS}
-      /* v1.94: separa el contenido de la barra flotante superior — solo
-         en pantalla; @media print ya resetea el padding del body a 0. */
-      body{ padding-top:60px; }
-    </style>
-  </head><body>${htmlDoc}</body></html>`);
-  doc.close();
-
-  const barra = document.createElement('div');
-  barra.id = 'cocPrintIframeBarra';
-  // v1.93 (reportado por usuario): la barra quedaba al final de la
-  // página y no se veía sin hacer scroll. v1.94: se fija ARRIBA en vez
-  // de abajo, y con z-index por encima del iframe (99999 > 99998) para
-  // que quede siempre visible apenas se abre la ficha.
-  barra.style.cssText = 'position:fixed; left:0; right:0; top:0; z-index:99999; display:flex; gap:8px; padding:10px 14px; background:#1e1e1e; box-shadow:0 2px 10px rgba(0,0,0,.3);';
-  barra.innerHTML = `
-    <button id="cocBtnImprimirIframe" style="flex:1; padding:12px; border:none; border-radius:6px; background:#c9a24b; color:#1e1e1e; font-weight:700; font-size:14px;">🖨️ Imprimir / Guardar PDF</button>
-    <button id="cocBtnCerrarIframe" style="padding:12px 16px; border:none; border-radius:6px; background:#3a3a3a; color:#fff; font-size:14px;">Cerrar</button>
-  `;
-  document.body.appendChild(barra);
-
-  function _cocEsperarImagenesIframe(cb){
-    const imgs = Array.from(doc.images);
-    if(!imgs.length) return cb();
-    let pendientes = imgs.filter(img => !img.complete).length;
-    if(!pendientes) return cb();
-    let listo = false;
-    const terminar = () => { if(!listo){ listo = true; cb(); } };
-    imgs.forEach(img => {
-      if(img.complete) return;
-      img.addEventListener('load', () => { if(--pendientes <= 0) terminar(); });
-      img.addEventListener('error', () => { if(--pendientes <= 0) terminar(); });
-    });
-    setTimeout(terminar, 8000);
-  }
-
-  function cerrar(){
-    iframe.remove();
-    barra.remove();
-  }
-
-  // v1.93 FIX — en móvil el botón dejaba de responder: cuando las
-  // imágenes tardaban en cargar, print() se disparaba DESPUÉS del
-  // evento 'load' (asíncrono), fuera de la cadena del toque del
-  // usuario — Android bloquea silenciosamente print() si no viene
-  // directo de un gesto del usuario. En escritorio no se notaba porque
-  // las imágenes ya estaban en caché y el callback corría al instante
-  // (síncrono). Ahora imprime siempre de inmediato, en el mismo click;
-  // ya no se espera a las imágenes (con la miniatura liviana de
-  // Cloudinary de v1.88 cargan prácticamente al abrir la ficha).
-  document.getElementById('cocBtnImprimirIframe').addEventListener('click', () => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-  });
-  document.getElementById('cocBtnCerrarIframe').addEventListener('click', cerrar);
-  iframe.contentWindow.onafterprint = cerrar;
 }
 
 function _cocAbrirPreview(titulo, htmlDoc){
@@ -5507,7 +5659,7 @@ function _cocAbrirPreview(titulo, htmlDoc){
           img.addEventListener('load', () => { if(--pendientes <= 0) terminar(); });
           img.addEventListener('error', () => { if(--pendientes <= 0) terminar(); });
         });
-        setTimeout(terminar, 8000);
+        setTimeout(terminar, 4000);
       }
       document.getElementById('cocBtnImprimir').addEventListener('click', () => _cocEsperarImagenes(() => window.print()));
       document.getElementById('cocBtnCerrar').addEventListener('click', () => window.close());
@@ -5677,9 +5829,9 @@ function imprimirPedidoHTML(pedidoId){
     return r && r.imagenUrl;
   });
   const recetaParaHeader = lineaConImagen ? recetasCache.find(x => x.id === lineaConImagen.refId) : null;
-  // v1.92: la imagen se reactiva — v1.91 confirmó que NO era la causa
-  // del error original.
   const pseudoRecetaHeader = { nombre: p.cliente || 'Pedido', imagenUrl: recetaParaHeader ? recetaParaHeader.imagenUrl : '' };
+
+  const pedidoConMasDeUnProducto = (p.lineas || []).length > 1; // v1.92
 
   const htmlLineas = (p.lineas || []).map(l => {
     const r = (l.tipo === 'receta' && l.refId) ? recetasCache.find(x => x.id === l.refId) : null;
@@ -5705,17 +5857,26 @@ function imprimirPedidoHTML(pedidoId){
           ? `<div class="coc-linea-pedido-porcionado">📏 ${_cocEsc(r.personasBase)} personales de ${_cocEsc(r.tamanoBaseEtiqueta || 'este tamaño')} · en porciones de ${_cocEsc(r.tamanoAltEtiqueta || 'tamaño menor')} rinde ${_cocEsc(r.personasBase * 2)}</div>`
           : `<div class="coc-linea-pedido-ing">También disponible en ${_cocEsc(r.tamanoAltEtiqueta || 'tamaño menor')}</div>`)
       : '';
+    // v1.92: (a pedido) la miniatura solo se muestra si el pedido tiene
+    // MÁS de un producto — con un solo producto, el header ya trae esa
+    // misma foto (ver pseudoRecetaHeader arriba) y la miniatura era
+    // redundante. El precio unitario y el total ahora van juntos, uno
+    // debajo del otro, a todo el ancho de .coc-linea-pedido-info — se
+    // quitó la columna aparte .coc-linea-pedido-precio para que el
+    // texto aproveche el máximo ancho disponible (a pedido).
     return `
     <div class="coc-linea-pedido">
-      ${r && r.imagenUrl ? `<img src="${cocCloudinaryThumb(r.imagenUrl, 400)}" class="coc-linea-pedido-img" alt="">` : ''}
+      ${(pedidoConMasDeUnProducto && r && r.imagenUrl) ? `<img src="${r.imagenUrl}" class="coc-linea-pedido-img" alt="">` : ''}
       <div class="coc-linea-pedido-info">
         <div class="coc-linea-pedido-nombre">${_cocEsc(l.nombre || '—')}${extrasNota}</div>
         ${r && r.descripcion ? `<div class="coc-linea-pedido-desc">${_cocEsc(r.descripcion)}</div>` : ''}
         ${htmlIngredientesLinea}
         ${htmlTamanoAlternoLinea}
-        <div class="coc-linea-pedido-cant">${_cocEsc(l.cantidad)} ${_cocEsc(l.unidad || '')} · ${formatoMoneda(l.precioUnitario || 0)} c/u</div>
+        <div class="coc-linea-pedido-cant-total">
+          <span>${_cocEsc(l.cantidad)} ${_cocEsc(l.unidad || '')} · ${formatoMoneda(l.precioUnitario || 0)} c/u</span>
+          <span class="coc-linea-pedido-precio">${formatoMoneda(subtotal)}</span>
+        </div>
       </div>
-      <div class="coc-linea-pedido-precio">${formatoMoneda(subtotal)}</div>
     </div>`;
   }).join('');
 
@@ -5737,7 +5898,7 @@ function imprimirPedidoHTML(pedidoId){
     </div>` : '';
 
   const htmlDoc = `
-  <div class="coc-page coc-page-decorado">
+  <div class="coc-page coc-page-decorado"${_cocEstiloPatronDecorado(p)}>
     ${_cocEncabezado(pseudoRecetaHeader, fechaGeneracion, 'Resumen de pedido')}
 
     <div class="coc-hero">
@@ -5767,8 +5928,7 @@ function imprimirPedidoHTML(pedidoId){
   </div>`;
 
   const tituloVentana = `Pedido - ${p.cliente || 'Cliente'}`;
-  // v1.92: PRUEBA — iframe oculto en vez de ventana nueva o overlay.
-  _cocAbrirPreviewIframe(tituloVentana, htmlDoc);
+  _cocAbrirPreview(tituloVentana, htmlDoc);
 }
 
 // Checklist de compras agrupado por categoría (mismo orden que
@@ -6047,9 +6207,21 @@ function exportarVentasCSV(){
 }
 
 function imprimirListaComprasHTML(){
-  const items = checkComprasCache.items || [];
-  if(!items.length){ alert('La lista de compras está vacía.'); return; }
+  // v1.96: (a pedido) el PDF ahora respeta el filtro de categoría
+  // activo en pantalla (filtroCategoriaCompras) — antes siempre
+  // imprimía TODOS los ítems sin importar el filtro (mismo criterio
+  // que ya usa renderListaCompras() en pantalla, líneas 5185-5186).
+  let items = checkComprasCache.items || [];
+  if(filtroCategoriaCompras === '__sin__') items = items.filter(it => !it.categoriaId);
+  else if(filtroCategoriaCompras) items = items.filter(it => it.categoriaId === filtroCategoriaCompras);
+  if(!items.length){ alert('No hay ítems para imprimir con el filtro de categoría actual.'); return; }
   const fechaGeneracion = formatoFechaLargaHoy();
+  // v1.96: subtítulo con el nombre de la categoría filtrada (si hay
+  // alguna activa) + la fecha, para que quede claro qué recorte
+  // muestra este PDF en particular.
+  const nombreCatFiltro = filtroCategoriaCompras === '__sin__' ? 'Sin categoría'
+    : filtroCategoriaCompras ? nombreCategoria(filtroCategoriaCompras) : '';
+  const subtituloListaCompras = 'Lista de compras' + (nombreCatFiltro ? ` · ${nombreCatFiltro}` : '') + ` · ${fechaGeneracion}`;
 
   const grupos = {};
   items.forEach(it => {
@@ -6064,12 +6236,22 @@ function imprimirListaComprasHTML(){
     .map(catId => `
       <div class="coc-grupo-cat">
         <div class="coc-grupo-cat-nombre">${_cocEsc(nombreCategoria(catId))}</div>
-        ${grupos[catId].map(it => `
+        ${grupos[catId].map(it => {
+          // v1.95: (a pedido) mismo cálculo que renderListaCompras() en
+          // pantalla — un ítem puede venir de VARIOS pedidos/recetas a
+          // la vez (lista mezclada), por eso se muestra "Para: ..." por
+          // ítem en vez de un único título general en el encabezado
+          // (que sería engañoso apenas se mezclen 2+ orígenes).
+          const nombresOrigenItem = (it.recetasOrigen || [])
+            .map(o => (o && typeof o === 'object') ? o.nombre : null)
+            .filter(Boolean);
+          return `
           <div class="coc-check-item">
             <div class="coc-check-box"></div>
-            <span class="coc-check-nombre">${_cocEsc(it.nombre)}</span>
+            <span class="coc-check-nombre">${_cocEsc(it.nombre)}${nombresOrigenItem.length ? `<div class="coc-check-origen">Para: ${_cocEsc(nombresOrigenItem.join(', '))}</div>` : ''}</span>
             <span class="coc-check-cant">${_cocEsc(it.cantidad)} ${_cocEsc(it.unidad || '')}</span>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>`).join('');
 
   const htmlDoc = `
@@ -6077,9 +6259,8 @@ function imprimirListaComprasHTML(){
     <div class="coc-header">
       <div>
         <div class="coc-header-marca">AUDIOLINK · COCINA</div>
-        <div class="coc-header-sub">Lista de compras</div>
+        <div class="coc-header-sub">${_cocEsc(subtituloListaCompras)}</div>
       </div>
-      <div class="coc-header-fecha">${_cocEsc(fechaGeneracion)}</div>
     </div>
     ${htmlGrupos}
     <div class="coc-footer">
@@ -6100,6 +6281,7 @@ document.addEventListener('DOMContentLoaded', () => {
   escucharInsumos();
   escucharRecetas();
   escucharPedidos();
+  escucharConfigMenuPublico();
   escucharCheckCompras();
 });
 </script>
