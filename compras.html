@@ -3,8 +3,81 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Compras (v1.5)</title>
-<!-- AUDIOLINK · compras.html · v1.5
+<title>Audiolink — Compras (v1.7)</title>
+<!-- AUDIOLINK · compras.html · v1.7
+     v1.7: (a pedido) mismo fondo (patrón de emoji sutil, mosaico
+     repetido) que menu.html, ahora también en este portal. Se agregó
+     --patron-fondo/--patron-fondo-tamano en :root (variante oscura,
+     ya que este archivo es oscuro por defecto) y en
+     :root[data-tema="light"] (variante clara), aplicado al body igual
+     que menu.html. Se agregó listener a config/menuPublico
+     (iconoFondoEmoji) — el MISMO doc que ya lee menu.html — para que
+     el emoji elegido desde cocina.html se refleje acá también, sin
+     configuración nueva. Si no hay emoji configurado, se ve el
+     corazón por defecto (mismo criterio que menu.html). No se tocó
+     ninguna otra lógica del portal (PIN, checkCompras, insumos,
+     categorías, formularios de compra).
+     v1.6.9: (fix) mismo problema que v1.6.8 pero en .pin-box input (login
+     por PIN): background fijo #0f0f11 → var(--bg-card). Nada más se tocó.
+     v1.6.8: (fix) .compra-comprar-form input tenía background fijo en
+     #0f0f11 (negro) sin importar el tema. En tema claro, var(--text) es
+     oscuro, así que el texto/placeholder quedaban ilegibles (oscuro sobre
+     negro). Se cambió a background:var(--bg-card) para que el input se
+     adapte al tema activo, igual que el resto de la interfaz. No se tocó
+     nada más.
+     v1.6.7: (a pedido) 2 mejoras que faltaban respecto a cocina.html:
+     (1) toggle de tema claro/oscuro (botón 🌙/☀️ en el header) — este
+     portal no carga nav.js, así que se implementó lógica propia con
+     clave de localStorage separada (compras_tema); paleta clara
+     copiada 1:1 de cocina.html :root[data-tema="light"] para
+     coherencia visual.
+     (2) línea "Generado desde: ..." — como este portal no tiene PDF,
+     se muestra en pantalla junto al total general, recalculada según
+     el filtro de categoría activo (a diferencia del PDF de
+     cocina.html, que usa TODOS los ítems impresos). Mismo cálculo de
+     agregación/deduplicación de recetasOrigen.
+     v1.6.6: (a pedido) mismo cambio que cocina.html v1.99.11 — "Para:
+     ..." truncado a 2 orígenes + "+N más" (con title=lista completa),
+     orden alfabético fijo por defecto, y chip "💰 Mayor precio" para
+     ordenar por compra completa descendente. Calcado 1:1 (sin PDF,
+     este portal no lo tiene).
+     v1.6.5: (a pedido) mismo desglose que cocina.html v1.99.10 —
+     "Para: [receta] (X unidad × N lotes)" cuando hay un único origen
+     tipo receta con lotes guardados. Portal es solo lectura, el dato
+     ya viene calculado desde cocina.html. Calcado 1:1.
+     v1.6.4: (a pedido) se agregó el @media (max-width:600px) que este
+     portal no tenía — piso de 0.92rem para textos secundarios chicos
+     (compra-meta, compra-precio-ghost, total general secundario) y
+     chips más táctiles, mismo criterio que cocina.html v1.99.9. Se
+     revisó .compra-nombre/.compra-cant/.compra-comprar-form input:
+     esos YA venían con tamaño fijo legible (no heredado de escritorio),
+     así que no necesitaban regla adicional — se dejaron como estaban.
+     v1.6.3: (a pedido) mismo espíritu que cocina.html v1.99.9 — el
+     texto de compra-presentacion estaba en 0.8rem, por debajo del piso
+     de legibilidad de 0.92rem que ya usa compra-total en este mismo
+     portal. Ajustado. NOTA (no tocado, fuera de este pedido): este
+     portal no tiene NINGÚN @media en todo el archivo — a diferencia de
+     cocina.html, los inputs de "Marcar comprado" no tienen el mínimo
+     de 16px/46px anti-zoom de iOS. Es un gap preexistente (desde v1.5
+     y anteriores), no introducido acá — queda para decidir aparte.
+     v1.6.2: (a pedido) mismo cambio que cocina.html v1.99.8 —
+     formatoMoneda() nuevo (no existía en este portal, agregado con
+     mismo criterio toLocaleString es-CO) aplicado a todos los montos
+     de Compras ($ por ítem, compra completa, total general); jerarquía
+     del total general pasó a bloques apilados (label arriba, monto
+     abajo), "Compra completa" grande/dorado como principal y "Costo
+     receta" chico/gris como secundario. Calcado 1:1.
+     v1.6.1: (a pedido) mismo cambio que cocina.html v1.99.7 — total
+     general arriba de la lista ("Compra completa" destacado + "Costo
+     receta" secundario), recalculado según el filtro de categoría
+     activo, excluye "ya la tengo". Calcado 1:1 (sin filtro de etiqueta,
+     que no existe en este portal).
+     v1.6: (a pedido) mismo cambio que cocina.html v1.99.3 — Compras
+     ahora muestra, si el insumo tiene contenidoPresentacionCompra/
+     nombrePresentacionCompra cargados: línea "≈ N [presentación] de
+     [contenido] [unidad]" + "$X compra completa" (destacado en dorado)
+     + "$Y (costo receta)" (chico, secundario). Si el insumo no tiene
+     esos campos, se ve igual que antes (v1.5). Calcado 1:1 de cocina.html.
      v1.5: (a pedido) mismo cambio que cocina.html v1.33 — soporte para
      insumos con trackearStock: se muestra "Para: receta A, receta B"
      bajo el nombre del ítem (si aplica), y el form de "Marcar comprado"
@@ -90,20 +163,52 @@
   --ok:#5cb85c;
   --T:'Playfair Display', serif;
   --M:'JetBrains Mono', monospace;
+  /* v1.7: patrón de fondo sutil, mismo mecanismo que menu.html (SVG
+     inline en data-URI, mosaico repetido). Este archivo es oscuro por
+     defecto (al revés que menu.html, que es claro por defecto), así
+     que la variante "oscura" va acá en :root y la "clara" en
+     :root[data-tema="light"] más abajo. */
+  --patron-fondo-tamano:56px;
+  --patron-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Ctext x='8' y='24' font-size='16' fill='%23C4982C' opacity='0.06'%3E%E2%9D%A4%3C/text%3E%3Ctext x='34' y='50' font-size='16' fill='%23C4982C' opacity='0.06'%3E%E2%9D%A4%3C/text%3E%3C/svg%3E");
+}
+/* v1.6.7: (a pedido) tema claro — mismos valores exactos que
+   cocina.html :root[data-tema="light"], para coherencia visual entre
+   ambos. Solo se sobreescriben las variables que este archivo ya
+   define en su :root base; --T/--M no cambian por tema. */
+:root[data-tema="light"]{
+  color-scheme: light;
+  --bg:#faf6ee;
+  --bg-card:#ffffff;
+  --bg-card-alt:#f4efe2;
+  --border:#e3dac4;
+  --gold:#9c7228;
+  --gold-soft:rgba(156,114,40,0.12);
+  --text:#2b2620;
+  --muted:#7a7266;
+  --faint:#a49c8c;
+  --danger:#a8362b;
+  --ok:#3a8f5f;
+  --patron-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Ctext x='8' y='24' font-size='16' fill='%239c7228' opacity='0.05'%3E%E2%9D%A4%3C/text%3E%3Ctext x='34' y='50' font-size='16' fill='%239c7228' opacity='0.05'%3E%E2%9D%A4%3C/text%3E%3C/svg%3E");
 }
 *{ box-sizing:border-box; }
 body{
-  margin:0; background:var(--bg); color:var(--text);
+  margin:0; background:var(--bg) var(--patron-fondo) repeat 0 0/var(--patron-fondo-tamano) var(--patron-fondo-tamano); color:var(--text);
   font-family:'Inter', -apple-system, sans-serif;
   padding:20px 14px 60px;
+  transition:background-color .2s ease, color .2s ease;
 }
 .wrap{ max-width:640px; margin:0 auto; }
-.header-top{ text-align:center; margin-bottom:22px; }
+.header-top{ text-align:center; margin-bottom:22px; position:relative; }
 .header-top h1{
   font-family:var(--T); font-size:1.5rem; font-weight:600;
   color:var(--gold); letter-spacing:0.03em; margin:0 0 4px;
 }
 .header-top .sub{ font-size:0.92rem; color:var(--muted); }
+.btn-toggle-tema{
+  position:absolute; top:0; right:0; background:var(--bg-card);
+  border:1px solid var(--border); border-radius:8px; color:var(--text);
+  font-size:1rem; padding:6px 10px; cursor:pointer; min-height:36px;
+} /* v1.6.7 */
 
 .card{
   background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
@@ -119,9 +224,9 @@ body{
 .pin-box{ text-align:center; padding:30px 20px; }
 .pin-box input{
   width:100%; max-width:220px; text-align:center; letter-spacing:0.3em;
-  font-size:1.6rem; font-family:var(--M); background:#0f0f11;
+  font-size:1.6rem; font-family:var(--M); background:var(--bg-card);
   border:1px solid var(--border); border-radius:10px; color:var(--text);
-  padding:14px 12px; min-height:56px; margin:14px 0;
+  padding:14px 12px; min-height:56px; margin:14px 0; /* v1.6.9: mismo fix que v1.6.8, ahora en el input del PIN */
 }
 .pin-box input:focus{ outline:none; border-color:var(--gold); }
 .pin-error{ color:var(--danger); font-size:0.9rem; min-height:1.2em; margin-bottom:6px; }
@@ -177,10 +282,21 @@ input[type="checkbox"]{
 .compra-en-stock{ color:var(--ok); font-size:0.95rem; font-weight:600; grid-column:1/-1; margin-top:4px; }
 .compra-nombre{ font-weight:600; font-size:1.1rem; }
 .compra-meta{ font-size:0.9rem; color:var(--muted); margin-top:2px; }
+.compra-desglose-lotes{ color:var(--faint); font-size:0.85em; } /* v1.6.5 */
 .compra-cant{ font-family:var(--M); color:var(--muted); font-size:1.05rem; grid-column:2; }
 .compra-precio-ghost{ font-size:0.88rem; color:var(--faint); margin-top:3px; font-family:var(--M); }
 .compra-precio-ghost .tachado{ text-decoration:line-through; }
 .compra-total{ font-size:0.92rem; color:var(--gold); font-weight:600; margin-top:2px; }
+.compra-total.compra-total-secundario{ font-size:0.75rem; color:var(--muted); font-weight:400; margin-top:4px; } /* v1.6 */
+.compra-presentacion{ font-size:0.92rem; color:var(--muted); margin-top:2px; } /* v1.6.3: subido a 0.92rem para legibilidad, mismo piso que compra-total */
+.compra-total-presentacion{ font-size:0.92rem; color:var(--gold); font-weight:600; margin-top:1px; } /* v1.6 */
+.compras-total-general{ display:flex; flex-direction:column; gap:6px; padding:10px 0; border-bottom:1px solid var(--border); margin:6px 0; } /* v1.6.2 */
+.compras-generado-desde{ font-size:0.82rem; color:var(--muted); font-style:italic; margin:-2px 0 6px; } /* v1.6.7 */
+.compras-total-general-principal{ display:flex; flex-direction:column; }
+.compras-total-general-principal .compras-total-general-monto{ font-size:1.3rem; font-weight:700; color:var(--gold); }
+.compras-total-general-secundario{ display:flex; flex-direction:column; }
+.compras-total-general-secundario .compras-total-general-monto{ font-size:0.85rem; font-weight:400; color:var(--muted); }
+.compras-total-general-label{ font-size:0.72rem; font-weight:400; color:var(--muted); text-transform:uppercase; letter-spacing:0.02em; } /* v1.6.1 */
 /* v1.4: fila de acciones a lo ancho — reemplaza al checkbox "pendiente"
    por un botón de texto, igual que cocina.html v1.32. */
 .compra-acciones{
@@ -198,20 +314,38 @@ input[type="checkbox"]{
 }
 .compra-comprar-form.activo{ display:grid; }
 .compra-comprar-form input{
-  background:#0f0f11; border:1px solid var(--border); border-radius:8px;
+  background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
   color:var(--text); padding:12px; font-size:16px; min-height:46px;
-}
+} /* v1.6.8: background fijo #0f0f11 → var(--bg-card) para respetar tema claro/oscuro */
 .compra-comprar-form .btn-row{ display:flex; gap:8px; }
 .compra-comprar-form .btn-row .btn{ flex:1; }
 .compra-comprar-form .btn-row .btn-ghost{ flex:1; }
 
 .footer-nota{ text-align:center; font-size:0.8rem; color:var(--faint); margin-top:24px; }
+
+/* v1.6.4: (a pedido) mismo criterio que cocina.html (@media max-width:600px)
+   — piso de legibilidad ~0.92rem para textos secundarios chicos en móvil,
+   y chips más táctiles. No toca .compra-nombre/.compra-cant (ya vienen
+   fijos en tamaño legible) ni .compra-comprar-form input (ya tiene 16px/
+   46px fijo, sin necesitar @media). */
+@media (max-width:600px){
+  .chip-filtro{ padding:8px 14px; font-size:0.9rem; }
+  .compra-meta,
+  .compra-precio-ghost,
+  .compras-total-general-label{
+    font-size:0.92rem !important;
+  }
+  .compra-total-secundario,
+  .compras-total-general-secundario .compras-total-general-monto{ font-size:0.92rem !important; }
+  .compras-total-general-principal .compras-total-general-monto{ font-size:1.15rem !important; }
+}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="header-top">
+    <button type="button" class="btn-toggle-tema" onclick="toggleTemaCompras()" id="btnToggleTema">🌙</button>
     <h1>🛒 Lista de Compras</h1>
     <div class="sub">Audiolink — Cocina</div>
   </div>
@@ -235,6 +369,8 @@ input[type="checkbox"]{
     <div class="card" style="padding:16px 18px;">
       <h3 style="margin-bottom:2px;">Ítems</h3>
       <div class="card-sub">Destilda lo que ya tengas. Al marcar "comprado" se actualiza el precio del insumo.</div>
+      <div id="ordenComprasWrap"><div class="filtro-chips" id="ordenComprasChips"></div></div>
+      <div id="comprasTotalesWrap"></div>
       <div id="listaCompras">
         <div class="vacio">Cargando…</div>
       </div>
@@ -251,12 +387,68 @@ input[type="checkbox"]{
 </script>
 
 <script>
+// v1.7: (a pedido) mismo fondo (emoji) elegido para menu.html, ahora
+// también acá — se lee del MISMO doc de config (config/menuPublico,
+// campo iconoFondoEmoji, editado desde cocina.html tab Compras).
+// Mecanismo calcado 1:1 de menu.html v1.12: si no hay nada configurado
+// (doc no existe o campo vacío), NO se toca nada y se ve el corazón
+// por defecto ya definido en --patron-fondo (:root y
+// :root[data-tema="light"] más arriba). Se pisa la MISMA variable en
+// ambos selectores de tema para que se vea igual sin importar el tema
+// activo.
+function _comprasEsc(str){
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+db.collection('config').doc('menuPublico').onSnapshot(doc => {
+  const datos = doc.exists ? doc.data() : {};
+  if(!datos.iconoFondoEmoji) return; // sin config = corazón por defecto, no se toca nada
+  const emojiTexto = _comprasEsc(datos.iconoFondoEmoji);
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56'>`
+    + `<text x='8' y='24' font-size='16' opacity='0.08'>${emojiTexto}</text>`
+    + `<text x='34' y='50' font-size='16' opacity='0.08'>${emojiTexto}</text>`
+    + `</svg>`;
+  const dataUri = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+  const reglaCss = `:root{ --patron-fondo:${dataUri}; } :root[data-tema="light"]{ --patron-fondo:${dataUri}; }`;
+  let estiloIconoFondo = document.getElementById('estiloIconoFondoGeneral');
+  if(!estiloIconoFondo){
+    estiloIconoFondo = document.createElement('style');
+    estiloIconoFondo.id = 'estiloIconoFondoGeneral';
+    document.head.appendChild(estiloIconoFondo);
+  }
+  estiloIconoFondo.textContent = reglaCss;
+}, err => console.error(err));
+</script>
+
+<script>
 // ---------- Estado ----------
 let checkComprasCache = { items: [] };
 let insumosCache = [];
 let categoriasCache = [];
 let filtroCategoriaCompras = '';
 let pinValidado = false;
+
+// v1.6.7: (a pedido) tema claro/oscuro — clave propia de localStorage
+// (independiente de nav.js, que este portal no carga). Se aplica antes
+// de cualquier otra cosa para que no haya parpadeo del tema por
+// defecto al cargar.
+function toggleTemaCompras(){
+  const actual = document.documentElement.getAttribute('data-tema');
+  const nuevo = actual === 'light' ? 'dark' : 'light';
+  aplicarTemaCompras(nuevo);
+  localStorage.setItem('compras_tema', nuevo);
+}
+function aplicarTemaCompras(tema){
+  if(tema === 'light'){
+    document.documentElement.setAttribute('data-tema', 'light');
+    const btn = document.getElementById('btnToggleTema');
+    if(btn) btn.textContent = '☀️';
+  } else {
+    document.documentElement.removeAttribute('data-tema');
+    const btn = document.getElementById('btnToggleTema');
+    if(btn) btn.textContent = '🌙';
+  }
+}
+aplicarTemaCompras(localStorage.getItem('compras_tema') || 'dark');
 
 // ---------- PIN ----------
 function intentarEntrar(){
@@ -302,6 +494,7 @@ function iniciarEscuchas(){
 
   db.collection('checkCompras').doc('activa').onSnapshot(doc => {
     checkComprasCache = doc.exists ? { items: doc.data().items || [] } : { items: [] };
+    renderOrdenComprasChip(); // v1.6.6
     renderListaCompras();
   }, err => {
     console.error('No se pudo leer checkCompras:', err);
@@ -309,7 +502,27 @@ function iniciarEscuchas(){
   });
 }
 
+// v1.6.6: mismo patrón que cocina.html v1.99.11.
+function renderOrdenComprasChip(){
+  const cont = document.getElementById('ordenComprasChips');
+  if(!cont) return;
+  cont.innerHTML = `
+    <button type="button" class="chip-filtro ${!ordenComprasPorPrecio ? 'activo' : ''}" onclick="seleccionarOrdenCompras(false)">🔤 Alfabético</button>
+    <button type="button" class="chip-filtro ${ordenComprasPorPrecio ? 'activo' : ''}" onclick="seleccionarOrdenCompras(true)">💰 Mayor precio</button>
+  `;
+}
+function seleccionarOrdenCompras(porPrecio){
+  ordenComprasPorPrecio = porPrecio;
+  renderOrdenComprasChip();
+  renderListaCompras();
+}
+
 // ---------- Categorías (solo lectura — mismo patrón que cocina.html) ----------
+// v1.6.2: (a pedido) formatoMoneda con separador de miles, mismo
+// criterio que cocina.html (toLocaleString es-CO).
+function formatoMoneda(n){
+  return '$' + Math.round(n || 0).toLocaleString('es-CO');
+}
 function nombreCategoria(categoriaId){
   if(!categoriaId) return 'Sin categoría';
   const cat = categoriasCache.find(c => c.id === categoriaId);
@@ -388,7 +601,7 @@ function cerrarFormComprado(insumoId){
   if(item && insumo && totalDiv){
     if(inputCant) inputCant.value = item.cantidad || '';
     if(inputPrecio) inputPrecio.value = insumo.valorUnidad;
-    totalDiv.textContent = '$' + Math.round(item.cantidad * insumo.valorUnidad);
+    totalDiv.textContent = formatoMoneda(item.cantidad * insumo.valorUnidad);
   }
 }
 
@@ -400,7 +613,7 @@ function actualizarTotalEnVivo(insumoId){
   const cantidad = parseFloat(document.getElementById('inputCantidadComprada-' + insumoId).value);
   const precio = parseFloat(document.getElementById('inputPrecioComprado-' + insumoId).value);
   if(isNaN(cantidad) || isNaN(precio)){ totalDiv.textContent = '—'; return; }
-  totalDiv.textContent = '$' + Math.round(cantidad * precio);
+  totalDiv.textContent = formatoMoneda(cantidad * precio);
 }
 
 function confirmarCompra(insumoId){
@@ -456,17 +669,82 @@ function reabrirCompra(insumoId){
   }
 }
 
+// v1.6.6: función extraída, mismo criterio que cocina.html v1.99.11.
+function montoCompraCompletaItem(it){
+  const insumo = insumosCache.find(i => i.id === it.insumoId);
+  const precio = insumo ? insumo.valorUnidad : '';
+  if(precio === '') return 0;
+  if(insumo && insumo.contenidoPresentacionCompra){
+    const bolsas = Math.ceil((it.cantidad || 0) / insumo.contenidoPresentacionCompra);
+    return bolsas * insumo.contenidoPresentacionCompra * precio;
+  }
+  return (it.cantidad || 0) * precio;
+}
+let ordenComprasPorPrecio = false;
+
 function renderListaCompras(){
   const cont = document.getElementById('listaCompras');
+  const totalesWrap = document.getElementById('comprasTotalesWrap');
   if(!pinValidado) return;
   let items = checkComprasCache.items || [];
   if(filtroCategoriaCompras === '__sin__') items = items.filter(it => !it.categoriaId);
   else if(filtroCategoriaCompras) items = items.filter(it => it.categoriaId === filtroCategoriaCompras);
+  items = [...items].sort((a, b) => ordenComprasPorPrecio
+    ? montoCompraCompletaItem(b) - montoCompraCompletaItem(a)
+    : (a.nombre || '').localeCompare(b.nombre || '', 'es'));
   if(!items.length){
+    if(totalesWrap) totalesWrap.innerHTML = '';
     cont.innerHTML = (checkComprasCache.items || []).length
       ? '<div class="vacio">No hay ítems de esta categoría en la lista.</div>'
       : '<div class="vacio">La lista está vacía por ahora.</div>';
     return;
+  }
+  // v1.6.1: (a pedido) mismo cambio que cocina.html v1.99.7 — total
+  // general (Compra completa + Costo receta) de los ítems visibles con
+  // el filtro activo, excluyendo "ya la tengo". Calcado 1:1.
+  if(totalesWrap){
+    let totalReceta = 0, totalCompletos = 0;
+    items.forEach(it => {
+      const insumo = insumosCache.find(i => i.id === it.insumoId);
+      const precio = insumo ? insumo.valorUnidad : '';
+      const noNecesitaIt = !it.pendiente && !it.comprado;
+      if(precio === '' || noNecesitaIt) return;
+      totalReceta += (it.cantidad || 0) * precio;
+      totalCompletos += montoCompraCompletaItem(it);
+    });
+    totalesWrap.innerHTML = `
+      <div class="compras-total-general">
+        <div class="compras-total-general-principal">
+          <span class="compras-total-general-label">Compra completa</span>
+          <span class="compras-total-general-monto">${formatoMoneda(totalCompletos)}</span>
+        </div>
+        <div class="compras-total-general-secundario">
+          <span class="compras-total-general-label">Costo receta</span>
+          <span class="compras-total-general-monto">${formatoMoneda(totalReceta)}</span>
+        </div>
+      </div>
+      ${(() => {
+        // v1.6.7: (a pedido) "Generado desde: ..." — mismo cálculo que
+        // cocina.html v1.99.12 en el PDF, pero acá se recalcula sobre
+        // los ítems visibles CON el filtro activo (no toda la lista),
+        // igual que el total general.
+        const origenesUnicos = {};
+        items.forEach(it => {
+          (it.recetasOrigen || []).forEach(o => {
+            if(!o || typeof o !== 'object' || !o.id) return;
+            const key = o.tipo === 'pedido' ? 'pedido-' + o.id : 'receta-' + o.id;
+            if(!origenesUnicos[key]){
+              origenesUnicos[key] = { nombre: o.nombre || '—', lotes: o.tipo === 'pedido' ? null : (o.lotes || null) };
+            } else if(o.lotes && (!origenesUnicos[key].lotes || o.lotes > origenesUnicos[key].lotes)){
+              origenesUnicos[key].lotes = o.lotes;
+            }
+          });
+        });
+        const texto = Object.values(origenesUnicos)
+          .map(o => o.lotes ? `${o.nombre} ×${o.lotes} lote${o.lotes > 1 ? 's' : ''}` : o.nombre)
+          .join(', ');
+        return texto ? `<div class="compras-generado-desde">Generado desde: ${texto.toString().replace(/</g,'&lt;')}</div>` : '';
+      })()}`;
   }
   cont.innerHTML = items.map(it => {
     const insumoActual = insumosCache.find(i => i.id === it.insumoId);
@@ -478,6 +756,17 @@ function renderListaCompras(){
     const nombresOrigen = (it.recetasOrigen || [])
       .map(o => (o && typeof o === 'object') ? o.nombre : null)
       .filter(Boolean);
+    // v1.6.5: (a pedido) mismo desglose "cant × N lotes" que
+    // cocina.html v1.99.10 — solo lectura acá, el dato ya viene
+    // guardado en recetasOrigen desde que se genera en cocina.html.
+    const origenesReceta = (it.recetasOrigen || []).filter(o => o && typeof o === 'object' && o.tipo !== 'pedido');
+    const desgloseLotes = (origenesReceta.length === 1 && origenesReceta[0].lotes && origenesReceta[0].cantidad)
+      ? `${(origenesReceta[0].cantidad / origenesReceta[0].lotes).toString().replace(/(\.\d{0,2})\d*$/,'$1')} ${it.unidad || ''} × ${origenesReceta[0].lotes} lote${origenesReceta[0].lotes > 1 ? 's' : ''}`
+      : null;
+    // v1.6.6: (a pedido) mismo truncado que cocina.html v1.99.11.
+    const nombresOrigenTexto = nombresOrigen.length > 2
+      ? `${nombresOrigen.slice(0, 2).join(', ')} +${nombresOrigen.length - 2} más`
+      : nombresOrigen.join(', ');
     return `
     <div class="compra-item ${it.comprado ? 'comprado' : ''} ${noNecesita ? 'no-necesita' : ''}">
       <div>
@@ -486,14 +775,16 @@ function renderListaCompras(){
           <span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(it.categoriaId)}"></span>${nombreCategoria(it.categoriaId).toString().replace(/</g,'&lt;')}</span>
           ${it.origen === 'suelto' ? '<span class="chip-categoria">Suelto</span>' : ''}
         </div>
-        ${nombresOrigen.length ? `<div class="compra-meta">Para: ${nombresOrigen.join(', ').toString().replace(/</g,'&lt;')}</div>` : ''}
+        ${nombresOrigen.length ? `<div class="compra-meta" title="${nombresOrigen.join(', ').toString().replace(/</g,'&lt;').replace(/"/g,'&quot;')}">Para: ${nombresOrigenTexto.toString().replace(/</g,'&lt;')}${desgloseLotes ? ` <span class="compra-desglose-lotes">(${desgloseLotes})</span>` : ''}</div>` : ''}
         ${it.comprado && it.precioAnterior != null ? `
         <div class="compra-precio-ghost">$${it.precioComprado} nuevo · <span class="tachado">$${it.precioAnterior}</span> si deshaces</div>
         ` : ''}
       </div>
       <div class="compra-cant">
         ${it.cantidad} ${it.unidad || ''}
-        ${precioActual !== '' && !noNecesita ? `<div class="compra-total" id="compra-total-${it.insumoId}">$${Math.round(it.cantidad * precioActual)}</div>` : ''}
+        ${insumoActual && insumoActual.contenidoPresentacionCompra ? `<div class="compra-presentacion">≈ ${Math.ceil((it.cantidad || 0) / insumoActual.contenidoPresentacionCompra)} ${(insumoActual.nombrePresentacionCompra || '').toString().replace(/</g,'&lt;')} de ${insumoActual.contenidoPresentacionCompra} ${(insumoActual.unidad || '').toString().replace(/</g,'&lt;')}</div>` : ''}
+        ${insumoActual && insumoActual.contenidoPresentacionCompra && precioActual !== '' && !noNecesita ? `<div class="compra-total-presentacion">${formatoMoneda(Math.ceil((it.cantidad || 0) / insumoActual.contenidoPresentacionCompra) * insumoActual.contenidoPresentacionCompra * precioActual)} compra completa</div>` : ''}
+        ${precioActual !== '' && !noNecesita ? `<div class="compra-total ${insumoActual && insumoActual.contenidoPresentacionCompra ? 'compra-total-secundario' : ''}" id="compra-total-${it.insumoId}">${formatoMoneda(it.cantidad * precioActual)}${insumoActual && insumoActual.contenidoPresentacionCompra ? ' (costo receta)' : ''}</div>` : ''}
       </div>
       <div class="compra-acciones">
         ${it.comprado

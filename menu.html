@@ -3,8 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Menú (v1.10)</title>
-<!-- AUDIOLINK · menu.html · v1.10
+<title>Menú (v1.12)</title>
+<!-- AUDIOLINK · menu.html · v1.12
+     v1.12: (fix) el ícono de fondo (emoji, config/menuPublico →
+     iconoFondoEmoji) no se estaba viendo. Causa: se codificaba el
+     emoji con encodeURIComponent ANTES de insertarlo como texto
+     dentro del SVG, y el SVG completo se volvía a codificar al armar
+     el data-URI — quedaba doblemente codificado y el navegador
+     recibía literalmente "%XX%XX..." como texto, en vez del emoji.
+     Se corrigió para que el emoji se inserte tal cual (solo escapado
+     para XML con _menuEsc) y se codifique una única vez, al final.
+     No se tocó nada más de la lógica (mosaico, opacidad, tamaño,
+     mecanismo de :root/body[data-tema="oscuro"]) — sigue igual que
+     en v1.11.
+     v1.11: (a pedido) se retira el fondo por FOTO del portal — ahora
+     el "Fondo del portal público" (config/menuPublico, editado desde
+     cocina.html tab Compras) es un EMOJI tipeado a mano, campo NUEVO
+     iconoFondoEmoji (antes iconoFondoUrl/iconoFondoNombre, ya en
+     desuso). El listener ahora arma el SVG con <text> Unicode (mismo
+     mecanismo que el corazón por defecto de v1.9), en vez de <image>
+     con una foto — más simple, sin CORS, siempre nítido. Si no hay
+     nada configurado (doc no existe o campo vacío), no se toca nada y
+     el corazón por defecto se sigue viendo igual, exactamente como
+     antes.
      v1.10: (a pedido) el fondo del portal ahora puede ser un ÍCONO
      configurable desde cocina2.html (tab Compras → "Fondo del portal
      público"), en vez de estar fijo al corazón. Se lee
@@ -341,21 +362,29 @@ function _menuEsc(str){
   return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// v1.97: (a pedido) ícono de fondo GENERAL configurable desde
-// cocina2.html (colección config, doc menuPublico, campo
-// iconoFondoUrl). Si no hay nada configurado (doc no existe o
-// iconoFondoUrl vacío), NO se toca nada — el corazón por defecto
+// v1.11: (a pedido) ícono de fondo GENERAL configurable desde
+// cocina.html (colección config, doc menuPublico, campo
+// iconoFondoEmoji). Si no hay nada configurado (doc no existe o
+// iconoFondoEmoji vacío), NO se toca nada — el corazón por defecto
 // definido arriba en --patron-fondo (:root y body[data-tema="oscuro"])
-// se sigue viendo exactamente igual que hasta ahora. Mismo criterio
-// visual que el corazón (mosaico, opacidad baja) pero con un
-// <image> de SVG en vez de <text>, para poder usar una foto real.
+// se sigue viendo exactamente igual que hasta ahora. Mismo mecanismo
+// exacto que el corazón (mosaico, opacidad baja, <text> Unicode en el
+// SVG) — ya no es una foto (<image>), así que no depende de que
+// Cloudinary permita CORS.
 db.collection('config').doc('menuPublico').onSnapshot(doc => {
   const datos = doc.exists ? doc.data() : {};
-  if(!datos.iconoFondoUrl) return; // sin config = corazón por defecto, no se toca nada
-  const urlSvgSegura = encodeURIComponent(datos.iconoFondoUrl);
+  if(!datos.iconoFondoEmoji) return; // sin config = corazón por defecto, no se toca nada
+  // v1.12: (fix) el emoji se codificaba con encodeURIComponent ANTES de
+  // meterlo como texto del SVG, y el SVG completo se volvía a codificar
+  // al armar el data-URI (línea de abajo) — quedaba doblemente
+  // codificado, y el navegador mostraba el texto "%XX%XX..." en vez del
+  // emoji (por eso nunca se veía). Ahora el emoji va tal cual en el
+  // <text> (solo escapado para XML), y la codificación ocurre una sola
+  // vez, al final, sobre el SVG completo.
+  const emojiTexto = _menuEsc(datos.iconoFondoEmoji);
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56'>`
-    + `<image href='${urlSvgSegura}' x='8' y='8' width='18' height='18' opacity='0.08'/>`
-    + `<image href='${urlSvgSegura}' x='34' y='34' width='18' height='18' opacity='0.08'/>`
+    + `<text x='8' y='24' font-size='16' opacity='0.08'>${emojiTexto}</text>`
+    + `<text x='34' y='50' font-size='16' opacity='0.08'>${emojiTexto}</text>`
     + `</svg>`;
   const dataUri = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
   // Se pisa la MISMA variable --patron-fondo en ambos selectores de

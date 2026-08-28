@@ -3,8 +3,335 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.98)</title>
-<!-- AUDIOLINK · cocina.html · v1.98
+<title>Audiolink — Cocina (v1.99.24)</title>
+<!-- AUDIOLINK · cocina.html · v1.99.24
+     v1.99.24: (a pedido) 3 pendientes que habían quedado abiertos de la
+     entrega anterior (historial de compras + optimizaciones de Ventas):
+     (1) Historial de compras: botón 🗑️ por lista archivada
+     (eliminarHistorialCompra) — borra el doc de historialCompras, NO
+     borra las fotos ya subidas a Cloudinary (avisado en el confirm()).
+     (2) Historial de compras: filtro por rango de fecha (sobre lo ya
+     cargado) + paginado real vía límite de Firestore (arranca en 20,
+     "Cargar más" suma de a 20) — antes traía TODO el historial de una
+     sola vez, sin límite.
+     (3) Ventas: botón "🔄 Recalcular antiguas" (recalcularVentasAntiguas)
+     — congela recetaId + costoUnitarioAlVender (mismo cruce por nombre
+     y misma costoActualReceta() que ya usa guardarVenta() desde
+     v1.99.22) en las ventas guardadas ANTES de ese cambio, que sin esto
+     seguirían mostrando margen recalculado en vivo para siempre salvo
+     que se editen a mano. AVISO explícito en el confirm(): el costo que
+     se congela es el de HOY, no el de cuando se vendió — ese dato no se
+     puede recuperar si no se guardó en su momento. Usa un solo batch de
+     Firestore (máx. 500 escrituras); no contempla partir en varios
+     batches para historiales más grandes, no se pidió.
+     No se tocó nada de Recetas, Insumos, ni el resto de Compras
+     (generar desde recetas, insumo suelto, marcar comprado, portal PIN,
+     fondo del portal público).
+     v1.99.23: (a pedido) historial de listas de compras + fotos de
+     factura. Antes, "Vaciar lista" borraba la lista activa de
+     checkCompras/activa sin dejar rastro — no había forma de consultar
+     qué se compró en rondas anteriores.
+     (1) El botón pasó a "🗄️ Cerrar y archivar"
+     (archivarYVaciarListaCompras): antes de vaciar checkCompras/activa,
+     guarda un snapshot completo (items tal cual, total "compra
+     completa" con el mismo criterio de exclusión de "ya la tengo" que
+     ya usaba renderListaCompras) en un doc nuevo de la colección
+     historialCompras, con fecha de cierre (serverTimestamp). Si la
+     lista ya está vacía, no genera un registro vacío.
+     (2) Card nueva "🗄️ Historial de compras" dentro del mismo tab
+     Compras (mismo criterio que Ventas: form + historial en una sola
+     pestaña) — solo lectura, ordenado por fecha de cierre, muestra
+     fecha/cantidad de ítems/total.
+     (3) Fotos de factura: A PROPÓSITO, la factura NO se engancha a
+     ítems ni a insumos individuales (una factura real mezcla insumos
+     de un mismo proveedor, y el catálogo no modela proveedor) — cuelga
+     de la LISTA CERRADA completa, como array de URLs. Botón "📷
+     Agregar factura" por cada lista del historial, mismo widget de
+     Cloudinary que ya usa la imagen de receta, pero con preset/carpeta
+     propios (FACTURAS) para no mezclar con fotos de receta — sin
+     recorte forzado (una factura no es cuadrada) y multiple:true
+     (una ronda de compras puede traer varios recibos). REQUIERE que
+     exista un unsigned upload preset llamado "FACTURAS" en el panel de
+     Cloudinary — si se llama distinto, ajustar la constante
+     CLOUDINARY_UPLOAD_PRESET_FACTURAS.
+     No se tocó Ventas, Recetas, Insumos, ni el resto de Compras
+     (generar desde recetas, insumo suelto, marcar comprado).
+     v1.99.22: (a pedido) 3 optimizaciones al módulo de Ventas, sin
+     agregar campos nuevos en la interfaz ni tocar Recetas/Insumos/
+     Compras:
+     (1) guardarVenta() ahora engancha la receta correspondiente (mismo
+     cruce por nombre normalizado de siempre) y congela, en ese
+     momento, recetaId + costoUnitarioAlVender (con costoActualReceta,
+     ya existente) dentro del documento de la venta. Antes, el margen
+     de CUALQUIER venta (vieja o nueva) se recalculaba siempre con los
+     precios de insumos de HOY — así que el margen de una venta de
+     hace meses cambiaba solo, sin que la venta cambiara, cada vez que
+     cambiaba el precio de un insumo.
+     (2) margenVenta() ahora usa ese snapshot (costo real de cuando se
+     vendió) como primera opción, y usa recetaId en vez del cruce por
+     nombre cuando está disponible — más resistente a que renombres
+     una receta más adelante. Ventas guardadas ANTES de este cambio
+     (sin esos 2 campos) siguen funcionando igual que antes: cruce por
+     nombre + costo recalculado en vivo, como respaldo.
+     (3) renderTabla() arma los índices de recetas (por id y por
+     nombre) UNA sola vez por render en vez de que cada fila repita su
+     propio recetasCache.find() — mismo resultado, menos recorridos
+     con historiales grandes o al escribir en los filtros.
+     No se tocó el formulario, el historial visual, las exportaciones
+     ni ninguna otra pestaña.
+     v1.99.21: (a pedido) se retira POR COMPLETO el selector de fotos
+     (catálogo avataresIconos) como fuente del patrón decorado — ahora
+     es SOLO por emoji tipeado a mano, tanto en el ícono por pedido
+     (ya existía desde v1.99.20) como en el fondo general del portal
+     (menu.html), que antes vivía en la card "🎨 Fondo del portal
+     público" del tab Compras con el mismo grid de fotos. Se agrega ahí
+     un input de emoji + botón "Guardar", que escribe en
+     config/menuPublico el campo NUEVO iconoFondoEmoji (y limpia los
+     campos viejos iconoFondoUrl/iconoFondoNombre, ya en desuso). Se
+     quita todo el código de este archivo que consumía el catálogo
+     (cargarCatalogoIconosSiHaceFalta, escucharIconosDecorados,
+     renderGridIconosDecorados, seleccionarIconoDecorado,
+     renderGridIconoFondoGeneral, guardarIconoFondoGeneral,
+     urlMiniaturaIconoDecorado, _cocAgruparIconosPorCategoria,
+     tipoArrayIconoDecorado) y el CSS asociado (.grid-iconos-decorado,
+     .grupo-iconos-decorado-titulo, .item-icono-decorado). NO se toca
+     Firestore: la colección avataresIconos queda intacta (la sigue
+     administrando avatares-iconos.html), solo se dejó de leer acá.
+     _cocEstiloPatronDecorado() conserva el respaldo de lectura de
+     iconoDecoradoUrl por pedido (para que pedidos guardados ANTES de
+     esta versión, con foto ya asignada, se sigan viendo igual), pero
+     ya no hay UI para volver a elegir una foto — solo emoji.
+     menu.html (archivo aparte) se actualiza en el mismo paso para leer
+     iconoFondoEmoji en vez de iconoFondoUrl.
+     v1.99.20: (a pedido) 2 cambios sobre el patrón de fondo decorado
+     del pedido:
+       1. NUEVO campo de texto (inputIconoDecoradoEmoji) para tipear
+          directamente un emoji como patrón de fondo — mismo mecanismo
+          exacto que el corazón por defecto (<text> Unicode dentro del
+          SVG inline, sin imagen, sin Cloudinary, sin CORS, siempre
+          nítido a cualquier tamaño). Tiene prioridad sobre la foto del
+          catálogo si ambos están presentes. Se guarda como
+          `iconoDecoradoEmoji` en el pedido.
+       2. FIX raíz del pixelado de v1.99.18/19: la causa real no era
+          falta de resolución en el recorte, sino que c_pad de
+          Cloudinary, por defecto, ESCALA HACIA ARRIBA el recorte para
+          llenar el lienzo (no lo deja del tamaño original con relleno
+          transparente alrededor, como se asumía) — por eso nunca hubo
+          separación real ni nitidez, sin importar cuánto se subiera el
+          tamaño del recorte. Se agrega la bandera fl_no_overflow, que
+          le indica a Cloudinary que NO escale el recorte más allá de
+          su tamaño original. Aprovechando el fix, se vuelve a bajar el
+          recorte a un tamaño físico chico (14x14) para que la foto se
+          vea del mismo tamaño visual que el glifo del corazón (que
+          usa font-size:14 en el mismo lienzo de 48x48) — separación y
+          escala ahora sí equivalentes al patrón de corazones.
+     v1.99.19: (fix) el ícono chico del patrón de fondo (v1.99.18) se
+     veía repixelado/borroso: el recorte de Cloudinary era de 16x16 y se
+     escalaba 3x hasta 48x48, perdiendo casi todo el detalle. Se sube el
+     recorte a 32x32 y el lienzo de relleno a 96x96 (misma proporción
+     1:3 ícono:lienzo), y el tile de CSS pasa de 48px a 96px para que
+     coincida. Con esto se prioriza nitidez del ícono sobre densidad del
+     patrón (quedan 4 veces menos repeticiones por área que con 48px),
+     que era la opción elegida frente a mantener el tile en 48px con un
+     recorte intermedio. No se tocó nada más de la arquitectura ni el
+     precargador de v1.99.13.
+     v1.99.18: (a pedido) el patrón de fondo del ícono por pedido se
+     veía como mosaico de la foto completa, no como ícono chico repetido
+     tipo corazón. Se agregaron 2 transformaciones de Cloudinary a la
+     URL en _cocEstiloPatronDecorado(): recorte a 16x16 (c_fill) +
+     relleno transparente a 48x48 (c_pad, b_transparent) — mismo tamaño
+     de ícono e igual tile de 48px que ya existían, ahora con aire
+     alrededor. No se tocó la arquitectura (sigue siendo background-image
+     CSS puro, sin SVG ni CORS) ni el precargador de v1.99.13.
+     v1.99.17: (a pedido) 2 cambios en los selectores de ícono decorado:
+       1. Ambos grids (ícono por pedido y fondo general del portal)
+          ahora agrupan por el campo `categoria` del catálogo
+          avataresIconos (ya existente en Firestore, administrado en
+          avatares-iconos.html) — mismo criterio exacto que
+          agruparPorCategoria() de ese archivo: orden alfabético,
+          "Sin categoría" siempre al final. Encabezado de grupo nuevo
+          (.grupo-iconos-decorado-titulo).
+       2. Se quita el auto-open del colapsable del ícono por pedido
+          (v1.98) — aunque el pedido ya tenga ícono elegido, el
+          colapsable queda siempre cerrado por defecto (igual que el
+          de "Fondo del portal público", que nunca se auto-abría), para
+          evitar la lectura del catálogo en Firestore hasta que la
+          persona lo abra a mano.
+     v1.99.16: (fix) causa raíz real de por qué el ícono de fondo del
+     pedido nunca cargaba (v1.99.14 arregló el encoding pero no era
+     suficiente): Chrome/Edge bloquean por CORS que un SVG en data-URI
+     cargue una imagen externa de Cloudinary dentro de su propio
+     <image> — por eso se veían los íconos de "imagen rota" en mosaico.
+     Se abandona el envoltorio SVG: _cocEstiloPatronDecorado() ahora usa
+     la foto DIRECTO como background-image de CSS (sin bloqueo CORS),
+     con la opacidad horneada vía transformación de Cloudinary (o_10,
+     insertada después de "/upload/" en la URL) y el mosaico armado con
+     background-repeat/background-size puro. data-fondo-url (v1.99.13)
+     se mantiene con la URL final para el precargador antes de imprimir.
+     El corazón por defecto sigue intacto, no depende de esto.
+     v1.99.15: (a pedido) 2 cambios sobre el color de estado de pedidos:
+       1. Badge "Pendiente" tenía color:var(--warn), casi idéntico al
+          dorado de "En proceso" (var(--gold)) — se confundían. Ahora
+          tiene su propio azul (#4f7cc4), no tocado en ningún otro lado
+          (--warn sigue igual para badge-pago-pedido.abono, toasts, saldo).
+       2. La card de cada pedido ahora hereda color según su estado
+          (opción "fuerte": franja lateral de 4px + tinte de fondo sutil
+          ~7% opacidad), vía nuevas clases .pedido-card.estado-*. Acotado
+          para no afectar las cards de "Recetas guardadas", que comparten
+          la misma clase base .receta-card pero NO llevan .pedido-card.
+     v1.99.14: (fix) causa raíz real del ícono de fondo que no cargaba:
+     en _cocEstiloPatronDecorado(), urlSvgSegura aplicaba
+     encodeURIComponent() a la URL de Cloudinary ANTES de insertarla en
+     el href del <image> del SVG. Eso convertía la URL en un texto
+     literal tipo "https%3A%2F%2Fres.cloudinary.com%2F..." — el
+     navegador buscaba un archivo con ese nombre literal, que no existe,
+     y fallaba en silencio (fondo en blanco). Cambiado a _cocEsc() (el
+     escape correcto para un atributo XML/SVG, ya usado en el resto del
+     archivo). El encodeURIComponent() del SVG completo (dataUri) sigue
+     igual, ese es el correcto. El fix de precarga de v1.99.13
+     (data-fondo-url + _cocEsperarImagenes) se mantiene sin cambios.
+     v1.99.13: (fix) el ícono de fondo personalizado por pedido
+     (iconoDecoradoUrl, catálogo avataresIconos) a veces no cargaba en el
+     PDF de pedido. Causa: vive en background-image de un SVG data-URI,
+     y _cocEsperarImagenes() (el que espera imágenes antes de
+     window.print()) solo revisaba document.images (<img> del DOM), así
+     que nunca lo detectaba y a veces imprimía antes de que cargara.
+     Fix en 2 puntos:
+       1. _cocEstiloPatronDecorado() ahora también agrega
+          data-fondo-url="..." con la URL real de Cloudinary.
+       2. _cocEsperarImagenes() ahora también busca elementos con
+          data-fondo-url y los precarga con new Image() antes de llamar
+          a cb(), con el mismo tope de 4s ya existente.
+     El corazón por defecto (SVG inline con <text>, sin URL externa) NO
+     se toca — sigue funcionando exactamente igual, sin depender de red.
+     v1.99.12: (a pedido) línea "Generado desde: ..." en el encabezado
+     del PDF de Lista de compras — se deriva agregando y deduplicando
+     los recetasOrigen de TODOS los ítems que van en el PDF impreso
+     (respeta el filtro de categoría activo). Recetas con lotes
+     muestran "Nombre ×N lotes"; pedidos sueltos muestran "Pedido de
+     Cliente" sin lotes. No es un dato nuevo guardado — se calcula al
+     imprimir a partir de lo que cada ítem ya trae.
+     v1.99.11: (a pedido) últimos puntos pendientes del plan original +
+     nuevo pedido:
+     (1) punto 2: "Para: ..." se trunca a los primeros 2 orígenes +
+         "+N más" en pantalla (con title=lista completa al pasar el
+         mouse). El PDF NO se truncó — en papel no hay la misma
+         restricción de espacio que en mobile.
+     (2) punto 3: orden fijo dentro de cada categoría — alfabético por
+         defecto (localeCompare 'es'), tanto en pantalla como en PDF.
+     (3) nuevo: chip "💰 Mayor precio" para ordenar por "compra
+         completa" descendente en vez de alfabético (variable global
+         ordenComprasPorPrecio, aplica también al PDF). Función nueva
+         montoCompraCompletaItem() extrae el cálculo que ya existía
+         inline para reusarlo en el total general y en el ordenamiento
+         — mismo resultado, sin duplicar fórmula.
+     v1.99.10: (a pedido) desglose "cantidad por lote × N lotes" que
+     había quedado pendiente desde el diseño original — se retoma la
+     decisión ya acordada: se guarda "lotes" en cada entrada de
+     recetasOrigen (agregarRecetasAlCheck/confirmarStockYGenerarLista,
+     antes se perdía tras calcular el total), y en Compras (pantalla +
+     PDF) se muestra "Para: [receta] (X unidad × N lotes)" SOLO si hay
+     un único origen tipo receta con esos datos — si hay 2+ orígenes o
+     es ítem suelto, se ve exactamente igual que antes (sin desglose,
+     evitando el mismo problema de texto largo del punto 2 original).
+     Ítems generados antes de v1.99.10 no tienen "lotes" guardado, así
+     que tampoco muestran desglose hasta que se regeneren. No toca
+     ningún cálculo de costeo ni el total ya sumado por insumo.
+     v1.99.9: (a pedido) mobile — los bloques nuevos de Compras
+     (compra-presentacion, compra-total-presentacion, y el total
+     general) no tenían el piso táctil de 0.92rem que ya aplica
+     @media (max-width:600px) a .compra-total y otros textos
+     secundarios. Se agregan a esa misma regla, con "Compra completa"
+     del total general un poco más grande (1.15rem) para mantener su
+     jerarquía como dato principal también en móvil. Puramente visual.
+     v1.99.8: (a pedido) 2 ajustes:
+     (1) separador de miles (.) en TODOS los montos de Compras que aún
+         usaban $Math.round() sin formato — $ por ítem (pantalla y
+         actualización en vivo), "compra completa", PDF/checklist — ya
+         usan formatoMoneda() (toLocaleString es-CO), igual que el resto
+         del sistema.
+     (2) jerarquía/diseño del total general: pasó de fila horizontal
+         (label+monto en baseline) a bloques apilados verticalmente
+         (label arriba, monto abajo), con "Compra completa" grande/
+         dorado como principal y "Costo receta" chico/gris como
+         secundario — mismo lenguaje visual que ya usan las líneas por
+         ítem. Puramente visual, no toca ningún cálculo.
+     v1.99.7: (a pedido) total general arriba de la lista de Compras —
+     suma "Compra completa" (destacado) y "Costo receta" (secundario)
+     de los ítems visibles con el filtro de categoría/etiqueta activo
+     (excluye "ya la tengo", igual que el $ por ítem). Se recalcula en
+     cada renderListaCompras(), o sea con cualquier cambio de filtro o
+     dato en vivo. Puramente informativo, no toca ningún cálculo
+     existente ni checkComprasCache.
+     v1.99.6: (a pedido) resaltado visual del insumo específico dentro
+     del detalle expandido de una receta desactualizada — si el precio
+     guardado en la receta (i.valorUnidad) difiere del precio vigente
+     del insumo (insumosCache), esa fila se resalta (fondo dorado tenue
+     + ⚠️ junto al nombre + tooltip con precio guardado vs vigente).
+     Puramente visual, no toca costoActualReceta ni ningún cálculo.
+     v1.99.5: (a pedido) botón "🔄 Actualizar con precios nuevos" en el
+     detalle expandido de Recetas, visible solo cuando ya está el badge
+     "⚠️ Insumo actualizado" — recalcula receta.insumos con el precio
+     VIGENTE de cada insumo (mismo criterio que costoActualReceta), y
+     costoTotal/ganancia/margenPct en consecuencia. ingresos/precioVenta
+     NO se tocan (dependen de lo que se cobra, no de lo que se gasta).
+     Actualiza todos los insumos de la receta de una vez, con confirm()
+     antes de guardar en Firestore. No toca nombre, imagen, tamaño
+     alterno ni ningún otro campo de la receta.
+     v1.99.4: (a pedido) el PDF/checklist imprimible de "Lista de
+     compras" (imprimirListaComprasHTML) ahora muestra, por ítem, lo
+     mismo que ya se ve en pantalla desde v1.99.3: línea "≈ N
+     [presentación] de [contenido] [unidad]" + "$X compra completa"
+     (destacado) + "$Y (costo receta)" (chico), cuando el insumo tiene
+     contenidoPresentacionCompra/nombrePresentacionCompra cargados. Si
+     no los tiene, se ve igual que antes (solo cantidad+unidad). No
+     toca ningún cálculo existente, solo agrega el mismo dato ya
+     calculado en pantalla al HTML que se imprime.
+     v1.99.3: (a pedido) 2 ajustes sobre v1.99.2 en Compras:
+     (1) fix: el nombre de presentación ya no fuerza plural con "+s"
+         (causaba "BOLSASs" si el insumo ya estaba cargado en plural) —
+         ahora se muestra el texto tal cual está guardado en el insumo.
+     (2) jerarquía invertida: cuando hay presentación cargada, el $ de
+         "compra completa" (bolsas redondeadas × contenido × precio)
+         pasa a ser el destacado en dorado, y el $ de "costo receta"
+         (cantidad exacta × precio, el mismo cálculo de siempre) pasa a
+         texto chico/secundario con su etiqueta. Mismo id
+         compra-total-<insumoId> se mantiene en el elemento de costo
+         receta (lo usan actualizarTotalEnVivo/cancelar sin cambios).
+     v1.99.2: (a pedido) en Compras, si el insumo tiene presentación de
+     compra cargada, se agrega una segunda línea de $ mostrando el costo
+     real de comprar las presentaciones completas ya redondeadas hacia
+     arriba (ej. "$7200 si compras bolsas completas"), debajo del $
+     original (costo receta, sin redondear). No toca it.cantidad *
+     precioActual (costeo de receta/margen), es 100% aditivo — solo
+     aparece cuando ya está la línea "≈ N bolsas..." de v1.99.
+     v1.99.1: (a pedido) fix sobre v1.99 — la línea de conversión en
+     Compras solo mostraba "≈ N BOLSA" (cantidad + nombre), sin decir
+     de qué tamaño es cada unidad de compra. Ahora dice "≈ N bolsas de
+     [contenidoPresentacionCompra] [unidad]", ej. "≈ 2 BOLSA de 1000
+     ML". Solo cambia el texto mostrado (renderListaCompras); no toca
+     el modelo de datos ni el cálculo ya agregado en v1.99.
+     v1.99: (a pedido) conversión a presentación de compra en Compras —
+     punto 1 del plan de mejoras de la pantalla de Compras (ojo mobile).
+       - 2 campos NUEVOS y OPCIONALES en el formulario de Insumos:
+         "Contenido por unidad de compra" (número, en la misma unidad
+         base del insumo — ej. 1000 si la harina se compra en bolsas de
+         1000 g) y "Nombre de la presentación de compra" (texto libre,
+         ej. "bolsa", "caja x12"). Se guardan como
+         contenidoPresentacionCompra / nombrePresentacionCompra en el
+         documento del insumo (cocinaInsumos). Ninguno de los dos es
+         obligatorio: si falta cualquiera de los dos al guardar, no se
+         guarda ninguno (la conversión necesita el par completo) — no
+         hay migración de datos, los insumos ya cargados simplemente no
+         tienen el campo hasta que se edite y complete a mano.
+       - En Compras (renderListaCompras): si el insumo del ítem tiene
+         ambos campos cargados, aparece una línea chica bajo la
+         cantidad, ej. "≈ 3 bolsas" (Math.ceil(cantidad /
+         contenidoPresentacionCompra), redondeado siempre hacia arriba
+         para no quedarse corto en el súper). Si el insumo NO tiene el
+         campo cargado, no se muestra nada — igual que antes de v1.99.
+       - No toca cálculo de costos, stock, ni el modelo de Pedidos/
+         Recetas — es aditivo y puramente informativo en Compras.
      v1.98: (a pedido) ambos selectores de ícono (el de cada pedido y
      el de fondo general del portal) ahora son colapsables
      (<details>/<summary>) y el catálogo (colección avataresIconos
@@ -1617,24 +1944,32 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 .receta-card .receta-resumen{ font-size:0.88rem; color:var(--muted); margin-top:2px; }
 .receta-card .receta-detalle{ display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:10px; }
 .receta-card .receta-detalle.activo{ display:block; }
+/* v1.99.15: (a pedido) las cards de PEDIDO (no las de receta) heredan
+   color según su estado — franja lateral + tinte de fondo sutil, sobre
+   el mismo .receta-card de siempre. Acotado con .pedido-card para no
+   afectar las cards de "Recetas guardadas" (comparten .receta-card).
+   Color de "Pendiente" separado de --warn (antes casi igual a --gold de
+   "En proceso" y se confundían) — azul propio, no tocado en ningún otro
+   lado del archivo. */
+.pedido-card{ border-left:4px solid var(--border); transition:background-color .15s, border-left-color .15s; }
+.pedido-card.estado-pendiente{ border-left-color:#4f7cc4; background:rgba(79,124,196,0.07); }
+.pedido-card.estado-en_proceso{ border-left-color:var(--gold); background:var(--gold-soft); }
+.pedido-card.estado-entregado{ border-left-color:var(--ok); background:rgba(92,184,92,0.07); }
+.pedido-card.estado-cancelado{ border-left-color:var(--danger); background:rgba(160,50,40,0.07); }
 .receta-detalle-fila{
   display:flex; justify-content:space-between; font-size:0.9rem; padding:4px 0; color:var(--muted);
 }
 .receta-detalle-fila span:last-child{ font-family:var(--M); color:var(--text); }
+.receta-detalle-fila.insumo-precio-cambio{ background:rgba(212,175,55,0.1); border-radius:4px; padding-left:6px; padding-right:6px; } /* v1.99.6 */
+.receta-detalle-fila.insumo-precio-cambio span:first-child{ color:var(--gold); } /* v1.99.6 */
 .hint-sugerido{ font-size:0.82rem; color:var(--gold); margin-top:4px; min-height:1em; }
 /* v1.8: aclaraciones fijas de "por lote vs por unidad" en Recetas —
    mismo tamaño que hint-sugerido pero color --faint (no --gold),
    porque no es una sugerencia dinámica sino un texto fijo. */
 .hint-campo{ font-size:0.82rem; color:var(--faint); margin-top:4px; line-height:1.35; }
-.grid-iconos-decorado{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
-.item-icono-decorado{
-  width:56px; height:56px; border-radius:10px; border:2px solid var(--border);
-  cursor:pointer; overflow:hidden; position:relative; background:var(--bg-card-alt);
-  display:flex; align-items:center; justify-content:center; flex-shrink:0;
-}
-.item-icono-decorado img{ width:100%; height:100%; object-fit:cover; }
-.item-icono-decorado.seleccionado{ border-color:var(--gold); box-shadow:0 0 0 2px var(--gold-soft); }
-.item-icono-decorado.sin-decorado{ font-size:1.4rem; }
+/* v1.99.21: se retiran .grid-iconos-decorado / .grupo-iconos-decorado-titulo
+   / .item-icono-decorado (grid del catálogo de fotos avataresIconos) —
+   ya sin uso, el patrón decorado quedó solo por emoji tipeado a mano. */
 .badge-desactualizada{
   display:inline-block; font-size:0.78rem; font-weight:600; color:var(--danger);
   background:rgba(160,50,40,0.12); border:1px solid rgba(160,50,40,0.3);
@@ -1680,7 +2015,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   display:inline-block; font-size:0.78rem; font-weight:600;
   border-radius:6px; padding:2px 8px; margin-left:6px; vertical-align:middle;
 }
-.badge-estado-pedido.pendiente{ color:var(--warn); background:rgba(212,160,23,0.12); border:1px solid rgba(212,160,23,0.3); }
+.badge-estado-pedido.pendiente{ color:#4f7cc4; background:rgba(79,124,196,0.12); border:1px solid rgba(79,124,196,0.3); } /* v1.99.15: color propio, ya no comparte --warn con badge-pago-pedido.abono (se confundía con En proceso, dorado) */
 .badge-estado-pedido.en_proceso{ color:var(--gold); background:var(--gold-soft); border:1px solid rgba(196,152,44,0.3); }
 .badge-estado-pedido.entregado{ color:var(--ok); background:rgba(92,184,92,0.12); border:1px solid rgba(92,184,92,0.3); }
 .badge-estado-pedido.cancelado{ color:var(--danger); background:rgba(160,50,40,0.12); border:1px solid rgba(160,50,40,0.3); }
@@ -1814,6 +2149,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
 .compra-item.no-necesita .btn-toggle-stock{ border-color:var(--ok); color:var(--ok); }
 .compra-nombre{ font-weight:600; font-size:1.05rem; }
 .compra-meta{ font-size:0.9rem; color:var(--muted); margin-top:2px; }
+.compra-desglose-lotes{ color:var(--faint); font-size:0.85em; } /* v1.99.10 */
 .compra-cant{ font-family:var(--M); color:var(--muted); white-space:nowrap; font-size:1rem; }
 /* v1.28: "ghost" del precio anterior — visible solo en ítems ya
    comprados, muestra a qué precio queda el insumo (nuevo) y a cuál
@@ -1825,6 +2161,15 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
    de la cantidad — estimado, no un valor guardado, por eso usa el
    valorUnidad vigente y no queda ligado a la compra ya confirmada. */
 .compra-total{ font-size:0.9rem; color:var(--gold); font-weight:600; margin-top:2px; }
+.compra-total.compra-total-secundario{ font-size:0.75rem; color:var(--muted); font-weight:400; margin-top:4px; } /* v1.99.3: cuando hay presentación, el total de receta pasa a referencia secundaria */
+.compra-presentacion{ font-size:0.8rem; color:var(--muted); margin-top:2px; } /* v1.99 */
+.compra-total-presentacion{ font-size:0.9rem; color:var(--gold); font-weight:600; margin-top:1px; } /* v1.99.3: ahora es el total destacado (antes era secundario en v1.99.2) */
+.compras-total-general{ display:flex; flex-direction:column; gap:6px; padding:10px 0; border-bottom:1px solid var(--border); margin-bottom:6px; } /* v1.99.8 */
+.compras-total-general-principal{ display:flex; flex-direction:column; }
+.compras-total-general-principal .compras-total-general-monto{ font-size:1.3rem; font-weight:700; color:var(--gold); }
+.compras-total-general-secundario{ display:flex; flex-direction:column; }
+.compras-total-general-secundario .compras-total-general-monto{ font-size:0.85rem; font-weight:400; color:var(--muted); }
+.compras-total-general-label{ font-size:0.72rem; font-weight:400; color:var(--muted); text-transform:uppercase; letter-spacing:0.02em; } /* v1.99.7 */
 .compra-comprar-form{
   display:none; grid-template-columns:1fr 1fr auto; gap:8px; margin-top:8px;
   grid-column:1/-1;
@@ -1894,12 +2239,20 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   .conteo,
   .compra-meta,
   .compra-total,
+  .compra-presentacion,
+  .compras-total-general-label,
   .sub,
   .margen-box .lbl,
   .field-total .lbl,
   .chip-filtro{
     font-size:0.92rem !important;
   }
+  /* v1.99.9: (a pedido) mismo piso táctil para los montos nuevos de
+     Compras (compra completa por ítem y total general) — antes solo
+     .compra-total tenía el mínimo de 0.92rem en móvil. */
+  .compra-total-presentacion{ font-size:0.92rem !important; }
+  .compras-total-general-secundario .compras-total-general-monto{ font-size:0.92rem !important; }
+  .compras-total-general-principal .compras-total-general-monto{ font-size:1.15rem !important; }
 
   /* v1.10: fila de insumo en receta, en 3 líneas (select / cant+subtotal / borrar) */
   .receta-insumo-row{
@@ -1996,7 +2349,8 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
             <h3 style="margin-bottom:4px;">📋 Historial de ventas</h3>
             <div class="card-sub">Ordenado por fecha, más reciente primero.</div>
           </div>
-          <div style="display:flex; gap:8px; flex-shrink:0;">
+          <div style="display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap;">
+            <button type="button" class="btn-ghost" title="Congela costo/receta con precios de HOY en las ventas que aún no tienen ese dato guardado" onclick="recalcularVentasAntiguas()">🔄 Recalcular antiguas</button>
             <button type="button" class="btn-ghost" title="Exportar historial filtrado a PDF" onclick="imprimirVentasHTML()">📄 PDF</button>
             <button type="button" class="btn-ghost" title="Exportar historial filtrado a Excel (.xlsx)" onclick="exportarVentasXLSX()">📗 Excel</button>
             <button type="button" class="btn-ghost" title="Exportar historial filtrado a CSV" onclick="exportarVentasCSV()">📊 CSV</button>
@@ -2105,6 +2459,14 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
         <div class="field" id="filaInsumoStockActual" style="display:none;">
           <label for="inputInsumoStockActual">Stock actual (en la misma unidad de arriba)</label>
           <input type="number" id="inputInsumoStockActual" min="0" step="0.01" placeholder="0">
+        </div>
+        <div class="field">
+          <label for="inputInsumoPresentacionCantidad">Contenido por unidad de compra (opcional)</label>
+          <input type="number" id="inputInsumoPresentacionCantidad" min="0" step="0.01" placeholder="ej: 1000 (si se compra en bolsas de 1000 g)">
+        </div>
+        <div class="field">
+          <label for="inputInsumoPresentacionNombre">Nombre de la presentación de compra (opcional)</label>
+          <input type="text" id="inputInsumoPresentacionNombre" placeholder="ej: bolsa, caja x12, botella">
         </div>
         <div class="field" style="grid-column:1/-1;">
           <label for="inputNuevaEtiquetaInsumo">Etiquetas de uso (ej: salsas, bebidas — un insumo puede tener varias)</label>
@@ -2331,12 +2693,13 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
       </div>
 
       <div class="field" style="margin:14px 0;">
-        <details id="detallesIconoDecoradoPedido" ontoggle="if(this.open) cargarCatalogoIconosSiHaceFalta()">
-          <summary style="cursor:pointer; color:var(--muted); font-size:0.9rem;">🎨 Ícono decorado (opcional — patrón de fondo de este PDF)</summary>
-          <div id="gridIconoDecoradoPedido" class="grid-iconos-decorado" style="margin-top:8px;">
-            <div class="hint-campo">Toca para cargar los íconos del catálogo…</div>
-          </div>
-        </details>
+        <label style="color:var(--muted); font-size:0.9rem;">🎨 Ícono decorado (opcional — patrón de fondo de este PDF)</label>
+        <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
+          <input type="text" id="inputIconoDecoradoEmoji" placeholder="❤️" maxlength="4"
+            style="width:70px; text-align:center; font-size:1.1rem;"
+            oninput="actualizarIconoDecoradoEmoji(this.value)">
+          <span class="hint-campo" style="margin:0;">Tipea un emoji para usarlo como patrón. Vacío = corazón por defecto.</span>
+        </div>
       </div>
 
       <div id="filasLineasPedido"></div>
@@ -2418,12 +2781,13 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
     <div class="card">
       <h3 style="margin:0 0 4px;">🎨 Fondo del portal público (menu.html)</h3>
       <div class="card-sub">Ícono decorativo de fondo para TODO el catálogo público — se cambia manualmente cuando quieras (temporada, fecha especial, etc.). No tiene relación con el ícono de cada pedido individual.</div>
-      <details id="detallesIconoFondoGeneral" ontoggle="if(this.open) cargarCatalogoIconosSiHaceFalta()" style="margin-top:8px;">
-        <summary style="cursor:pointer; color:var(--muted); font-size:0.9rem;">🎨 Elegir ícono de fondo</summary>
-        <div id="gridIconoFondoGeneral" class="grid-iconos-decorado" style="margin-top:8px;">
-          <div class="hint-campo">Toca para cargar los íconos del catálogo…</div>
-        </div>
-      </details>
+      <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+        <input type="text" id="inputIconoFondoGeneralEmoji" placeholder="❤️" maxlength="4"
+          style="width:70px; text-align:center; font-size:1.1rem;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault(); guardarIconoFondoGeneralEmoji();}">
+        <button type="button" class="btn-ghost" onclick="guardarIconoFondoGeneralEmoji()">Guardar</button>
+        <span class="hint-campo" style="margin:0;">Vacío = corazón por defecto.</span>
+      </div>
     </div>
 
     <div class="card">
@@ -2481,7 +2845,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
           <button type="button" class="btn-ghost" onclick="imprimirListaComprasHTML()" style="white-space:nowrap;">🖨️ Imprimir</button>
-          <button type="button" class="btn-ghost" onclick="vaciarListaCompras()" style="white-space:nowrap;">Vaciar lista</button>
+          <button type="button" class="btn-ghost" onclick="archivarYVaciarListaCompras()" style="white-space:nowrap;">🗄️ Cerrar y archivar</button>
         </div>
       </div>
       <div style="padding:0 20px 10px;" id="filtroCategoriaComprasWrap">
@@ -2491,9 +2855,44 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
       <div style="padding:0 20px 10px;" id="filtroEtiquetaComprasWrap">
         <div class="filtro-chips" id="filtroEtiquetaComprasChips"></div>
       </div>
+      <!-- v1.99.11: chip de orden — alfabético (default) o precio desc -->
+      <div style="padding:0 20px 10px;" id="ordenComprasWrap">
+        <div class="filtro-chips" id="ordenComprasChips"></div>
+      </div>
+      <!-- v1.99.7: totales generales, recalculados según el filtro de categoría/etiqueta activo -->
+      <div style="padding:0 20px 10px;" id="comprasTotalesWrap"></div>
       <div style="padding:4px 20px 18px;" id="listaCompras">
         <div class="vacio">Cargando…</div>
       </div>
+    </div>
+
+    <!-- v1.99.24: (a pedido) filtro por fecha + paginado, historial de
+         listas cerradas — colección historialCompras, un doc por cada
+         "Cerrar y archivar". Solo lectura + agregar/borrar facturas y
+         la lista entera; no permite reabrir ni editar los ítems de una
+         lista ya cerrada (para eso está la lista activa de arriba). -->
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="padding:18px 20px 0;">
+        <h3 style="margin-bottom:4px;">🗄️ Historial de compras</h3>
+        <div class="card-sub">Listas ya cerradas, más reciente primero. Cada una puede tener fotos de factura adjuntas (no se reconcilian por ítem, son solo el respaldo de esa ronda de compras).</div>
+        <div class="form-grid" style="margin-bottom:10px;">
+          <div class="field">
+            <label for="filtroHistorialDesde">Desde</label>
+            <input type="date" id="filtroHistorialDesde" onchange="renderHistorialCompras()">
+          </div>
+          <div class="field">
+            <label for="filtroHistorialHasta">Hasta</label>
+            <input type="date" id="filtroHistorialHasta" onchange="renderHistorialCompras()">
+          </div>
+          <div class="btn-row" style="align-self:flex-end;">
+            <button type="button" class="btn-ghost" onclick="limpiarFiltroHistorialCompras()">Limpiar filtro</button>
+          </div>
+        </div>
+      </div>
+      <div style="padding:4px 20px 18px;" id="listaHistorialCompras">
+        <div class="vacio">Cargando…</div>
+      </div>
+      <div style="padding:0 20px 18px;" id="cargarMasHistorialWrap"></div>
     </div>
   </div>
 </div>
@@ -2663,21 +3062,20 @@ let pedidosCache = [];
 let pedidoEnEdicionId = null;
 let lineasPedidoEnConstruccion = []; // [{filaId, tipo, refId, nombre, unidad, cantidad, costoUnitario, precioUnitario}]
 let notasPedidoEnConstruccion = []; // v1.38: [{texto, hecho}]
-// v1.90: (a pedido) catálogo de íconos (colección avataresIconos, ya
-// usada por avatares-iconos.html) y el ícono elegido para decorar
-// ESTE pedido (patrón de fondo del PDF y del portal público).
-let iconosDecoradosCache = []; // [{id, nombre, urlCloudinary}], solo tipo:'icono' y activo!==false
-let iconoDecoradoSeleccionado = null; // {url, nombre} | null (= sin decorado)
-// v1.98: (a pedido) el catálogo (colección completa) ya NO se carga
-// solo por abrir la app — se carga la PRIMERA vez que alguien abre
-// cualquiera de los 2 colapsables que lo usan (ficha de pedido / fondo
-// general del portal), para no gastar esas lecturas de Firestore si
-// nunca se toca ese selector en la sesión.
-let iconosDecoradosCargados = false;
-// v1.97: (a pedido) ícono de fondo GENERAL para menu.html (todo el
-// portal, no por pedido) — vive en config/menuPublico, campo
-// iconoFondoUrl/iconoFondoNombre. Reusa el mismo catálogo de arriba.
-let iconoFondoGeneralActual = null; // {url, nombre} | null (= corazón por defecto de menu.html)
+// v1.99.21: (a pedido) se retira el catálogo de fotos (avataresIconos)
+// como fuente del patrón decorado — queda TODO por emoji tipeado a
+// mano, tanto por pedido como en el fondo general del portal. Se
+// conserva la colección avataresIconos intacta en Firestore (la sigue
+// administrando avatares-iconos.html) por si se usa en otro lado; solo
+// se quita el código de ESTE archivo que la consumía para este patrón.
+// v1.99.20: emoji tipeado a mano para decorar ESTE pedido — mismo
+// mecanismo que el corazón por defecto (texto Unicode en el SVG, no
+// imagen). '' = no se tipeó nada (cae al corazón por defecto).
+let iconoDecoradoEmojiActual = '';
+// v1.99.21: emoji tipeado a mano para el fondo GENERAL del portal
+// (menu.html) — vive en config/menuPublico, campo iconoFondoEmoji.
+// '' = corazón por defecto de menu.html.
+let iconoFondoGeneralEmojiActual = '';
 let abonosPedidoEnConstruccion = []; // v1.43: [{monto, fecha}]
 
 // v1.43: suma el historial de abonos de un pedido. Compatible con
@@ -2824,6 +3222,29 @@ function guardarVenta(){
   const total = cantidad * precioUnitario;
   const datos = { fecha, producto, cantidad, precioUnitario, total };
 
+  // v1.99.22: (a pedido, optimización) engancha la receta correspondiente
+  // (mismo cruce por nombre normalizado que ya usaba margenVenta) y
+  // congela ACÁ, al momento de guardar, tanto el id de la receta como el
+  // costo unitario vigente en ese instante (costoActualReceta(), ya
+  // existente). Antes, margenVenta() SIEMPRE recalculaba el costo con
+  // los precios de HOY sin importar cuándo fue la venta, así que el
+  // margen de una venta vieja cambiaba solo porque cambió el precio de
+  // un insumo, sin que la venta en sí cambiara. Con el snapshot, el
+  // margen histórico queda fijo desde el momento en que se guardó.
+  // Si no hay receta con ese nombre (producto suelto sin receta
+  // asociada) o la receta no tiene unidadesPorLote, estos 2 campos
+  // simplemente no se guardan — igual que hasta ahora, margenVenta()
+  // mostrará "—". NOTA: si editás una venta vieja, este bloque se
+  // vuelve a ejecutar y el snapshot se recalcula con los precios de
+  // HOY (al momento de editar) — a propósito, editar = volver a
+  // guardar.
+  const claveProducto = normalizarNombre(producto);
+  const recetaEnganchada = recetasCache.find(r => normalizarNombre(r.nombre) === claveProducto);
+  if(recetaEnganchada && recetaEnganchada.unidadesPorLote){
+    datos.recetaId = recetaEnganchada.id;
+    datos.costoUnitarioAlVender = costoActualReceta(recetaEnganchada) / recetaEnganchada.unidadesPorLote;
+  }
+
   // v1.57: si hay una venta en edición, actualiza el documento existente
   // en vez de crear uno nuevo. No se toca creadoEn del documento original.
   const promesa = ventaEnEdicionId
@@ -2839,6 +3260,47 @@ function guardarVenta(){
     document.getElementById('totalFormPreview').textContent = '$0';
     if(eraEdicion){ cancelarEdicionVenta(); mostrarToast('✅ Venta actualizada', 'ok'); }
   }).catch(err => { console.error(err); alert('No se pudo guardar la venta.'); });
+}
+
+// v1.99.24: (a pedido) migración manual para ventas guardadas ANTES de
+// v1.99.22 (sin recetaId/costoUnitarioAlVender) — las deja mostrando
+// margen "en vivo" para siempre si nunca se editan a mano. Este botón
+// las recorre UNA vez y les congela el snapshot, con EL MISMO cruce por
+// nombre y la MISMA costoActualReceta() que ya usa guardarVenta().
+// AVISO IMPORTANTE (se lo advierte al usuario antes de confirmar): el
+// costo que se congela es el de HOY, no el precio real del día en que
+// se vendió — ese dato ya no existe si no se guardó en su momento. Es
+// mejor que nada (deja de moverse solo de acá en adelante), pero no es
+// retroactivamente exacto. Ventas que YA tienen el snapshot (recetaId
+// presente) se saltan, no se tocan. Usa un batch de Firestore (máx. 500
+// escrituras) — con historiales más grandes que eso habría que
+// partirlo en varios batches, no contemplado acá porque no se pidió.
+function recalcularVentasAntiguas(){
+  const pendientes = ventasCache.filter(v => !v.recetaId);
+  if(!pendientes.length){ alert('No hay ventas antiguas pendientes — todas ya tienen el costo congelado.'); return; }
+  if(!confirm(
+    `Se van a actualizar ${pendientes.length} venta(s) antigua(s) sin costo congelado.\n\n` +
+    `IMPORTANTE: el costo que se guarda es el de HOY (precios actuales de los insumos), no el precio real del día en que se hizo cada venta — ese dato ya no existe si no se guardó en su momento. De acá en adelante el margen de esas ventas dejará de moverse solo, pero el valor que va a quedar fijo no es retroactivamente exacto.\n\n¿Continuar?`
+  )) return;
+
+  const batch = db.batch();
+  let actualizadas = 0;
+  pendientes.forEach(v => {
+    const clave = normalizarNombre(v.producto);
+    const receta = recetasCache.find(r => normalizarNombre(r.nombre) === clave);
+    if(!receta || !receta.unidadesPorLote) return; // sin receta enganchada, no hay nada que congelar
+    batch.update(db.collection('ventasCocina').doc(v.id), {
+      recetaId: receta.id,
+      costoUnitarioAlVender: costoActualReceta(receta) / receta.unidadesPorLote
+    });
+    actualizadas++;
+  });
+
+  if(!actualizadas){ alert('Ninguna de las ventas pendientes tiene una receta enganchable por nombre — no hay nada para actualizar.'); return; }
+
+  batch.commit()
+    .then(() => mostrarToast(`✅ ${actualizadas} venta(s) actualizada(s)`, 'ok'))
+    .catch(err => { console.error(err); alert('No se pudo recalcular. Revisa la consola.'); });
 }
 
 function habilitarEdicionVenta(id){
@@ -2912,17 +3374,31 @@ function ventasFiltradas(){
   });
 }
 
-// v1.57: margen de una venta puntual, cruzando por NOMBRE con el
-// catálogo de Recetas (no hay relación por id entre "producto" de
-// Ventas y "receta" — mismo cruce por nombre normalizado que ya usa
-// autocompletarPrecioDesdeReceta). Si no hay receta con ese nombre
-// exacto (o la receta no tiene unidadesPorLote), no se puede calcular
-// y se muestra "—" en vez de arriesgar un número inventado.
-function margenVenta(v){
-  const clave = normalizarNombre(v.producto);
-  const receta = recetasCache.find(r => normalizarNombre(r.nombre) === clave);
+// v1.99.22: margen de una venta puntual. Desde v1.99.22, guardarVenta()
+// congela recetaId + costoUnitarioAlVender al momento de guardar — acá
+// se usa ESE snapshot como primera opción (costo real de cuando se
+// vendió, no el de hoy). Para ventas guardadas ANTES de este cambio
+// (sin esos 2 campos), se cae al comportamiento viejo: cruce por
+// NOMBRE con el catálogo de Recetas (normalizarNombre) y costo
+// recalculado en vivo con costoActualReceta(). recetaPorId/
+// recetaPorNombre son índices (Map) opcionales que arma renderTabla()
+// una sola vez por render, en vez de recorrer recetasCache.find() en
+// cada fila; si no se pasan, cae a .find() (mismo resultado, más
+// lento). Si no hay receta enganchada (o no tiene unidadesPorLote), no
+// se puede calcular y se muestra "—" en vez de arriesgar un número
+// inventado.
+function margenVenta(v, recetaPorId, recetaPorNombre){
+  let receta = v.recetaId
+    ? (recetaPorId ? recetaPorId.get(v.recetaId) : recetasCache.find(r => r.id === v.recetaId))
+    : null;
+  if(!receta){
+    const clave = normalizarNombre(v.producto);
+    receta = recetaPorNombre ? recetaPorNombre.get(clave) : recetasCache.find(r => normalizarNombre(r.nombre) === clave);
+  }
   if(!receta || !receta.unidadesPorLote) return null;
-  const costoUnitario = costoActualReceta(receta) / receta.unidadesPorLote;
+  const costoUnitario = (v.costoUnitarioAlVender != null)
+    ? v.costoUnitarioAlVender
+    : costoActualReceta(receta) / receta.unidadesPorLote;
   const margen = (v.total || 0) - (costoUnitario * (v.cantidad || 0));
   const margenPct = v.total > 0 ? (margen / v.total) * 100 : 0;
   return { margen, margenPct };
@@ -2947,8 +3423,17 @@ function renderTabla(){
     tbody.innerHTML = `<tr><td colspan="8" class="vacio">${ventasCache.length ? 'Ningún resultado con este filtro.' : 'Aún no hay ventas registradas.'}</td></tr>`;
     return;
   }
+  // v1.99.22: (a pedido, optimización) antes cada fila repetía su propio
+  // recetasCache.find() (por nombre) dentro de margenVenta — con el
+  // filtro de fecha/producto disparando un render por cada tecla, era
+  // recorrer todo recetasCache una vez por fila en cada render. Ahora
+  // se arman estos 2 índices UNA sola vez acá y se reutilizan en las N
+  // filas. No cambia ningún resultado, solo cuántas veces se recorre
+  // el arreglo.
+  const recetaPorId = new Map(recetasCache.map(r => [r.id, r]));
+  const recetaPorNombre = new Map(recetasCache.map(r => [normalizarNombre(r.nombre), r]));
   tbody.innerHTML = filas.map((v, i) => {
-    const m = margenVenta(v);
+    const m = margenVenta(v, recetaPorId, recetaPorNombre);
     const margenHTML = m
       ? `${formatoMoneda(m.margen)} <span style="opacity:.65;">(${m.margenPct.toFixed(1).replace('.', ',')}%)</span>`
       : '—';
@@ -3308,6 +3793,22 @@ function seleccionarFiltroEtiqueta(valor){
   renderTablaInsumos();
 }
 
+// v1.99.11: chip de orden de la Lista de compras — mismo patrón que
+// renderFiltroCategoriaComprasChips, pero solo alterna entre 2 estados.
+function renderOrdenComprasChip(){
+  const cont = document.getElementById('ordenComprasChips');
+  if(!cont) return;
+  cont.innerHTML = `
+    <button type="button" class="chip-filtro ${!ordenComprasPorPrecio ? 'activo' : ''}" onclick="seleccionarOrdenCompras(false)">🔤 Alfabético</button>
+    <button type="button" class="chip-filtro ${ordenComprasPorPrecio ? 'activo' : ''}" onclick="seleccionarOrdenCompras(true)">💰 Mayor precio</button>
+  `;
+}
+function seleccionarOrdenCompras(porPrecio){
+  ordenComprasPorPrecio = porPrecio;
+  renderOrdenComprasChip();
+  renderListaCompras();
+}
+
 // v1.12: mismo patrón de chips, para la Lista de compras
 function renderFiltroCategoriaComprasChips(){
   const cont = document.getElementById('filtroCategoriaComprasChips');
@@ -3384,6 +3885,13 @@ function guardarInsumo(){
   const trackearStock = document.getElementById('chkInsumoTrackearStock').checked;
   const stockActual = trackearStock ? (parseFloat(document.getElementById('inputInsumoStockActual').value) || 0) : null;
   const ocultoEnFicha = document.getElementById('chkInsumoOcultoFicha').checked; // v1.67
+  // v1.99: presentación de compra — ambos opcionales, ver Compras
+  // (renderListaCompras) para el uso. Si falta cualquiera de los dos,
+  // no se guarda ninguno (la conversión necesita el par completo).
+  const presentacionCantidadRaw = parseFloat(document.getElementById('inputInsumoPresentacionCantidad').value);
+  const presentacionNombreRaw = document.getElementById('inputInsumoPresentacionNombre').value.trim();
+  const contenidoPresentacionCompra = (!isNaN(presentacionCantidadRaw) && presentacionCantidadRaw > 0 && presentacionNombreRaw) ? presentacionCantidadRaw : null;
+  const nombrePresentacionCompra = contenidoPresentacionCompra ? presentacionNombreRaw : null;
 
   if(!nombre){ alert('Escribe el nombre del insumo.'); return; }
   if(categoriaId === '__nueva__'){ alert('Termina de guardar la categoría nueva primero (botón "Guardar" junto al nombre).'); return; }
@@ -3392,7 +3900,7 @@ function guardarInsumo(){
     alert('Ya existe un insumo con ese nombre.'); return;
   }
 
-  const datosInsumo = { nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad, trackearStock, stockActual, ocultoEnFicha, etiquetas: etiquetasInsumoEnConstruccion };
+  const datosInsumo = { nombre, categoriaId: categoriaId === '__nueva__' ? '' : categoriaId, unidad, valorUnidad, trackearStock, stockActual, ocultoEnFicha, etiquetas: etiquetasInsumoEnConstruccion, contenidoPresentacionCompra, nombrePresentacionCompra };
 
   if(insumoEnEdicionId){
     db.collection('cocinaInsumos').doc(insumoEnEdicionId).update(datosInsumo)
@@ -3411,6 +3919,8 @@ function guardarInsumo(){
       document.getElementById('inputInsumoStockActual').value = '';
       document.getElementById('filaInsumoStockActual').style.display = 'none';
       document.getElementById('chkInsumoOcultoFicha').checked = false;
+      document.getElementById('inputInsumoPresentacionCantidad').value = '';
+      document.getElementById('inputInsumoPresentacionNombre').value = '';
       etiquetasInsumoEnConstruccion = [];
       renderEtiquetasInsumo();
     }).catch(err => { console.error(err); alert('No se pudo guardar el insumo.'); });
@@ -3437,6 +3947,8 @@ function habilitarEdicionInsumo(id){
   document.getElementById('inputInsumoStockActual').value = (i.stockActual != null) ? i.stockActual : '';
   document.getElementById('filaInsumoStockActual').style.display = i.trackearStock ? '' : 'none';
   document.getElementById('chkInsumoOcultoFicha').checked = !!i.ocultoEnFicha;
+  document.getElementById('inputInsumoPresentacionCantidad').value = (i.contenidoPresentacionCompra != null) ? i.contenidoPresentacionCompra : '';
+  document.getElementById('inputInsumoPresentacionNombre').value = i.nombrePresentacionCompra || '';
   etiquetasInsumoEnConstruccion = Array.isArray(i.etiquetas) ? [...i.etiquetas] : [];
   renderEtiquetasInsumo();
 
@@ -3459,6 +3971,8 @@ function cancelarEdicionInsumo(){
   document.getElementById('inputInsumoStockActual').value = '';
   document.getElementById('filaInsumoStockActual').style.display = 'none';
   document.getElementById('chkInsumoOcultoFicha').checked = false;
+  document.getElementById('inputInsumoPresentacionCantidad').value = '';
+  document.getElementById('inputInsumoPresentacionNombre').value = '';
   etiquetasInsumoEnConstruccion = [];
   renderEtiquetasInsumo();
 
@@ -4061,6 +4575,36 @@ function costoActualReceta(receta){
   }, 0);
 }
 
+// v1.99.5: (a pedido) botón de acción del badge "⚠️ Insumo actualizado" —
+// reconstruye receta.insumos con el valorUnidad/subtotal VIGENTE de cada
+// insumo (mismo criterio que costoActualReceta), recalcula costoTotal y,
+// como ingresos/precioVenta NO cambian (dependen de lo que se cobra, no
+// de lo que se gasta), recalcula ganancia y margenPct con la misma
+// fórmula que guardarReceta(). Actualiza TODOS los insumos de la receta
+// de una vez (no insumo por insumo, a pedido). No toca nombre, imagen,
+// tamaño alterno, ni ningún otro campo de la receta.
+function actualizarRecetaConPreciosVigentes(recetaId){
+  const receta = recetasCache.find(r => r.id === recetaId);
+  if(!receta) return;
+  if(!confirm('¿Actualizar el costo de esta receta con los precios vigentes de sus insumos? Esto recalcula costo, ganancia y margen.')) return;
+
+  const insumosActualizados = (receta.insumos || []).map(i => {
+    const insumoVigente = insumosCache.find(ins => ins.id === i.insumoId);
+    const valorUnidad = insumoVigente ? insumoVigente.valorUnidad : i.valorUnidad;
+    return { ...i, valorUnidad, subtotal: valorUnidad * i.cantidad };
+  });
+  const costoTotal = insumosActualizados.reduce((acc, i) => acc + i.subtotal, 0);
+  const ingresos = receta.ingresos || 0;
+  const ganancia = ingresos - costoTotal;
+  const margenPct = ingresos > 0 ? (ganancia / ingresos) * 100 : 0;
+
+  db.collection('cocinaRecetas').doc(recetaId).update({
+    insumos: insumosActualizados, costoTotal, ganancia, margenPct
+  }).then(() => {
+    mostrarToast('✅ Receta actualizada', 'ok');
+  }).catch(err => { console.error(err); alert('No se pudo actualizar la receta.'); });
+}
+
 // v1.46: etiquetas de uso heredadas — unión de las etiquetas de todos
 // los insumos que componen la receta (no se guardan aparte, se
 // derivan en vivo desde insumosCache, igual que el costo actual).
@@ -4136,9 +4680,16 @@ function renderListaRecetas(){
         ${(r.insumos || []).map(i => {
           const insumoActual = insumosCache.find(ins => ins.id === i.insumoId);
           const catId = insumoActual ? (insumoActual.categoriaId || '') : '';
+          // v1.99.6: (a pedido) resalta la fila del insumo específico
+          // cuyo precio guardado (i.valorUnidad, al momento de crear/
+          // actualizar la receta) difiere del precio vigente en
+          // insumosCache — mismo criterio que costoActualReceta/badge
+          // ⚠️, pero aplicado insumo por insumo en vez de a la receta
+          // completa. Puramente visual, no toca ningún cálculo.
+          const precioCambio = insumoActual && Math.abs(insumoActual.valorUnidad - i.valorUnidad) >= 1;
           return `
-          <div class="receta-detalle-fila" data-cat="${catId}">
-            <span>${i.nombre} × ${i.cantidad} ${i.unidad}</span>
+          <div class="receta-detalle-fila ${precioCambio ? 'insumo-precio-cambio' : ''}" data-cat="${catId}" ${precioCambio ? `title="Precio guardado: ${formatoMoneda(i.valorUnidad)} · Precio vigente: ${formatoMoneda(insumoActual.valorUnidad)}"` : ''}>
+            <span>${i.nombre} × ${i.cantidad} ${i.unidad}${precioCambio ? ' ⚠️' : ''}</span>
             <span>${formatoMoneda(i.subtotal)}</span>
           </div>`;
         }).join('')}
@@ -4161,6 +4712,9 @@ function renderListaRecetas(){
         <div class="receta-detalle-fila" style="color:var(--gold);">
           <span>Costo con precios actuales</span>
           <span>${formatoMoneda(costoActual)}</span>
+        </div>
+        <div class="receta-detalle-fila" style="justify-content:flex-end;">
+          <button type="button" class="btn-ghost" onclick="actualizarRecetaConPreciosVigentes('${r.id}')">🔄 Actualizar con precios nuevos</button>
         </div>` : ''}
       </div>
     </div>
@@ -4217,98 +4771,38 @@ function renderFiltroCategoriaDetalle(id){
   `).join('');
 }
 
-// ============ v1.90: ÍCONO DECORADO DEL PEDIDO ============
-// Lee el mismo catálogo que administra avatares-iconos.html (colección
-// avataresIconos), filtrado a tipo:'icono' y activo!==false. Se carga
-// UNA vez (no en tiempo real: es un catálogo que casi no cambia) y se
-// vuelve a pedir solo si el caché quedó vacío.
-function tipoArrayIconoDecorado(it){
-  if(Array.isArray(it.tipo)) return it.tipo;
-  return it.tipo ? [it.tipo] : [];
+// ============ v1.99.21: ÍCONO DECORADO DEL PEDIDO (emoji) ============
+// v1.99.21: se retira el catálogo de fotos (avataresIconos, Firestore)
+// como fuente de este patrón — la colección queda intacta (la sigue
+// administrando avatares-iconos.html), solo se quita el código de este
+// archivo que la consumía. Todo el patrón decorado (por pedido y fondo
+// general del portal) queda por emoji tipeado a mano.
+// v1.99.20: (a pedido) actualiza el emoji tipeado a mano cada vez que
+// cambia el input. Se guarda recortado (trim) para que espacios no
+// cuenten como "hay emoji".
+function actualizarIconoDecoradoEmoji(valor){
+  iconoDecoradoEmojiActual = (valor || '').trim();
 }
 
-function cargarCatalogoIconosSiHaceFalta(){
-  if(iconosDecoradosCargados) return;
-  iconosDecoradosCargados = true;
-  escucharIconosDecorados();
-}
-
-function escucharIconosDecorados(){
-  db.collection('avataresIconos').get().then(snap => {
-    iconosDecoradosCache = snap.docs
-      .map(d => ({ id:d.id, ...d.data() }))
-      .filter(it => tipoArrayIconoDecorado(it).includes('icono') && it.activo !== false);
-    renderGridIconosDecorados();
-    renderGridIconoFondoGeneral(); // v1.97: mismo catálogo, evita que quede vacío por orden de carga
-  }).catch(err => {
-    console.error(err);
-    const cont = document.getElementById('gridIconoDecoradoPedido');
-    if(cont) cont.innerHTML = '<div class="hint-campo">No se pudo cargar el catálogo de íconos.</div>';
-  });
-}
-
-function urlMiniaturaIconoDecorado(urlOriginal){
-  // Mismo criterio que urlMiniatura() en avatares-iconos.html.
-  return urlOriginal.replace('/upload/', '/upload/w_150,h_150,c_fill,f_auto,q_auto/');
-}
-
-function renderGridIconosDecorados(){
-  const cont = document.getElementById('gridIconoDecoradoPedido');
-  if(!cont) return;
-  const sinNada = !iconoDecoradoSeleccionado;
-  let html = `<div class="item-icono-decorado sin-decorado ${sinNada ? 'seleccionado' : ''}"
-    title="Sin decorado" onclick="seleccionarIconoDecorado(null)">🚫</div>`;
-  html += iconosDecoradosCache.map(it => {
-    const marcado = iconoDecoradoSeleccionado && iconoDecoradoSeleccionado.url === it.urlCloudinary;
-    const nombreSeguro = (it.nombre || '').toString().replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    return `<div class="item-icono-decorado ${marcado ? 'seleccionado' : ''}" title="${nombreSeguro}"
-      onclick="seleccionarIconoDecorado('${it.urlCloudinary}', '${nombreSeguro}')">
-      <img src="${urlMiniaturaIconoDecorado(it.urlCloudinary)}" alt="${nombreSeguro}" loading="lazy">
-    </div>`;
-  }).join('');
-  cont.innerHTML = html || '<div class="hint-campo">No hay íconos activos en el catálogo todavía.</div>';
-}
-
-function seleccionarIconoDecorado(url, nombre){
-  iconoDecoradoSeleccionado = url ? { url, nombre: nombre || '' } : null;
-  renderGridIconosDecorados();
-}
-
-// ============ v1.97: ÍCONO DE FONDO GENERAL (menu.html) ============
+// ============ v1.99.21: ÍCONO DE FONDO GENERAL (menu.html, emoji) ============
 function escucharConfigMenuPublico(){
   db.collection('config').doc('menuPublico').onSnapshot(doc => {
     const datos = doc.exists ? doc.data() : {};
-    iconoFondoGeneralActual = datos.iconoFondoUrl ? { url: datos.iconoFondoUrl, nombre: datos.iconoFondoNombre || '' } : null;
-    renderGridIconoFondoGeneral();
-  }, err => {
-    console.error(err);
-    const cont = document.getElementById('gridIconoFondoGeneral');
-    if(cont) cont.innerHTML = '<div class="hint-campo">No se pudo cargar la configuración del portal.</div>';
-  });
+    iconoFondoGeneralEmojiActual = datos.iconoFondoEmoji || '';
+    const input = document.getElementById('inputIconoFondoGeneralEmoji');
+    if(input) input.value = iconoFondoGeneralEmojiActual;
+  }, err => console.error(err));
 }
 
-function renderGridIconoFondoGeneral(){
-  const cont = document.getElementById('gridIconoFondoGeneral');
-  if(!cont) return;
-  const esCorazonPorDefecto = !iconoFondoGeneralActual;
-  let html = `<div class="item-icono-decorado sin-decorado ${esCorazonPorDefecto ? 'seleccionado' : ''}"
-    title="Corazón por defecto" onclick="guardarIconoFondoGeneral(null)">❤️</div>`;
-  html += iconosDecoradosCache.map(it => {
-    const marcado = iconoFondoGeneralActual && iconoFondoGeneralActual.url === it.urlCloudinary;
-    const nombreSeguro = (it.nombre || '').toString().replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    return `<div class="item-icono-decorado ${marcado ? 'seleccionado' : ''}" title="${nombreSeguro}"
-      onclick="guardarIconoFondoGeneral('${it.urlCloudinary}', '${nombreSeguro}')">
-      <img src="${urlMiniaturaIconoDecorado(it.urlCloudinary)}" alt="${nombreSeguro}" loading="lazy">
-    </div>`;
-  }).join('');
-  cont.innerHTML = html || '<div class="hint-campo">No hay íconos activos en el catálogo todavía.</div>';
-}
-
-function guardarIconoFondoGeneral(url, nombre){
+function guardarIconoFondoGeneralEmoji(){
+  const valor = (document.getElementById('inputIconoFondoGeneralEmoji').value || '').trim();
   db.collection('config').doc('menuPublico').set({
-    iconoFondoUrl: url || null,
-    iconoFondoNombre: url ? (nombre || '') : null
+    iconoFondoEmoji: valor || null,
+    // se limpian los campos viejos de foto (v1.97-v1.99.19), ya en desuso.
+    iconoFondoUrl: null,
+    iconoFondoNombre: null
   }, { merge: true }).then(() => {
+    iconoFondoGeneralEmojiActual = valor;
     mostrarToast('✅ Fondo del portal actualizado', 'ok');
   }).catch(err => {
     console.error(err);
@@ -4595,11 +5089,12 @@ function guardarPedido(){
 
   const datosPedido = {
     cliente, telefono, fechaEntrega, notas, lineas, costoTotal, montoTotal, abonos,
-    // v1.90: ícono elegido para decorar este pedido (PDF + portal público).
-    // null si eligieron "Sin decorado" — el CSS del patrón cae a su
-    // comportamiento por defecto en ese caso (definido en el siguiente paso).
-    iconoDecoradoUrl: iconoDecoradoSeleccionado ? iconoDecoradoSeleccionado.url : null,
-    iconoDecoradoNombre: iconoDecoradoSeleccionado ? iconoDecoradoSeleccionado.nombre : null,
+    // v1.99.21: se retira el selector de fotos — el patrón decorado del
+    // pedido queda solo por emoji tipeado a mano. Pedidos guardados
+    // antes de esta versión con iconoDecoradoUrl siguen funcionando
+    // igual (_cocEstiloPatronDecorado los sigue leyendo como respaldo),
+    // simplemente ya no hay UI para volver a elegir una foto.
+    iconoDecoradoEmoji: iconoDecoradoEmojiActual || null,
     estado: pedidoEnEdicionId ? (pedidosCache.find(p => p.id === pedidoEnEdicionId) || {}).estado || 'pendiente' : 'pendiente'
   };
 
@@ -4622,18 +5117,10 @@ function habilitarEdicionPedido(id){
   document.getElementById('inputPedidoTelefono').value = p.telefono || '';
   document.getElementById('inputPedidoFecha').value = p.fechaEntrega || '';
 
-  // v1.90: restaura el ícono decorado guardado con este pedido (o
-  // "sin decorado" si no tenía / es un pedido de antes de esta versión).
-  iconoDecoradoSeleccionado = p.iconoDecoradoUrl ? { url: p.iconoDecoradoUrl, nombre: p.iconoDecoradoNombre || '' } : null;
-  // v1.98: si tenía ícono elegido, se abre el colapsable y se carga el
-  // catálogo de una — si no, quedaría marcado por dentro pero invisible
-  // hasta que la persona abra el colapsable a mano.
-  if(iconoDecoradoSeleccionado){
-    const det = document.getElementById('detallesIconoDecoradoPedido');
-    if(det) det.open = true;
-    cargarCatalogoIconosSiHaceFalta();
-  }
-  renderGridIconosDecorados();
+  // v1.99.21: restaura el emoji tipeado guardado con este pedido (o
+  // vacío si no tenía / es un pedido de antes de esta versión).
+  iconoDecoradoEmojiActual = p.iconoDecoradoEmoji || '';
+  document.getElementById('inputIconoDecoradoEmoji').value = iconoDecoradoEmojiActual;
 
 
   // v1.43: abonos como array {monto,fecha}. Pedidos guardados antes de
@@ -4740,8 +5227,8 @@ function cancelarEdicionPedido(){
   document.getElementById('inputPedidoCliente').value = '';
   document.getElementById('inputPedidoTelefono').value = '';
   document.getElementById('inputPedidoFecha').value = '';
-  iconoDecoradoSeleccionado = null; // v1.90
-  renderGridIconosDecorados();
+  iconoDecoradoEmojiActual = ''; // v1.99.21
+  document.getElementById('inputIconoDecoradoEmoji').value = '';
   renderAbonosPedido();
   renderNotasPedido();
   recalcularTotalesPedido();
@@ -4880,7 +5367,7 @@ function renderListaPedidos(){
     else badgePago = `<span class="badge-pago-pedido sinpago">Sin abono</span>`;
 
     return `
-    <div class="receta-card">
+    <div class="receta-card pedido-card estado-${p.estado || 'pendiente'}">
       <div class="receta-head" onclick="toggleDetallePedido('${p.id}')">
         <div class="receta-head-info">
           <div>
@@ -5024,7 +5511,10 @@ function agregarRecetasAlCheck(){
         };
       }
       necesidad[ins.insumoId].cantidad += cantidadNecesaria;
-      necesidad[ins.insumoId].recetas.push({ id: recetaId, nombre: receta.nombre || '—', cantidad: cantidadNecesaria });
+      // v1.99.10: (a pedido) se guarda también "lotes" (número de veces
+      // que se preparó la receta) junto al total ya calculado — antes
+      // se perdía acá, y Compras solo mostraba el total sin desglose.
+      necesidad[ins.insumoId].recetas.push({ id: recetaId, nombre: receta.nombre || '—', cantidad: cantidadNecesaria, lotes });
     });
   });
 
@@ -5174,6 +5664,7 @@ function escucharCheckCompras(){
   db.collection('checkCompras').doc('activa').onSnapshot(doc => {
     checkComprasCache = doc.exists ? { items: doc.data().items || [] } : { items: [] };
     renderFiltroEtiquetaComprasChips(); // v1.49: el set de etiquetas disponibles depende de los ítems actuales
+    renderOrdenComprasChip(); // v1.99.11
     renderListaCompras();
   }, err => {
     console.error('No se pudo leer checkCompras:', err);
@@ -5214,7 +5705,7 @@ function cerrarFormComprado(insumoId){
   if(item && insumo && totalDiv){
     if(inputCant) inputCant.value = item.cantidad || '';
     if(inputPrecio) inputPrecio.value = insumo.valorUnidad;
-    totalDiv.textContent = '$' + Math.round(item.cantidad * insumo.valorUnidad);
+    totalDiv.textContent = formatoMoneda(item.cantidad * insumo.valorUnidad);
   }
 }
 
@@ -5230,7 +5721,7 @@ function actualizarTotalEnVivo(insumoId){
   const cantidad = parseFloat(document.getElementById('inputCantidadComprada-' + insumoId).value);
   const precio = parseFloat(document.getElementById('inputPrecioComprado-' + insumoId).value);
   if(isNaN(cantidad) || isNaN(precio)){ totalDiv.textContent = '—'; return; }
-  totalDiv.textContent = '$' + Math.round(cantidad * precio);
+  totalDiv.textContent = formatoMoneda(cantidad * precio);
 }
 
 // Marcar comprado: cantidad comprada + precio nuevo en un mismo paso.
@@ -5303,22 +5794,239 @@ function reabrirCompra(insumoId){
   }
 }
 
-function vaciarListaCompras(){
-  if(!confirm('¿Vaciar toda la lista de compras? Esta acción no se puede deshacer.')) return;
-  _guardarListaCompras([]);
+// v1.99.23: (a pedido) antes esto solo vaciaba la lista activa sin
+// dejar rastro — ahora, antes de vaciar, guarda un snapshot completo
+// (items tal cual están, con su comprado/pendiente) en un doc nuevo de
+// historialCompras, con el mismo total "compra completa" que ya se
+// mostraba en pantalla (mismo criterio de exclusión de "ya la tengo"
+// que usa renderListaCompras). Si la lista ya está vacía, no genera un
+// registro de historial vacío — no hay nada que archivar.
+function archivarYVaciarListaCompras(){
+  const items = checkComprasCache.items || [];
+  if(!items.length){ alert('La lista ya está vacía — no hay nada para archivar.'); return; }
+  if(!confirm('¿Cerrar y archivar esta lista de compras? Se guarda en el historial y la lista activa queda vacía. Esta acción no se puede deshacer.')) return;
+
+  let total = 0;
+  items.forEach(it => {
+    const noNecesitaIt = !it.pendiente && !it.comprado;
+    if(noNecesitaIt) return;
+    total += montoCompraCompletaItem(it);
+  });
+
+  db.collection('historialCompras').add({
+    items,
+    total,
+    facturas: [],
+    cerradaEn: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => _guardarListaCompras([]))
+    .catch(err => { console.error(err); alert('No se pudo archivar la lista.'); });
 }
+
+// ---------- Historial de compras (v1.99.23, ampliado v1.99.24) ----------
+let historialComprasCache = [];
+let historialComprasLimite = 20; // v1.99.24: paginado — arranca en 20, "Cargar más" suma de a 20
+
+function escucharHistorialCompras(){
+  db.collection('historialCompras').orderBy('cerradaEn', 'desc').limit(historialComprasLimite).onSnapshot(snap => {
+    historialComprasCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // v1.99.24: si trajo exactamente el límite pedido, asumimos que
+    // puede haber más — se muestra "Cargar más". Si trae menos, ya no
+    // hay nada después. No es 100% exacto (podría ser que trajo
+    // justo el límite y no hay más), pero evita una lectura extra solo
+    // para confirmarlo; en el peor caso el botón "Cargar más" no trae
+    // nada nuevo y desaparece solo en el siguiente render.
+    renderHistorialCompras(snap.docs.length === historialComprasLimite);
+  }, err => {
+    console.error('No se pudo leer historialCompras:', err);
+    const cont = document.getElementById('listaHistorialCompras');
+    if(cont) cont.innerHTML = '<div class="vacio">Error al cargar el historial.</div>';
+  });
+}
+
+function cargarMasHistorialCompras(){
+  historialComprasLimite += 20;
+  escucharHistorialCompras();
+}
+
+function limpiarFiltroHistorialCompras(){
+  document.getElementById('filtroHistorialDesde').value = '';
+  document.getElementById('filtroHistorialHasta').value = '';
+  renderHistorialCompras();
+}
+
+// v1.99.24: filtro por fecha, en memoria sobre lo YA cargado (no vuelve
+// a consultar Firestore) — igual criterio simple que el resto del
+// ecosistema (ej. filtro de Ventas). Si el rango elegido no aparece
+// entre lo cargado, hay que traer más con "Cargar más" primero.
+function historialComprasFiltrado(){
+  const desde = document.getElementById('filtroHistorialDesde') ? document.getElementById('filtroHistorialDesde').value : '';
+  const hasta = document.getElementById('filtroHistorialHasta') ? document.getElementById('filtroHistorialHasta').value : '';
+  if(!desde && !hasta) return historialComprasCache;
+  return historialComprasCache.filter(h => {
+    const fecha = h.cerradaEn && h.cerradaEn.toDate ? h.cerradaEn.toDate() : null;
+    if(!fecha) return false;
+    const fechaISO = fecha.toISOString().slice(0, 10);
+    if(desde && fechaISO < desde) return false;
+    if(hasta && fechaISO > hasta) return false;
+    return true;
+  });
+}
+
+function renderHistorialCompras(hayMas){
+  const cont = document.getElementById('listaHistorialCompras');
+  const wrapCargarMas = document.getElementById('cargarMasHistorialWrap');
+  if(!cont) return;
+  const filas = historialComprasFiltrado();
+  if(!filas.length){
+    cont.innerHTML = `<div class="vacio">${historialComprasCache.length ? 'Ningún resultado con este filtro.' : 'Todavía no cerraste ninguna lista.'}</div>`;
+  } else {
+    cont.innerHTML = filas.map(h => {
+      const fecha = h.cerradaEn && h.cerradaEn.toDate ? h.cerradaEn.toDate() : null;
+      const fechaTxt = fecha ? fecha.toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+      const cantidadItems = (h.items || []).length;
+      const facturas = h.facturas || [];
+      const miniaturas = facturas.map(url => `
+        <a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Factura" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid var(--border);"></a>
+      `).join('');
+      return `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:600;">${fechaTxt}</div>
+          <div style="font-size:0.85rem; color:var(--muted);">${cantidadItems} ítem${cantidadItems === 1 ? '' : 's'} · ${formatoMoneda(h.total || 0)}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          ${miniaturas}
+          <button type="button" class="btn-ghost" onclick="abrirWidgetFactura('${h.id}')" style="white-space:nowrap;">📷 Agregar factura</button>
+          <button class="btn-del" title="Eliminar esta lista del historial" onclick="eliminarHistorialCompra('${h.id}')">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  // v1.99.24: "Cargar más" solo tiene sentido sin filtro de fecha activo
+  // (el filtro ya opera sobre todo lo cargado hasta ahora; si el rango
+  // buscado está más atrás, hay que ampliar la carga primero).
+  const desde = document.getElementById('filtroHistorialDesde') ? document.getElementById('filtroHistorialDesde').value : '';
+  const hasta = document.getElementById('filtroHistorialHasta') ? document.getElementById('filtroHistorialHasta').value : '';
+  if(wrapCargarMas){
+    wrapCargarMas.innerHTML = (hayMas && !desde && !hasta)
+      ? `<button type="button" class="btn-ghost" style="width:100%;" onclick="cargarMasHistorialCompras()">Cargar más</button>`
+      : '';
+  }
+}
+
+// v1.99.24: (a pedido) borrar una lista ya archivada por error. No
+// borra ni toca la lista activa de checkCompras — es independiente.
+function eliminarHistorialCompra(id){
+  if(!confirm('¿Eliminar esta lista del historial? Las fotos de factura ya subidas a Cloudinary NO se borran ahí, solo se pierde la referencia acá. Esta acción no se puede deshacer.')) return;
+  db.collection('historialCompras').doc(id).delete()
+    .catch(err => { console.error(err); alert('No se pudo eliminar del historial.'); });
+}
+
+// v1.99.23: mismo widget de Cloudinary que ya se usa para imagen de
+// receta (abrirWidgetImagenReceta), con preset/carpeta PROPIOS
+// ('FACTURAS') para no mezclar con las fotos de receta. Sin cropping
+// forzado (una factura no es cuadrada) y multiple:true porque una
+// ronda de compras puede traer varios recibos. Cada foto subida se
+// agrega al array facturas del doc de historial correspondiente —
+// arrayUnion, así que no pisa las que ya había.
+const CLOUDINARY_UPLOAD_PRESET_FACTURAS = 'FACTURAS';
+const CLOUDINARY_FOLDER_FACTURAS = 'FACTURAS';
+let _cocWidgetFactura = null;
+let _historialIdEnSubida = null;
+
+function abrirWidgetFactura(historialId){
+  if(typeof cloudinary === 'undefined'){
+    alert('No se pudo cargar el widget de imágenes (Cloudinary). Revisa tu conexión e inténtalo de nuevo.');
+    return;
+  }
+  _historialIdEnSubida = historialId;
+  if(!_cocWidgetFactura){
+    _cocWidgetFactura = cloudinary.createUploadWidget({
+      cloudName: CLOUDINARY_CLOUD_NAME,
+      uploadPreset: CLOUDINARY_UPLOAD_PRESET_FACTURAS,
+      folder: CLOUDINARY_FOLDER_FACTURAS,
+      sources: ['local', 'camera', 'url'],
+      multiple: true,
+      cropping: false,
+      language: 'es'
+    }, (error, result) => {
+      if(error){ console.error('Cloudinary widget error (factura):', error); return; }
+      if(result && result.event === 'success'){
+        db.collection('historialCompras').doc(_historialIdEnSubida).update({
+          facturas: firebase.firestore.FieldValue.arrayUnion(result.info.secure_url)
+        }).catch(err => { console.error(err); alert('No se pudo guardar la factura.'); });
+      }
+    });
+  }
+  _cocWidgetFactura.open();
+}
+
+// v1.99.11: (a pedido) monto "compra completa" de un ítem — extraído a
+// función propia porque ahora se usa en 2 lugares: el render del $ por
+// ítem (ya existía inline) y el nuevo ordenPorPrecio. Mismo cálculo que
+// ya se usaba, sin cambios de fórmula.
+function montoCompraCompletaItem(it){
+  const insumo = insumosCache.find(i => i.id === it.insumoId);
+  const precio = insumo ? insumo.valorUnidad : '';
+  if(precio === '') return 0;
+  if(insumo && insumo.contenidoPresentacionCompra){
+    const bolsas = Math.ceil((it.cantidad || 0) / insumo.contenidoPresentacionCompra);
+    return bolsas * insumo.contenidoPresentacionCompra * precio;
+  }
+  return (it.cantidad || 0) * precio;
+}
+
+let ordenComprasPorPrecio = false; // v1.99.11: false = alfabético (default), true = precio desc
 
 function renderListaCompras(){
   const cont = document.getElementById('listaCompras');
+  const totalesWrap = document.getElementById('comprasTotalesWrap');
   let items = checkComprasCache.items || [];
   if(filtroCategoriaCompras === '__sin__') items = items.filter(it => !it.categoriaId);
   else if(filtroCategoriaCompras) items = items.filter(it => it.categoriaId === filtroCategoriaCompras);
   if(filtroEtiquetaCompras) items = items.filter(it => etiquetasDeItemCompra(it).includes(filtroEtiquetaCompras)); // v1.49
+  // v1.99.11: (a pedido) orden — alfabético por defecto (punto 3 del
+  // plan original, dentro de cada categoría) o por precio "compra
+  // completa" descendente si el chip de orden está activo. localeCompare
+  // con 'es' para que ordene bien tildes/ñ.
+  items = [...items].sort((a, b) => ordenComprasPorPrecio
+    ? montoCompraCompletaItem(b) - montoCompraCompletaItem(a)
+    : (a.nombre || '').localeCompare(b.nombre || '', 'es'));
   if(!items.length){
+    if(totalesWrap) totalesWrap.innerHTML = '';
     cont.innerHTML = (checkComprasCache.items || []).length
       ? '<div class="vacio">No hay ítems de esta categoría en la lista.</div>'
       : '<div class="vacio">La lista está vacía — generá desde recetas o agregá un insumo suelto arriba.</div>';
     return;
+  }
+  // v1.99.7: (a pedido) total general — suma "costo receta" y "compra
+  // completa" (bolsas redondeadas cuando el insumo tiene presentación
+  // cargada; si no, cae al mismo valor que costo receta) de los ítems
+  // que se ven en pantalla AHORA MISMO (respeta filtro de categoría y
+  // etiqueta activo). Excluye ítems "ya la tengo" (noNecesita), mismo
+  // criterio que el $ por ítem. Puramente informativo, no toca ningún
+  // cálculo existente.
+  if(totalesWrap){
+    let totalReceta = 0, totalCompletos = 0;
+    items.forEach(it => {
+      const insumo = insumosCache.find(i => i.id === it.insumoId);
+      const precio = insumo ? insumo.valorUnidad : '';
+      const noNecesitaIt = !it.pendiente && !it.comprado;
+      if(precio === '' || noNecesitaIt) return;
+      totalReceta += (it.cantidad || 0) * precio;
+      totalCompletos += montoCompraCompletaItem(it);
+    });
+    totalesWrap.innerHTML = `
+      <div class="compras-total-general">
+        <div class="compras-total-general-principal">
+          <span class="compras-total-general-label">Compra completa</span>
+          <span class="compras-total-general-monto">${formatoMoneda(totalCompletos)}</span>
+        </div>
+        <div class="compras-total-general-secundario">
+          <span class="compras-total-general-label">Costo receta</span>
+          <span class="compras-total-general-monto">${formatoMoneda(totalReceta)}</span>
+        </div>
+      </div>`;
   }
   cont.innerHTML = items.map(it => {
     // v1.28: precio actual del insumo — se usa para precargar el input
@@ -5337,8 +6045,27 @@ function renderListaCompras(){
     const nombresOrigen = (it.recetasOrigen || [])
       .map(o => (o && typeof o === 'object') ? o.nombre : null)
       .filter(Boolean);
+    // v1.99.10: (a pedido) desglose "cantidad por lote × N lotes" — SOLO
+    // si hay un único origen y ese origen trae lotes+cantidad (viene de
+    // "Generar desde recetas"). Si hay 2+ orígenes o es ítem suelto, se
+    // ve como siempre (sin desglose), tal como se acordó: mezclar el
+    // desglose de cada origen ahí sería el mismo problema de texto largo
+    // que ya se evita en "Para: ...". Ítems generados antes de v1.99.10
+    // no tienen "lotes" en su recetasOrigen, así que tampoco muestran
+    // desglose hasta que se regeneren.
+    const origenesReceta = (it.recetasOrigen || []).filter(o => o && typeof o === 'object' && o.tipo !== 'pedido');
+    const desgloseLotes = (origenesReceta.length === 1 && origenesReceta[0].lotes && origenesReceta[0].cantidad)
+      ? `${(origenesReceta[0].cantidad / origenesReceta[0].lotes).toString().replace(/(\.\d{0,2})\d*$/,'$1')} ${it.unidad || ''} × ${origenesReceta[0].lotes} lote${origenesReceta[0].lotes > 1 ? 's' : ''}`
+      : null;
     // v1.49: etiquetas heredadas del insumo (misma fuente que Insumos/Recetario, en vivo)
     const etiquetasItem = etiquetasDeItemCompra(it);
+    // v1.99.11: (a pedido, punto 2 del plan original) truncar "Para: ..."
+    // a los primeros 2 orígenes + "+N más" — bajo riesgo, solo
+    // presentación, no toca recetasOrigen ni el desglose de lotes (que
+    // sigue calculándose sobre el array completo, no sobre el truncado).
+    const nombresOrigenTexto = nombresOrigen.length > 2
+      ? `${nombresOrigen.slice(0, 2).join(', ')} +${nombresOrigen.length - 2} más`
+      : nombresOrigen.join(', ');
     return `
     <div class="compra-item ${it.comprado ? 'comprado' : ''} ${noNecesita ? 'no-necesita' : ''}">
       <div>
@@ -5347,7 +6074,7 @@ function renderListaCompras(){
           <span class="chip-categoria"><span class="chip-dot" style="background:${colorCategoria(it.categoriaId)}"></span>${nombreCategoria(it.categoriaId).toString().replace(/</g,'&lt;')}</span>
           ${it.origen === 'suelto' ? '<span class="chip-categoria">Suelto</span>' : ''}
         </div>
-        ${nombresOrigen.length ? `<div class="compra-meta">Para: ${nombresOrigen.join(', ').toString().replace(/</g,'&lt;')}</div>` : ''}
+        ${nombresOrigen.length ? `<div class="compra-meta" title="${nombresOrigen.join(', ').toString().replace(/</g,'&lt;').replace(/"/g,'&quot;')}">Para: ${nombresOrigenTexto.toString().replace(/</g,'&lt;')}${desgloseLotes ? ` <span class="compra-desglose-lotes">(${desgloseLotes})</span>` : ''}</div>` : ''}
         ${etiquetasItem.length ? `<div style="margin-top:4px;">${etiquetasItem.map(e => `<span class="chip-etiqueta" ${styleChipEtiqueta(e)}>${e.toString().replace(/</g,'&lt;')}</span>`).join('')}</div>` : ''}
         ${it.comprado && it.precioAnterior != null ? `
         <div class="compra-precio-ghost">$${it.precioComprado} nuevo · <span class="tachado">$${it.precioAnterior}</span> si deshaces</div>
@@ -5355,7 +6082,9 @@ function renderListaCompras(){
       </div>
       <div class="compra-cant">
         ${it.cantidad} ${it.unidad || ''}
-        ${precioActual !== '' && !noNecesita ? `<div class="compra-total" id="compra-total-${it.insumoId}">$${Math.round(it.cantidad * precioActual)}</div>` : ''}
+        ${insumoActual && insumoActual.contenidoPresentacionCompra ? `<div class="compra-presentacion">≈ ${Math.ceil((it.cantidad || 0) / insumoActual.contenidoPresentacionCompra)} ${(insumoActual.nombrePresentacionCompra || '').toString().replace(/</g,'&lt;')} de ${insumoActual.contenidoPresentacionCompra} ${(insumoActual.unidad || '').toString().replace(/</g,'&lt;')}</div>` : ''}
+        ${insumoActual && insumoActual.contenidoPresentacionCompra && precioActual !== '' && !noNecesita ? `<div class="compra-total-presentacion">${formatoMoneda(Math.ceil((it.cantidad || 0) / insumoActual.contenidoPresentacionCompra) * insumoActual.contenidoPresentacionCompra * precioActual)} compra completa</div>` : ''}
+        ${precioActual !== '' && !noNecesita ? `<div class="compra-total ${insumoActual && insumoActual.contenidoPresentacionCompra ? 'compra-total-secundario' : ''}" id="compra-total-${it.insumoId}">${formatoMoneda(it.cantidad * precioActual)}${insumoActual && insumoActual.contenidoPresentacionCompra ? ' (costo receta)' : ''}</div>` : ''}
       </div>
       <div class="compra-acciones">
         ${it.comprado
@@ -5400,20 +6129,64 @@ function _cocEsc(str){
 // v1.90: (a pedido) arma el style inline que reemplaza el patrón de
 // corazoncitos por defecto (.coc-page-decorado en el CSS) cuando el
 // pedido tiene un ícono elegido del catálogo avataresIconos. Mismo
-// criterio visual que el corazón (mosaico 48x48, opacidad baja) pero
-// con un <image> de SVG en vez de <text>, para poder usar una foto en
-// vez de un emoji. Si el pedido NO tiene ícono elegido (p.iconoDecoradoUrl
-// vacío/null — incluye pedidos guardados antes de esta versión), no
-// devuelve nada y el corazón de siempre (definido en el CSS) se ve
-// exactamente igual que hasta ahora.
+// criterio visual que el corazón (mosaico 48x48, opacidad baja), pero
+// con una foto en vez de un emoji. Si el pedido NO tiene ícono elegido
+// (p.iconoDecoradoUrl vacío/null — incluye pedidos guardados antes de
+// esta versión), no devuelve nada y el corazón de siempre (definido en
+// el CSS) se ve exactamente igual que hasta ahora.
+//
+// v1.99.16: (fix) causa raíz real de por qué nunca cargaba — no era el
+// encoding (v1.99.14). Chrome/Edge bloquean por CORS que un SVG en
+// data-URI cargue una imagen externa (Cloudinary) dentro de su propio
+// <image>, sin importar que la URL esté bien escrita. Se abandona ese
+// enfoque: ahora la foto va DIRECTO como background-image de CSS (eso
+// sí lo permiten los navegadores sin problema), con la opacidad ya
+// "horneada" en la propia imagen vía transformación de Cloudinary
+// (o_10 = opacidad 10%, mismo valor que tenía el SVG), insertada justo
+// después de "/upload/" en la URL. El mosaico se arma con
+// background-repeat + background-size en CSS puro, sin SVG de por
+// medio. Asume que iconoDecoradoUrl es una URL de Cloudinary con
+// "/upload/" en la ruta (mismo ecosistema que el resto del archivo,
+// dv7lelmoy) — si no lo fuera, igual carga, solo que sin la opacidad
+// aplicada.
+// v1.99.20: (fix RAÍZ + nuevo) 2 cambios:
+//   1. NUEVO: si el pedido tiene iconoDecoradoEmoji (texto tipeado a
+//      mano), tiene PRIORIDAD sobre la foto — se arma el mismo SVG
+//      inline con <text> Unicode que usa el corazón por defecto (sin
+//      imagen, sin Cloudinary, sin CORS, siempre nítido).
+//   2. FIX raíz del pixelado/falta de separación de v1.99.18 y
+//      v1.99.19: la causa real no era resolución insuficiente del
+//      recorte — es que c_pad de Cloudinary, POR DEFECTO, escala hacia
+//      arriba el recorte para llenar el lienzo completo (no lo deja
+//      del tamaño original con relleno transparente alrededor, que es
+//      lo que se asumía en los intentos anteriores). Por eso nunca
+//      hubo separación real entre íconos ni nitidez, sin importar
+//      cuánto se subiera el tamaño del recorte. Se agrega la bandera
+//      fl_no_overflow, que le indica a Cloudinary que NO escale el
+//      recorte más allá de su tamaño original — ahora sí queda un
+//      ícono chico con aire transparente alrededor. Aprovechando el
+//      fix, se vuelve a bajar el recorte a 14x14 (mismo tamaño físico
+//      que el font-size:14 del corazón) para que la foto se vea del
+//      mismo tamaño visual que el corazón, en el mismo lienzo/tile de
+//      48x48 que ya usa el patrón por defecto.
 function _cocEstiloPatronDecorado(p){
-  if(!p || !p.iconoDecoradoUrl) return '';
-  const urlSvgSegura = encodeURIComponent(p.iconoDecoradoUrl);
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'>`
-    + `<image href='${urlSvgSegura}' x='16' y='16' width='16' height='16' opacity='0.10'/>`
-    + `</svg>`;
-  const dataUri = 'data:image/svg+xml,' + encodeURIComponent(svg);
-  return ` style="background-image:url(&quot;${dataUri}&quot;);"`;
+  if(!p) return '';
+  if(p.iconoDecoradoEmoji){
+    const emojiCod = encodeURIComponent(p.iconoDecoradoEmoji);
+    const svg = `%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Ctext x='6' y='20' font-size='14' fill='%23c9a24b' opacity='0.06'%3E${emojiCod}%3C/text%3E%3Ctext x='28' y='42' font-size='14' fill='%23c9a24b' opacity='0.06'%3E${emojiCod}%3C/text%3E%3C/svg%3E`;
+    return ` style="background-image:url(&quot;data:image/svg+xml,${svg}&quot;); background-repeat:repeat; background-position:0 0; background-size:48px 48px;"`;
+  }
+  if(p.iconoDecoradoUrl){
+    const urlConEstilo = p.iconoDecoradoUrl.includes('/upload/')
+      ? p.iconoDecoradoUrl.replace('/upload/', '/upload/o_10,c_fill,w_14,h_14/c_pad,w_48,h_48,b_transparent,fl_no_overflow/')
+      : p.iconoDecoradoUrl;
+    const urlSegura = _cocEsc(urlConEstilo);
+    // data-fondo-url mantiene la URL final (ya con las transformaciones) para que
+    // _cocEsperarImagenes() (v1.99.13) la siga precargando antes de
+    // imprimir.
+    return ` style="background-image:url(&quot;${urlSegura}&quot;); background-repeat:repeat; background-size:48px 48px;" data-fondo-url="${urlSegura}"`;
+  }
+  return '';
 }
 
 const COC_PRINT_CSS = `
@@ -5464,6 +6237,7 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 }
 .coc-header-marca{ font-size:14pt; font-weight:700; letter-spacing:0.04em; color:#1e1e1e; }
 .coc-header-sub{ font-size:12pt; color:#9a978f; margin-top:1mm; }
+.coc-header-origen{ font-size:10pt; color:#b0aca2; margin-top:1mm; font-style:italic; } /* v1.99.12 */
 .coc-header-fecha{ font-size:12pt; color:#9a978f; text-align:right; }
 .coc-hero{ margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm; }
 .coc-hero-titulo{ font-size:22.5pt; font-weight:700; color:#1e1e1e; }
@@ -5537,6 +6311,10 @@ body{ margin:0; background:#3a3a3a; padding:32px 0; }
 .coc-check-nombre{ flex:1; color:#1e1e1e; }
 .coc-check-origen{ font-size:10pt; color:#9a978f; font-weight:400; margin-top:0.5mm; }
 .coc-check-cant{ color:#505050; font-family:monospace; font-size:14pt; }
+.coc-check-presentacion{ font-size:9pt; color:#9a978f; font-weight:400; margin-top:0.5mm; font-family:inherit; } /* v1.99.4 */
+.coc-check-total-presentacion{ font-size:11pt; color:#1e1e1e; font-weight:700; margin-top:0.5mm; font-family:inherit; } /* v1.99.4 */
+.coc-check-total{ font-size:9pt; color:#505050; font-weight:400; margin-top:0.5mm; font-family:inherit; } /* v1.99.4 */
+.coc-check-total.coc-check-total-secundario{ font-size:8pt; color:#9a978f; } /* v1.99.4 */
 /* Barra flotante de preview — igual patrón que .ph-barra-preview */
 .coc-barra-preview{
   position:fixed; top:0; left:0; right:0; z-index:999;
@@ -5648,9 +6426,15 @@ function _cocAbrirPreview(titulo, htmlDoc){
       // por si alguna imagen nunca termina, para no dejar el botón
       // colgado. Sin imágenes, imprime igual que antes (sin demora).
       function _cocEsperarImagenes(cb){
+        // v1.99.13: además de los <img> del DOM, ahora también precarga
+        // cualquier fondo decorado marcado con data-fondo-url (ícono de
+        // pedido elegido del catálogo), que antes no se esperaba porque
+        // vive en background-image y document.images no lo detecta.
         const imgs = Array.from(document.images);
-        if(!imgs.length) return cb();
-        let pendientes = imgs.filter(img => !img.complete).length;
+        const fondos = Array.from(document.querySelectorAll('[data-fondo-url]'))
+          .map(el => el.getAttribute('data-fondo-url'))
+          .filter(Boolean);
+        let pendientes = imgs.filter(img => !img.complete).length + fondos.length;
         if(!pendientes) return cb();
         let listo = false;
         const terminar = () => { if(!listo){ listo = true; cb(); } };
@@ -5658,6 +6442,12 @@ function _cocAbrirPreview(titulo, htmlDoc){
           if(img.complete) return;
           img.addEventListener('load', () => { if(--pendientes <= 0) terminar(); });
           img.addEventListener('error', () => { if(--pendientes <= 0) terminar(); });
+        });
+        fondos.forEach(url => {
+          const pre = new Image();
+          pre.addEventListener('load', () => { if(--pendientes <= 0) terminar(); });
+          pre.addEventListener('error', () => { if(--pendientes <= 0) terminar(); });
+          pre.src = url;
         });
         setTimeout(terminar, 4000);
       }
@@ -6222,12 +7012,45 @@ function imprimirListaComprasHTML(){
   const nombreCatFiltro = filtroCategoriaCompras === '__sin__' ? 'Sin categoría'
     : filtroCategoriaCompras ? nombreCategoria(filtroCategoriaCompras) : '';
   const subtituloListaCompras = 'Lista de compras' + (nombreCatFiltro ? ` · ${nombreCatFiltro}` : '') + ` · ${fechaGeneracion}`;
+  // v1.99.12: (a pedido) "Generado desde: ..." — se arma agregando y
+  // deduplicando los orígenes (recetasOrigen) de TODOS los ítems que
+  // van en este PDF (respeta el filtro de categoría activo, igual que
+  // el resto). No es un dato nuevo guardado aparte: se deriva de lo que
+  // cada ítem ya trae. Recetas con lotes muestran "Nombre ×N lotes";
+  // pedidos sueltos muestran "Pedido de Cliente" sin lotes (no aplica).
+  // Si dos ítems distintos vienen de la misma receta con lotes
+  // distintos (caso raro, normalmente el mismo lote alimenta varios
+  // insumos), se muestra el mayor de los dos — evita subestimar.
+  const origenesUnicos = {};
+  items.forEach(it => {
+    (it.recetasOrigen || []).forEach(o => {
+      if(!o || typeof o !== 'object' || !o.id) return;
+      const key = o.tipo === 'pedido' ? 'pedido-' + o.id : 'receta-' + o.id;
+      if(!origenesUnicos[key]){
+        origenesUnicos[key] = { nombre: o.nombre || '—', lotes: o.tipo === 'pedido' ? null : (o.lotes || null) };
+      } else if(o.lotes && (!origenesUnicos[key].lotes || o.lotes > origenesUnicos[key].lotes)){
+        origenesUnicos[key].lotes = o.lotes;
+      }
+    });
+  });
+  const textoGeneradoDesde = Object.values(origenesUnicos)
+    .map(o => o.lotes ? `${o.nombre} ×${o.lotes} lote${o.lotes > 1 ? 's' : ''}` : o.nombre)
+    .join(', ');
 
   const grupos = {};
   items.forEach(it => {
     const catId = it.categoriaId || '';
     if(!grupos[catId]) grupos[catId] = [];
     grupos[catId].push(it);
+  });
+  // v1.99.11: (a pedido, punto 3 del plan original) orden fijo dentro
+  // de cada grupo de categoría — mismo criterio elegido en pantalla
+  // (chip alfabético/precio, variable ordenComprasPorPrecio), para que
+  // el PDF impreso coincida con lo que se ve al momento de generarlo.
+  Object.keys(grupos).forEach(catId => {
+    grupos[catId].sort((a, b) => ordenComprasPorPrecio
+      ? montoCompraCompletaItem(b) - montoCompraCompletaItem(a)
+      : (a.nombre || '').localeCompare(b.nombre || '', 'es'));
   });
 
   const ordenCategorias = [...categoriasCache.map(c => c.id), ''];
@@ -6245,11 +7068,30 @@ function imprimirListaComprasHTML(){
           const nombresOrigenItem = (it.recetasOrigen || [])
             .map(o => (o && typeof o === 'object') ? o.nombre : null)
             .filter(Boolean);
+          // v1.99.10: (a pedido) mismo desglose "cant × N lotes" que
+          // renderListaCompras() en pantalla desde v1.99.10.
+          const origenesRecetaPdf = (it.recetasOrigen || []).filter(o => o && typeof o === 'object' && o.tipo !== 'pedido');
+          const desgloseLotesPdf = (origenesRecetaPdf.length === 1 && origenesRecetaPdf[0].lotes && origenesRecetaPdf[0].cantidad)
+            ? `${(origenesRecetaPdf[0].cantidad / origenesRecetaPdf[0].lotes).toString().replace(/(\.\d{0,2})\d*$/,'$1')} ${it.unidad || ''} × ${origenesRecetaPdf[0].lotes} lote${origenesRecetaPdf[0].lotes > 1 ? 's' : ''}`
+            : null;
+          // v1.99.4: (a pedido) mismos datos de presentación de compra
+          // y montos que ya se ven en pantalla (renderListaCompras) —
+          // insumoActualPdf se busca igual que insumoActual en pantalla,
+          // precioActualPdf es el mismo valorUnidad vigente.
+          const insumoActualPdf = insumosCache.find(i => i.id === it.insumoId);
+          const precioActualPdf = insumoActualPdf ? insumoActualPdf.valorUnidad : '';
+          const tienePresentacionPdf = insumoActualPdf && insumoActualPdf.contenidoPresentacionCompra;
+          const bolsasPdf = tienePresentacionPdf ? Math.ceil((it.cantidad || 0) / insumoActualPdf.contenidoPresentacionCompra) : 0;
           return `
           <div class="coc-check-item">
             <div class="coc-check-box"></div>
-            <span class="coc-check-nombre">${_cocEsc(it.nombre)}${nombresOrigenItem.length ? `<div class="coc-check-origen">Para: ${_cocEsc(nombresOrigenItem.join(', '))}</div>` : ''}</span>
-            <span class="coc-check-cant">${_cocEsc(it.cantidad)} ${_cocEsc(it.unidad || '')}</span>
+            <span class="coc-check-nombre">${_cocEsc(it.nombre)}${nombresOrigenItem.length ? `<div class="coc-check-origen">Para: ${_cocEsc(nombresOrigenItem.join(', '))}${desgloseLotesPdf ? ` (${_cocEsc(desgloseLotesPdf)})` : ''}</div>` : ''}</span>
+            <span class="coc-check-cant">
+              ${_cocEsc(it.cantidad)} ${_cocEsc(it.unidad || '')}
+              ${tienePresentacionPdf ? `<div class="coc-check-presentacion">≈ ${bolsasPdf} ${_cocEsc(insumoActualPdf.nombrePresentacionCompra || '')} de ${_cocEsc(insumoActualPdf.contenidoPresentacionCompra)} ${_cocEsc(insumoActualPdf.unidad || '')}</div>` : ''}
+              ${tienePresentacionPdf && precioActualPdf !== '' ? `<div class="coc-check-total-presentacion">${formatoMoneda(bolsasPdf * insumoActualPdf.contenidoPresentacionCompra * precioActualPdf)} compra completa</div>` : ''}
+              ${precioActualPdf !== '' ? `<div class="coc-check-total ${tienePresentacionPdf ? 'coc-check-total-secundario' : ''}">${formatoMoneda((it.cantidad || 0) * precioActualPdf)}${tienePresentacionPdf ? ' (costo receta)' : ''}</div>` : ''}
+            </span>
           </div>`;
         }).join('')}
       </div>`).join('');
@@ -6260,6 +7102,7 @@ function imprimirListaComprasHTML(){
       <div>
         <div class="coc-header-marca">AUDIOLINK · COCINA</div>
         <div class="coc-header-sub">${_cocEsc(subtituloListaCompras)}</div>
+        ${textoGeneradoDesde ? `<div class="coc-header-origen">Generado desde: ${_cocEsc(textoGeneradoDesde)}</div>` : ''}
       </div>
     </div>
     ${htmlGrupos}
@@ -6283,6 +7126,7 @@ document.addEventListener('DOMContentLoaded', () => {
   escucharPedidos();
   escucharConfigMenuPublico();
   escucharCheckCompras();
+  escucharHistorialCompras();
 });
 </script>
 </body>

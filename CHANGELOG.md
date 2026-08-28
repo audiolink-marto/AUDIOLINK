@@ -1854,6 +1854,144 @@ sin login) y un allow update público nuevo en /integrantes, angosto a
 solo el campo avatarUrl (necesario porque este modal edita el espejo
 público sin sesión).
 
+## cocina.html
+
+### v1.99.12
+línea "Generado desde: ..." en el encabezado del PDF de Lista de
+compras — se deriva agregando y deduplicando los recetasOrigen de
+TODOS los ítems que van en el PDF impreso (respeta el filtro de
+categoría activo). Recetas con lotes muestran "Nombre ×N lotes";
+pedidos sueltos muestran "Pedido de Cliente" sin lotes. No es un dato
+nuevo guardado — se calcula al imprimir a partir de lo que cada ítem
+ya trae.
+
+### v1.99.11
+últimos puntos pendientes del plan original de Compras + un pedido
+nuevo: (1) "Para: ..." se trunca a los primeros 2 orígenes + "+N más"
+en pantalla (title=lista completa); el PDF NO se truncó, en papel no
+hay la misma restricción de espacio. (2) orden fijo dentro de cada
+categoría — alfabético por defecto (localeCompare 'es'), en pantalla y
+PDF. (3) chip "💰 Mayor precio" para ordenar por "compra completa"
+descendente en vez de alfabético (variable ordenComprasPorPrecio,
+aplica también al PDF). Función nueva montoCompraCompletaItem() extrae
+el cálculo que ya existía inline, reusada en el total general y en el
+ordenamiento.
+
+### v1.99.10
+desglose "cantidad por lote × N lotes" — se guarda "lotes" en cada
+entrada de recetasOrigen (agregarRecetasAlCheck/
+confirmarStockYGenerarLista, antes se perdía tras calcular el total),
+y en Compras (pantalla + PDF) se muestra "Para: [receta] (X unidad ×
+N lotes)" SOLO si hay un único origen tipo receta con esos datos — si
+hay 2+ orígenes o es ítem suelto, se ve igual que antes (sin
+desglose). Ítems generados antes de v1.99.10 no muestran desglose
+hasta que se regeneren.
+
+### v1.99.9
+mobile — los bloques nuevos de Compras (compra-presentacion,
+compra-total-presentacion, total general) no tenían el piso táctil de
+0.92rem que ya aplicaba @media (max-width:600px) a .compra-total y
+otros textos secundarios. Agregados a esa misma regla, con "Compra
+completa" del total general en 1.15rem para mantener su jerarquía en
+móvil.
+
+### v1.99.8
+(1) separador de miles (.) en todos los montos de Compras que aún
+usaban $Math.round() sin formato — $ por ítem (pantalla y actualización
+en vivo), "compra completa", PDF/checklist — ya usan formatoMoneda()
+(toLocaleString es-CO), igual que el resto del sistema. (2) jerarquía
+del total general: de fila horizontal a bloques apilados (label
+arriba, monto abajo), "Compra completa" grande/dorado como principal y
+"Costo receta" chico/gris como secundario.
+
+### v1.99.7
+total general arriba de la lista de Compras — suma "Compra completa" y
+"Costo receta" de los ítems visibles con el filtro de categoría/
+etiqueta activo (excluye "ya la tengo"). Se recalcula en cada
+renderListaCompras().
+
+### v1.99.6
+resaltado visual del insumo específico dentro del detalle expandido de
+una receta desactualizada — si el precio guardado en la receta
+(i.valorUnidad) difiere del precio vigente del insumo (insumosCache),
+esa fila se resalta (fondo dorado tenue + ⚠️ + tooltip con precio
+guardado vs vigente).
+
+### v1.99.5
+botón "🔄 Actualizar con precios nuevos" en el detalle expandido de
+Recetas, visible solo cuando ya está el badge "⚠️ Insumo actualizado"
+— recalcula receta.insumos con el precio vigente de cada insumo, y
+costoTotal/ganancia/margenPct en consecuencia. ingresos/precioVenta NO
+se tocan. Actualiza todos los insumos de la receta de una vez, con
+confirm() antes de guardar.
+
+### v1.99.4
+el PDF/checklist imprimible de "Lista de compras" ahora muestra, por
+ítem, lo mismo que ya se ve en pantalla desde v1.99.3: línea
+presentación + "$X compra completa" (destacado) + "$Y (costo receta)"
+(chico), cuando el insumo tiene contenidoPresentacionCompra/
+nombrePresentacionCompra cargados.
+
+### v1.99.3
+2 ajustes sobre v1.99.2 en Compras: (1) fix del nombre de presentación
+forzando plural con "+s" (causaba "BOLSASs" si el insumo ya estaba en
+plural) — ahora se muestra tal cual está guardado. (2) jerarquía
+invertida: el $ de "compra completa" pasa a ser el destacado en
+dorado, "costo receta" pasa a texto chico/secundario.
+
+### v1.99.2
+en Compras, si el insumo tiene presentación de compra cargada, se
+agrega una segunda línea de $ mostrando el costo real de comprar las
+presentaciones completas ya redondeadas hacia arriba (ej. "$7200 si
+compras bolsas completas"), debajo del $ original (costo receta, sin
+redondear). No toca costeo de receta/margen.
+
+### v1.99.1
+fix sobre v1.99 — la línea de conversión en Compras ahora dice "≈ 2
+BOLSA de 1000 ML" en vez de solo "≈ 2 BOLSA" (faltaba el
+número+unidad de la presentación, solo se veía el nombre).
+
+### v1.99
+2 campos nuevos y opcionales en Insumos — "Contenido por unidad de
+compra" (contenidoPresentacionCompra, número) y "Nombre de la
+presentación de compra" (nombrePresentacionCompra, texto). Ambos van
+juntos: si falta uno, no se guarda ninguno. En Compras: si el insumo
+tiene ambos cargados, aparece una línea bajo la cantidad, ej. "≈ 3
+bolsas". No toca costeo, stock, ni Pedidos/Recetas.
+
+## compras.html
+
+Portal público (companion de cocina.html), autenticación por PIN,
+mismo patrón que menu.html. Va bastante detrás de cocina.html en
+versión — varias mejoras de Compras se replican acá con desfase.
+
+### v1.6.6
+mismo cambio que cocina.html v1.99.11 — "Para: ..." truncado a 2
+orígenes + "+N más" (con title=lista completa), orden alfabético fijo
+por defecto, chip "💰 Mayor precio". Calcado 1:1 (sin PDF, este portal
+no lo tiene).
+
+### v1.6.5
+mismo desglose que cocina.html v1.99.10 — "Para: [receta] (X unidad ×
+N lotes)". Portal es solo lectura, el dato ya viene calculado desde
+cocina.html.
+
+### v1.6.4
+se agregó el @media (max-width:600px) que este portal no tenía — piso
+de 0.92rem para textos secundarios chicos y chips más táctiles. Se
+revisó .compra-nombre/.compra-cant/.compra-comprar-form input: esos ya
+venían con tamaño fijo legible, no necesitaban regla adicional.
+
+### v1.6.1 – v1.6.3
+mismos cambios que cocina.html v1.99.2 – v1.99.9 (presentación de
+compra, jerarquía $, total general, separador de miles, formatoMoneda()
+agregado — no existía en este portal), calcados 1:1 con desfase de
+sesión.
+
+### v1.5
+mismo cambio que cocina.html v1.33 — soporte para presentación de
+compra en pantalla.
+
 ## Nota — escapeHtml() NO migrado a propósito
 
 `clientes.html`, `cotizacion-rapida.html` y `produccion.html`
