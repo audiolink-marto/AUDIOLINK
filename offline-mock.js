@@ -1,4 +1,16 @@
-/* AUDIOLINK · offline-mock.js · v1.9 (whitelist ampliada: categorías + compras)
+/* AUDIOLINK · offline-mock.js · v1.10 (whitelist ampliada: clientes + egresos)
+   v1.10: se agregan 'clientes' y 'egresos' a _COLECCIONES_ESCRIBIBLES_RAIZ —
+   proyecto.html los escribe (CRUD de clientes, listener de gastos por
+   proyecto) y no estaban en la whitelist, así que esos cambios offline
+   quedaban atascados en la cola para siempre, sin avisar (ver también
+   nav.js v1.19). Usan el mismo mecanismo genérico add/delete/update/set
+   ya existente para toda la whitelist — no se agregó lógica nueva de
+   mock, solo se sumaron los dos nombres.
+   Además, sincronizarColaOffline() ahora cuenta los cambios que caen al
+   'else' (tipo/colección no reconocido) en un nuevo campo
+   `no_reconocidos` del resultado — antes se reencolaban en silencio y
+   no había forma de que la UI supiera que algo se quedó pegado.
+
    v1.9: cocina.html v1.7 agregó 2 colecciones raíz nuevas
    (categoriasCocina, checkCompras) que necesitaban escritura offline.
    Se agregan ambas a _COLECCIONES_ESCRIBIBLES_RAIZ y, como
@@ -285,7 +297,7 @@ const AUDIOLINK_COLA_KEY = 'audiolink_offline_cola_cambios';
 // v1.7). A diferencia de las 4 anteriores, estas dos también necesitan
 // update()/set() puntual sobre un doc — ver docRef.update/docRef.set
 // más abajo, junto a docRef.delete (mismo bloque, misma condición).
-const _COLECCIONES_ESCRIBIBLES_RAIZ = ['cocinaInsumos', 'cocinaRecetas', 'cocinaProductos', 'ventasCocina', 'categoriasCocina', 'checkCompras'];
+const _COLECCIONES_ESCRIBIBLES_RAIZ = ['cocinaInsumos', 'cocinaRecetas', 'cocinaProductos', 'ventasCocina', 'categoriasCocina', 'checkCompras', 'clientes', 'egresos'];
 
 // Estructura en memoria, se llena con cargarArchivoOffline() o se
 // restaura sola desde localStorage al cargar este script:
@@ -441,7 +453,7 @@ async function sincronizarColaOffline(){
     return { ok: false, motivo: 'firebase_no_cargado' };
   }
   _sincronizandoOffline = true;
-  let sincronizados = 0, conflictos = 0, errores = 0;
+  let sincronizados = 0, conflictos = 0, errores = 0, no_reconocidos = 0;
   try{
     const db = firebase.firestore();
     const colaActual = [..._colaCambiosOffline];
@@ -492,6 +504,7 @@ async function sincronizarColaOffline(){
           sincronizados++;
         } else {
           console.warn('AUDIOLINK offline-mock: cambio en cola con tipo/colección no reconocido, se deja pendiente.', cambio);
+          no_reconocidos++;
           pendientes.push(cambio);
         }
       }catch(err){
@@ -505,7 +518,7 @@ async function sincronizarColaOffline(){
   } finally {
     _sincronizandoOffline = false;
   }
-  return { ok: true, sincronizados, conflictos, errores };
+  return { ok: true, sincronizados, conflictos, errores, no_reconocidos };
 }
 
 // El usuario decide qué gana: 'mio' vuelve a aplicar el update que

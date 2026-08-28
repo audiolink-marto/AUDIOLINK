@@ -1,4 +1,15 @@
-/* AUDIOLINK · nav.js · v1.18
+/* AUDIOLINK · nav.js · v1.19
+   V1.19: _navForzarSincronizacion() ahora también avisa cuando
+   sincronizarColaOffline() devuelve `no_reconocidos > 0` (offline-mock.js
+   v1.10) — antes, un cambio de una colección no soportada offline (ej.
+   clientes/egresos antes de v1.10) se quedaba atascado en la cola sin
+   ningún aviso: el botón no mostraba error ni éxito, "no pasaba nada".
+   Además, actualizarBadgeSync() ahora actualiza TODAS las copias de
+   .sync-badge (antes usaba getElementById, que solo tocaba la copia
+   del sidebar — en mobile la copia visible del topbar nunca se
+   actualizaba ni mostraba/ocultaba el número real, así que el badge
+   podía quedar visible pero "muerto"). No se tocó el resto del flujo
+   de sync ni el resto de actualizarEstadoConexion().
    V1.18: se agrega el ítem "Cocina" (cocina.html) a ITEMS, en el grupo
    'Operación' junto a Vacas/Eventos — sistema de costeo interno
    (insumos→recetas→ventas) migrado a la navegación estándar. Se suma
@@ -486,20 +497,31 @@
   // función no existe todavía en la página, se asume 0 sin romper
   // nada). Se actualiza cada 5s junto con el chequeo de conexión, y
   // también justo después de sincronizar.
+  // v1.19: antes usaba getElementById('syncBadge'), pero el id está
+  // duplicado a propósito (una copia en el sidebar, otra en el
+  // mobile-topbar — ambas se insertan siempre juntas, sin importar el
+  // dispositivo). getElementById solo devuelve la primera coincidencia
+  // (la del sidebar), así que en mobile la copia visible del topbar
+  // nunca se actualizaba ni mostraba el número real. Se cambia a
+  // querySelectorAll('.sync-badge') para actualizar TODAS las copias
+  // por igual. El onclick de cada una ya estaba puesto individualmente
+  // en el HTML, no se toca.
   function actualizarBadgeSync(){
-    const badge = document.getElementById('syncBadge');
-    if(!badge) return;
+    const badges = document.querySelectorAll('.sync-badge');
+    if(!badges.length) return;
     let n = 0;
     try{
       if(typeof obtenerColaCambiosOffline === 'function') n += obtenerColaCambiosOffline().length;
       if(typeof obtenerConflictosOffline === 'function') n += obtenerConflictosOffline().length;
     }catch(err){ /* offline-mock.js no cargado en esta página, se ignora */ }
-    if(n > 0){
-      badge.textContent = n;
-      badge.style.display = '';
-    } else {
-      badge.style.display = 'none';
-    }
+    badges.forEach(badge => {
+      if(n > 0){
+        badge.textContent = n;
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    });
   }
 
   // Botón manual (tocar el badge) — de respaldo, por si el evento
@@ -520,7 +542,8 @@
     let msg = `✅ ${res.sincronizados} cambio(s) sincronizado(s).`;
     if(res.conflictos > 0) msg += `\n⚠️ ${res.conflictos} conflicto(s) — alguien más editó lo mismo mientras estabas offline. Revisar con obtenerConflictosOffline().`;
     if(res.errores > 0) msg += `\n❌ ${res.errores} con error, se reintentan solos más adelante.`;
-    if(res.sincronizados > 0 || res.conflictos > 0 || res.errores > 0) alert(msg);
+    if(res.no_reconocidos > 0) msg += `\n🚫 ${res.no_reconocidos} cambio(s) de un tipo/colección no soportado offline — quedan atascados, no se van a sincronizar solos.`;
+    if(res.sincronizados > 0 || res.conflictos > 0 || res.errores > 0 || res.no_reconocidos > 0) alert(msg);
   };
 
   // Automático: al recuperar señal real (evento 'online'), intenta

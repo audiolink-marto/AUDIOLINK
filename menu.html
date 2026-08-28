@@ -3,8 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Menú (v1.12)</title>
-<!-- AUDIOLINK · menu.html · v1.12
+<title>Menú (v1.14)</title>
+<!-- AUDIOLINK · menu.html · v1.14
+     v1.14: (a pedido) más presencia/vida en las cards del grid y en el
+     modal de detalle. Puramente visual/interacción, ningún cálculo ni
+     dato nuevo:
+     - Cards del grid: zoom sutil de la foto en hover (recortado por el
+       overflow:hidden del contenedor, la card no crece), y estado
+       :active (se achica un poco al presionar) — antes solo había
+       feedback con mouse (hover), en celular se sentía "muerta" al
+       tocar.
+     - Modal de detalle: antes aparecía/desaparecía de golpe. Ahora
+       entra con fade + escala sutil (menuModalPopIn) y el fondo con
+       fade (menuModalFadeIn). Al cerrar, cerrarDetalleMenu() agrega la
+       clase .cerrando (dispara la animación de salida) y espera 150ms
+       antes de vaciar el contenedor — si no, la animación de salida
+       nunca llega a verse.
+     - Botón ✕ del modal: hover con rotación sutil de 90° + fondo más
+       blanco.
+     v1.13: (a pedido) un poco más de jerarquía visual en el modal de
+     detalle. Antes el precio (15px) casi no se distinguía de la
+     descripción (14px), pese a ser el segundo dato más importante
+     después del nombre. Precio: 15px→18px, peso 700→800, más espacio
+     debajo (14px→18px). Descripción: pasa a color --muted (antes
+     --text, mismo tono que el nombre/precio) para que se lea claramente
+     como texto secundario. Nombre: leve ajuste de line-height y margen
+     inferior para que respire más antes del precio. Solo tipografía y
+     espaciados — no se tocó el HTML del modal, ni su lógica de apertura/
+     cierre, ni las demás cards del menú.
      v1.12: (fix) el ícono de fondo (emoji, config/menuPublico →
      iconoFondoEmoji) no se estaba viendo. Causa: se codificaba el
      emoji con encodeURIComponent ANTES de insertarlo como texto
@@ -229,12 +255,19 @@ body{
   display:flex; flex-direction:column;
 }
 .menu-card:hover{ transform:translateY(-3px); box-shadow:0 12px 28px rgba(43,38,32,0.10); }
+/* v1.14: (a pedido) feedback táctil al presionar — el hover de arriba
+   no dispara en celular, así que sin esto la card se sentía "muerta"
+   al tocarla. */
+.menu-card:active{ transform:translateY(-1px) scale(0.98); box-shadow:0 6px 14px rgba(43,38,32,0.10); transition:transform .08s ease; }
 .menu-card-img{
   width:100%; aspect-ratio:16/7; background:var(--accent-soft);
   display:flex; align-items:center; justify-content:center; overflow:hidden;
   position:relative;
 }
-.menu-card-img img{ width:100%; height:100%; object-fit:cover; display:block; }
+/* v1.14: zoom sutil de la foto en hover (recortado por overflow:hidden
+   del contenedor de arriba, la card no se agranda). */
+.menu-card-img img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s ease; }
+.menu-card:hover .menu-card-img img{ transform:scale(1.06); }
 .menu-card-img .sin-foto{ color:var(--faint); font-size:13px; }
 /* v1.5: banner con degradado (acabado estético) — mismo lenguaje
    visual que .coc-imagen-header de la ficha PDF (cocina.html v1.19),
@@ -259,26 +292,38 @@ body{
 .menu-modal-overlay{
   position:fixed; inset:0; background:rgba(43,38,32,0.45); z-index:999;
   display:flex; align-items:center; justify-content:center; padding:20px;
+  /* v1.14: (a pedido) fade-in del fondo — antes aparecía de golpe */
+  animation:menuModalFadeIn .18s ease;
 }
+.menu-modal-overlay.cerrando{ animation:menuModalFadeOut .15s ease forwards; }
+@keyframes menuModalFadeIn{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes menuModalFadeOut{ from{ opacity:1; } to{ opacity:0; } }
 .menu-modal{
   background:var(--bg-card); border-radius:16px; max-width:520px; width:100%;
   max-height:88vh; overflow-y:auto; position:relative;
+  /* v1.14: fade + escala sutil de entrada, mismo tiempo que el overlay */
+  animation:menuModalPopIn .2s cubic-bezier(.2,.9,.3,1.1);
 }
+.menu-modal-overlay.cerrando .menu-modal{ animation:menuModalPopOut .15s ease forwards; }
+@keyframes menuModalPopIn{ from{ opacity:0; transform:translateY(10px) scale(0.97); } to{ opacity:1; transform:translateY(0) scale(1); } }
+@keyframes menuModalPopOut{ from{ opacity:1; transform:scale(1); } to{ opacity:0; transform:scale(0.97); } }
 .menu-modal-img{ width:100%; aspect-ratio:16/7; overflow:hidden; position:relative; }
 .menu-modal-img img{ width:100%; height:100%; object-fit:cover; display:block; }
 .menu-modal-cerrar{
   position:absolute; top:12px; right:12px; width:44px; height:44px; border-radius:50%;
   background:rgba(255,255,255,0.92); border:none; font-size:18px; cursor:pointer;
   display:flex; align-items:center; justify-content:center; color:var(--text);
+  transition:background-color .15s ease, transform .15s ease;
 }
+.menu-modal-cerrar:hover{ background:#fff; transform:rotate(90deg); }
 .menu-modal-body{ padding:22px 24px 26px; }
-.menu-modal-nombre{ font-family:var(--T); font-size:22px; font-weight:700; margin:0 0 6px; }
-.menu-modal-precio{ color:var(--accent); font-weight:700; font-size:15px; margin-bottom:14px; }
-.menu-modal-precio small{ color:var(--muted); font-weight:400; }
-.menu-modal-desc{ font-size:14px; line-height:1.55; color:var(--text); margin-bottom:16px; white-space:pre-line; }
+.menu-modal-nombre{ font-family:var(--T); font-size:22px; font-weight:700; margin:0 0 8px; line-height:1.2; }
+.menu-modal-precio{ color:var(--accent); font-weight:800; font-size:18px; margin-bottom:18px; }
+.menu-modal-precio small{ color:var(--muted); font-weight:400; font-size:13px; }
+.menu-modal-desc{ font-size:14px; line-height:1.55; color:var(--muted); margin-bottom:18px; white-space:pre-line; }
 .menu-modal-seccion-titulo{
   font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
-  color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:6px; margin-bottom:8px;
+  color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:6px; margin-bottom:8px; margin-top:4px;
 }
 .menu-modal-ing{ font-size:13.5px; color:var(--text); padding:4px 0; display:flex; justify-content:space-between; gap:12px; }
 .menu-modal-ing span:last-child{ color:var(--muted); }
@@ -484,8 +529,15 @@ function abrirDetalleMenu(id){
   document.getElementById('menuModalContainer').innerHTML = html;
 }
 
+// v1.14: (a pedido) antes esto borraba el modal del DOM al instante —
+// con la animación de salida agregada arriba, hay que esperarla (150ms,
+// mismo tiempo que menuModalFadeOut/menuModalPopOut) antes de vaciar el
+// contenedor, si no la animación nunca se alcanza a ver.
 function cerrarDetalleMenu(){
-  document.getElementById('menuModalContainer').innerHTML = '';
+  const overlay = document.querySelector('.menu-modal-overlay');
+  if(!overlay){ document.getElementById('menuModalContainer').innerHTML = ''; return; }
+  overlay.classList.add('cerrando');
+  setTimeout(() => { document.getElementById('menuModalContainer').innerHTML = ''; }, 150);
 }
 </script>
 

@@ -3,8 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.99.24)</title>
-<!-- AUDIOLINK · cocina.html · v1.99.24
+<title>Audiolink — Cocina (v1.99.26)</title>
+<!-- AUDIOLINK · cocina.html · v1.99.26
+     v1.99.26: (a pedido) reabrir ítems pendientes de una lista de
+     compras ya cerrada/archivada (historialCompras), sin reabrir la
+     lista completa ni tocar el registro del historial:
+     1. Cada tarjeta del historial ahora tiene "▶️ Ver ítems"
+        (toggleDetalleHistorial) que despliega el detalle (nombre,
+        cantidad, unidad, estado comprado/pendiente) de esa lista
+        cerrada.
+     2. Cada ítem con pendiente:true && !comprado (quedó sin comprar
+        al momento del cierre) muestra un botón "🛒 Agregar" individual.
+     3. Si la lista tiene ≥1 pendiente, aparece además "🛒 Agregar
+        todos los pendientes (N)" junto a los demás botones de la
+        tarjeta.
+     4. agregarPendienteDeHistorial(idHistorial, insumoId|null) hace el
+        trabajo real: agrega esos ítems a checkCompras/activa (mismo
+        _guardarListaCompras() de siempre) con pendiente:true,
+        comprado:false; si el insumo ya está en la lista activa, lo
+        marca pendiente en vez de duplicar la fila (mismo criterio que
+        togglePendienteCompra). Los ítems ya comprado del historial NO
+        muestran botón — no tendría sentido re-pedirlos.
+     No se tocó archivarYVaciarListaCompras(), el documento de
+     historialCompras (queda igual, de solo lectura salvo borrado
+     completo existente), ni ningún cálculo de Ventas/Pedidos.
+     v1.99.25: (a pedido) vista combinada de ingresos, SIN fusionar
+     cocinaPedidos y ventasCocina — siguen siendo 2 colecciones
+     separadas, a propósito (un pedido puede estar pendiente de
+     entregar Y de cobrar por abono parcial; una venta ya está cobrada
+     por completo — modelan cosas distintas). Se agrega un segundo dato
+     de solo lectura junto al "Total acumulado" de Ventas
+     (renderTotalPedidosEntregados): suma montoTotal de los pedidos con
+     estado 'entregado', mostrado como "+ $X en N pedidos entregados
+     (aparte)" — nunca se suma al total de arriba, ni se escribe nada
+     en ninguna de las 2 colecciones. Se refresca solo con el listener
+     de Pedidos que ya existía (escucharPedidos). No se tocó ningún
+     cálculo, formulario ni tabla de Ventas ni de Pedidos.
      v1.99.24: (a pedido) 3 pendientes que habían quedado abiertos de la
      entrega anterior (historial de compras + optimizaciones de Ventas):
      (1) Historial de compras: botón 🗑️ por lista archivada
@@ -2299,6 +2333,12 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
       <div>
         <div class="label">Total acumulado</div>
         <div class="valor" id="totalAcumulado">$0</div>
+        <!-- v1.99.25: (a pedido) vista combinada, SIN fusionar
+             cocinaPedidos y ventasCocina — dos colecciones separadas a
+             propósito (ver comentario junto a renderTotalPedidosEntregados
+             más abajo). Este dato es aparte del "Total acumulado" de
+             arriba, nunca se suman entre sí. -->
+        <div class="label" style="margin-top:6px; font-size:0.78rem;" id="totalPedidosEntregados"></div>
       </div>
       <div class="conteo" id="conteoVentas">0 ventas registradas</div>
     </div>
@@ -4832,10 +4872,30 @@ function escucharPedidos(){
     pedidosCache = [];
     snap.forEach(doc => pedidosCache.push({ id: doc.id, ...doc.data() }));
     renderListaPedidos();
+    renderTotalPedidosEntregados(); // v1.99.25: mantiene el KPI de Ventas al día cuando cambia Pedidos
   }, err => {
     console.error('No se pudo leer cocinaPedidos:', err);
     document.getElementById('listaPedidos').innerHTML = '<div class="vacio">Error al cargar los pedidos.</div>';
   });
+}
+
+// v1.99.25: (a pedido) "Pedidos" y "Ventas" son ingresos reales pero
+// modelan cosas distintas — un pedido puede estar pendiente de entregar
+// Y de cobrar (abono parcial), una venta ya está cobrada por completo.
+// A PROPÓSITO no se fusionan en una sola colección ni se auto-genera
+// una "venta" al entregar un pedido (doble conteo si además se registra
+// a mano, y la granularidad no calza: 1 pedido puede tener varias
+// líneas mixtas). Esto es SOLO una vista combinada de lectura: suma
+// montoTotal de los pedidos con estado 'entregado' y lo muestra junto
+// al "Total acumulado" de Ventas, sin sumarlos entre sí ni escribir
+// nada en ninguna de las 2 colecciones.
+function renderTotalPedidosEntregados(){
+  const el = document.getElementById('totalPedidosEntregados');
+  if(!el) return;
+  const entregados = pedidosCache.filter(p => p.estado === 'entregado');
+  if(!entregados.length){ el.textContent = ''; return; }
+  const total = entregados.reduce((acc, p) => acc + (p.montoTotal || 0), 0);
+  el.textContent = `+ ${formatoMoneda(total)} en ${entregados.length} pedido${entregados.length === 1 ? '' : 's'} entregado${entregados.length === 1 ? '' : 's'} (aparte)`;
 }
 
 function agregarLineaPedido(tipo){
@@ -5825,6 +5885,7 @@ function archivarYVaciarListaCompras(){
 // ---------- Historial de compras (v1.99.23, ampliado v1.99.24) ----------
 let historialComprasCache = [];
 let historialComprasLimite = 20; // v1.99.24: paginado — arranca en 20, "Cargar más" suma de a 20
+let _historialExpandido = new Set(); // v1.99.26: ids de listas archivadas con el detalle de ítems abierto
 
 function escucharHistorialCompras(){
   db.collection('historialCompras').orderBy('cerradaEn', 'desc').limit(historialComprasLimite).onSnapshot(snap => {
@@ -5872,7 +5933,10 @@ function historialComprasFiltrado(){
   });
 }
 
+let _historialUltimoHayMas = false; // v1.99.26: se guarda para poder re-renderizar (toggle de detalle) sin perder el estado de "Cargar más"
 function renderHistorialCompras(hayMas){
+  if(hayMas !== undefined) _historialUltimoHayMas = hayMas;
+  hayMas = _historialUltimoHayMas;
   const cont = document.getElementById('listaHistorialCompras');
   const wrapCargarMas = document.getElementById('cargarMasHistorialWrap');
   if(!cont) return;
@@ -5883,11 +5947,26 @@ function renderHistorialCompras(hayMas){
     cont.innerHTML = filas.map(h => {
       const fecha = h.cerradaEn && h.cerradaEn.toDate ? h.cerradaEn.toDate() : null;
       const fechaTxt = fecha ? fecha.toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' }) : '—';
-      const cantidadItems = (h.items || []).length;
+      const items = h.items || [];
+      const cantidadItems = items.length;
       const facturas = h.facturas || [];
       const miniaturas = facturas.map(url => `
         <a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Factura" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid var(--border);"></a>
       `).join('');
+      // v1.99.26: (a pedido) reenviar a la lista activa ítems que
+      // quedaron pendientes (no comprados) en una lista ya archivada.
+      const pendientes = items.filter(it => it.pendiente && !it.comprado);
+      const expandido = _historialExpandido.has(h.id);
+      const detalleItems = expandido ? `
+        <div style="width:100%; padding:8px 0 4px; display:flex; flex-direction:column; gap:6px;">
+          ${items.map(it => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:0.85rem; padding:4px 0; border-bottom:1px solid var(--border);">
+              <span>${(it.nombre || '—').toString().replace(/</g,'&lt;')} — ${it.cantidad || 0} ${it.unidad || ''} ${it.comprado ? '<span style="color:var(--muted);">· comprado</span>' : (it.pendiente ? '<span style="color:var(--warn);">· quedó pendiente</span>' : '')}</span>
+              ${it.pendiente && !it.comprado ? `<button type="button" class="btn-ghost" style="white-space:nowrap;" onclick="agregarPendienteDeHistorial('${h.id}','${it.insumoId}')">🛒 Agregar</button>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
       return `
       <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;">
         <div>
@@ -5896,9 +5975,12 @@ function renderHistorialCompras(hayMas){
         </div>
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           ${miniaturas}
+          <button type="button" class="btn-ghost" onclick="toggleDetalleHistorial('${h.id}')" style="white-space:nowrap;">${expandido ? '🔽 Ocultar ítems' : '▶️ Ver ítems'}</button>
+          ${pendientes.length ? `<button type="button" class="btn-ghost" style="white-space:nowrap;" onclick="agregarPendienteDeHistorial('${h.id}', null)">🛒 Agregar todos los pendientes (${pendientes.length})</button>` : ''}
           <button type="button" class="btn-ghost" onclick="abrirWidgetFactura('${h.id}')" style="white-space:nowrap;">📷 Agregar factura</button>
           <button class="btn-del" title="Eliminar esta lista del historial" onclick="eliminarHistorialCompra('${h.id}')">🗑️</button>
         </div>
+        ${detalleItems}
       </div>`;
     }).join('');
   }
@@ -5920,6 +6002,49 @@ function eliminarHistorialCompra(id){
   if(!confirm('¿Eliminar esta lista del historial? Las fotos de factura ya subidas a Cloudinary NO se borran ahí, solo se pierde la referencia acá. Esta acción no se puede deshacer.')) return;
   db.collection('historialCompras').doc(id).delete()
     .catch(err => { console.error(err); alert('No se pudo eliminar del historial.'); });
+}
+
+// v1.99.26: (a pedido) reabrir de una lista ya archivada solo lo que
+// quedó pendiente (no comprado), sin tocar el registro del historial
+// ni el resto de la lista activa. Dos usos:
+//   agregarPendienteDeHistorial(idHistorial, insumoId) — un ítem puntual
+//   agregarPendienteDeHistorial(idHistorial, null)     — todos los
+//     ítems con pendiente:true && !comprado de esa lista archivada
+// Si el insumo ya está en la lista activa, se marca pendiente:true en
+// vez de duplicar la fila (mismo criterio que togglePendienteCompra).
+function agregarPendienteDeHistorial(idHistorial, insumoId){
+  const registro = historialComprasCache.find(h => h.id === idHistorial);
+  if(!registro) return;
+  const candidatos = (registro.items || []).filter(it => it.pendiente && !it.comprado && (insumoId === null || it.insumoId === insumoId));
+  if(!candidatos.length){ alert('Ese ítem ya no está pendiente.'); return; }
+  if(!confirm(insumoId === null
+    ? `¿Agregar ${candidatos.length} ítem(s) pendiente(s) de esta lista archivada a la lista activa?`
+    : `¿Agregar "${candidatos[0].nombre}" a la lista activa?`)) return;
+
+  const itemsActivos = [...(checkComprasCache.items || [])];
+  candidatos.forEach(it => {
+    const existente = itemsActivos.find(a => a.insumoId === it.insumoId);
+    if(existente){
+      existente.pendiente = true;
+      existente.comprado = false;
+    } else {
+      itemsActivos.push({
+        insumoId: it.insumoId,
+        nombre: it.nombre,
+        cantidad: it.cantidad,
+        unidad: it.unidad,
+        pendiente: true,
+        comprado: false
+      });
+    }
+  });
+  _guardarListaCompras(itemsActivos);
+}
+
+function toggleDetalleHistorial(id){
+  if(_historialExpandido.has(id)) _historialExpandido.delete(id);
+  else _historialExpandido.add(id);
+  renderHistorialCompras();
 }
 
 // v1.99.23: mismo widget de Cloudinary que ya se usa para imagen de
