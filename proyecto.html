@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.41
+<!-- AUDIOLINK · proyecto.html · v5.42
+     v5.42: (a pedido) se agrega el link "🎧 Guía de práctica" en las
+     acciones de cada tema (modal de Temas, junto a Reactivar/
+     Desactivar/Eliminar) — abre guia-practica.html?p={proyectoActualId}
+     &t={temaId} en pestaña nueva. La página nueva vive aparte (mismo
+     criterio de extracción que musicos.html/estudios.html, ya que
+     proyecto.html no debía crecer más) y ahí se editan BPM, compás y
+     secciones del tema, más las maquetas de práctica por instrumento
+     (todo en 4 campos nuevos del doc de tema: practicaBpm,
+     practicaCompas, practicaSecciones, practicaMaquetas). No se tocó
+     ninguna otra lógica de esta página, ni el modal de Temas existente.
      v5.41: primer uso real del toast (sistema agregado en v5.40, hasta
      ahora sin ningún llamado). guardarProyecto() ahora muestra
      "✅ Proyecto creado" / "✅ Proyecto actualizado" al guardar bien —
@@ -3904,6 +3914,7 @@ function renderListaTemasModal(){
         <span>🎙️ Grabación: ${grab.texto}</span>
       </div>
       <div class="tema-modal-acciones">
+        <span class="link-add" onclick="window.open('guia-practica.html?p='+encodeURIComponent(proyectoActualId)+'&t=${t.id}', '_blank')">🎧 Guía de práctica</span>
         ${inactivo
           ? `<span class="link-add" onclick="toggleActivoTema('${t.id}', true)">↺ Reactivar</span>`
           : `<span class="link-add" onclick="toggleActivoTema('${t.id}', false)">⏸ Desactivar</span>`}

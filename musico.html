@@ -4,7 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v1.5
+<!-- AUDIOLINK · musico.html · v1.6
+     v1.6: (a pedido) guía de práctica — cada tarjeta de sesión ahora
+     puede mostrar un bloque "🎧 Maqueta de práctica" con la pista de
+     referencia del instrumento asignado a este músico (cargada desde
+     guia-practica.html, campo practicaMaquetas del doc de tema) y un
+     contador de compases SINCRONIZADO al tiempo real de reproducción
+     (currentTime del <audio> o del player de YouTube — no un click
+     aparte como el preview de staff). Flujo: cargarSesiones() junta
+     los temaId únicos de las sesiones y trae cada doc de tema una sola
+     vez (temaCache), vía el mismo `allow get: if true` que ya
+     permitía abrir sesión/tema puntual sin ser staff — no se tocó
+     firestore.rules. obtenerMaquetaParaSesion() filtra
+     practicaMaquetas por el instrumento asignado a ESTE músico en
+     ESTA sesión (miInstrumento, ya existente desde v1.1); si no hay
+     tema vinculado o no hay maqueta para su instrumento, no se
+     muestra nada (sin bloques vacíos). Se agrega
+     <script src="https://www.youtube.com/iframe_api"> en el head. No
+     se tocó RSVP, consentimiento, ni el guard de sesión/offline
+     existentes — el modo offline simplemente no tendrá temaCache
+     poblado (sin internet no hay YouTube de todos modos) y el bloque
+     de práctica no aparece, sin romper el resto de la página.
      v1.5: Grupo C ("fin del mundo") — el guard offline llamaba solo
      console.info() y musico.html quedaba inaccesible sin señal
      (necesita saber quién sos para filtrar proyectosAsignados, y sin
@@ -81,6 +101,7 @@
 <script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -173,6 +194,12 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .rsvp-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--brd);}
 .consent-row{padding-top:10px;}
 .consent-btn{width:100%;font-size:0.82rem;}
+.practica-box{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd);}
+.practica-titulo{font-size:0.82rem;color:var(--gold);font-weight:600;margin-bottom:8px;}
+.practica-yt{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:var(--surf-light);}
+.practica-contador{display:flex;align-items:baseline;gap:10px;margin-top:8px;padding:8px 10px;background:var(--surf-light);border-radius:8px;}
+.practica-contador .compas-num{font-size:1.3rem;font-weight:700;color:var(--gold);font-family:var(--M);}
+.practica-contador .seccion-nombre{font-size:0.8rem;color:var(--muted);}
 .rsvp-label{font-size:0.8rem;color:var(--muted);}
 .rsvp-btn{
   min-height:44px;padding:9px 16px;border-radius:7px;font-size:0.82rem;font-weight:500;
@@ -258,6 +285,7 @@ let modoPreview = false;
 let proyectosAsignados = [];
 let correoActual = null;
 let nombreMusicoActual = '';
+let temaCache = {}; // v1.6: temaId -> datos del doc tema (practicaBpm/Compas/Secciones/Maquetas), cacheado para no repetir lecturas si varias sesiones comparten tema
 
 // v-NEXT: el guard de sesión (auth.onAuthStateChanged) se salta por
 // completo cuando estaModoOfflineActivo() es true (firebase-config.js
@@ -395,7 +423,28 @@ async function cargarSesiones(){
       });
     }
     todasSesiones.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+
+    // v1.6: (a pedido) guía de práctica — trae, una sola vez por temaId
+    // distinto, el doc de tema (practicaBpm/practicaCompas/
+    // practicaSecciones/practicaMaquetas) para las sesiones que tengan
+    // temaId. Usa el mismo `allow get: if true` que ya permite abrir
+    // sesion/tema puntual sin ser staff (necesita el ID exacto, que
+    // viaja dentro de la sesión) — no requiere ningún cambio de reglas.
+    const temaIdsUnicos = [...new Set(todasSesiones.map(s => s.temaId).filter(Boolean))];
+    await Promise.all(temaIdsUnicos.map(async temaId => {
+      if(temaCache[temaId]) return;
+      try{
+        const sesionDeEsteTema = todasSesiones.find(s => s.temaId === temaId);
+        const temaDoc = await db.collection('proyectos').doc(sesionDeEsteTema.proyectoId).collection('temas').doc(temaId).get();
+        temaCache[temaId] = temaDoc.exists ? temaDoc.data() : null;
+      } catch(e){
+        console.error('No se pudo cargar el tema para la guía de práctica:', temaId, e);
+        temaCache[temaId] = null;
+      }
+    }));
+
     renderSesiones(todasSesiones);
+    inicializarReproductoresPractica(todasSesiones);
   } catch(err){
     console.error('Error cargando sesiones del músico:', err);
     cont.innerHTML = '<div class="empty">No pudimos cargar tus sesiones.</div>';
@@ -438,8 +487,124 @@ function renderSesiones(sesiones){
         <div class="consent-row">
           <button class="btn btn-ghost consent-btn" onclick="abrirConsentimiento('${s.proyectoId}','${s.id}',${s.miTarifa || 'null'})">✍️ Firmar consentimiento</button>
         </div>
+        ${bloquePracticaHtml(s)}
       </div>`;
   }).join('');
+}
+
+// ============ GUÍA DE PRÁCTICA (v1.6) ============
+// Muestra la maqueta de práctica del instrumento asignado a este
+// músico en esta sesión (si el tema tiene una cargada desde
+// guia-practica.html) con un contador de compases sincronizado al
+// tiempo real de reproducción — NO es un click aparte como en el
+// preview de staff, se lee currentTime del audio/video real.
+function normalizarTxtPractica(t){
+  return (t || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function obtenerMaquetaParaSesion(s){
+  const temaData = s.temaId ? temaCache[s.temaId] : null;
+  if(!temaData || !temaData.practicaBpm || !temaData.practicaCompas) return null;
+  const maquetas = temaData.practicaMaquetas || [];
+  return maquetas.find(m => normalizarTxtPractica(m.instrumento) === normalizarTxtPractica(s.miInstrumento)) || null;
+}
+
+function extraerIdYoutube(url){
+  const m = (url || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function bloquePracticaHtml(s){
+  const maqueta = obtenerMaquetaParaSesion(s);
+  if(!maqueta) return '';
+  const uid = 'practica-' + s.id;
+  if(maqueta.tipo === 'youtube'){
+    const ytId = extraerIdYoutube(maqueta.url);
+    if(!ytId) return '';
+    return `
+      <div class="practica-box">
+        <div class="practica-titulo">🎧 Maqueta de práctica — ${escapeHtml(s.miInstrumento)}</div>
+        <div class="practica-yt" id="yt-${uid}"></div>
+        <div class="practica-contador">
+          <span class="compas-num" id="compas-${uid}">1</span>
+          <span class="seccion-nombre" id="seccion-${uid}">—</span>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="practica-box">
+      <div class="practica-titulo">🎧 Maqueta de práctica — ${escapeHtml(s.miInstrumento)}</div>
+      <audio id="audio-${uid}" controls style="width:100%;" src="${escapeHtml(maqueta.url)}"></audio>
+      <div class="practica-contador">
+        <span class="compas-num" id="compas-${uid}">1</span>
+        <span class="seccion-nombre" id="seccion-${uid}">—</span>
+      </div>
+    </div>`;
+}
+
+function actualizarContadorPractica(uid, tiempoActual, bpm, compasesPorBarra, secciones){
+  const secPerBeat = 60 / bpm;
+  const secPerBar = secPerBeat * compasesPorBarra;
+  const barIndex = Math.max(1, Math.floor(tiempoActual / secPerBar) + 1);
+  const elCompas = document.getElementById('compas-' + uid);
+  if(elCompas) elCompas.textContent = barIndex;
+  let seccionNombre = '—';
+  (secciones || []).forEach(sec => { if(tiempoActual >= (sec.desdeSegundos || 0)) seccionNombre = sec.nombre; });
+  const elSeccion = document.getElementById('seccion-' + uid);
+  if(elSeccion) elSeccion.textContent = seccionNombre;
+}
+
+let ytApiListo = false;
+let colaInicializacionYt = [];
+function onYouTubeIframeAPIReady(){
+  ytApiListo = true;
+  colaInicializacionYt.forEach(fn => fn());
+  colaInicializacionYt = [];
+}
+
+function inicializarReproductoresPractica(sesiones){
+  sesiones.forEach(s => {
+    const maqueta = obtenerMaquetaParaSesion(s);
+    if(!maqueta) return;
+    const uid = 'practica-' + s.id;
+    const temaData = temaCache[s.temaId];
+    const compasesPorBarra = parseInt((temaData.practicaCompas || '4/4').split('/')[0], 10) || 4;
+
+    if(maqueta.tipo === 'audio'){
+      const audio = document.getElementById('audio-' + uid);
+      if(!audio) return;
+      const tick = () => {
+        if(audio.paused) return;
+        actualizarContadorPractica(uid, audio.currentTime, temaData.practicaBpm, compasesPorBarra, temaData.practicaSecciones);
+        requestAnimationFrame(tick);
+      };
+      audio.addEventListener('play', () => requestAnimationFrame(tick));
+      audio.addEventListener('seeked', () => actualizarContadorPractica(uid, audio.currentTime, temaData.practicaBpm, compasesPorBarra, temaData.practicaSecciones));
+      return;
+    }
+
+    const ytId = extraerIdYoutube(maqueta.url);
+    if(!ytId || !document.getElementById('yt-' + uid)) return;
+    const crearPlayer = () => {
+      const player = new YT.Player('yt-' + uid, {
+        videoId: ytId,
+        height: '100%', width: '100%',
+        events: {
+          onStateChange: (e) => {
+            if(e.data === YT.PlayerState.PLAYING){
+              const tick = () => {
+                if(player.getPlayerState() !== YT.PlayerState.PLAYING) return;
+                actualizarContadorPractica(uid, player.getCurrentTime(), temaData.practicaBpm, compasesPorBarra, temaData.practicaSecciones);
+                requestAnimationFrame(tick);
+              };
+              requestAnimationFrame(tick);
+            }
+          }
+        }
+      });
+    };
+    if(ytApiListo) crearPlayer(); else colaInicializacionYt.push(crearPlayer);
+  });
 }
 
 // v1.2: abre consentimiento.html (existente, sin tocar) con los datos

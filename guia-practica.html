@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Guía de práctica</title>
+<!-- AUDIOLINK · guia-practica.html · v1.2
+     v1.2: la página nunca arrancaba — faltaban por completo la
+     inicialización de Firebase (firebase.initializeApp/crearDB()/
+     firebase.auth(), presentes en proyecto.html pero nunca copiadas
+     acá) y el bloque de arranque/guard de sesión (nadie llamaba a
+     iniciarGuiaPractica()). Se agregó al final del script, mismo
+     patrón que proyecto.html: guard offline vía
+     estaModoOfflineActivo() (llama iniciarGuiaPractica() directo) y
+     guard online vía auth.onAuthStateChanged() + validación de
+     equipoInterno/{email}.activo === true (llama
+     iniciarGuiaPractica() al validar, en vez de solo marcar una
+     bandera, porque esta página es un solo flujo staff-only sin
+     vista previa ni roles). No se tocó ninguna otra función existente.
+     v1.1: (a pedido) el campo "Instrumento" de cada maqueta deja de
+     ser texto libre — se elige de un <select> armado con los
+     instrumentos que YA están asignados a músicos en las sesiones de
+     este proyecto (musicosAsignados[].instrumento, leído de
+     proyectos/{p}/sesiones). Esto garantiza que el match con
+     musico.html (que filtra por s.miInstrumento exacto) nunca falle
+     por typeos o sinónimos ("Bajo" vs "bajo eléctrico"), sin crear
+     ningún catálogo nuevo ni tocar musicos.html/proyecto.html. Si el
+     proyecto todavía no tiene ningún músico asignado, el campo cae a
+     texto libre (mismo comportamiento de v1.0) para no bloquear la
+     carga de maquetas antes de tener asignaciones; si un valor ya
+     guardado no aparece en la lista actual, se agrega igual como
+     opción para no perder el dato. No se tocó BPM/compás/secciones,
+     ni el preview del contador, ni el guard de sesión.
+     V1.0: nuevo, extraído como archivo standalone desde el diseño (no
+     desde código existente) — sigue el mismo criterio de extracción
+     que musicos.html/estudios.html: página propia con su propio guard
+     de staff, en vez de agregar una sección más a proyecto.html (que
+     ya tiene 4000+ líneas). Se abre desde proyecto.html con
+     ?p={proyectoId}&t={temaId} (botón nuevo "🎧 Guía de práctica" por
+     fila de tema — ver proyecto.html).
+
+     Qué hace: por cada tema, permite cargar BPM, tipo de compás
+     (incluye divisiones de 8 para doblar fácil: 4/4, 3/4, 6/8, 4/8,
+     2/4, 5/4, 7/8, 12/8) y una lista de secciones (nombre + minuto:
+     segundo de inicio) — todo COMPARTIDO por el tema, sin importar el
+     instrumento. Además, una lista de "maquetas por instrumento"
+     (link YouTube o audio + a qué instrumento corresponde), porque la
+     pista de referencia SÍ puede variar por instrumento (ej. guía
+     solo-bajo para el bajista) aunque el BPM/compás/secciones no.
+     Todo se guarda en el MISMO documento proyectos/{p}/temas/{t}, en 4
+     campos nuevos que no existían: practicaBpm (number), practicaCompas
+     (string), practicaSecciones (array de {nombre, desdeSegundos}),
+     practicaMaquetas (array de {instrumento, url, tipo}). No se toca
+     ningún campo existente del documento tema (nombre, orden, activo,
+     notasEdicion/Mezcla/Mastering, etc.) — esta página solo hace
+     update() con esos 4 campos, nunca set() completo del doc.
+
+     Al fondo hay un preview en vivo del widget contador de compases
+     (Tone.js, mismo concepto que la demo), para que el staff pueda
+     probar cómo se va a ver antes de mandarle el link al músico —
+     ese widget real (consumiendo estos mismos campos) vive en
+     musico.html, no acá.
+
+     Firestore: usa esStaff() sin cambios — no hace falta tocar
+     firestore.rules porque el CRUD normal de temas (proyecto.html) ya
+     tiene permiso total de escritura vía esStaff(); la excepción
+     angosta "sin login" de temas (usada por bitacora.html para
+     notasEdicion/Mezcla/Mastering/etc.) NO incluye estos 4 campos
+     nuevos a propósito — la lectura del músico pasa por el
+     `allow get: if true` ya existente (necesita el ID exacto, que
+     viaja dentro del doc de sesión/asignación, mismo criterio que el
+     resto del ecosistema), no por esa excepción de escritura. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;position:relative;overflow-x:hidden;}
+header, main, .main-wrap{position:relative;z-index:1;}
+.card{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:18px 20px;margin-bottom:18px;}
+.card h3{font-family:var(--T);font-size:1.05rem;color:var(--gold);margin-bottom:12px;font-weight:600;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
+input, select{
+  width:100%;padding:10px 12px;background:var(--surf-light);border:1px solid var(--brd);
+  border-radius:8px;color:var(--txt);font-family:var(--S);font-size:0.9rem;
+}
+input:focus, select:focus{outline:none;border-color:var(--gold);}
+.btn{padding:10px 16px;background:var(--gold);color:#1a1408;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;}
+.btn-ghost{padding:9px 15px;background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;cursor:pointer;font-size:0.85rem;}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+.btn-del{background:none;border:none;color:var(--err);cursor:pointer;font-size:1rem;padding:4px 8px;}
+.fila{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+.fila > *{flex:1;min-width:120px;}
+.fila .btn-del{flex:0;}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:600px){.row-2{grid-template-columns:1fr;}}
+.vacio{color:var(--faint);font-size:0.85rem;padding:10px 0;}
+.guardado-ok{font-size:0.78rem;color:var(--ok);margin-top:6px;display:none;}
+#previewWrap{background:var(--surf-light);border-radius:8px;padding:16px;}
+</style>
+</head>
+<body>
+
+<script>
+window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+  <div style="padding:20px 24px 60px; max-width:760px; margin:0 auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; flex-wrap:wrap;">
+      <h2 style="font-family:var(--T); font-size:1.4rem;">🎧 Guía de práctica</h2>
+      <button class="btn-ghost" onclick="history.back()">← Volver</button>
+    </div>
+    <p id="contextoTema" style="color:var(--muted); font-size:0.85rem; margin-bottom:20px;">Cargando…</p>
+
+    <div class="card">
+      <h3>Datos del tema</h3>
+      <div class="row-2">
+        <div class="field">
+          <label>BPM</label>
+          <input type="number" id="inputBpm" min="20" max="300" step="1" placeholder="Ej: 96">
+        </div>
+        <div class="field">
+          <label>Compás</label>
+          <select id="inputCompas">
+            <option value="">— Seleccionar —</option>
+            <option value="4/4">4/4</option>
+            <option value="3/4">3/4</option>
+            <option value="2/4">2/4</option>
+            <option value="5/4">5/4</option>
+            <option value="7/4">7/4</option>
+            <option value="6/8">6/8</option>
+            <option value="4/8">4/8 (divisiones de 8, doblar fácil)</option>
+            <option value="7/8">7/8</option>
+            <option value="12/8">12/8</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" onclick="guardarDatosTema()">Guardar BPM y compás</button>
+      <div class="guardado-ok" id="okDatosTema">✓ Guardado</div>
+    </div>
+
+    <div class="card">
+      <h3>Secciones</h3>
+      <div id="listaSecciones"></div>
+      <button class="btn-ghost" onclick="agregarFilaSeccion()">+ Agregar sección</button>
+      <div style="margin-top:12px;">
+        <button class="btn" onclick="guardarSecciones()">Guardar secciones</button>
+        <div class="guardado-ok" id="okSecciones">✓ Guardado</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Maquetas por instrumento</h3>
+      <p style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">El BPM/compás/secciones de arriba son del tema (compartidos). Acá cada instrumento puede tener su propia pista de referencia.</p>
+      <div id="listaMaquetas"></div>
+      <button class="btn-ghost" onclick="agregarFilaMaqueta()">+ Agregar maqueta</button>
+      <div style="margin-top:12px;">
+        <button class="btn" onclick="guardarMaquetas()">Guardar maquetas</button>
+        <div class="guardado-ok" id="okMaquetas">✓ Guardado</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Previsualizar contador</h3>
+      <div id="previewWrap">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+          <button class="btn-ghost" id="previewPlayBtn" onclick="previewTogglePlay()">▶️ Reproducir click de prueba</button>
+        </div>
+        <div style="text-align:center; margin-bottom:16px;">
+          <div style="font-size:12px; color:var(--muted);">compás</div>
+          <div id="previewBar" style="font-size:36px; font-weight:600; color:var(--gold);">1</div>
+          <div id="previewSeccion" style="font-size:13px; color:var(--muted); margin-top:4px;">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const proyectoId = params.get('p');
+const temaId = params.get('t');
+let temaRef = null;
+let temaDataActual = {};
+let instrumentosDelProyecto = []; // v1.1: instrumentos ya asignados a músicos en las sesiones de este proyecto
+
+// v1.2: faltaba por completo — mismo patrón que proyecto.html (estas 3
+// líneas no vienen de firebase-config.js, cada página las declara).
+firebase.initializeApp(firebaseConfig);
+const db = crearDB();
+const auth = firebase.auth();
+
+async function iniciarGuiaPractica(){
+  temaRef = db.collection('proyectos').doc(proyectoId).collection('temas').doc(temaId);
+  try{
+    const [proyDoc, temaDoc, sesionesSnap] = await Promise.all([
+      db.collection('proyectos').doc(proyectoId).get(),
+      temaRef.get(),
+      db.collection('proyectos').doc(proyectoId).collection('sesiones').get()
+    ]);
+    if(!temaDoc.exists){
+      document.getElementById('contextoTema').textContent = 'No se encontró este tema.';
+      return;
+    }
+    temaDataActual = temaDoc.data() || {};
+    const nombreProyecto = proyDoc.exists ? (proyDoc.data().nombre || '—') : '—';
+    document.getElementById('contextoTema').textContent = `${nombreProyecto} → ${temaDataActual.nombre || '—'}`;
+
+    document.getElementById('inputBpm').value = temaDataActual.practicaBpm || '';
+    document.getElementById('inputCompas').value = temaDataActual.practicaCompas || '';
+
+    // v1.1: (a pedido) el instrumento de cada maqueta ya NO se escribe
+    // a mano — se elige de los instrumentos que YA están asignados a
+    // músicos en las sesiones de este proyecto (musicosAsignados[].
+    // instrumento), para que el match con musico.html quede
+    // garantizado (misma fuente de datos, sin typeos ni sinónimos). No
+    // se crea ningún catálogo nuevo ni se toca musicos.html/proyecto.html.
+    const setInstrumentos = new Set();
+    sesionesSnap.forEach(d => {
+      const asignados = Array.isArray(d.data().musicosAsignados) ? d.data().musicosAsignados : [];
+      asignados.forEach(m => { if((m.instrumento || '').trim()) setInstrumentos.add(m.instrumento.trim()); });
+    });
+    instrumentosDelProyecto = [...setInstrumentos].sort((a, b) => a.localeCompare(b));
+
+    renderSecciones(temaDataActual.practicaSecciones || []);
+    renderMaquetas(temaDataActual.practicaMaquetas || []);
+  } catch(e){
+    console.error(e);
+    document.getElementById('contextoTema').textContent = 'Error cargando el tema.';
+  }
+}
+
+function mostrarOk(id){
+  const el = document.getElementById(id);
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2000);
+}
+
+async function guardarDatosTema(){
+  const bpm = parseInt(document.getElementById('inputBpm').value, 10) || null;
+  const compas = document.getElementById('inputCompas').value || null;
+  try{
+    await temaRef.update({ practicaBpm: bpm, practicaCompas: compas });
+    temaDataActual.practicaBpm = bpm;
+    temaDataActual.practicaCompas = compas;
+    mostrarOk('okDatosTema');
+  }catch(e){ console.error(e); alert('No se pudo guardar BPM/compás.'); }
+}
+
+// ============ SECCIONES ============
+let seccionesEnEdicion = [];
+
+function renderSecciones(secciones){
+  seccionesEnEdicion = secciones.map(s => ({ ...s }));
+  pintarSecciones();
+}
+
+function pintarSecciones(){
+  const cont = document.getElementById('listaSecciones');
+  if(!seccionesEnEdicion.length){
+    cont.innerHTML = '<div class="vacio">Sin secciones todavía.</div>';
+    return;
+  }
+  cont.innerHTML = seccionesEnEdicion.map((s, i) => `
+    <div class="fila">
+      <input type="text" placeholder="Nombre (ej: Coro)" value="${(s.nombre || '').replace(/"/g,'&quot;')}" onchange="seccionesEnEdicion[${i}].nombre = this.value">
+      <input type="text" placeholder="Minuto:segundo (ej: 1:30)" value="${segundosATexto(s.desdeSegundos)}" onchange="seccionesEnEdicion[${i}].desdeSegundos = textoASegundos(this.value)">
+      <button class="btn-del" onclick="eliminarSeccion(${i})" title="Eliminar">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function agregarFilaSeccion(){
+  seccionesEnEdicion.push({ nombre: '', desdeSegundos: 0 });
+  pintarSecciones();
+}
+
+function eliminarSeccion(i){
+  seccionesEnEdicion.splice(i, 1);
+  pintarSecciones();
+}
+
+function segundosATexto(seg){
+  seg = seg || 0;
+  const m = Math.floor(seg / 60);
+  const s = Math.floor(seg % 60);
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+function textoASegundos(txt){
+  const partes = (txt || '0:0').split(':');
+  if(partes.length === 2) return (parseInt(partes[0],10) || 0) * 60 + (parseInt(partes[1],10) || 0);
+  return parseInt(partes[0],10) || 0;
+}
+
+async function guardarSecciones(){
+  const limpio = seccionesEnEdicion
+    .filter(s => (s.nombre || '').trim())
+    .sort((a,b) => (a.desdeSegundos||0) - (b.desdeSegundos||0));
+  try{
+    await temaRef.update({ practicaSecciones: limpio });
+    temaDataActual.practicaSecciones = limpio;
+    mostrarOk('okSecciones');
+  }catch(e){ console.error(e); alert('No se pudieron guardar las secciones.'); }
+}
+
+// ============ MAQUETAS POR INSTRUMENTO ============
+let maquetasEnEdicion = [];
+
+function renderMaquetas(maquetas){
+  maquetasEnEdicion = maquetas.map(m => ({ ...m }));
+  pintarMaquetas();
+}
+
+// v1.1: si el proyecto ya tiene instrumentos asignados en alguna
+// sesión, se elige de un <select> (garantiza el match exacto con
+// musico.html). Si el proyecto todavía no tiene ningún músico
+// asignado, cae a texto libre (mismo comportamiento de antes) para no
+// bloquear la carga de maquetas antes de tener asignaciones — y si el
+// valor ya guardado no está en la lista (se asignó después de crear
+// la maqueta, o cambiaron el texto en la sesión), se agrega igual como
+// opción para no perder el dato existente.
+function campoInstrumentoHtml(m, i){
+  const valorActual = (m.instrumento || '').trim();
+  if(!instrumentosDelProyecto.length){
+    return `<input type="text" placeholder="Instrumento (ej: Bajo)" value="${valorActual.replace(/"/g,'&quot;')}" onchange="maquetasEnEdicion[${i}].instrumento = this.value">`;
+  }
+  const opciones = [...instrumentosDelProyecto];
+  if(valorActual && !opciones.includes(valorActual)) opciones.push(valorActual);
+  return `<select onchange="maquetasEnEdicion[${i}].instrumento = this.value">
+    <option value="">— Instrumento —</option>
+    ${opciones.map(op => `<option value="${op.replace(/"/g,'&quot;')}" ${op === valorActual ? 'selected' : ''}>${op.replace(/</g,'&lt;')}</option>`).join('')}
+  </select>`;
+}
+
+function pintarMaquetas(){
+  const cont = document.getElementById('listaMaquetas');
+  if(!maquetasEnEdicion.length){
+    cont.innerHTML = '<div class="vacio">Sin maquetas todavía.</div>';
+    return;
+  }
+  cont.innerHTML = maquetasEnEdicion.map((m, i) => `
+    <div class="fila">
+      ${campoInstrumentoHtml(m, i)}
+      <input type="text" placeholder="URL (YouTube o audio)" value="${(m.url || '').replace(/"/g,'&quot;')}" onchange="maquetasEnEdicion[${i}].url = this.value">
+      <select onchange="maquetasEnEdicion[${i}].tipo = this.value">
+        <option value="youtube" ${m.tipo === 'youtube' ? 'selected' : ''}>YouTube</option>
+        <option value="audio" ${m.tipo === 'audio' ? 'selected' : ''}>Audio directo</option>
+      </select>
+      <button class="btn-del" onclick="eliminarMaqueta(${i})" title="Eliminar">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function agregarFilaMaqueta(){
+  maquetasEnEdicion.push({ instrumento: '', url: '', tipo: 'youtube' });
+  pintarMaquetas();
+}
+
+function eliminarMaqueta(i){
+  maquetasEnEdicion.splice(i, 1);
+  pintarMaquetas();
+}
+
+async function guardarMaquetas(){
+  const limpio = maquetasEnEdicion.filter(m => (m.instrumento || '').trim() && (m.url || '').trim());
+  try{
+    await temaRef.update({ practicaMaquetas: limpio });
+    temaDataActual.practicaMaquetas = limpio;
+    mostrarOk('okMaquetas');
+  }catch(e){ console.error(e); alert('No se pudieron guardar las maquetas.'); }
+}
+
+// ============ PREVIEW DEL CONTADOR (mismo concepto que la demo) ============
+let previewPlaying = false;
+let previewSynth = null;
+let previewLoop = null;
+let previewStart = 0;
+
+function previewBeatsPerBar(){
+  const compas = document.getElementById('inputCompas').value || '4/4';
+  return parseInt(compas.split('/')[0], 10) || 4;
+}
+function previewBpm(){
+  return parseFloat(document.getElementById('inputBpm').value) || 96;
+}
+function previewSeccionEn(t){
+  const secciones = (seccionesEnEdicion || []).filter(s => (s.nombre||'').trim());
+  if(!secciones.length) return '—';
+  let actual = secciones[0];
+  secciones.forEach(s => { if(t >= (s.desdeSegundos||0)) actual = s; });
+  return actual.nombre;
+}
+
+async function previewTogglePlay(){
+  const btn = document.getElementById('previewPlayBtn');
+  if(!previewPlaying){
+    await Tone.start();
+    if(!previewSynth) previewSynth = new Tone.MembraneSynth().toDestination();
+    const secPerBeat = 60 / previewBpm();
+    previewLoop = new Tone.Loop(time => {
+      previewSynth.triggerAttackRelease('C2', '16n', time);
+    }, secPerBeat).start(0);
+    Tone.Transport.start();
+    previewStart = Tone.now();
+    previewPlaying = true;
+    btn.textContent = '⏸️ Pausar';
+    requestAnimationFrame(previewUpdate);
+  } else {
+    Tone.Transport.pause();
+    if(previewLoop) previewLoop.stop();
+    previewPlaying = false;
+    btn.textContent = '▶️ Reproducir click de prueba';
+  }
+}
+
+function previewUpdate(){
+  if(!previewPlaying) return;
+  const elapsed = Tone.now() - previewStart;
+  const secPerBeat = 60 / previewBpm();
+  const secPerBar = secPerBeat * previewBeatsPerBar();
+  const barIndex = Math.floor(elapsed / secPerBar) + 1;
+  document.getElementById('previewBar').textContent = barIndex;
+  document.getElementById('previewSeccion').textContent = previewSeccionEn(elapsed);
+  requestAnimationFrame(previewUpdate);
+}
+
+// ============ ARRANQUE / GUARD DE SESIÓN ============
+// v1.2: faltaba por completo — la página nunca llamaba a
+// iniciarGuiaPractica() ni validaba sesión. Se agrega acá, al final del
+// script (después de que todas las variables/funciones ya existen), con
+// el mismo patrón de proyecto.html: guard offline vía
+// estaModoOfflineActivo() (firebase-config.js), y guard online vía
+// auth.onAuthStateChanged() + validación de equipoInterno/{email}.activo
+// === true. A diferencia de proyecto.html (que solo marcaba una bandera),
+// acá se llama directo a iniciarGuiaPractica() al validar, porque esta
+// página es de un solo flujo (staff-only, sin vista previa ni roles).
+if(estaModoOfflineActivo()){
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  iniciarGuiaPractica();
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){
+      window.location.href = 'login.html?next=' + encodeURIComponent(location.href);
+      return;
+    }
+    try{
+      const doc = await db.collection('equipoInterno').doc(user.email).get();
+      if(!doc.exists || doc.data().activo !== true){
+        await auth.signOut();
+        window.location.href = 'login.html';
+        return;
+      }
+      iniciarGuiaPractica();
+    } catch(e){
+      console.error('Error validando sesión:', e);
+      window.location.href = 'login.html';
+    }
+  });
+}
+</script>
+
+</body>
+</html>
