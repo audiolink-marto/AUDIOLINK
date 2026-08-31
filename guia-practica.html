@@ -4,7 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.2
+<!-- AUDIOLINK · guia-practica.html · v1.7
+     v1.7: (a pedido) presets rápidos de duración junto al campo "hasta"
+     — botones cuadrados x4/x8/x16/x32/x64 que fijan el fin manual de
+     la sección en esa cantidad de compases desde su inicio, sin tener
+     que escribir el compás a mano. El botón se resalta si el valor
+     guardado coincide con ese preset. No cambia nada del cálculo de
+     "desde" ni del guardado (sigue siendo hastaSegundos, snapeado
+     igual que siempre).
+     v1.6: (a pedido) fin de sección editable a mano (opcional) —
+     nuevo campo "hasta" por sección, en espejo del "desde" (compás o
+     minuto:segundo). Si se deja vacío, sigue funcionando como antes
+     (musico.html calcula el fin automáticamente). Se guarda snapeado
+     al borde de compás más cercano, igual que el "desde".
+     v1.5
+     v1.5: (a pedido) las secciones ahora se pueden cargar por N° de
+     compás además de minuto:segundo — dos inputs por fila. El que se
+     está escribiendo guarda directamente el desdeSegundos (gana el
+     último que se tocó); el otro campo muestra la conversión en vivo
+     como placeholder (solo preview, no pisa lo que ya está escrito
+     ahí). Usa BPM/compás/offset ya cargados arriba (previewBpm/
+     previewBeatsPerBar/previewOffset, ya existentes) — si todavía no
+     hay BPM/compás guardados, el placeholder de compás simplemente no
+     tiene con qué convertir (queda en blanco), sin romper nada.
+     v1.4: (a pedido, junto con musico.html v2.0) nuevo campo "Clave"
+     (practicaClave, string) en Datos del tema — selector con Ninguna/
+     Son 2-3/Son 3-2/Rumba 2-3/Rumba 3-2/Bossa 2-3/Bossa 3-2. Se guarda
+     junto con BPM/compás/offset (mismo botón). musico.html v2.0 usa
+     este valor para hacer que el click de metrónomo siga la célula
+     rítmica de la clave en vez de sonar por tiempo. No se tocó nada
+     más — Secciones/Maquetas siguen igual.
+     v1.3: (a pedido, junto con musico.html v1.7) dos cambios ligados a
+     hacer que el loop/contador de musico.html caiga siempre justo en
+     el borde de un compás:
+     1) Nuevo campo "Offset del compás 1" (practicaOffset, number,
+     segundos, default 0) — para temas con intro/anacrusa donde el
+     compás 1 real no arranca en t=0. Se guarda junto con BPM/compás
+     (mismo botón "Guardar BPM y compás"), y musico.html lo usa para
+     todos sus cálculos de compás/loop.
+     2) guardarSecciones() ahora redondea (snap) cada
+     desdeSegundos al borde de compás más cercano, usando
+     BPM+compás+offset actuales — así el tiempo que queda guardado en
+     Firestore ya viene alineado, sin depender de que el staff lo haya
+     escrito exacto a mano. El preview del contador (más abajo) también
+     usa el offset para consistencia. No se tocó Maquetas ni el guard
+     de sesión.
      v1.2: la página nunca arrancaba — faltaban por completo la
      inicialización de Firebase (firebase.initializeApp/crearDB()/
      firebase.auth(), presentes en proyecto.html pero nunca copiadas
@@ -135,8 +179,24 @@ input:focus, select:focus{outline:none;border-color:var(--gold);}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
 .btn-del{background:none;border:none;color:var(--err);cursor:pointer;font-size:1rem;padding:4px 8px;}
 .fila{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+/* v1.6: fila secundaria de "hasta" (fin manual opcional) — más chica
+   y con menos margen inferior, para que se lea como un sub-renglón de
+   la fila de "desde" de arriba y no como una sección nueva. */
+.fila-hasta{margin-top:-4px;margin-bottom:14px;padding-left:4px;opacity:0.85;}
+.fila-hasta-label{font-size:0.78rem;color:var(--faint);white-space:nowrap;}
 .fila > *{flex:1;min-width:120px;}
 .fila .btn-del{flex:0;}
+/* v1.7: presets rápidos de duración para el fin manual de sección
+   ("hasta") — botones cuadraditos con solo el número de compases. */
+.hasta-presets{display:flex;gap:6px;flex:0 0 auto !important;min-width:0 !important;}
+.btn-preset{
+  flex:0 0 auto;width:38px;height:38px;padding:0;
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
+  color:var(--muted);font-family:var(--S);font-size:0.78rem;font-weight:600;
+  cursor:pointer;transition:border-color 0.15s,color 0.15s,background 0.15s;
+}
+.btn-preset:hover{border-color:var(--gold);color:var(--gold);}
+.btn-preset.activo{background:var(--gold);border-color:var(--gold);color:#1a1408;}
 .row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:600px){.row-2{grid-template-columns:1fr;}}
 .vacio{color:var(--faint);font-size:0.85rem;padding:10px 0;}
@@ -182,6 +242,22 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
             <option value="12/8">12/8</option>
           </select>
         </div>
+      </div>
+      <div class="field">
+        <label>Offset del compás 1 (segundos) — dejar en 0 si el tema no tiene intro</label>
+        <input type="number" id="inputOffset" min="0" step="0.1" placeholder="Ej: 2.5">
+      </div>
+      <div class="field">
+        <label>Clave (opcional — para salsa/música brasileña)</label>
+        <select id="inputClave">
+          <option value="">Ninguna</option>
+          <option value="son23">Son 2-3</option>
+          <option value="son32">Son 3-2</option>
+          <option value="rumba23">Rumba 2-3</option>
+          <option value="rumba32">Rumba 3-2</option>
+          <option value="bossa23">Bossa 2-3</option>
+          <option value="bossa32">Bossa 3-2</option>
+        </select>
       </div>
       <button class="btn" onclick="guardarDatosTema()">Guardar BPM y compás</button>
       <div class="guardado-ok" id="okDatosTema">✓ Guardado</div>
@@ -256,6 +332,8 @@ async function iniciarGuiaPractica(){
 
     document.getElementById('inputBpm').value = temaDataActual.practicaBpm || '';
     document.getElementById('inputCompas').value = temaDataActual.practicaCompas || '';
+    document.getElementById('inputOffset').value = temaDataActual.practicaOffset || 0;
+    document.getElementById('inputClave').value = temaDataActual.practicaClave || '';
 
     // v1.1: (a pedido) el instrumento de cada maqueta ya NO se escribe
     // a mano — se elige de los instrumentos que YA están asignados a
@@ -287,12 +365,36 @@ function mostrarOk(id){
 async function guardarDatosTema(){
   const bpm = parseInt(document.getElementById('inputBpm').value, 10) || null;
   const compas = document.getElementById('inputCompas').value || null;
+  const offset = parseFloat(document.getElementById('inputOffset').value) || 0;
+  const clave = document.getElementById('inputClave').value || null;
   try{
-    await temaRef.update({ practicaBpm: bpm, practicaCompas: compas });
+    await temaRef.update({ practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave });
     temaDataActual.practicaBpm = bpm;
     temaDataActual.practicaCompas = compas;
+    temaDataActual.practicaOffset = offset;
+    temaDataActual.practicaClave = clave;
     mostrarOk('okDatosTema');
   }catch(e){ console.error(e); alert('No se pudo guardar BPM/compás.'); }
+}
+
+// v1.3: duración de un compás completo, según BPM + tipo de compás
+// (usa el numerador, ej. "4/4" -> 4 tiempos por compás — mismo
+// criterio que previewBeatsPerBar()/musico.html).
+function segundosPorCompas(bpm, beatsPerBar){
+  if(!bpm || !beatsPerBar) return 0;
+  return (60 / bpm) * beatsPerBar;
+}
+// Redondea un segundo al borde de compás más cercano, respetando el
+// offset del compás 1. Si no hay BPM/compás válidos todavía, no
+// redondea (devuelve el valor tal cual) para no bloquear al staff.
+function snapASegundoDeCompas(seg){
+  const bpm = parseFloat(document.getElementById('inputBpm').value) || 0;
+  const beatsPerBar = previewBeatsPerBar();
+  const offset = parseFloat(document.getElementById('inputOffset').value) || 0;
+  const secPerBar = segundosPorCompas(bpm, beatsPerBar);
+  if(!secPerBar) return seg;
+  const n = Math.round((seg - offset) / secPerBar);
+  return Math.max(0, offset + n * secPerBar);
 }
 
 // ============ SECCIONES ============
@@ -312,8 +414,18 @@ function pintarSecciones(){
   cont.innerHTML = seccionesEnEdicion.map((s, i) => `
     <div class="fila">
       <input type="text" placeholder="Nombre (ej: Coro)" value="${(s.nombre || '').replace(/"/g,'&quot;')}" onchange="seccionesEnEdicion[${i}].nombre = this.value">
-      <input type="text" placeholder="Minuto:segundo (ej: 1:30)" value="${segundosATexto(s.desdeSegundos)}" onchange="seccionesEnEdicion[${i}].desdeSegundos = textoASegundos(this.value)">
+      <input type="number" min="1" step="1" id="seccompas-${i}" placeholder="${'compás ' + compasDeSegundos(s.desdeSegundos)}" oninput="actualizarSeccionDesdeCompas(${i}, this.value)">
+      <input type="text" id="sectiempo-${i}" placeholder="Minuto:segundo (ej: 1:30)" value="${segundosATexto(s.desdeSegundos)}" oninput="actualizarSeccionDesdeTiempo(${i}, this.value)">
       <button class="btn-del" onclick="eliminarSeccion(${i})" title="Eliminar">🗑️</button>
+    </div>
+    <div class="fila fila-hasta">
+      <span class="fila-hasta-label">hasta (opcional)</span>
+      <input type="number" min="1" step="1" id="sechastacompas-${i}" placeholder="${'compás ' + (s.hastaSegundos != null ? compasDeSegundos(s.hastaSegundos) : '— auto —')}" oninput="actualizarSeccionHastaCompas(${i}, this.value)">
+      <input type="text" id="sechastatiempo-${i}" placeholder="Minuto:segundo" value="${s.hastaSegundos != null ? segundosATexto(s.hastaSegundos) : ''}" oninput="actualizarSeccionHastaTiempo(${i}, this.value)">
+      <div class="hasta-presets">
+        ${[4,8,16,32,64].map(n => `<button type="button" class="btn-preset${esPresetHastaActivo(s, i, n) ? ' activo' : ''}" onclick="setSeccionHastaPreset(${i}, ${n})" title="Fin = ${n} compases desde el inicio de esta sección">x${n}</button>`).join('')}
+      </div>
+      <button class="btn-del" onclick="limpiarSeccionHasta(${i})" title="Volver a automático (sin fin manual)">↺</button>
     </div>
   `).join('');
 }
@@ -339,10 +451,109 @@ function textoASegundos(txt){
   if(partes.length === 2) return (parseInt(partes[0],10) || 0) * 60 + (parseInt(partes[1],10) || 0);
   return parseInt(partes[0],10) || 0;
 }
+// v1.4: (a pedido) las secciones también se pueden cargar por N° de
+// compás, no solo por minuto:segundo — dos inputs por fila, cada uno
+// guarda desdeSegundos directamente al editarlo (gana el último que
+// se tocó, mismo criterio que ya usaba el input de tiempo). El campo
+// que NO se está editando muestra la conversión en vivo como
+// placeholder (preview, no pisa lo que el staff ya escribió ahí).
+function segundosDeCompas(compasNum){
+  const secPerBar = segundosPorCompas(previewBpm(), previewBeatsPerBar());
+  if(!secPerBar) return 0;
+  return Math.max(0, previewOffset() + (compasNum - 1) * secPerBar);
+}
+function compasDeSegundos(seg){
+  const secPerBar = segundosPorCompas(previewBpm(), previewBeatsPerBar());
+  if(!secPerBar) return 1;
+  return Math.max(1, Math.round(((seg || 0) - previewOffset()) / secPerBar) + 1);
+}
+function actualizarSeccionDesdeTiempo(i, txt){
+  seccionesEnEdicion[i].desdeSegundos = textoASegundos(txt);
+  const inputCompasEl = document.getElementById('seccompas-' + i);
+  if(inputCompasEl) inputCompasEl.placeholder = 'compás ' + compasDeSegundos(seccionesEnEdicion[i].desdeSegundos);
+}
+function actualizarSeccionDesdeCompas(i, valor){
+  const n = parseInt(valor, 10);
+  if(!n){
+    const inputTiempoEl = document.getElementById('sectiempo-' + i);
+    if(inputTiempoEl) inputTiempoEl.placeholder = 'Minuto:segundo (ej: 1:30)';
+    return;
+  }
+  seccionesEnEdicion[i].desdeSegundos = segundosDeCompas(n);
+  const inputTiempoEl = document.getElementById('sectiempo-' + i);
+  if(inputTiempoEl) inputTiempoEl.placeholder = segundosATexto(seccionesEnEdicion[i].desdeSegundos);
+}
+
+// v1.6: (a pedido) fin de sección editable a mano — mismo patrón de
+// compás/tiempo en espejo que ya usaba "desde", pero opcional: si se
+// deja vacío (hastaSegundos == null/undefined), musico.html sigue
+// calculando el fin automáticamente como el inicio de la siguiente
+// sección (o +4 compases estimados si es la última), tal como ya
+// funcionaba antes de este campo existir.
+function actualizarSeccionHastaCompas(i, valor){
+  const n = parseInt(valor, 10);
+  const inputTiempoEl = document.getElementById('sechastatiempo-' + i);
+  if(!n){
+    // campo vaciado a mano — no toca hastaSegundos acá; se limpia
+    // explícitamente con el botón ↺ (limpiarSeccionHasta), para no
+    // perder el valor por accidente al borrar el número mientras se
+    // vuelve a escribir.
+    return;
+  }
+  seccionesEnEdicion[i].hastaSegundos = segundosDeCompas(n);
+  if(inputTiempoEl) inputTiempoEl.value = segundosATexto(seccionesEnEdicion[i].hastaSegundos);
+}
+function actualizarSeccionHastaTiempo(i, txt){
+  if(!(txt || '').trim()) return; // igual que arriba: vaciar no borra el valor guardado
+  seccionesEnEdicion[i].hastaSegundos = textoASegundos(txt);
+  const inputCompasEl = document.getElementById('sechastacompas-' + i);
+  if(inputCompasEl) inputCompasEl.placeholder = 'compás ' + compasDeSegundos(seccionesEnEdicion[i].hastaSegundos);
+}
+function limpiarSeccionHasta(i){
+  seccionesEnEdicion[i].hastaSegundos = null;
+  pintarSecciones();
+}
+
+// v1.7: (a pedido) presets rápidos de duración para el fin manual —
+// mismo dato final que escribir el compás a mano en "hasta" (hastaSegundos
+// = inicio de la sección + n compases), solo que de un click. Se
+// recalculan siempre contra BPM/compás vigentes (previewBpm/
+// previewBeatsPerBar), igual que segundosDeCompas/compasDeSegundos de
+// arriba, así que si el staff ajusta BPM después, el preset ya
+// aplicado no se re-ajusta solo (mismo comportamiento que el resto de
+// los campos de esta pantalla: son segundos fijos una vez guardados).
+function setSeccionHastaPreset(i, n){
+  const secPerBar = segundosPorCompas(previewBpm(), previewBeatsPerBar());
+  if(!secPerBar) return;
+  seccionesEnEdicion[i].hastaSegundos = (seccionesEnEdicion[i].desdeSegundos || 0) + n * secPerBar;
+  pintarSecciones();
+}
+// Resalta el preset activo (botón "encendido") cuando el hastaSegundos
+// guardado coincide exactamente con ese múltiplo de compases — solo
+// estético, para que el staff vea de un vistazo cuál usó.
+function esPresetHastaActivo(s, i, n){
+  if(s.hastaSegundos == null) return false;
+  const secPerBar = segundosPorCompas(previewBpm(), previewBeatsPerBar());
+  if(!secPerBar) return false;
+  const esperado = (s.desdeSegundos || 0) + n * secPerBar;
+  return Math.abs(s.hastaSegundos - esperado) < 0.01;
+}
 
 async function guardarSecciones(){
+  // v1.3: snap al borde de compás más cercano (usa BPM/compás/offset
+  // actuales) — así el tiempo guardado no depende de que el staff lo
+  // haya escrito exacto a mano.
+  // v1.6: el fin manual (hastaSegundos) se snapea igual que el
+  // inicio, cuando está definido — si quedó undefined/null se guarda
+  // tal cual (musico.html lo toma como "sin fin manual, calcular
+  // automático").
   const limpio = seccionesEnEdicion
     .filter(s => (s.nombre || '').trim())
+    .map(s => ({
+      ...s,
+      desdeSegundos: snapASegundoDeCompas(s.desdeSegundos || 0),
+      hastaSegundos: (s.hastaSegundos != null) ? snapASegundoDeCompas(s.hastaSegundos) : null
+    }))
     .sort((a,b) => (a.desdeSegundos||0) - (b.desdeSegundos||0));
   try{
     await temaRef.update({ practicaSecciones: limpio });
@@ -431,6 +642,9 @@ function previewBeatsPerBar(){
 function previewBpm(){
   return parseFloat(document.getElementById('inputBpm').value) || 96;
 }
+function previewOffset(){
+  return parseFloat(document.getElementById('inputOffset').value) || 0;
+}
 function previewSeccionEn(t){
   const secciones = (seccionesEnEdicion || []).filter(s => (s.nombre||'').trim());
   if(!secciones.length) return '—';
@@ -466,7 +680,7 @@ function previewUpdate(){
   const elapsed = Tone.now() - previewStart;
   const secPerBeat = 60 / previewBpm();
   const secPerBar = secPerBeat * previewBeatsPerBar();
-  const barIndex = Math.floor(elapsed / secPerBar) + 1;
+  const barIndex = Math.max(1, Math.floor((elapsed - previewOffset()) / secPerBar) + 1);
   document.getElementById('previewBar').textContent = barIndex;
   document.getElementById('previewSeccion').textContent = previewSeccionEn(elapsed);
   requestAnimationFrame(previewUpdate);

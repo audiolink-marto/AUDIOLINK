@@ -125,6 +125,459 @@ de página, textos, badges). Requiere en el HTML consumidor los inputs
 con los IDs documentados en la cabecera del archivo, y opcionalmente el
 preview (#headerPreviewBox y sus hijos).
 
+## musico.html
+
+### v3.12
+4 ajustes (a pedido, revisión general del ecosistema de práctica): (1)
+changelog completo (v1.0–v3.11, antes en la cabecera del archivo) migrado
+a CHANGELOG.md — la cabecera del HTML ahora solo trae la versión vigente
++ resumen corto, igual que ya hacen proyecto.html/cocina.html. (2)
+rendimiento: el número grande de compás y los beat-dots del semáforo se
+leen del DOM UNA VEZ al inicializar cada sesión (cacheados en
+estadoPractica[uid].el) en vez de con getElementById en cada tick de
+requestAnimationFrame (hasta 60 veces/segundo por sesión activa) —
+mismo comportamiento visual exacto, menos trabajo por frame cuando hay
+varias sesiones con metrónomo sonando a la vez. (3) accesibilidad: el
+número grande de compás ahora también crece levemente (transform:scale)
+en el golpe fuerte, no solo cambia de color a verde — mismo criterio que
+ya usan los beat-dots (fuerte con más scale/glow que el resto), para que
+la señal no dependa solo del color en músicos con daltonismo rojo-verde.
+(4) limpieza de localStorage: cargarSesiones() ahora borra las claves
+audiolink-ajustes-practica-* de sesiones que ya no vienen en la
+respuesta de Firestore (sesión borrada o el músico ya no está asignado)
+— antes se acumulaban indefinidamente sin ningún límite. No se tocó
+nada de la lógica de BPM, clave, acentos, audio ni de los relojes del
+metrónomo (libre vs. con pista) — eso queda pendiente como tarea aparte,
+a propósito, por el riesgo de tocar timing en el mismo lote de cambios.
+
+### v3.11
+(a pedido) el número grande del compás (.practica-compas-grande) ahora se pone
+verde (var(--ok), mismo tono que .beat-dot.fuerte.activo del semáforo) en el
+instante exacto del primer golpe de cada compás, y vuelve a dorado el resto
+del tiempo — mismo criterio de "flash momentáneo" que ya usa el semáforo, no
+un resaltado sostenido todo el compás. Sincronizado de raíz: se togglea la
+clase .activo en actualizarContadorPractica() usando el mismo beatEnBarra que
+ya enciende el beat-dot correspondiente (i === beatEnBarra), en el mismo tick
+— no hay cálculo aparte que pueda desfasarse. No se tocó ninguna otra lógica
+(BPM, clave, acentos, audio).
+
+### v3.10
+(a pedido, tras revisar compras.html) 3 ajustes de consistencia visual, solo
+CSS — buscan que el "sistema" (dorado = jerarquía, 44px = táctil, 0.72rem =
+label secundario) sea el mismo en musico.html que en compras.html, para
+reusarlo tal cual en próximos proyectos. (1) .practica-seccion-chip: 40px →
+44px de min-height — era el único control bajo el estándar táctil del resto
+del archivo (mismo hueco que se encontró en compras.html con .btn-toggle-
+stock). (2) .sesion-card h3 (título de la sesión): color var(--txt) →
+var(--gold) — en compras.html el título de card equivalente (.card h3) sí es
+dorado; dejar este en texto plano rompía la regla de "dorado = importante" en
+toda la app. (3) .practica-fila-label: 0.68rem → 0.72rem, para igualar a
+.practica-ajuste-label — ambos cumplen el mismo rol (label chico en mayúscula)
+y no había razón para que difirieran en tamaño.
+
+### v3.9
+(a pedido) dos ajustes de UI — (1) el botón del tiempo 1 en "Acentos por
+tiempo" ahora usa el mismo verde que el semáforo (var(--ok)) en vez del dorado
+genérico de "fuerte", para que la jerarquía visual del tiempo 1 sea
+consistente entre el semáforo y el panel de ajustes. Si se cicla a "mudo"
+sigue mandando el rojo (más importante saber que está silenciado que recordar
+que es el tiempo 1). Los botones de acentos de clave no cambian — su "primer
+golpe" no tiene relación con el pulso/semáforo. (2) mobile-first en "↻ Marcar
+loop aquí" y "♪ Usar canción del dispositivo": antes eran botones angostos sin
+altura táctil mínima (uno incluso sin borde, estilo "ghost link" fácil de
+pasar por alto); ahora ambos son ancho completo, apilados en columna, con min-
+height:44px y el mismo tratamiento visual que el resto de botones secundarios
+del panel.
+
+### v3.8
+(a pedido) acentos configurables por golpe de clave, no solo el primero —
+misma mecánica que ya existía para "Acentos por tiempo"
+(toggleAcentoPractica): nueva fila en el panel de ajustes, visible solo con
+clave activa, con un botón por cada uno de los 5 golpes fijos del patrón (2+3,
+son/rumba/bossa siempre suman 5 — CLAVE_PATRONES). Cada botón cicla normal →
+fuerte → mudo, igual que los de tiempo. "Fuerte" reusa el mismo tono agudo +
+volFuerte que antes solo aplicaba al primer golpe del ciclo (v2.0/v2.5);
+"mudo" apaga ese golpe puntual sin tocar el resto del patrón ni el click de
+tiempo normal (que sigue su propio camino, sin clave, más abajo en
+actualizarContadorPractica). Por defecto solo el primer golpe queda "fuerte" —
+mismo comportamiento que tenía cualquiera que ya usara esto antes de v3.8.
+Persiste en localStorage junto con el resto de ajustes
+(guardarAjustesPractica/ cargarAjustesGuardados de v3.6), con chequeo de
+longitud (5) antes de restaurar, por si en el futuro cambia el número de
+golpes.
+
+### v3.7
+(a pedido) fix de robustez offline — firebase.initializeApp() y
+firebase.auth() se ejecutaban SIN condicional al cargar la página (antes de
+cualquier guard offline). Si los <script> de gstatic.com (firebase-*.js) no
+llegaban a cargar por falta de red y sin caché previa del navegador,
+`firebase` quedaba undefined y esa línea tronaba el <script> completo — el
+guard offline (estaModoOfflineActivo(), unas líneas más abajo) nunca llegaba a
+correr, y la página quedaba en blanco incluso teniendo datos offline ya
+descargados. Ahora ambas llamadas van en try/catch: si fallan, `auth` queda
+como un stub mínimo (signOut()/ onAuthStateChanged() no-op) para que
+cerrarSesion() y el resto del código sigan sin romperse, y el guard offline de
+más abajo corre con normalidad. No cambia nada del flujo cuando Firebase sí
+carga bien (online u offline con caché) — mismo comportamiento de siempre.
+
+### v3.6
+(a pedido) 4 ajustes — (1) persistencia de ajustes de metrónomo (BPM/clave
+override, sonido, acentos, volúmenes, mute) en localStorage por uid
+('practica-'+id de sesión) — se guarda en cada función que ya mutaba
+estadoPractica[uid] y se restaura en inicializarReproductoresPractica() antes
+de recalcularEfectivo. Nunca toca Firestore ni el dato real del tema, solo
+sobrevive a un recargo de página en el mismo navegador. (2) 🔇/🔊 → ▯ (click
+apagado) / ▮ (click activo), mismo criterio "vacío/lleno" que ya usan los
+botones de acento (●/—); ⚙️ → ≡ — quedan al mismo nivel de "inmunidad" al
+render-de-emoji que ▶ ↻ ♪ (v2.7). (3) labels "Pulso" y "Clave" arriba de
+.practica-semaforo y .practica-clave-figuras respectivamente, para que un
+músico nuevo entienda que son dos datos distintos sin que se le explique. (4)
+atajo de volumen: botón "Vol" junto a click/⚙️ que abre un mini-panel solo con
+los 2 sliders de volumen (mismo handler ajustarVolumenAcentoPractica que ya
+existía), sin pasar por el panel completo de ajustes.
+
+### v3.5
+(a pedido) los tiempos que no son el 1 ahora encienden en var(--warn) (ámbar,
+ya existía en la paleta) en vez de compartir el verde de tiempo 1 — distinción
+real de color, no solo intensidad como en v3.4. Se evitó --err (rojo) porque
+ya se usa para detener/cancelar en otros botones de la hoja, hubiera sido
+confuso reusarlo aquí como "tiempo normal".
+
+### v3.4
+(a pedido) 2 ajustes — (1) las × de clave activas ahora tienen el mismo fx de
+"bombillo" que los beat-dot: text-shadow doble capa en dorado (halo real
+alrededor del glifo, box-shadow no sirve para texto). (2) se restaura la
+jerarquía perdida en
+
+### v3.3
+al ponerse todas verdes por igual, tiempo 1 y tiempos normales se sentían
+iguales al encender — ahora tiempo 1 (.fuerte.activo) tiene glow más intenso
+(16px/scale 1.2) y los demás uno más suave (8px/scale 1.1), mismo verde pero
+intensidad distinta según el peso real del tiempo.
+
+### v3.3
+(a pedido) 3 ajustes — (1) el semáforo (beat-dots) se saca de la fila del
+número/botones (🔊/⚙️) y pasa a su propia fila debajo, .practica-semaforo, a
+ancho completo — ya no compite visualmente con los bordes dorados de esos
+botones. (2) color del punto activo: de dorado a var(--ok) (verde, ya existía
+en la paleta para RSVP) — se eligió sobre rojo/amarillo/verde literal para no
+meter ruido cromático nuevo, y sobre "más dorado" porque el choque real era
+justo ese color compitiendo con los botones de al lado (ya resuelto también
+por el cambio de fila). (3) ticks débiles de la clave pasan de línea a punto
+pequeño opaco (3px, opacity 0.28) — referencia discreta tipo "fantasma";
+medio/fuerte se quedan como línea para mantener la jerarquía.
+
+### v3.2
+(a pedido) 3 ajustes — (1) los beat-dot (indicador de compás) pasan a ancho
+completo (justify-content:space-between, ya que .practica-compas-wrap es
+flex:1 y ocupaba el ancho disponible) con "bombillos" más grandes (16px/20px)
+y glow dorado real al encenderse (box-shadow con var(--gold) directo, sin rgba
+fijo, para que el color se adapte solo entre tema claro/ oscuro). (2) los
+ticks de clave seguían muy tenues — cambiados de var(--muted) a var(--txt)
+(máximo contraste posible, adapta solo por tema: casi blanco en oscuro, casi
+negro en claro) con opacidad 0.18/0.4/0.7 según jerarquía. (3) revisado
+mobile: tanto .practica-dots (space-between+flex) como los ticks/notas de
+clave (posicionados en % dentro del track) escalan sin overflow sin necesidad
+de reglas nuevas en el media query de 480px — no se tocó ese bloque.
+
+### v3.1
+(a pedido) los 8 ticks de v3.0 no se veían — causa raíz: usaban var(--brd),
+que en el tema oscuro es casi idéntico al fondo de la pista (--surf-light), se
+fundían. Cambiados a var(--muted) con opacidad escalonada
+(débil/medio/fuerte), ahora el "apagado" es gris tenue visible, no invisible.
+Mismo fix aplicado a los beat-dot del indicador de compás (mismo bug de
+contraste con --brd) — de paso se le agrega glow al punto activo (box-shadow
+dorado + opacidad 0.35→1 en el resto) para que se sienta como luz de semáforo
+encendiéndose, no solo un cambio de color plano.
+
+### v3.0
+(a pedido) 2 cosas — (1) ticks del panel de clave (v2.9) a corcheas: 8 ticks
+en vez de 4, jerarquía de peso/opacidad (fuerte/medio/débil) sin color nuevo —
+el color queda exclusivo para la × activa. (2) jerarquía pendiente de los
+botones Metrónomo/Loop/Canción: Metrónomo pasa a .btn (primario, relleno,
+ancho completo) con estado .activo mientras suena; Loop se queda .btn-ghost
+(secundario); Canción baja a texto plano sin borde/ sombra (terciario). De
+paso, mismo criterio que en v2.7: el "⏸️ Detener" del botón Metrónomo (emoji
+de color, no reportado antes) pasa a "⏸ Detener" (símbolo tipográfico) — mismo
+botón que ya estaba editando, no un archivo/zona aparte.
+
+### v2.9
+(a pedido) las × de la clave (v2.8) quedaban sin referencia visual del tiempo
+— se agregan ticks de fondo por cada pulso del compás (según compasesPorBarra)
+en cada clave-figura-track, con el tiempo 1 (fuerte real) diferenciado (más
+grueso/marcado). Solo CSS + claveFigurasHtml(); el encendido en tiempo real no
+cambia.
+
+### v2.8
+(a pedido) seguimiento visual de la clave — se agregan las "figuras" (× por
+golpe real) debajo del indicador de compás 1/2 ya existente. Reutiliza los
+patrones CLAVE_PATRONES para dibujar solo los golpes reales (sin silencios ni
+ligaduras: no hay data de duración, solo onsets, e inventar rítmica sería
+incorrecto). Nueva claveFigurasHtml() arma las × posicionadas por % según su
+beatOffset; se reconstruye en actualizarUIAjustesPractica() cada vez que
+cambia la clave efectiva. El cálculo de idxLocal/ cicloIndex (ya existía para
+el click de audio) ahora corre siempre que hay clave, no solo con clickActivo,
+así el seguimiento visual funciona aunque el click esté mudo; el beep de clave
+sigue sonando exactamente igual que antes.
+
+### v2.7
+(a pedido) los emojis de color (▶️🔁🎵) en Metrónomo/Marcar loop/Usar canción
+del dispositivo se veían como iconos con fondo de color en algunos renders
+mobile, rompiendo la paleta dorada. Reemplazados por símbolos tipográficos (▶
+↻ ♪) que heredan currentColor del tema. Solo esos 3 botones y sus resets de
+textContent; el resto del texto/HTML igual.
+
+### v2.6
+(a pedido) el rediseño de v2.5 solo cubría el panel de ajustes; se extiende el
+mismo lenguaje visual (sombra sutil, :active con scale, hover más marcado,
+44px táctil) a las clases base .btn/.btn-ghost/.btn-icon (usadas en toda la
+hoja) y a .practica-click-btn (tap-tempo, antes 40px). .rsvp-btn no se tocó,
+ya usaba --ok/--err con estados propios.
+
+### v2.5
+(a pedido) panel de ajustes — 2 bugs corregidos: el slider
+
+### v2.5
+(a pedido) panel de ajustes — 2 bugs corregidos: el slider continuo de BPM
+(ajustarBpmSliderPractica) y los 2 sliders de volumen por acento
+(ajustarVolumenAcentoPractica) no tenían función asociada, quedaban rotos al
+moverlos; ahora actualizan estadoPractica[uid] y actualizarUIAjustesPractica()
+los sincroniza de vuelta (antes solo sincronizaba
+bpmval/clave/sonido/acentos). restablecerAjustesPractica() ahora también
+resetea volFuerte/ volNormal a sus valores por defecto (1 / 0.55). Además
+rediseño visual del panel: sliders custom (.practica-slider), iconos por
+estado en sonido (🔔🥁🪵) y acentos (● fuerte / — mudo), más jerarquía en
+labels/filas, sombras y estados activos, botones a mínimo 44px táctil, y
+ajuste específico para mobile <480px.
+
+### v2.4
+(a pedido) panel de ajustes de metrónomo — BPM, clave, sonido del click y
+acentos por tiempo, editables por el músico desde un panel desplegable (botón
+⚙️ junto al de click). TODO en memoria
+(estadoPractica[uid].bpmOverride/claveOverride/ sonidoClick/acentos) — nunca
+se escribe a Firestore ni afecta el dato real del tema
+(temaData.practicaBpm/practicaClave siguen siendo la fuente de verdad para
+staff y para otros músicos). recalcularEfectivoPractica() combina
+base+override en bpmEfectivo/claveEfectiva/claveOnsetsEfectivo/
+claveCicloSecEfectivo, que actualizarContadorPractica() usa para el
+contador/dots/turno de clave/click — el loop (marcarLoopPractica) sigue usando
+el bpm/clave REAL del tema sin cambios, porque debe coincidir con el audio
+real. El badge (♩ BPM · compás · clave) muestra "(ajustado)" mientras haya
+algún override activo, y un botón "↺ Restablecer" limpia todo. Acentos por
+tiempo (fuerte/normal/mudo, ciclables tocando el número) aplican al click
+normal; el click de clave sigue acentuando solo el primer golpe de cada lado,
+sin acento personalizable por golpe (pendiente si hace falta). Sonido del
+click: 3 timbres (Clásico/ Grave/Woodblock) vía waveform+frecuencia en
+beepPractica(), sin tocar su lógica de timing. UI pensada para mobile: sin
+sliders (steppers táctiles de BPM), botones/chips con mínimo 40-44px de toque,
+panel apilado verticalmente. No se tocó snapACompasPractica(),
+construirOnsetsClave(), RSVP, ni el guard de sesión.
+
+### v2.3
+(a pedido) el botón "▶️ Metrónomo" de práctica libre (v2.2) deja de depender
+de si hay maqueta cargada — ahora vive siempre en controlesPracticaHtml(),
+visible en todos los casos, igual que el botón de click. Se excluye mutuamente
+con la maqueta/YouTube/ archivo local de la misma sesión: activarlo pausa el
+reproductor si estaba sonando (est.pause()); y si luego el músico le da play a
+la maqueta, marcarReproduccionActiva() (ahora también llamada desde
+toggleMetronomoLibre) apaga el metrónomo libre — se agregó el helper
+apagarMetronomoLibreSiActivo() para eso, cubriendo tanto el caso de otra
+sesión como el de la misma sesión (mismo uid). Así nunca hay dos relojes
+escribiendo el contador/dots/clave al mismo tiempo. bloquePracticaHtml() ya no
+bifurca el HTML en dos variantes — un solo controlesPracticaHtml() para todos
+los casos, con o sin maqueta. No se tocó snapACompasPractica(),
+marcarLoopPractica(), construirOnsetsClave(), RSVP, ni el guard de sesión.
+
+### v2.2
+(a pedido) "práctica libre" — metrónomo + clave sin tener que cargar canción.
+Si el tema tiene practicaBpm/practicaCompas pero no hay maqueta para el
+instrumento de este músico (o directamente ninguna maqueta),
+bloquePracticaHtml() igual muestra el bloque, en modo libre: se ocultan
+secciones/progreso/loop/ "canción del dispositivo" (dependen de un reproductor
+real) y en su lugar aparece un botón "▶️ Metrónomo" (toggleMetronomoLibre) que
+arranca/detiene un reloj propio (performance.now()) y lo alimenta directo a
+actualizarContadorPractica() — el mismo contador, dots, click y turno de clave
+que ya existían, sin duplicar lógica. inicializarReproductoresPractica() arma
+el mismo estadoPractica[uid] (bpm/compás/clave) para este caso, pero sin
+conectar audio/YouTube. Con maqueta cargada, todo sigue exactamente igual que
+en v2.1 — no se tocó snapACompasPractica(), marcarLoopPractica(),
+construirOnsetsClave(), RSVP, ni el guard de sesión.
+
+### v2.1
+(a pedido) fix de corte de clave en el loop — el snap del loop usaba siempre
+bloques de 1 compás, pero la clave es un ciclo de 2 compases; si el punto de
+loop no caía en el inicio de un ciclo completo, cada repetición saltaba a
+mitad de la célula rítmica y sonaba cortada. Ahora marcarLoopPractica() usa
+unidadCompases = 2 (en vez de 1) cuando est.clave está activo, tanto para el
+snap de inicio/fin como para el mínimo de duración del loop (minBar) — así el
+loop siempre arranca y cierra en el compás 1 del ciclo. Sin clave activa, el
+comportamiento queda igual que en v1.7 (snap de 1 compás). No se tocó
+snapACompasPractica(), el click de metrónomo, ni el resto del bloque de
+práctica.
+
+### v2.0
+(a pedido, junto con guia-practica.html v1.4) soporte de clave rítmica
+(son/rumba/bossa, 2-3 o 3-2), leída de temaData.practicaClave: 1) Badge de
+BPM/compás con más jerarquía (antes era una línea chiquita gris; ahora es un
+badge grande arriba del bloque), que además muestra el nombre de la clave si
+hay una seleccionada. 2) Cuando hay clave activa, el click de metrónomo (v1.7)
+DEJA de sonar por tiempo y suena solo en los golpes exactos de la célula
+rítmica (ciclo de 2 compases), usando las posiciones confirmadas: lado de 3
+(son/bossa): 1, "y" de 2, 4. Lado de 3 (rumba): 1, "y" de 2, "y" de 4. Lado de
+2 (son/rumba): 2, 3. Lado de 2 (bossa): 2, "y" de 3. "2-3"/"3-2" define el
+orden de los dos compases del ciclo. Los puntos de compás existentes NO
+cambian — siguen marcando el tiempo normal como referencia visual. 3)
+Indicador de "turno" del ciclo de clave (compás 1/2 de la célula), resaltado
+en tiempo real según en cuál de los dos vas. Bossa/rumba con acentos débiles y
+otras variantes quedan pendientes hasta confirmar el patrón exacto. No se tocó
+obtenerMaquetaParaSesion(), el loop, las optimizaciones de v1.8, ni el guard
+de sesión.
+
+### v1.9
+(a pedido) 1) Se quitó el auto-play al elegir canción del dispositivo (v1.8) —
+carga lista, el músico le da play cuando quiera con los controles nativos del
+<audio>. 2) Línea "BPM: {bpm} · Compás: {compás}" visible arriba del
+metrónomo. 3) Accesos rápidos a Secciones — fila de chips con scroll
+horizontal (pensada para mobile: sin wrap, altura mínima de toque 40px), uno
+por sección cargada, que saltan (seek) directo a ese punto en el reproductor
+que esté activo (YouTube/audio original/ archivo local). El chip de la sección
+actual se resalta en cada tick de actualizarContadorPractica(), igual que ya
+hacía el contador de compás. No se tocó el resto del bloque (metrónomo, click,
+progreso, loop, optimizaciones de v1.8), ni obtenerMaquetaParaSesion(), ni el
+guard de sesión.
+
+### v1.8
+(a pedido) 1) Botón "🎵 Usar canción del dispositivo" en el bloque de práctica
+— abre el selector de archivos del teléfono (accept="audio/*"), reproduce el
+archivo elegido con URL.createObjectURL() (100% local, sin internet) en un
+<audio> oculto dedicado, y reconecta getTiempoActual/seek/pause a ese audio —
+el metrónomo/progreso/loop siguen funcionando igual, porque solo dependen de
+BPM/compás/offset ya cargados, no de dónde viene el audio. No reemplaza la
+maqueta original, es una alternativa que convive con ella. 2) Optimización: se
+destruye el YT.Player anterior (player.destroy()) antes de crear uno nuevo en
+cada recarga de inicializarReproductoresPractica() (ej. tras un RSVP) — v1.7
+creaba uno nuevo sin destruir el viejo, acumulando reproductores fantasma en
+memoria. 3) Optimización: se libera (URL.revokeObjectURL) el archivo local
+anterior antes de cargar uno nuevo o al recargar la lista de sesiones, por la
+misma razón. 4) marcarReproduccionActiva(uid): al arrancar a sonar una maqueta
+(audio, YouTube o archivo local), pausa explícitamente la que estuviera
+sonando antes — antes dependía solo de que cada tick se cortara solo al
+chequear .paused/getPlayerState(), lo cual bloqueaba el contador de la
+anterior pero no pausaba el audio en sí si eran dos reproductores distintos
+sonando a la vez. No se tocó bloquePracticaHtml() más allá de agregar el
+botón/ input/audio nuevos, ni obtenerMaquetaParaSesion(), RSVP,
+consentimiento, ni el guard de sesión.
+
+### v1.7
+(a pedido) el bloque "🎧 Maqueta de práctica" de v1.6 gana: 1) Puntos de
+metrónomo — fila de círculos (uno por tiempo del compás) que se ilumina en
+secuencia real, el tiempo 1 marcado distinto. 2) Click de metrónomo — beep
+generado con Web Audio API (sin archivo extra), botón 🔊/🔇 para mute (apagado
+por defecto). 3) Barra de progreso de la sección actual + "Siguiente: {nombre}
+en {tiempo}". 4) Rediseño del bloque: número de compás más grande/centrado,
+tipografía mono, layout más compacto tipo metrónomo real. 5) Loop marcado en
+vivo: botón "🔁 Marcar loop aquí" — dos clicks mientras suena capturan
+inicio/fin reales (no un timestamp pre-cargado, que casi nunca cae exacto),
+con snap automático al borde de compás más cercano (usa
+BPM+compás+practicaOffset, el mismo campo nuevo de guia-practica.html v1.3)
+para que el loop entre/salga limpio en vez de a mitad de un tiempo. Un tercer
+click cancela el loop. Todo esto vive en un objeto estadoPractica[uid] por
+sesión (bpm, compasesPorBarra, offset, secciones, estado de loop/click,
+getTiempoActual()/seek() — abstraen si el reproductor es <audio> o YouTube).
+actualizarContadorPractica() se simplificó a (uid, tiempoActual) leyendo ese
+estado, en vez de recibir 5 parámetros sueltos. No se tocó
+obtenerMaquetaParaSesion(), extraerIdYoutube(), RSVP, consentimiento, ni el
+guard de sesión.
+
+### v1.6
+(a pedido) guía de práctica — cada tarjeta de sesión ahora puede mostrar un
+bloque "🎧 Maqueta de práctica" con la pista de referencia del instrumento
+asignado a este músico (cargada desde guia-practica.html, campo
+practicaMaquetas del doc de tema) y un contador de compases SINCRONIZADO al
+tiempo real de reproducción (currentTime del <audio> o del player de YouTube —
+no un click aparte como el preview de staff). Flujo: cargarSesiones() junta
+los temaId únicos de las sesiones y trae cada doc de tema una sola vez
+(temaCache), vía el mismo `allow get: if true` que ya permitía abrir
+sesión/tema puntual sin ser staff — no se tocó firestore.rules.
+obtenerMaquetaParaSesion() filtra practicaMaquetas por el instrumento asignado
+a ESTE músico en ESTA sesión (miInstrumento, ya existente desde v1.1); si no
+hay tema vinculado o no hay maqueta para su instrumento, no se muestra nada
+(sin bloques vacíos). Se agrega <script
+src="https://www.youtube.com/iframe_api"> en el head. No se tocó RSVP,
+consentimiento, ni el guard de sesión/offline existentes — el modo offline
+simplemente no tendrá temaCache poblado (sin internet no hay YouTube de todos
+modos) y el bloque de práctica no aparece, sin romper el resto de la página.
+
+### v1.5
+Grupo C ("fin del mundo") — el guard offline llamaba solo console.info() y
+musico.html quedaba inaccesible sin señal (necesita saber quién sos para
+filtrar proyectosAsignados, y sin Firebase Auth no había forma). Se agrega
+flujo offline: prompt() pide el correo una vez (se guarda en localStorage), y
+se busca en equipoInterno/musicosPortal ya descargados (requiere offline-
+mock.js v1.0+). Mismo criterio que el flujo online. Modo "vista previa"
+(?preview=) no se soporta offline. No se tocó la rama else ni ninguna función
+existente.
+
+### v1.4
+se agrega el guard "if(estaModoOfflineActivo())" alrededor de
+auth.onAuthStateChanged() — mismo patrón que ya usaba index.html desde v2.23.
+Sin este cambio, en modo offline (sin señal) el login real nunca confirmaba
+sesión y esta página redirigía siempre a login.html, sacando al usuario del
+modo offline al navegar a esta página. No se tocó la lógica interna del guard
+(qué pasa si hay o no hay usuario), solo se envuelve.
+
+### v1.3
+se migra al patrón offline Fase 1 (mismo cambio que index.html v2.21,
+proyecto.html v5.34, logistica.html v2.72) — se agrega <script src="offline-
+mock.js"> en el <head> (antes de firebase-config.js) y se cambia `const db =
+firebase.firestore()` por `const db = crearDB()`. Con AUDIOLINK_MODO_OFFLINE
+en false (default), crearDB() devuelve firebase.firestore() real — cero cambio
+de comportamiento. No se tocó ninguna otra lógica.
+
+### v1.2
+cada sesión gana un botón "✍️ Firmar consentimiento", que abre
+consentimiento.html (ya existente, sin tocar) en pestaña nueva con
+?p={proyectoId}&s={sesionId}&nombre=&correo=&tarifa= precargados desde la
+misma asignación (musicosAsignados) que ya usamos para el instrumento — el
+músico no depende de que staff le mande el link por WhatsApp. No se agregó
+ninguna verificación de "ya firmé" porque implicaría un permiso de lectura
+nuevo en Firestore rules que se decidió no agregar por ahora (firmar dos veces
+no rompe nada, cada firma es solo un registro más). No se tocó
+consentimiento.html, RSVP, ni el guard de sesión.
+
+### v1.1
+se corrige el alcance de "tus sesiones" — v1.0 mostraba TODAS las sesiones del
+proyecto (asignación solo por proyecto, calcado de ingenieros). Se descubrió
+que logistica.html YA tiene asignación por sesión (`musicosAsignados`, array
+con {musicoId, nombre, correo, instrumento, telefono, tarifa, canales} —
+sistema completo y preexistente, no hubo que tocar logistica.html en
+absoluto). Ahora cargarSesiones() filtra: solo se listan sesiones donde
+musicosAsignados contiene una entrada con `correo` igual al del músico
+logueado (comparación case-insensitive). El instrumento mostrado en cada card
+ahora sale de esa entrada específica (m.instrumento), no de un campo genérico
+de sesión inexistente (v1.0 leía `s.instrumentoRequerido`, que nunca existió —
+error de diseño antes de revisar el archivo real). Sesiones sin
+musicosAsignados (o vacío) NO se muestran — antes esto habría sido un fallback
+"mostrar a todos", pero como el campo ya existe y se usa activamente en
+logística, no hace falta ese fallback. No se tocó el resto del archivo (RSVP,
+vista previa, guard de sesión).
+
+### v1.0
+módulo nuevo. Portal del músico, calcado de ingeniero.html en esqueleto (guard
+de sesión, modo vista previa, tema, login con ?next=) pero con una diferencia
+deliberada de UI: en vez de listado de proyectos → detalle → sesiones (útil
+para el ingeniero, que trabaja tema por tema), acá es una LISTA PLANA de "tus
+próximas sesiones" ordenadas por fecha — lo único que le importa al músico es
+cuándo/dónde toca, no navegar por proyecto. Cada card muestra fecha, hora,
+sala, instrumento a llevar, director musical, y un RSVP (confirmar/rechazar
+asistencia) que escribe en el campo `rsvp` de la sesión: { [correoMusico]:
+'confirmado'|'rechazado' }. Requiere: firestore.rules con esMusicoDe()
+(pendiente, próxima pieza) y colección `musicosPortal` (id=correo, activo,
+nombre, proyectosAsignados[]) — separada del catálogo administrativo
+`musicos.html`, mismo criterio que ingenieros vs equipoInterno (ver
+ARQUITECTURA.md). Sin esas piezas, este archivo carga pero no puede leer nada
+todavía — es la UI primero, según lo pedido. Historial completo de versiones:
+ver CHANGELOG.md -->
 ## proyecto.html
 
 ### v4.22

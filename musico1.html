@@ -4,23 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v3.51
-     v3.51: (a pedido) el waveform ahora resalta con una franja de
-     fondo la SECCIÓN seleccionada (chip activo) — color dorado, para
-     distinguirla de la franja verde del loop de sección cuando ambas
-     coinciden. Usa la misma grilla snapeada que ya usan los ticks y
-     las líneas de sección (v3.49), así el borde de la franja siempre
-     coincide exacto con la línea.
-     v3.50: (a pedido) al tocar el chip de una sección, el salto ahora
-     suma offsetLocalDelta al segundo guardado antes de hacer seek.
-     guia-practica.html calcula ese segundo solo con el offset OFICIAL
-     (Firebase); no conoce la calibración local (offsetLocalDelta, panel
-     dorado, por archivo/dispositivo). Sin esto, con un offsetLocalDelta
-     distinto de 0, el salto caía corrido respecto al resto de la app
-     (metrónomo/click/contador, que sí restan offset+offsetLocalDelta) y
-     el compás mostrado no coincidía con el configurado en Secciones. No
-     se tocó el offset oficial ni el cálculo del click/contador en
-     reproducción normal — ambos seguían bien, según confirmado.
+<!-- AUDIOLINK · musico.html · v3.50
+     v3.50: (a pedido) al seleccionar una sección, la línea del waveform
+     y el loop de "Repetir sección" ya no se corren según el offset
+     calibrado (oficial ni local) — antes ambos snapeaban contra
+     offsetEfectivo, así que cada vez que el offset se ajustaba, el
+     punto marcado de la sección se movía aunque la sección no hubiera
+     cambiado. Ahora ambos snapean contra 0 (grilla bpm/compás desde el
+     inicio), quedando siempre en lo configurado en práctica. El
+     metrónomo, el contador de compás y los ticks del waveform NO
+     cambiaron: siguen usando el offset real, como corresponde.
      v3.49: (a pedido) fix — el loop de sección (🔁 Repetir sección
      actual) no cerraba exacto en el compás configurado ("muela" al
      reiniciar el ciclo), Y la línea/etiqueta de la sección en el
@@ -1556,16 +1549,7 @@ function beepPractica(fuerte, sonido, volumen, precuenta){
 function irASeccionPractica(uid, segundos){
   const est = estadoPractica[uid];
   if(!est) return;
-  // v3.50: (a pedido) guia-practica.html calcula 'segundos' solo con el
-  // offset OFICIAL (Firebase) — no conoce offsetLocalDelta (la
-  // calibración fina por archivo/dispositivo, panel dorado). Si acá
-  // hay un offsetLocalDelta distinto de 0, hay que sumarlo para que el
-  // salto caiga en el mismo punto real que ya usa el resto de la app
-  // (metrónomo, click, contador — todos restan offset+offsetLocalDelta).
-  // Sin esto, el contador mostraba un compás distinto al configurado en
-  // Secciones apenas se tocaba el chip.
-  const segundosReal = segundos + (est.offsetLocalDelta || 0);
-  est.seek(segundosReal);
+  est.seek(segundos);
   // v3.47: (a pedido) el margen de tolerancia de v3.42 (para el
   // desfasaje de precisión del seek en archivo local) se estaba
   // aplicando SIEMPRE, incluso durante reproducción normal en curso —
@@ -1575,10 +1559,6 @@ function irASeccionPractica(uid, segundos){
   // 'seeked' que llega con el tiempo real (posiblemente impreciso), y
   // se apaga solo después de 800ms — la reproducción normal ya no lo
   // usa, así que el límite vuelve a ser exacto.
-  // (seekManualObjetivo sigue guardando el segundo CRUDO, sin sumar
-  // offsetLocalDelta — es lo que compara actualizarContadorPractica
-  // contra sec.desdeSegundos, también crudo, para saber qué sección fue
-  // el objetivo del salto reciente.)
   est.seekManualObjetivo = segundos;
   clearTimeout(est.seekManualObjetivoTimeout);
   est.seekManualObjetivoTimeout = setTimeout(() => { est.seekManualObjetivo = null; }, 800);
@@ -1586,8 +1566,8 @@ function irASeccionPractica(uid, segundos){
   // (chip encendido, barra de progreso, waveform) hasta que se le da
   // play — ahora se fuerza ese refresco acá mismo, así el chip prende
   // y el audio-bar se ubica de una vez, esté sonando o no.
-  actualizarContadorPractica(uid, segundosReal);
-  dibujarWaveform(uid, segundosReal);
+  actualizarContadorPractica(uid, segundos);
+  dibujarWaveform(uid, segundos);
 }
 
 // (a pedido) loop automático: mientras está activo, cada vez que el
@@ -2336,11 +2316,13 @@ function actualizarContadorPractica(uid, tiempoActual){
     // que se VE), sin importar el offset calibrado en cada momento.
     if(est.loopSeccionActivo){
       const bpmSnap = est.bpmEfectivo || est.bpm;
-      const offsetSnap = (est.offset || 0) + (est.offsetLocalDelta || 0);
-      const loopInicioSnap = snapACompasPractica(inicioSec, bpmSnap, est.compasesPorBarra, offsetSnap);
+      // v3.50: (a pedido) snap contra 0, no contra offsetEfectivo — ver
+      // nota v3.50 en dibujarWaveform, mismo criterio para que el loop
+      // nativo (lo que se escucha) coincida con la línea (lo que se ve).
+      const loopInicioSnap = snapACompasPractica(inicioSec, bpmSnap, est.compasesPorBarra, 0);
       const loopFinSnap = (finManual != null)
         ? finManual
-        : snapACompasPractica(finSec, bpmSnap, est.compasesPorBarra, offsetSnap);
+        : snapACompasPractica(finSec, bpmSnap, est.compasesPorBarra, 0);
       if(est.loopInicio !== loopInicioSnap || est.loopFin !== loopFinSnap){
         est.loopInicio = loopInicioSnap;
         est.loopFin = loopFinSnap;
@@ -2993,9 +2975,14 @@ function dibujarWaveform(uid, tiempoActual){
   const offsetEfectivo = (est.offset || 0) + (est.offsetLocalDelta || 0);
   const bpmParaTicks = est.bpmEfectivo || est.bpm;
   const secPerBar = (60 / bpmParaTicks) * est.compasesPorBarra;
+  // v3.50: (a pedido) la línea de sección snapea contra 0, NO contra
+  // offsetEfectivo — antes se corría cada vez que el músico calibraba
+  // el offset (oficial o local), aunque la sección en sí no cambió de
+  // lugar. Los ticks de compás de más abajo siguen usando
+  // offsetEfectivo (eso sí debe seguir el offset real del audio).
   secciones.forEach((sec, i) => {
     const tSecCrudo = sec.desdeSegundos || 0;
-    const tSec = snapACompasPractica(tSecCrudo, bpmParaTicks, est.compasesPorBarra, offsetEfectivo);
+    const tSec = snapACompasPractica(tSecCrudo, bpmParaTicks, est.compasesPorBarra, 0);
     if(tSec <= 0 || tSec >= dur) return;
     const sx = (tSec / dur) * W;
     const color = colorSeccionPorIndice(i);
@@ -3048,34 +3035,6 @@ function dibujarWaveform(uid, tiempoActual){
   }
   ctxDraw.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctxDraw.clearRect(0, 0, W, H);
-
-  // v3.51: (a pedido) franja de fondo para la SECCIÓN seleccionada
-  // (chip activo) — distinta de la franja del loop de abajo (esa es
-  // colorOk/verde; esta es dorada) para poder distinguir "estoy en
-  // esta sección" de "el loop está marcado acá", aunque coincidan.
-  // Usa el mismo tSec snapeado que ya calcula infoSecciones (misma
-  // grilla que ticks y líneas, ver nota v3.49 más arriba) para que el
-  // borde de la franja coincida exacto con la línea de la sección.
-  let idxSeccionActiva = -1;
-  for(let i = 0; i < infoSecciones.length; i++){
-    if(tiempoActual >= infoSecciones[i].tSec) idxSeccionActiva = i;
-  }
-  if(idxSeccionActiva !== -1){
-    const infoAct = infoSecciones[idxSeccionActiva];
-    const finManual = infoAct.sec.hastaSegundos;
-    let tFinActiva;
-    if(finManual != null){
-      tFinActiva = snapACompasPractica(finManual, bpmParaTicks, est.compasesPorBarra, offsetEfectivo);
-    } else if(infoSecciones[idxSeccionActiva + 1]){
-      tFinActiva = infoSecciones[idxSeccionActiva + 1].tSec;
-    } else {
-      tFinActiva = dur;
-    }
-    const xA = (infoAct.tSec / dur) * W;
-    const xB = (Math.min(tFinActiva, dur) / dur) * W;
-    ctxDraw.fillStyle = colorGold + '29';
-    ctxDraw.fillRect(xA, 0, Math.max(1, xB - xA), H);
-  }
 
   // franja de loop (si hay uno marcado), detrás de todo lo demás
   if(est.loopInicio != null && est.loopFin != null){
