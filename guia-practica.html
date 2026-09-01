@@ -4,7 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.7
+<!-- AUDIOLINK · guia-practica.html · v1.10
+     v1.10: (a pedido) se guarda el nombre original del archivo
+     (nombreArchivo, string) al subir audio de maqueta a Cloudinary —
+     Cloudinary no lo conserva en la URL (queda un ID generado), así
+     que se guarda aparte en practicaMaquetas para que musico.html lo
+     pueda mostrar. No cambia nada del upload ni de los demás campos.
+     v1.9: (a pedido) mini reproductor de audio (<audio controls>) debajo
+     de la fila de Maquetas, que aparece automáticamente cuando el tipo
+     es "Audio directo" y hay una URL cargada (recién subida o ya
+     guardada antes) — mismo criterio que la miniatura de las imágenes:
+     confirmación visual inmediata. No toca el input de URL, el select
+     de tipo, el botón de subir, ni ninguna lógica de Cloudinary/guardado.
+     v1.8: (a pedido) botón "📤 Subir audio" en cada fila de Maquetas
+     por instrumento — sube el archivo directo a Cloudinary (unsigned
+     upload, preset "GUIASAUDIO", cloud "mqwgjh3u", resource_type
+     "video" porque así maneja Cloudinary el audio) y completa la URL
+     y el tipo ("Audio directo") solo al terminar. Muestra "Subiendo
+     X%…" mientras sube, usando el mismo <input type=file> nativo del
+     celular (cámara/galería/archivos). No toca Secciones, Datos del
+     tema, ni el preview — es exclusivo de la fila de Maquetas, y no
+     reemplaza el campo de URL (se puede seguir pegando un link a mano
+     como siempre, para YouTube o cualquier otro host).
      v1.7: (a pedido) presets rápidos de duración junto al campo "hasta"
      — botones cuadrados x4/x8/x16/x32/x64 que fijan el fin manual de
      la sección en esa cantidad de compases desde su inicio, sin tener
@@ -202,6 +223,11 @@ input:focus, select:focus{outline:none;border-color:var(--gold);}
 .vacio{color:var(--faint);font-size:0.85rem;padding:10px 0;}
 .guardado-ok{font-size:0.78rem;color:var(--ok);margin-top:6px;display:none;}
 #previewWrap{background:var(--surf-light);border-radius:8px;padding:16px;}
+/* v1.8: botón "Subir audio" (label envolviendo un <input type=file>
+   oculto, mismo patrón visual que .btn-ghost) + texto de estado de
+   progreso debajo de la fila de la maqueta. */
+.btn-upload-audio{text-align:center;cursor:pointer;white-space:nowrap;}
+.upload-status{font-size:0.78rem;color:var(--muted);margin:-4px 0 10px 4px;display:none;}
 </style>
 </head>
 <body>
@@ -605,8 +631,14 @@ function pintarMaquetas(){
         <option value="youtube" ${m.tipo === 'youtube' ? 'selected' : ''}>YouTube</option>
         <option value="audio" ${m.tipo === 'audio' ? 'selected' : ''}>Audio directo</option>
       </select>
+      <label class="btn-ghost btn-upload-audio">
+        📤 Subir audio
+        <input type="file" accept="audio/*" style="display:none" onchange="subirAudioMaqueta(${i}, this.files[0])">
+      </label>
       <button class="btn-del" onclick="eliminarMaqueta(${i})" title="Eliminar">🗑️</button>
     </div>
+    ${(m.tipo === 'audio' && (m.url || '').trim()) ? `<audio controls style="width:100%;margin-top:4px;" src="${(m.url || '').replace(/"/g,'&quot;')}"></audio>` : ''}
+    <div class="upload-status" id="maquetaUploadStatus-${i}"></div>
   `).join('');
 }
 
@@ -618,6 +650,66 @@ function agregarFilaMaqueta(){
 function eliminarMaqueta(i){
   maquetasEnEdicion.splice(i, 1);
   pintarMaquetas();
+}
+
+// v1.8: (a pedido) subir audio de maqueta directo a Cloudinary desde
+// acá, sin pasar por otra herramienta — mismo mecanismo "unsigned
+// upload" que ya se usa para imágenes (upload preset sin firmar, no
+// hace falta ninguna clave secreta en el navegador). El audio en
+// Cloudinary vive bajo resource_type "video" (así lo maneja
+// Cloudinary, no separa un tipo "audio" aparte) — eso habilita el
+// procesamiento con soporte de range requests, necesario para que el
+// seek/scrub de musico.html siga siendo instantáneo.
+const CLOUDINARY_CLOUD_NAME = 'mqwgjh3u';
+const CLOUDINARY_PRESET_AUDIO = 'GUIASAUDIO';
+
+function subirArchivoACloudinary(file, onProgress){
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`);
+    xhr.upload.onprogress = (e) => {
+      if(e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      let data = null;
+      try{ data = JSON.parse(xhr.responseText); }catch(err){ /* respuesta no-JSON, sigue abajo con data=null */ }
+      if(xhr.status >= 200 && xhr.status < 300 && data && data.secure_url){
+        resolve(data.secure_url);
+      } else {
+        reject(new Error((data && data.error && data.error.message) || `Error de Cloudinary (status ${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Error de red al subir a Cloudinary'));
+    const form = new FormData();
+    form.append('file', file);
+    form.append('upload_preset', CLOUDINARY_PRESET_AUDIO);
+    xhr.send(form);
+  });
+}
+
+async function subirAudioMaqueta(i, file){
+  if(!file) return;
+  const estado = document.getElementById('maquetaUploadStatus-' + i);
+  if(estado){ estado.style.display = 'block'; estado.style.color = 'var(--muted)'; estado.textContent = 'Subiendo 0%…'; }
+  try{
+    const url = await subirArchivoACloudinary(file, pct => {
+      if(estado) estado.textContent = `Subiendo ${pct}%…`;
+    });
+    maquetasEnEdicion[i].url = url;
+    maquetasEnEdicion[i].tipo = 'audio';
+    // v1.10: (a pedido) Cloudinary no conserva el nombre original del
+    // archivo en la URL (queda un ID generado) — se guarda acá aparte,
+    // en un campo nuevo, para que musico.html lo pueda mostrar.
+    maquetasEnEdicion[i].nombreArchivo = file.name;
+    pintarMaquetas();
+    // v1.8: pintarMaquetas() recrea la fila (y el div de estado, vacío
+    // de nuevo) — el URL ya cargado en el campo de texto es la
+    // confirmación visual de que terminó bien, sin dejar un mensaje
+    // colgado que haya que limpiar después.
+  }catch(e){
+    console.error('Error subiendo audio a Cloudinary:', e);
+    if(estado){ estado.style.color = 'var(--err)'; estado.textContent = 'No se pudo subir el audio. Probá de nuevo.'; }
+  }
 }
 
 async function guardarMaquetas(){

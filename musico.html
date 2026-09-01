@@ -4,7 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v3.51
+<!-- AUDIOLINK · musico.html · v3.54
+     v3.54: (a pedido) "🔁 Repetir sección actual" y "↻ Marcar loop
+     aquí" ahora viven en el MISMO div que "Loop rápido"
+     (.practica-loop-row), con el mismo tamaño de botón — se
+     distinguen con un borde de color propio (verde) en "Repetir
+     sección", que se pone dorado como antes cuando el loop de sección
+     está activo. Toda la sección "Acciones de práctica" (esos
+     botones + "Usar canción del dispositivo") se movió de lugar: ahora
+     queda justo debajo del waveform, antes del bloque de Pulso/
+     Metrónomo (antes iba después). No se tocó Configuración,
+     calibración, clave, volumen, chips de sección ni el waveform en sí.
+     v3.53: (a pedido) el nombre del archivo (maqueta remota o canción
+     local del dispositivo) ahora también se muestra arriba, pegado al
+     título del bloque de práctica (nuevo span
+     .practica-archivo-nombre-top / archivonombretop-${uid}) — antes la
+     maqueta remota usaba por error el mismo span de "canción del
+     dispositivo" de más abajo, mezclando los dos casos visualmente. El
+     archivo local ahora se ve en los DOS lugares (arriba y junto al
+     botón, como antes); la maqueta remota se ve solo arriba. No se
+     tocó el resto del editor (ajustes, calibración, loop, chips,
+     waveform, metrónomo) — todo queda visible igual que siempre.
+     v3.52: (a pedido) waveform + nombre original de archivo también
+     para la maqueta remota (Cloudinary, tipo "audio") — antes ambos
+     eran exclusivos del archivo local del músico. Se reusa el mismo
+     audioBuffer que ya se decodificaba para el loop exacto (sin
+     descargar/decodificar dos veces) y se llama a la misma
+     prepararWaveformDesdeBuffer() que usa el archivo local. El nombre
+     sale de maqueta.nombreArchivo (nuevo campo, ver guia-practica.html
+     v1.10) — si una maqueta vieja no lo tiene, el span queda vacío
+     como antes, sin romper nada. No se tocó el motor de reproducción,
+     el loop, YouTube ni el resto de la lógica.
      v3.51: (a pedido) el waveform ahora resalta con una franja de
      fondo la SECCIÓN seleccionada (chip activo) — color dorado, para
      distinguirla de la franja verde del loop de sección cuando ambas
@@ -504,6 +534,8 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .consent-btn{width:100%;font-size:0.82rem;}
 .practica-box{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd);}
 .practica-titulo{font-size:0.82rem;color:var(--gold);font-weight:600;margin-bottom:8px;}
+.practica-archivo-nombre-top{font-size:0.8rem;color:var(--muted);margin-top:-4px;margin-bottom:8px;}
+.practica-archivo-nombre-top:empty{display:none;}
 .practica-badge{display:inline-block;font-size:1rem;font-weight:700;color:var(--txt);font-family:var(--M);background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;padding:6px 12px;margin-bottom:10px;}
 .practica-clave-turno{display:flex;gap:8px;margin:8px 0;}
 .clave-bar{flex:1;text-align:center;font-size:0.75rem;padding:6px 0;border-radius:6px;border:1px solid var(--brd);color:var(--muted);background:var(--surf-light);transition:background 0.1s, color 0.1s, border-color 0.1s;}
@@ -609,7 +641,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    info del loop queda debajo del botón, centrada. */
 .practica-loop-row{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:10px;}
 .practica-loopseccion-row{display:flex;flex-direction:column;align-items:stretch;margin-top:6px;}
-.practica-loopseccion-btn{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;transition:background 0.15s,border-color 0.15s,color 0.15s;}
+.practica-loopseccion-btn{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;border-color:var(--ok);color:var(--ok);transition:background 0.15s,border-color 0.15s,color 0.15s;}
 .practica-loopseccion-btn.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
 .practica-loop-btn{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;}
 .practica-loop-info{font-size:0.75rem;color:var(--muted);text-align:center;}
@@ -1323,6 +1355,24 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
         ${secciones && secciones.length ? `
         <div class="practica-seccion-actual" id="seccion-${uid}" style="display:none;">—</div>` : ''}
 
+        <span class="practica-fila-label practica-zona-label">Acciones de práctica</span>
+        <div class="practica-loop-row">
+          ${secciones && secciones.length ? `<button class="btn-ghost practica-loopseccion-btn" id="loopseccionbtn-${uid}" onclick="toggleLoopSeccionPractica('${uid}')">🔁 Repetir sección actual</button>` : ''}
+          <button class="btn-ghost practica-loop-btn" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')">↻ Marcar loop aquí</button>
+          <div class="loop-presets-row">
+            <span class="loop-presets-label">Loop rápido:</span>
+            <div class="loop-presets">
+              ${[4,8,16,32,64].map(n => `<button type="button" class="btn-preset" id="looppreset-${uid}-${n}" onclick="loopRapidoCompasesPractica('${uid}', ${n})" title="Loop de ${n} compases desde acá">x${n}</button>`).join('')}
+            </div>
+          </div>
+          <span class="practica-loop-info" id="loopinfo-${uid}"></span>
+        </div>
+        <div class="practica-local-row">
+          <button class="btn-ghost practica-local-btn" onclick="document.getElementById('filein-${uid}').click()">♪ Usar canción del dispositivo</button>
+          <input type="file" id="filein-${uid}" accept="audio/*" style="display:none" onchange="onArchivoLocalElegido('${uid}', this.files)">
+          <span class="practica-loop-info practica-archivolocal-nombre" id="archivolocalnombre-${uid}"></span>
+        </div>
+
         <div class="practica-metro">
           <div class="practica-compas-wrap">
             <div class="practica-compas-grande" id="compas-${uid}">1</div><span class="practica-beat-chico" id="beat-${uid}">· 1</span>
@@ -1346,28 +1396,6 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
         <div class="practica-libre-row">
           <button class="btn practica-metro-btn" id="metrobtn-${uid}" onclick="toggleMetronomoLibre('${uid}')">▶ Metrónomo</button>
           <button class="practica-click-btn practica-precont-btn activo" id="precontbtn-${uid}" onclick="togglePreconteoPractica('${uid}')" title="Pre-conteo antes de arrancar">🥁</button>
-        </div>
-
-
-        <span class="practica-fila-label practica-zona-label">Acciones de práctica</span>
-        ${secciones && secciones.length ? `
-        <div class="practica-loopseccion-row">
-          <button class="btn-ghost practica-loopseccion-btn" id="loopseccionbtn-${uid}" onclick="toggleLoopSeccionPractica('${uid}')">🔁 Repetir sección actual</button>
-        </div>` : ''}
-        <div class="practica-loop-row">
-          <button class="btn-ghost practica-loop-btn" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')">↻ Marcar loop aquí</button>
-          <div class="loop-presets-row">
-            <span class="loop-presets-label">Loop rápido:</span>
-            <div class="loop-presets">
-              ${[4,8,16,32,64].map(n => `<button type="button" class="btn-preset" id="looppreset-${uid}-${n}" onclick="loopRapidoCompasesPractica('${uid}', ${n})" title="Loop de ${n} compases desde acá">x${n}</button>`).join('')}
-            </div>
-          </div>
-          <span class="practica-loop-info" id="loopinfo-${uid}"></span>
-        </div>
-        <div class="practica-local-row">
-          <button class="btn-ghost practica-local-btn" onclick="document.getElementById('filein-${uid}').click()">♪ Usar canción del dispositivo</button>
-          <input type="file" id="filein-${uid}" accept="audio/*" style="display:none" onchange="onArchivoLocalElegido('${uid}', this.files)">
-          <span class="practica-loop-info practica-archivolocal-nombre" id="archivolocalnombre-${uid}"></span>
         </div>
 
         <span class="practica-fila-label practica-zona-label">Configuración</span>
@@ -1454,6 +1482,7 @@ function bloquePracticaHtml(s){
     return `
       <div class="practica-box">
         <div class="practica-titulo">🎼 Práctica libre — ${escapeHtml(s.miInstrumento)}</div>
+        <div class="practica-archivo-nombre-top" id="archivonombretop-${uid}"></div>
         ${controlesPracticaHtml(uid, compasesPorBarra, temaData.practicaBpm, temaData.practicaCompas, temaData.practicaSecciones, temaData.practicaClave)}
       </div>`;
   }
@@ -1463,6 +1492,7 @@ function bloquePracticaHtml(s){
     return `
       <div class="practica-box">
         <div class="practica-titulo">🎧 Maqueta de práctica — ${escapeHtml(s.miInstrumento)}</div>
+        <div class="practica-archivo-nombre-top" id="archivonombretop-${uid}"></div>
         <div class="practica-yt" id="yt-${uid}"></div>
         ${controlesPracticaHtml(uid, compasesPorBarra, temaData.practicaBpm, temaData.practicaCompas, temaData.practicaSecciones, temaData.practicaClave)}
       </div>`;
@@ -1470,6 +1500,7 @@ function bloquePracticaHtml(s){
   return `
     <div class="practica-box">
       <div class="practica-titulo">🎧 Maqueta de práctica — ${escapeHtml(s.miInstrumento)}</div>
+      <div class="practica-archivo-nombre-top" id="archivonombretop-${uid}"></div>
       <audio id="audio-${uid}" style="display:none;" src="${escapeHtml(maqueta.url)}"></audio>
       ${controlesPracticaHtml(uid, compasesPorBarra, temaData.practicaBpm, temaData.practicaCompas, temaData.practicaSecciones, temaData.practicaClave)}
     </div>`;
@@ -2705,6 +2736,12 @@ function onArchivoLocalElegido(uid, files){
   est.archivoLocalFile = files[0];
   const nombreSpan = document.getElementById('archivolocalnombre-' + uid);
   if(nombreSpan) nombreSpan.textContent = '🎵 ' + est.archivoLocalFile.name;
+  // v3.53: (a pedido) el mismo nombre también arriba, junto al título
+  // (nuevo span archivonombretop-${uid}, ver bloquePracticaHtml) — para
+  // que se vea de entrada cuál está sonando, sin tener que bajar hasta
+  // el botón de "Usar canción del dispositivo".
+  const nombreSpanTop = document.getElementById('archivonombretop-' + uid);
+  if(nombreSpanTop) nombreSpanTop.textContent = '🎵 ' + est.archivoLocalFile.name;
   // v3.28: avisa si se recuperó un offset guardado de una calibración
   // anterior de este mismo archivo, para que no parezca "mágico".
   if(offsetGuardado != null){
@@ -3899,6 +3936,21 @@ function inicializarReproductoresPractica(sesiones){
         estAhora.seek(tActual);
         aplicarLoopNativoPractica(uid);
         if(estabaSonando) estAhora.play();
+        // v3.52: (a pedido) waveform de la maqueta remota — se reusa el
+        // mismo audioBuffer que ya se decodificó arriba para el loop
+        // exacto (no se descarga/decodifica una segunda vez). Usa la
+        // misma función que el archivo local (prepararWaveformDesdeBuffer),
+        // así que el canvas/toolbar/zoom se comportan idéntico.
+        prepararWaveformDesdeBuffer(uid, audioBuffer);
+        // v3.52: (a pedido) nombre original del archivo — Cloudinary no
+        // lo conserva en la URL, así que viaja en maqueta.nombreArchivo
+        // (guardado por guia-practica.html v1.10 al momento de subirlo).
+        // Si la maqueta es vieja y no tiene ese campo, el span queda
+        // vacío como antes, sin romper nada.
+        if(maqueta.nombreArchivo){
+          const nombreSpanTop = document.getElementById('archivonombretop-' + uid);
+          if(nombreSpanTop) nombreSpanTop.textContent = '🎵 ' + maqueta.nombreArchivo;
+        }
       }).catch(err => {
         console.warn('No se pudo preparar el loop exacto para la maqueta remota (se sigue usando el audio nativo de siempre):', err);
       });
