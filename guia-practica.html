@@ -4,7 +4,229 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.10
+<!-- AUDIOLINK · guia-practica.html · v1.28
+     v1.28: (a pedido) dos ajustes de flujo de trabajo:
+     (1) PDF con preview: exportarEstructuraPDF() ya no hace doc.save()
+     directo — arma el PDF exactamente igual que antes (mismo
+     dibujarCajas/cálculo, cero cambios ahí) y lo abre con
+     doc.output('bloburl') en pestaña nueva, visor nativo del
+     navegador. El staff ve el resultado real antes de descargar/
+     imprimir. Si el navegador bloquea el pop-up, cae a doc.save()
+     como antes (no se pierde el PDF).
+     (2) Tarjetas de sección colapsables: con varias secciones cargadas
+     la lista se hacía muy larga. Cada seccion-card ahora tiene un
+     header clickeable (color + nombre + rango de tiempo + badge 🔁 si
+     tiene origen/variación + flecha) que colapsa/expande el resto de
+     la tarjeta (nuevo campo _colapsada, solo de UI — se descarta en
+     guardarSecciones() igual que mostrarNombreLibre, nunca llega a
+     Firebase). Empiezan colapsadas; agregarFilaSeccion() las crea
+     expandidas para poder cargarlas de una. Nuevas clases CSS:
+     .seccion-card-header y derivadas.
+     v1.27: (a pedido) etiquetas y organización visual del flujo de
+     repetición/variación, para amabilidad con el staff — sin tocar
+     lógica. "Es igual a" + "Es una variación" + nota ahora viven
+     agrupadas en una caja propia ("🔁 Repetición") dentro de la
+     tarjeta de sección, en vez de filas sueltas, con una línea de
+     ayuda corta debajo de cada control explicando qué hace en criollo.
+     El panel de checkboxes de propagación (arriba de "Guardar
+     secciones") también quedó con su propio título "🔁 Repeticiones"
+     y una línea de ayuda. Nuevas clases CSS: .seccion-repeticion-box,
+     .seccion-repeticion-titulo, .seccion-ayuda, .seccion-variacion-box
+     (todas nuevas, no pisan estilos existentes). No se tocó ninguna
+     función de guardado/copiado/PDF de v1.25/v1.26.
+     v1.26: (a pedido) "Es una variación" — nuevo flag esVariacion (+
+     notaVariacion opcional) para secciones con origenId. Sirve para el
+     caso "segunda vuelta con variación": la sección se copia UNA VEZ
+     del origen (mismo mecanismo de "Es igual a" que ya existía), pero
+     al marcarla como variación queda protegida para siempre — el
+     checkbox de propagación del origen (propagarCambios) nunca vuelve
+     a pisarla en guardarSecciones(), a diferencia de una dependiente
+     "espejo" normal. Mantiene origenId, así que sigue compartiendo
+     color y agrupación visual con su origen (colorDeSeccionEnLista no
+     cambió). El selector "Es igual a" ahora muestra, debajo, un
+     checkbox "Es una variación" + un campo de texto corto opcional
+     para anotar qué cambia (ej. "2da vuelta - más aguda"), solo visible
+     cuando la sección tiene origen. Si se desvincula el origen (select
+     en "— ninguno —"), esVariacion/notaVariacion se limpian solos.
+     PDF (exportarEstructuraPDF): la etiqueta "(D.C.)" pasa a
+     "(D.C. — variación[: nota])" cuando corresponde, para que el
+     músico sepa que ese cuadro NO es igual al de la primera aparición
+     y tiene que leerlo completo. El mapa de secciones (pintarMapaTema)
+     no se tocó — no mostraba "(D.C.)" antes tampoco, solo color.
+     v1.25: FIX — copiarContenidoSeccion() mezclaba campos de vamp/ciclo
+     con los de fija-bloque en una sola lista sin filtrar por `tipo`. Si
+     el origen era, por ej., una sección tipo ciclo ("Coro"), los campos
+     de fija-bloque que no tiene (acordesFinal2/letraFinal2/
+     finalDistintoN, etc.) se copiaban igual como `undefined` explícito
+     → Firebase rechazaba el guardado completo ("Value for argument...
+     is not a valid Firestore value. Cannot use undefined..."). Ahora
+     copiarContenidoSeccion() solo copia los campos que corresponden al
+     `tipo` real del origen, y limpia a `null` (no undefined) los del
+     otro tipo, para no dejar basura de una sección que antes fue del
+     tipo contrario. Además, guardarSecciones() borra como red de
+     seguridad cualquier clave `undefined` que pudiera haber quedado
+     colgada en secciones guardadas antes de este fix. No cambia nada
+     más: el resto del flujo (propagación, snap, PDF, colores) sigue
+     igual que en v1.24.
+     v1.24: (a pedido) "Es igual a" — copiar contenido entre secciones
+     que son la misma idea musical repetida (ej. "Mambo" que vuelve a
+     sonar igual más adelante), sin tener que retipear acordes/letra.
+     Cada sección ahora tiene un `id` propio estable (se asigna solo si
+     falta, tanto a las nuevas como a las que ya estaban guardadas sin
+     él — no rompe nada existente). Nuevo selector "Es igual a" en cada
+     tarjeta: al elegir un origen, copia UNA VEZ (no queda linkeado en
+     vivo) sus campos de contenido (acordesCiclo/letraCiclo/
+     cicloCompases/contenido en vamp; acordesPorCompas/letraPorCompas/
+     repeticiones/finalDistintoN/acordesFinal2/letraFinal2/
+     acordesSinTiempo/tipo en fija-bloque) y guarda `origenId` apuntando
+     a esa sección — el selector queda mostrando el origen elegido
+     (no se resetea), para que se sepa a simple vista que es una copia
+     y para poder resolver el color compartido (ver abajo). Solo se
+     puede elegir como origen una sección que a su vez NO sea ya
+     dependiente de otra (evita cadenas A→B→C, la relación es siempre
+     de un solo nivel).
+     Checkbox de propagación (propagarCambios, persistido en la
+     sección): junto a "Guardar secciones" aparece un checkbox por cada
+     sección que tenga dependientes — tildado por defecto. Al guardar,
+     si está tildado, empuja los campos de contenido actuales del
+     origen a todas sus dependientes (sobrescribe la copia vieja).
+     Si se destilda, cada dependiente conserva lo que ya tenía copiado.
+     Al borrar una sección que es origen de otras (eliminarSeccion), las
+     dependientes NO quedan vacías (ya tienen su copia propia) — solo se
+     les limpia el origenId, así el selector de "Es igual a" vuelve a
+     mostrar "ninguno" y dejan de tener color compartido/checkbox de
+     propagación asociados a un origen que ya no existe.
+     Color compartido: pintarMapaTema() y exportarEstructuraPDF() ahora
+     resuelven el color de una sección dependiente igual al de su
+     origen (nueva colorDeSeccionEnLista), en vez de por su propia
+     posición en la lista — mismo criterio que se replica en
+     musico.html v3.87 (chips/mapa/waveform/PDF/panel de letra) para
+     que el color se vea igual en las dos vistas.
+     PDF: una sección dependiente imprime su cuadro COMPLETO en cada
+     aparición (no un "ver arriba"), con "(D.C.)" agregado al nombre
+     para que quede claro que es la misma idea repetida (da capo).
+     v1.23: (a pedido) FIX + PDF — 1) v1.22 usaba `duracion` (tiempo
+     real, ya con todas las pasadas) como tamaño de la grilla de
+     acordes/letra, o sea no ahorraba tipeo con repeticiones>1; ahora la
+     grilla es basePase = duracion/repeticiones (una sola pasada). 2) El
+     PDF (exportarEstructuraPDF) dibuja basePase cajas + nota de
+     repetición + fila aparte de "2ª vez" en vez de repetir la fila
+     entera. musico.html v3.86 hace el mismo ajuste del lado del
+     músico (panel de letra + su propio PDF).
+     v1.22: (a pedido) repetición con 1ra/2da vez para secciones fija/
+     bloque — campo "Repeticiones" (1 = como siempre, sin cambios); si
+     es 2+, aparece "Compases distintos en la 2da vez" (por convención,
+     siempre los ÚLTIMOS N compases — así es como funciona 1ra/2da casa
+     en notación real, no selección libre) y una mini-grilla "2da vez"
+     para cargar solo esos compases alternativos. La sección se sigue
+     cargando una sola vez (acordesPorCompas/letraPorCompas de siempre);
+     nada de esto cambia si repeticiones=1. Vamp no lleva este campo (ya
+     es cíclico infinito). Falta la lectura en musico.html/PDF — queda
+     para el próximo paso.
+     v1.21: (a pedido) dos agregados en el bloque de Secciones —
+     1) Mapa/línea de tiempo del tema (id mapaTema) arriba de las
+        tarjetas: un bloque de color por sección, ancho proporcional a
+        su duración en compases, mismos colores que ya usa musico.html
+        (PALETA_SECCIONES/colorSeccionPorIndice, ahora también acá). Se
+        repinta junto con pintarSecciones(), nunca queda desactualizado.
+     2) Botón "📄 Exportar PDF" (exportarEstructuraPDF, jsPDF vía CDN,
+        100% en el navegador) — arma un PDF estilo real/latin book: cajas
+        de compás en fila (4 por línea) con acorde + letra, usando los
+        mismos acordesPorCompas/letraPorCompas (fija/bloque) o
+        acordesCiclo/letraCiclo (vamp, se imprime el ciclo una vez con
+        nota "se repite"). No agrega dato nuevo ni toca el guardado.
+     v1.20: (a pedido) las tarjetas de sección ahora se reordenan solas
+     por compás al salir del campo "Desde" (onblur en seccompas-i/
+     sectiempo-i → ordenarYPintarSecciones()) — antes el orden en
+     pantalla era solo el de inserción/carga, y recién se prolijaba al
+     guardar. No se tocó el guardado (guardarSecciones ya ordenaba antes
+     de escribir a Firestore).
+     v1.19
+     v1.19: (a pedido, Fase 3 de musico.html) letra línea-por-línea junto
+     a los acordes que ya existían — nuevo campo hermano de
+     acordesPorCompas/acordesCiclo (letraPorCompas/letraCiclo), mismo
+     índice de compás, sin campo de número de compás propio (se
+     redimensiona junto con el array de acordes, ver
+     actualizarCicloCompases). Se edita con un input chico debajo de
+     cada acorde en la misma grilla (acordes-grid). guardarSecciones()
+     no se tocó — ya guardaba todo el objeto de la sección con spread
+     (...resto), así que el campo nuevo se persiste solo.
+     v1.18
+     v1.18: (a pedido) fase 2 de estructura por secciones — según el
+     tipo (v1.17) cada seccion-card suma un bloque de contenido:
+     - vamp (Coro/Solo/Descarga): input de ciclo en compases + grilla
+     de acordes del tamaño del ciclo + textarea de "contenido" (letra
+     del coro / solista / orden de solistas según el nombre).
+     - fija/bloque (Verso, Mambo, Moña, Remate, Coda, Pie/Cue, Intro):
+     grilla de acordes de largo = duración exacta en compases,
+     calculada del hasta-desde ya existente (compasDeSegundos); si
+     todavía no hay "hasta" definido, se muestra un aviso en vez de la
+     grilla, invitando a usar los presets x4/x8/etc de siempre.
+     - Intro además gana un textarea aparte "Tramo libre / rubato"
+     para acordes sueltos sin tiempo antes de entrar en compás.
+     Todo viaja en el mismo objeto de sección y se guarda con el mismo
+     guardarSecciones() de siempre. De paso, fix: `input, select` no
+     incluía `textarea` en el estilo global — el textarea nuevo se
+     veía blanco (tema claro del navegador) en vez del tema oscuro de
+     la app; ahora comparten la misma regla.
+     v1.17: (a pedido) fase 1 de estructura por secciones (real book) —
+     el nombre de sección pasó de texto libre a un <select> con
+     catálogo de 9 secciones típicas de salsa/son (Intro, Verso, Coro
+     con alias Montuno, Solo, Descarga, Pie/Cue de solista, Mambo,
+     Moña, Remate, Coda/Final), cada una con su "tipo" (fija/vamp/
+     bloque) embebido — se autocompleta solo al elegir el nombre, sin
+     selector aparte. Opción "Otro…" mantiene el texto libre de
+     siempre para nombres que no están en el catálogo. Secciones ya
+     guardadas sin tipo lo infieren al cargar si su nombre coincide
+     con el catálogo (renderSecciones). El tipo se guarda junto al
+     resto de la sección en Firestore (mismo guardarSecciones, sin
+     tocar snap de compás/reanclaje). Todavía sin campos de acordes/
+     letra — eso es fase 2, sobre esta base ya en uso.
+     v1.16: (a pedido) dos cambios de legibilidad:
+     1) Maquetas ahora tienen un selector de color (6 puntos, opcional)
+     debajo de Etiqueta — sirve para diferenciar visualmente pistas
+     tipo "con bajo / sin bajo" sin depender de leer el texto. Se
+     guarda como maqueta.color (hex) y se pinta como borde izquierdo
+     de la card. musico.html usa ese mismo color en los chips de
+     versión (ver nota ahí). Si no hay color asignado, todo se ve
+     igual que antes.
+     2) Secciones también pasaron de filas sueltas a cards con label
+     visible arriba de cada campo (mismo problema que tenían las
+     Maquetas: antes solo había placeholder, ilegible una vez
+     cargado). La fila "hasta" quedó separada con sus propios labels.
+     No se tocó la lógica de cálculo (snap a compás, conversión
+     compás↔tiempo, guardarSecciones) — solo el render.
+     v1.15: (a pedido) las filas de Maquetas pasaron a cards, con label
+     visible arriba de cada campo (Instrumento/Etiqueta/URL/Tipo) —
+     antes solo tenían placeholder, que desaparece al escribir, así que
+     una vez cargado no se distinguía qué era cada campo. Mismos datos
+     y misma lógica de guardado, solo cambió la presentación.
+     v1.14: (a pedido) el <audio controls> nativo de las filas de audio
+     en Maquetas se reemplazó por un mini reproductor propio con el
+     mismo look que musico.html (▶ / tiempo / barra dorada / 🔊), pero
+     compacto (max-width 300px) en vez de ancho completo — con su
+     propio JS chiquito, sin depender del motor de musico.html. No toca
+     el resto de la fila (instrumento, etiqueta, URL, subir).
+     v1.13: (a pedido) nuevo campo "Etiqueta" en cada fila de Maquetas
+     (ej. "Con bajo" / "Sin bajo") — permite crear varias maquetas para
+     el MISMO instrumento (ya era posible antes, no había validación
+     que lo bloqueara); en musico.html v3.56 se ven como chips para
+     elegir cuál escuchar, manteniendo el segundo exacto de reproducción
+     al cambiar. Con una sola maqueta por instrumento (etiqueta vacía o
+     no), todo se ve exactamente igual que antes.
+     v1.12: (a pedido) se dejó de guardar nombreArchivo al subir audio
+     de maqueta — ya no hace falta, musico.html v3.55 extrae el nombre
+     directo del public_id de la URL de Cloudinary (el preset ya está
+     configurado para usar el nombre real como public_id). No cambia
+     nada más del upload ni de los demás campos.
+     v1.11: (a pedido) al guardar BPM/compás/offset, si la grilla
+     cambió (offset, BPM o compás) y ya hay secciones creadas, se
+     ofrece "reanclarlas" (confirm()): recalcula desdeSegundos/
+     hastaSegundos de cada sección para que mantengan el mismo número
+     de compás con la grilla nueva, en vez de quedar corridas en el
+     tiempo real. Opt-in — si se responde que no, o no cambió nada, o
+     no hay secciones, el guardado sigue exactamente igual que antes.
+     No toca Maquetas ni el guard de sesión.
      v1.10: (a pedido) se guarda el nombre original del archivo
      (nombreArchivo, string) al subir audio de maqueta a Cloudinary —
      Cloudinary no lo conserva en la URL (queda un ID generado), así
@@ -142,6 +364,7 @@
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="nav.css">
@@ -190,23 +413,16 @@ header, main, .main-wrap{position:relative;z-index:1;}
 .card h3{font-family:var(--T);font-size:1.05rem;color:var(--gold);margin-bottom:12px;font-weight:600;}
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
-input, select{
+input, select, textarea{
   width:100%;padding:10px 12px;background:var(--surf-light);border:1px solid var(--brd);
   border-radius:8px;color:var(--txt);font-family:var(--S);font-size:0.9rem;
 }
-input:focus, select:focus{outline:none;border-color:var(--gold);}
+input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);}
 .btn{padding:10px 16px;background:var(--gold);color:#1a1408;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;}
 .btn-ghost{padding:9px 15px;background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;cursor:pointer;font-size:0.85rem;}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
 .btn-del{background:none;border:none;color:var(--err);cursor:pointer;font-size:1rem;padding:4px 8px;}
-.fila{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
-/* v1.6: fila secundaria de "hasta" (fin manual opcional) — más chica
-   y con menos margen inferior, para que se lea como un sub-renglón de
-   la fila de "desde" de arriba y no como una sección nueva. */
-.fila-hasta{margin-top:-4px;margin-bottom:14px;padding-left:4px;opacity:0.85;}
-.fila-hasta-label{font-size:0.78rem;color:var(--faint);white-space:nowrap;}
-.fila > *{flex:1;min-width:120px;}
-.fila .btn-del{flex:0;}
+
 /* v1.7: presets rápidos de duración para el fin manual de sección
    ("hasta") — botones cuadraditos con solo el número de compases. */
 .hasta-presets{display:flex;gap:6px;flex:0 0 auto !important;min-width:0 !important;}
@@ -228,6 +444,75 @@ input:focus, select:focus{outline:none;border-color:var(--gold);}
    progreso debajo de la fila de la maqueta. */
 .btn-upload-audio{text-align:center;cursor:pointer;white-space:nowrap;}
 .upload-status{font-size:0.78rem;color:var(--muted);margin:-4px 0 10px 4px;display:none;}
+.mqaudio-bar{display:flex;align-items:center;gap:6px;margin:4px 0 10px 4px;max-width:300px;}
+.mqaudio-btn{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;color:var(--muted);font-size:0.8rem;padding:4px 8px;cursor:pointer;flex-shrink:0;min-width:30px;min-height:30px;}
+.mqaudio-tiempo{font-size:0.68rem;color:var(--muted);font-family:var(--M);flex-shrink:0;white-space:nowrap;}
+.mqaudio-seek{flex:1;min-width:60px;accent-color:var(--gold);cursor:pointer;height:14px;}
+/* v1.15: (a pedido) cada maqueta pasó de fila suelta a card, con label
+   visible arriba de cada campo (antes solo había placeholder, que
+   desaparece al escribir — quedaba ilegible qué era cada cosa una vez
+   cargado). */
+.maqueta-card{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+.maqueta-card-fila{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;}
+.maqueta-card-fila:last-of-type{margin-bottom:0;}
+.maqueta-campo{flex:1;min-width:140px;}
+.maqueta-campo label{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
+.maqueta-campo-url{flex:2;min-width:200px;}
+.maqueta-campo-tipo{flex:0 0 140px;}
+.maqueta-card-del{flex:0 0 auto;align-self:center;}
+.maqueta-card .btn-upload-audio{flex:0 0 auto;align-self:flex-end;}
+/* v1.16: color opcional por maqueta (borde izquierdo de la card +
+   puntos de selección) — para diferenciar pistas tipo "con bajo /
+   sin bajo" de un vistazo, sin leer la etiqueta. */
+.maqueta-card{border-left:4px solid var(--brd);}
+.maqueta-color-campo{flex:0 0 auto;}
+.maqueta-color-swatches{display:flex;gap:6px;padding-bottom:2px;}
+.maqueta-color-dot{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-sizing:border-box;}
+.maqueta-color-dot.activo{border-color:var(--txt);}
+/* v1.16: Secciones también pasaron a cards con label visible (antes
+   .fila/.fila-hasta con solo placeholder — mismo criterio que
+   Maquetas en v1.15). */
+.seccion-card{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+/* v1.18: (a pedido) fase 2 de estructura por secciones — grilla de
+   acordes (fija/bloque: uno por compás exacto de la sección; vamp:
+   uno por compás del ciclo corto), campo de contenido (letra/
+   solista) para vamp, y aviso cuando aún no hay duración definida
+   para poder generar la grilla. */
+.seccion-fila-acordes{margin-top:10px;padding-top:10px;border-top:1px solid var(--brd);}
+.seccion-fila-acordes label{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
+.acordes-grid{display:flex;flex-wrap:wrap;gap:6px;}
+.acorde-input{width:64px;text-align:center;flex:0 0 auto;}
+.acorde-celda{display:flex;flex-direction:column;gap:3px;flex:0 0 auto;}
+.letra-input{width:64px;text-align:center;font-size:0.72rem;color:var(--muted);}
+.seccion-repeticion-campos{margin-top:10px;padding-top:8px;border-top:1px dashed var(--brd);}
+.mapa-tema{display:flex;gap:2px;margin-bottom:14px;border-radius:8px;overflow:hidden;min-height:40px;}
+.mapa-tema-bloque{flex:1 1 0;min-width:36px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.72rem;font-weight:700;text-align:center;padding:6px 4px;text-shadow:0 1px 2px rgba(0,0,0,0.35);line-height:1.2;}
+.mapa-tema-vacio{font-size:0.8rem;color:var(--muted);margin-bottom:10px;}
+.seccion-aviso{font-size:0.8rem;color:var(--muted);font-style:italic;}
+.seccion-ciclo-campo{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.seccion-ciclo-campo input{width:70px;}
+.seccion-contenido-campo{margin-top:10px;}
+.seccion-card-fila{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;}
+.seccion-card-fila:last-of-type{margin-bottom:0;}
+.seccion-campo{flex:1;min-width:120px;}
+.seccion-campo label{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
+.seccion-campo-nombre{flex:1.4;min-width:150px;}
+.seccion-campo-presets{flex:2;min-width:190px;}
+.seccion-card-del{flex:0 0 auto;align-self:center;}
+/* v1.27: (a pedido) caja visual propia para "Es igual a"/variación —
+   antes eran filas sueltas dentro de la tarjeta, ahora quedan
+   agrupadas como un sub-bloque reconocible de un vistazo. */
+.seccion-repeticion-box{margin-top:10px;padding:10px 12px;border:1px dashed var(--brd);border-radius:8px;background:rgba(127,127,127,0.06);}
+.seccion-repeticion-titulo{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;font-weight:700;margin-bottom:8px;}
+.seccion-ayuda{font-size:0.76rem;color:var(--muted);margin-top:4px;line-height:1.3;}
+.seccion-variacion-box{margin-top:8px;padding:8px 10px;border-left:3px solid var(--brd);}
+/* v1.28: (a pedido) header clickeable de la tarjeta colapsable */
+.seccion-card-header{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
+.seccion-card-header-color{width:12px;height:12px;border-radius:50%;flex:0 0 auto;}
+.seccion-card-header-nombre{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.seccion-card-header-tiempo{font-size:0.78rem;color:var(--muted);flex:0 0 auto;}
+.seccion-card-header-flecha{font-size:0.9rem;color:var(--muted);flex:0 0 auto;width:14px;text-align:center;}
+.seccion-card-body{margin-top:12px;}
 </style>
 </head>
 <body>
@@ -291,11 +576,14 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
 
     <div class="card">
       <h3>Secciones</h3>
+      <div id="mapaTema"></div>
       <div id="listaSecciones"></div>
       <button class="btn-ghost" onclick="agregarFilaSeccion()">+ Agregar sección</button>
+      <div id="propagacionSecciones" class="seccion-repeticion-box" style="margin-top:10px;"></div>
       <div style="margin-top:12px;">
         <button class="btn" onclick="guardarSecciones()">Guardar secciones</button>
         <div class="guardado-ok" id="okSecciones">✓ Guardado</div>
+        <button class="btn-ghost" onclick="exportarEstructuraPDF()" style="margin-left:8px;">📄 Exportar PDF</button>
       </div>
     </div>
 
@@ -333,6 +621,51 @@ const temaId = params.get('t');
 let temaRef = null;
 let temaDataActual = {};
 let instrumentosDelProyecto = []; // v1.1: instrumentos ya asignados a músicos en las sesiones de este proyecto
+
+// v1.13: (a pedido) catálogo de secciones típicas de salsa/son, con su
+// "tipo" embebido — el tipo decide qué campos de contenido tendrá la
+// sección más adelante (letra, acordes por compás, ciclo de vamp),
+// pero por ahora solo se guarda el tipo junto al nombre; el formulario
+// de contenido según tipo queda para una siguiente pasada (fase 2).
+// tipo: "fija" (acordes por compás, duración medida) | "vamp" (ciclo
+// corto que se repite, con letra o solista) | "bloque" (frase fija de
+// metales, sin contenido de texto).
+const CATALOGO_SECCIONES = [
+  { nombre: 'Intro', tipo: 'fija' },
+  { nombre: 'Verso', tipo: 'fija' },
+  { nombre: 'Coro', tipo: 'vamp', alias: 'Montuno' },
+  { nombre: 'Solo', tipo: 'vamp' },
+  { nombre: 'Descarga', tipo: 'vamp' },
+  { nombre: 'Pie/Cue de solista', tipo: 'bloque' },
+  { nombre: 'Mambo', tipo: 'bloque' },
+  { nombre: 'Moña', tipo: 'bloque' },
+  { nombre: 'Remate', tipo: 'bloque' },
+  { nombre: 'Coda/Final', tipo: 'fija' },
+];
+function tipoDeNombreSeccion(nombre){
+  const match = CATALOGO_SECCIONES.find(c => c.nombre === nombre || c.alias === nombre);
+  return match ? match.tipo : null;
+}
+// v1.18: duración exacta en compases de una sección fija/bloque —
+// null si todavía no tiene "hasta" definido (no hay cómo saber cuánto
+// dura sin un fin manual, ver presets x4/x8/etc ya existentes).
+function duracionCompasesSeccion(s){
+  if(s.hastaSegundos == null) return null;
+  const d = compasDeSegundos(s.hastaSegundos) - compasDeSegundos(s.desdeSegundos || 0);
+  return d > 0 ? d : null;
+}
+// ajusta un array de strings a longitud n, preservando lo ya escrito
+function resizeArrayAcordes(arr, n){
+  const base = Array.isArray(arr) ? arr.slice(0, n) : [];
+  while(base.length < n) base.push('');
+  return base;
+}
+function etiquetaContenidoSeccion(nombre){
+  if(nombre === 'Coro') return 'Letra del coro';
+  if(nombre === 'Solo') return 'Solista / instrumento';
+  if(nombre === 'Descarga') return 'Solistas (orden)';
+  return 'Contenido';
+}
 
 // v1.2: faltaba por completo — mismo patrón que proyecto.html (estas 3
 // líneas no vienen de firebase-config.js, cada página las declara).
@@ -393,12 +726,59 @@ async function guardarDatosTema(){
   const compas = document.getElementById('inputCompas').value || null;
   const offset = parseFloat(document.getElementById('inputOffset').value) || 0;
   const clave = document.getElementById('inputClave').value || null;
+
+  // v1.11: (a pedido) si el offset (o BPM/compás) cambia y ya hay
+  // secciones creadas, esas secciones guardan un desdeSegundos crudo
+  // que quedó calculado con la grilla VIEJA (offset/bpm de ese
+  // momento). Si el offset cambia después, esa misma sección queda
+  // en un segundo distinto del compás que se había marcado — se
+  // ofrece "reanclar": recalcular desdeSegundos/hastaSegundos de cada
+  // sección para que caigan en el MISMO número de compás, ya con la
+  // grilla nueva. Es opt-in vía confirm(); si se dice que no, o no
+  // cambió nada, o no hay secciones, el guardado sigue igual que
+  // siempre.
+  let seccionesAGuardar = null;
+  const offsetViejo = temaDataActual.practicaOffset || 0;
+  const bpmViejo = temaDataActual.practicaBpm || bpm;
+  const compasViejoStr = temaDataActual.practicaCompas || compas || '4/4';
+  const cambioGrilla = offset !== offsetViejo || bpm !== bpmViejo || compas !== compasViejoStr;
+  if(cambioGrilla && seccionesEnEdicion.length){
+    const quiereReanclar = confirm(
+      `La grilla de compases cambió (offset ${offsetViejo}s → ${offset}s` +
+      (bpm !== bpmViejo ? `, BPM ${bpmViejo} → ${bpm}` : '') +
+      `).\n\n¿Querés reanclar las ${seccionesEnEdicion.length} sección(es) ya creadas para que mantengan el mismo compás? (si decís que no, quedan en el mismo segundo de siempre, pero corridas de compás)`
+    );
+    if(quiereReanclar){
+      const beatsPorBarraViejo = parseInt(compasViejoStr.split('/')[0], 10) || 4;
+      const beatsPorBarraNuevo = parseInt((compas || '4/4').split('/')[0], 10) || 4;
+      const secPerBarViejo = segundosPorCompas(bpmViejo, beatsPorBarraViejo);
+      const secPerBarNuevo = segundosPorCompas(bpm, beatsPorBarraNuevo);
+      if(secPerBarViejo && secPerBarNuevo){
+        seccionesEnEdicion = seccionesEnEdicion.map(s => {
+          const nuevo = { ...s };
+          const n = Math.round(((s.desdeSegundos || 0) - offsetViejo) / secPerBarViejo);
+          nuevo.desdeSegundos = Math.max(0, offset + n * secPerBarNuevo);
+          if(s.hastaSegundos != null){
+            const nH = Math.round(((s.hastaSegundos || 0) - offsetViejo) / secPerBarViejo);
+            nuevo.hastaSegundos = Math.max(0, offset + nH * secPerBarNuevo);
+          }
+          return nuevo;
+        });
+        seccionesAGuardar = seccionesEnEdicion.map(s => ({ ...s }));
+        pintarSecciones();
+      }
+    }
+  }
+
   try{
-    await temaRef.update({ practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave });
+    const patch = { practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave };
+    if(seccionesAGuardar) patch.practicaSecciones = seccionesAGuardar;
+    await temaRef.update(patch);
     temaDataActual.practicaBpm = bpm;
     temaDataActual.practicaCompas = compas;
     temaDataActual.practicaOffset = offset;
     temaDataActual.practicaClave = clave;
+    if(seccionesAGuardar) temaDataActual.practicaSecciones = seccionesAGuardar;
     mostrarOk('okDatosTema');
   }catch(e){ console.error(e); alert('No se pudo guardar BPM/compás.'); }
 }
@@ -426,43 +806,481 @@ function snapASegundoDeCompas(seg){
 // ============ SECCIONES ============
 let seccionesEnEdicion = [];
 
+// v1.24: id estable por sección — no depende de la posición en el
+// array (que cambia al reordenar por compás), necesario para que
+// "Es igual a"/origenId y el checkbox de propagación sepan a qué
+// sección apuntan aunque se reordene o se guarde de nuevo. Si una
+// sección ya guardada de antes de v1.24 no tiene id, se le asigna acá
+// al cargar — no se toca ningún otro dato suyo.
+function nuevoIdSeccion(){
+  return 'sec-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+}
+
 function renderSecciones(secciones){
-  seccionesEnEdicion = secciones.map(s => ({ ...s }));
+  seccionesEnEdicion = secciones.map(s => ({ ...s, id: s.id || nuevoIdSeccion(), tipo: s.tipo || tipoDeNombreSeccion(s.nombre) }));
+  pintarSecciones();
+}
+
+// campos de contenido que copia "Es igual a" (una sola vez, al elegir
+// el origen) — todo lo que define acordes/letra/ciclo/repeticiones/
+// cierre de la sección, sin tocar nombre/tiempo/id/origenId propios.
+// v1.25: separados por tipo real de sección — copiarContenidoSeccion()
+// ya no mezcla campos de vamp/ciclo con los de fija-bloque (antes
+// copiaba los 12 sin filtrar, y el campo ausente en el origen quedaba
+// como `undefined` explícito → Firebase rechaza el guardado).
+const CAMPOS_VAMP = ['cicloCompases','acordesCiclo','letraCiclo','contenido'];
+const CAMPOS_FIJA = ['acordesPorCompas','letraPorCompas','repeticiones','finalDistintoN','acordesFinal2','letraFinal2','acordesSinTiempo'];
+const CAMPOS_CONTENIDO_SECCION = ['tipo', ...CAMPOS_VAMP, ...CAMPOS_FIJA];
+
+function copiarContenidoSeccion(origen){
+  const copia = { tipo: origen.tipo };
+  const propios = origen.tipo === 'fija-bloque' ? CAMPOS_FIJA : CAMPOS_VAMP;
+  const otros = origen.tipo === 'fija-bloque' ? CAMPOS_VAMP : CAMPOS_FIJA;
+  propios.forEach(campo => {
+    const v = origen[campo];
+    copia[campo] = Array.isArray(v) ? v.slice() : v;
+  });
+  // limpia a null los campos del otro tipo, para no dejar basura de
+  // una sección que antes era del tipo contrario (no undefined: eso
+  // es justo lo que rechazaba Firebase)
+  otros.forEach(campo => { copia[campo] = null; });
+  return copia;
+}
+
+function seleccionarOrigenSeccion(i, origenId){
+  const s = seccionesEnEdicion[i];
+  if(!origenId){
+    s.origenId = null;
+    // v1.26: sin origen no hay "variación" que proteger — se limpia
+    // para no dejar flags huérfanos si más adelante se le asigna otro origen.
+    s.esVariacion = false;
+    s.notaVariacion = null;
+    pintarSecciones();
+    return;
+  }
+  const origen = seccionesEnEdicion.find(x => x.id === origenId);
+  if(!origen) return;
+  Object.assign(s, copiarContenidoSeccion(origen));
+  s.origenId = origenId;
+  pintarSecciones();
+}
+
+// secciones elegibles como origen para la sección i: todas menos ella
+// misma, y solo las que a su vez no dependen de otra (relación de un
+// solo nivel, sin cadenas A→B→C).
+function opcionesOrigenSeccion(i){
+  return seccionesEnEdicion.filter((s, j) => j !== i && !s.origenId);
+}
+
+// true si la sección en el índice i es origen de al menos una
+// dependiente (usado para el mapa/PDF y para el checkbox de
+// propagación).
+function esOrigenDeAlguna(id){
+  return seccionesEnEdicion.some(s => s.origenId === id);
+}
+
+function dependientesDe(id){
+  return seccionesEnEdicion.filter(s => s.origenId === id);
+}
+
+// v1.24: un checkbox por cada sección que sea origen de al menos una
+// dependiente — persistido en propagarCambios (tildado por defecto en
+// una sección nueva). Al guardar (guardarSecciones), si está tildado,
+// se empujan los campos de contenido actuales de esa sección a todas
+// sus dependientes.
+function pintarPropagacionSecciones(){
+  const cont = document.getElementById('propagacionSecciones');
+  if(!cont) return;
+  const origenes = seccionesEnEdicion.filter(s => esOrigenDeAlguna(s.id));
+  if(!origenes.length){
+    cont.innerHTML = '';
+    return;
+  }
+  cont.innerHTML = `
+    <div class="seccion-repeticion-titulo">🔁 Repeticiones</div>
+    <div class="seccion-ayuda" style="margin-bottom:8px;">Al guardar, estas secciones pueden empujar sus acordes/letra actuales a las que son "igual a" ellas. Las marcadas como variación nunca se tocan, aunque el checkbox esté tildado.</div>
+    ` + origenes.map(o => {
+    const checked = o.propagarCambios !== false;
+    return `<label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:var(--muted);margin-bottom:4px;">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="seccionesEnEdicion.find(s=>s.id==='${o.id}').propagarCambios = this.checked">
+      Al guardar, actualizar las secciones iguales a "${(o.nombre || 'Sin nombre').replace(/"/g,'&quot;')}"
+    </label>`;
+  }).join('');
+}
+
+// v1.21: (a pedido) paleta y mapa/línea de tiempo del tema — mismos
+// colores que ya usa musico.html (PALETA_SECCIONES/colorSeccionPorIndice
+// ahí) para que la vista de staff y la del músico se vean consistentes.
+// Un bloque por sección, ancho proporcional a su duración en compases
+// (duracionCompasesSeccion, ya existente); si una sección todavía no
+// tiene "hasta" definido, se le da un ancho mínimo fijo (no hay cómo
+// saber cuánto dura de verdad todavía). Se repinta junto con
+// pintarSecciones() (mismo llamador, ver abajo), así nunca queda
+// desactualizado respecto de las tarjetas.
+const PALETA_SECCIONES = ['#4caf7d', '#4a9fd8', '#c9a24b', '#d1784a', '#a374d9', '#d95f8a', '#4bc4c9', '#8fbf4a'];
+function colorSeccionPorIndice(i){
+  return PALETA_SECCIONES[i % PALETA_SECCIONES.length];
+}
+// v1.24: una sección con origenId usa el mismo color que su origen
+// (mismo criterio replicado en musico.html) en vez de uno por
+// posición propia — así se ve de un vistazo que son la misma idea
+// repetida. `lista` es el array donde se está pintando (acá siempre
+// seccionesEnEdicion); si el origen ya no existe (se borró), cae al
+// color por índice de siempre.
+function colorDeSeccionEnLista(lista, i){
+  const s = lista[i];
+  if(s && s.origenId){
+    const idxOrigen = lista.findIndex(x => x.id === s.origenId);
+    if(idxOrigen !== -1) return colorSeccionPorIndice(idxOrigen);
+  }
+  return colorSeccionPorIndice(i);
+}
+function pintarMapaTema(){
+  const cont = document.getElementById('mapaTema');
+  if(!cont) return;
+  if(!seccionesEnEdicion.length){
+    cont.innerHTML = '';
+    return;
+  }
+  cont.className = 'mapa-tema';
+  cont.innerHTML = seccionesEnEdicion.map((s, i) => {
+    const duracion = duracionCompasesSeccion(s);
+    const anchoFlex = duracion != null ? Math.max(1, duracion) : 3;
+    const etiqueta = duracion != null ? `${s.nombre || '—'} (${duracion})` : (s.nombre || '—');
+    return `<div class="mapa-tema-bloque" style="flex-grow:${anchoFlex};background:${colorDeSeccionEnLista(seccionesEnEdicion, i)};" title="${(s.nombre || '—').replace(/"/g,'&quot;')}${duracion != null ? ' · ' + duracion + ' comp.' : ' · duración sin definir'}">${etiqueta}</div>`;
+  }).join('');
+}
+
+// v1.20: (a pedido) las tarjetas se reordenan solas por compás (desde
+// desdeSegundos) al salir del campo "Desde" (onblur, no oninput — así
+// no saltan de lugar mientras el staff todavía está escribiendo el
+// número). Antes el orden en pantalla era solo el de inserción/carga;
+// recién se prolijaba al guardar (guardarSecciones ya ordenaba antes de
+// escribir a Firestore, eso no cambió). Sort estable: si dos secciones
+// quedan con el mismo desdeSegundos, mantienen el orden relativo que ya
+// tenían.
+function ordenarYPintarSecciones(){
+  seccionesEnEdicion = seccionesEnEdicion
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => (a.s.desdeSegundos || 0) - (b.s.desdeSegundos || 0) || a.i - b.i)
+    .map(x => x.s);
   pintarSecciones();
 }
 
 function pintarSecciones(){
+  pintarMapaTema();
   const cont = document.getElementById('listaSecciones');
   if(!seccionesEnEdicion.length){
     cont.innerHTML = '<div class="vacio">Sin secciones todavía.</div>';
     return;
   }
-  cont.innerHTML = seccionesEnEdicion.map((s, i) => `
-    <div class="fila">
-      <input type="text" placeholder="Nombre (ej: Coro)" value="${(s.nombre || '').replace(/"/g,'&quot;')}" onchange="seccionesEnEdicion[${i}].nombre = this.value">
-      <input type="number" min="1" step="1" id="seccompas-${i}" placeholder="${'compás ' + compasDeSegundos(s.desdeSegundos)}" oninput="actualizarSeccionDesdeCompas(${i}, this.value)">
-      <input type="text" id="sectiempo-${i}" placeholder="Minuto:segundo (ej: 1:30)" value="${segundosATexto(s.desdeSegundos)}" oninput="actualizarSeccionDesdeTiempo(${i}, this.value)">
-      <button class="btn-del" onclick="eliminarSeccion(${i})" title="Eliminar">🗑️</button>
-    </div>
-    <div class="fila fila-hasta">
-      <span class="fila-hasta-label">hasta (opcional)</span>
-      <input type="number" min="1" step="1" id="sechastacompas-${i}" placeholder="${'compás ' + (s.hastaSegundos != null ? compasDeSegundos(s.hastaSegundos) : '— auto —')}" oninput="actualizarSeccionHastaCompas(${i}, this.value)">
-      <input type="text" id="sechastatiempo-${i}" placeholder="Minuto:segundo" value="${s.hastaSegundos != null ? segundosATexto(s.hastaSegundos) : ''}" oninput="actualizarSeccionHastaTiempo(${i}, this.value)">
-      <div class="hasta-presets">
-        ${[4,8,16,32,64].map(n => `<button type="button" class="btn-preset${esPresetHastaActivo(s, i, n) ? ' activo' : ''}" onclick="setSeccionHastaPreset(${i}, ${n})" title="Fin = ${n} compases desde el inicio de esta sección">x${n}</button>`).join('')}
+  cont.innerHTML = seccionesEnEdicion.map((s, i) => {
+    // v1.28: (a pedido) tarjeta colapsable — con varias secciones
+    // cargadas la lista se hacía muy larga. Colapsada por defecto
+    // (s._colapsada !== false), muestra solo un resumen clickeable;
+    // agregarFilaSeccion() la abre expandida directo. _colapsada es
+    // solo de UI (no se guarda en Firebase, ver guardarSecciones/limpio).
+    const colapsada = s._colapsada !== false;
+    const rangoTxt = segundosATexto(s.desdeSegundos || 0) + (s.hastaSegundos != null ? ' – ' + segundosATexto(s.hastaSegundos) : '');
+    const badge = s.origenId ? (s.esVariacion ? '🔁 variación · ' : '🔁 ') : '';
+    const nombreResumen = (s.nombre || 'Sin nombre').replace(/"/g,'&quot;');
+    return `
+    <div class="seccion-card">
+      <div class="seccion-card-header" onclick="toggleColapsoSeccion(${i})">
+        <span class="seccion-card-header-color" style="background:${colorDeSeccionEnLista(seccionesEnEdicion, i)}"></span>
+        <span class="seccion-card-header-nombre">${badge}${nombreResumen}</span>
+        <span class="seccion-card-header-tiempo">${rangoTxt}</span>
+        <button class="btn-del" onclick="event.stopPropagation(); eliminarSeccion(${i})" title="Eliminar sección">🗑️</button>
+        <span class="seccion-card-header-flecha">${colapsada ? '▸' : '▾'}</span>
       </div>
-      <button class="btn-del" onclick="limpiarSeccionHasta(${i})" title="Volver a automático (sin fin manual)">↺</button>
+      <div class="seccion-card-body" style="${colapsada ? 'display:none;' : ''}">
+      <div class="seccion-card-fila">
+        <div class="seccion-campo seccion-campo-nombre">
+          <label>Nombre</label>
+          <select onchange="seleccionarNombreSeccion(${i}, this.value)">
+            <option value="">— elegir —</option>
+            ${CATALOGO_SECCIONES.map(c => `<option value="${c.nombre}"${s.nombre === c.nombre ? ' selected' : ''}>${c.nombre}${c.alias ? ` (${c.alias})` : ''}</option>`).join('')}
+            <option value="__otro__"${(s.nombre && !CATALOGO_SECCIONES.some(c => c.nombre === s.nombre)) ? ' selected' : ''}>Otro…</option>
+          </select>
+          ${(s.nombre !== undefined && s.nombre !== '' && !CATALOGO_SECCIONES.some(c => c.nombre === s.nombre)) || s.mostrarNombreLibre ? `<input type="text" placeholder="Nombre de la sección" style="margin-top:6px;" value="${(s.nombre || '').replace(/"/g,'&quot;')}" oninput="seccionesEnEdicion[${i}].nombre = this.value">` : ''}
+        </div>
+        <div class="seccion-campo">
+          <label>Desde (compás)</label>
+          <input type="number" min="1" step="1" id="seccompas-${i}" placeholder="${'compás ' + compasDeSegundos(s.desdeSegundos)}" oninput="actualizarSeccionDesdeCompas(${i}, this.value)" onblur="ordenarYPintarSecciones()">
+        </div>
+        <div class="seccion-campo">
+          <label>Desde (tiempo)</label>
+          <input type="text" id="sectiempo-${i}" placeholder="Minuto:segundo (ej: 1:30)" value="${segundosATexto(s.desdeSegundos)}" oninput="actualizarSeccionDesdeTiempo(${i}, this.value)" onblur="ordenarYPintarSecciones()">
+        </div>
+        <button class="btn-del seccion-card-del" onclick="eliminarSeccion(${i})" title="Eliminar sección">🗑️</button>
+      </div>
+      <div class="seccion-card-fila">
+        <div class="seccion-campo">
+          <label>Hasta (compás, opcional)</label>
+          <input type="number" min="1" step="1" id="sechastacompas-${i}" placeholder="${'compás ' + (s.hastaSegundos != null ? compasDeSegundos(s.hastaSegundos) : '— auto —')}" oninput="actualizarSeccionHastaCompas(${i}, this.value)">
+        </div>
+        <div class="seccion-campo">
+          <label>Hasta (tiempo, opcional)</label>
+          <input type="text" id="sechastatiempo-${i}" placeholder="Minuto:segundo" value="${s.hastaSegundos != null ? segundosATexto(s.hastaSegundos) : ''}" oninput="actualizarSeccionHastaTiempo(${i}, this.value)">
+        </div>
+        <div class="seccion-campo seccion-campo-presets">
+          <label>Presets rápidos (fin = N compases desde el inicio)</label>
+          <div class="hasta-presets">
+            ${[4,8,16,32,64].map(n => `<button type="button" class="btn-preset${esPresetHastaActivo(s, i, n) ? ' activo' : ''}" onclick="setSeccionHastaPreset(${i}, ${n})" title="Fin = ${n} compases desde el inicio de esta sección">x${n}</button>`).join('')}
+          </div>
+        </div>
+        <button class="btn-del seccion-card-del" onclick="limpiarSeccionHasta(${i})" title="Volver a automático (sin fin manual)">↺</button>
+      </div>
+      ${htmlOrigenSeccion(s, i)}
+      ${htmlAcordesSeccion(s, i)}
+      </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
+  pintarPropagacionSecciones();
+}
+
+function toggleColapsoSeccion(i){
+  const s = seccionesEnEdicion[i];
+  s._colapsada = !(s._colapsada !== false); // toggle, arrancando en "colapsada"
+  pintarSecciones();
+}
+
+// v1.24: selector "Es igual a" — copia el contenido de otra sección
+// UNA VEZ al elegirla (no queda linkeado en vivo). Solo lista como
+// opción secciones que a su vez no sean ya dependientes de otra
+// (opcionesOrigenSeccion), para no armar cadenas. Si la sección elegida
+// como origen ya no existe (se borró), origenId queda sin match y el
+// select cae solo en "— ninguno —".
+function htmlOrigenSeccion(s, i){
+  const opciones = opcionesOrigenSeccion(i);
+  if(!opciones.length && !s.origenId) return '';
+  // v1.27: (a pedido) caja visual propia "🔁 Repetición" — agrupa
+  // "Es igual a" + variación en un sub-bloque reconocible, con textos
+  // de ayuda cortos para que el staff entienda el flujo sin tener que
+  // acordarse de memoria qué hace cada checkbox.
+  const filaVariacion = s.origenId ? `
+    <div class="seccion-variacion-box">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;">
+        <input type="checkbox" ${s.esVariacion ? 'checked' : ''} onchange="seccionesEnEdicion[${i}].esVariacion = this.checked; pintarSecciones();">
+        Es una variación
+      </label>
+      <div class="seccion-ayuda">Se copió una vez de la sección de arriba, pero esta queda con contenido propio: aunque "actualizar las secciones iguales" esté tildado, esta ya no se vuelve a pisar.</div>
+      ${s.esVariacion ? `
+      <div class="seccion-campo" style="margin-top:8px;max-width:320px;">
+        <label>Nota de variación (opcional)</label>
+        <input type="text" value="${(s.notaVariacion || '').replace(/"/g,'&quot;')}" placeholder="ej. 2da vuelta - más aguda" oninput="seccionesEnEdicion[${i}].notaVariacion = this.value">
+      </div>` : ''}
+    </div>` : '';
+  return `
+    <div class="seccion-repeticion-box">
+      <div class="seccion-repeticion-titulo">🔁 Repetición</div>
+      <div class="seccion-card-fila">
+        <div class="seccion-campo">
+          <label>Es igual a</label>
+          <select onchange="seleccionarOrigenSeccion(${i}, this.value)">
+            <option value="">— ninguno —</option>
+            ${opciones.map(o => `<option value="${o.id}"${s.origenId === o.id ? ' selected' : ''}>${(o.nombre || 'Sin nombre').replace(/"/g,'&quot;')}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="seccion-ayuda">Copia una vez los acordes/letra de otra sección que suena igual (ej. un "Mambo" que se repite). No queda linkeado en vivo: podés editar esta tarjeta después sin afectar la otra.</div>
+      ${filaVariacion}
+    </div>`;
+}
+
+// v1.18: arma el bloque de acordes/contenido según el tipo de la
+// sección — vamp (ciclo corto + contenido) o fija/bloque (acordes por
+// compás exacto, calculado del hasta-desde). Si no hay tipo (nombre
+// "Otro…" sin catalogar) o falta duración, no se arma nada o solo el
+// aviso correspondiente.
+function htmlAcordesSeccion(s, i){
+  if(!s.tipo) return '';
+  if(s.tipo === 'vamp'){
+    const ciclo = s.cicloCompases || 2;
+    const acordes = resizeArrayAcordes(s.acordesCiclo, ciclo);
+    const letra = resizeArrayAcordes(s.letraCiclo, ciclo);
+    return `
+      <div class="seccion-fila-acordes">
+        <div class="seccion-ciclo-campo">
+          <label style="margin:0;">Ciclo (compases)</label>
+          <input type="number" min="1" step="1" value="${ciclo}" oninput="actualizarCicloCompases(${i}, this.value)">
+        </div>
+        <div class="acordes-grid">
+          ${acordes.map((a, j) => `<div class="acorde-celda">
+            <input type="text" class="acorde-input" placeholder="c.${j+1}" value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordeCiclo(${i}, ${j}, this.value)">
+            <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraCiclo(${i}, ${j}, this.value)">
+          </div>`).join('')}
+        </div>
+        <div class="seccion-contenido-campo">
+          <label>${etiquetaContenidoSeccion(s.nombre)}</label>
+          <textarea rows="2" placeholder="${etiquetaContenidoSeccion(s.nombre)}" oninput="seccionesEnEdicion[${i}].contenido = this.value">${(s.contenido || '')}</textarea>
+        </div>
+      </div>`;
+  }
+  // fija / bloque
+  const duracion = duracionCompasesSeccion(s);
+  const introLibre = s.nombre === 'Intro' ? `
+        <div class="seccion-contenido-campo">
+          <label>Tramo libre / rubato (opcional)</label>
+          <textarea rows="2" placeholder="Acordes sueltos antes de entrar en tempo, ej: Cmaj7 ... Fmaj7 ..." oninput="seccionesEnEdicion[${i}].acordesSinTiempo = this.value">${(s.acordesSinTiempo || '')}</textarea>
+        </div>` : '';
+  if(duracion == null){
+    return `
+      <div class="seccion-fila-acordes">
+        ${introLibre}
+        <div class="seccion-aviso">Definí el fin de la sección arriba (o un preset x4/x8/etc) para cargar los acordes por compás.</div>
+      </div>`;
+  }
+  const repeticiones = s.repeticiones || 1;
+  // v1.22.1: FIX — `duracion` sale del tiempo real (Desde/Hasta), que ya
+  // incluye TODAS las pasadas si repeticiones>1 (ej: 16 comp. reales =
+  // 2 pasadas de 8). La grilla tiene que pedir solo UNA pasada
+  // (basePase), si no el staff termina tipeando los acordes repetidos
+  // igual que en modo lineal — perdiendo el único objetivo de esta
+  // función. acordesPorCompas/letraPorCompas ahora tienen tamaño
+  // basePase, no duracion.
+  const basePase = repeticiones > 1 ? Math.max(1, Math.round(duracion / repeticiones)) : duracion;
+  const acordes = resizeArrayAcordes(s.acordesPorCompas, basePase);
+  const letra = resizeArrayAcordes(s.letraPorCompas, basePase);
+  const finalN = Math.min(basePase, s.finalDistintoN || 1);
+  const acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, finalN);
+  const letraFinal2 = resizeArrayAcordes(s.letraFinal2, finalN);
+  return `
+    <div class="seccion-fila-acordes">
+      ${introLibre}
+      <label>Acordes y letra (${basePase} comp.${repeticiones > 1 ? ` × ${repeticiones} pasadas = ${duracion} comp. reales` : ''})</label>
+      <div class="acordes-grid">
+        ${acordes.map((a, j) => `<div class="acorde-celda">
+          <input type="text" class="acorde-input" placeholder="c.${j+1}" value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordePorCompas(${i}, ${j}, this.value)">
+          <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraPorCompas(${i}, ${j}, this.value)">
+        </div>`).join('')}
+      </div>
+      <div class="seccion-repeticion-campos">
+        <div class="seccion-ciclo-campo">
+          <label style="margin:0;">Repeticiones</label>
+          <input type="number" min="1" step="1" value="${repeticiones}" oninput="actualizarRepeticiones(${i}, this.value)">
+        </div>
+        ${repeticiones > 1 ? `
+        <div class="seccion-ciclo-campo">
+          <label style="margin:0;">Compases distintos en la 2da vez</label>
+          <input type="number" min="1" max="${basePase}" step="1" value="${finalN}" oninput="actualizarFinalDistintoN(${i}, this.value)">
+        </div>
+        <label style="margin-top:4px;">2da vez (últimos ${finalN} comp.)</label>
+        <div class="acordes-grid">
+          ${acordesFinal2.map((a, j) => `<div class="acorde-celda">
+            <input type="text" class="acorde-input" placeholder="2v c.${basePase - finalN + j + 1}" value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordeFinal2(${i}, ${j}, this.value)">
+            <input type="text" class="letra-input" placeholder="letra" value="${(letraFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraFinal2(${i}, ${j}, this.value)">
+          </div>`).join('')}
+        </div>` : ''}
+      </div>
+    </div>`;
+}
+
+function actualizarCicloCompases(i, valor){
+  const n = Math.max(1, parseInt(valor, 10) || 1);
+  seccionesEnEdicion[i].cicloCompases = n;
+  seccionesEnEdicion[i].acordesCiclo = resizeArrayAcordes(seccionesEnEdicion[i].acordesCiclo, n);
+  // v1.19: (a pedido, Fase 3) letraCiclo sigue el mismo índice que
+  // acordesCiclo — se redimensiona en el mismo momento, para que
+  // nunca quede desalineada de la grilla de acordes.
+  seccionesEnEdicion[i].letraCiclo = resizeArrayAcordes(seccionesEnEdicion[i].letraCiclo, n);
+  pintarSecciones();
+}
+function actualizarAcordeCiclo(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].acordesCiclo)) seccionesEnEdicion[i].acordesCiclo = [];
+  seccionesEnEdicion[i].acordesCiclo[j] = valor;
+}
+function actualizarAcordePorCompas(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].acordesPorCompas)) seccionesEnEdicion[i].acordesPorCompas = [];
+  seccionesEnEdicion[i].acordesPorCompas[j] = valor;
+}
+// v1.19: (a pedido, Fase 3) letra línea-por-línea, mismo índice de
+// compás que ya usan acordesCiclo/acordesPorCompas — sin campo de
+// compás propio, se lee la posición en la misma grilla.
+function actualizarLetraCiclo(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].letraCiclo)) seccionesEnEdicion[i].letraCiclo = [];
+  seccionesEnEdicion[i].letraCiclo[j] = valor;
+}
+function actualizarLetraPorCompas(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].letraPorCompas)) seccionesEnEdicion[i].letraPorCompas = [];
+  seccionesEnEdicion[i].letraPorCompas[j] = valor;
+}
+// v1.22: (a pedido) repetición con 1ra/2da vez — la sección se sigue
+// cargando UNA sola vez (acordesPorCompas/letraPorCompas de siempre);
+// repeticiones>1 más el contenido alternativo de "2da vez"
+// (acordesFinal2/letraFinal2, solo los últimos finalDistintoN compases)
+// son los únicos datos nuevos. No duplica compases a mano — el cálculo
+// de qué vuelta va y qué compás real corresponde a qué casilla vive en
+// musico.html, reusando el mismo motor cíclico que ya arma el ciclo de
+// las secciones vamp.
+function actualizarRepeticiones(i, valor){
+  const n = Math.max(1, parseInt(valor, 10) || 1);
+  const s = seccionesEnEdicion[i];
+  s.repeticiones = n;
+  // re-encoge la grilla a UNA pasada si se acaba de activar la
+  // repetición (mismo criterio de resizeArrayAcordes que el resto:
+  // conserva lo cargado, no lo borra).
+  const duracion = duracionCompasesSeccion(s) || 1;
+  const basePase = n > 1 ? Math.max(1, Math.round(duracion / n)) : duracion;
+  s.acordesPorCompas = resizeArrayAcordes(s.acordesPorCompas, basePase);
+  s.letraPorCompas = resizeArrayAcordes(s.letraPorCompas, basePase);
+  if(n > 1){
+    s.finalDistintoN = Math.min(basePase, s.finalDistintoN || 1);
+    s.acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, s.finalDistintoN);
+    s.letraFinal2 = resizeArrayAcordes(s.letraFinal2, s.finalDistintoN);
+  }
+  pintarSecciones();
+}
+function actualizarFinalDistintoN(i, valor){
+  const s = seccionesEnEdicion[i];
+  const duracion = duracionCompasesSeccion(s) || 1;
+  const repeticiones = s.repeticiones || 1;
+  const basePase = repeticiones > 1 ? Math.max(1, Math.round(duracion / repeticiones)) : duracion;
+  const n = Math.min(basePase, Math.max(1, parseInt(valor, 10) || 1));
+  s.finalDistintoN = n;
+  s.acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, n);
+  s.letraFinal2 = resizeArrayAcordes(s.letraFinal2, n);
+  pintarSecciones();
+}
+function actualizarAcordeFinal2(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].acordesFinal2)) seccionesEnEdicion[i].acordesFinal2 = [];
+  seccionesEnEdicion[i].acordesFinal2[j] = valor;
+}
+function actualizarLetraFinal2(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].letraFinal2)) seccionesEnEdicion[i].letraFinal2 = [];
+  seccionesEnEdicion[i].letraFinal2[j] = valor;
+}
+
+function seleccionarNombreSeccion(i, valor){
+  if(valor === '__otro__'){
+    seccionesEnEdicion[i].nombre = '';
+    seccionesEnEdicion[i].tipo = undefined;
+    seccionesEnEdicion[i].mostrarNombreLibre = true;
+  } else {
+    seccionesEnEdicion[i].nombre = valor;
+    seccionesEnEdicion[i].tipo = tipoDeNombreSeccion(valor);
+    seccionesEnEdicion[i].mostrarNombreLibre = false;
+  }
+  pintarSecciones();
 }
 
 function agregarFilaSeccion(){
-  seccionesEnEdicion.push({ nombre: '', desdeSegundos: 0 });
+  // v1.28: nace expandida (_colapsada:false) para poder cargarla de una,
+  // sin tener que abrirla a mano justo después de crearla.
+  seccionesEnEdicion.push({ id: nuevoIdSeccion(), nombre: '', desdeSegundos: 0, _colapsada: false });
   pintarSecciones();
 }
 
 function eliminarSeccion(i){
+  const idEliminado = seccionesEnEdicion[i].id;
   seccionesEnEdicion.splice(i, 1);
+  // v1.24: las dependientes ya tienen su copia propia (el copiado es
+  // una sola vez, no en vivo), así que no quedan vacías — solo se les
+  // limpia origenId para que el selector "Es igual a" vuelva a
+  // "ninguno" y dejen de compartir color/checkbox con un origen que ya
+  // no existe.
+  seccionesEnEdicion.forEach(s => { if(s.origenId === idEliminado) s.origenId = null; });
   pintarSecciones();
 }
 
@@ -565,7 +1383,188 @@ function esPresetHastaActivo(s, i, n){
   return Math.abs(s.hastaSegundos - esperado) < 0.01;
 }
 
+// v1.21: (a pedido) exporta la estructura del tema a PDF en formato
+// "real/latin book" — cajas de compás en fila (4 por línea) en vez de
+// una lista corrida, mismo dato que ya cargan acordesPorCompas/
+// letraPorCompas (secciones fijas/bloque) y acordesCiclo/letraCiclo
+// (vamp, se imprime el ciclo una vez con nota "se repite" en vez de
+// repetir cajas). Genera el PDF enteramente en el navegador (jsPDF vía
+// CDN, ver <script> arriba) — no pasa por ningún backend, coherente con
+// el resto del ecosistema (sitio estático). Usa temaDataActual/inputBpm/
+// inputCompas/inputClave tal cual ya los completa el staff arriba, sin
+// dato nuevo.
+function exportarEstructuraPDF(){
+  if(!window.jspdf){ alert('No se pudo cargar el generador de PDF. Revisá tu conexión e intentá de nuevo.'); return; }
+  if(!seccionesEnEdicion.length){ alert('No hay secciones cargadas todavía.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margen = 12;
+  const anchoUtil = pageW - margen * 2;
+  let y = margen;
+
+  const bpm = document.getElementById('inputBpm').value || '—';
+  const compas = document.getElementById('inputCompas').value || '4/4';
+  const claveSel = document.getElementById('inputClave');
+  const claveTxt = claveSel && claveSel.value ? claveSel.options[claveSel.selectedIndex].textContent : null;
+  const nombreTema = temaDataActual.nombre || 'Tema sin nombre';
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+  doc.text(nombreTema, margen, y); y += 7;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  doc.text(`BPM ${bpm} · Compás ${compas}${claveTxt ? ' · Clave: ' + claveTxt : ''}`, margen, y);
+  y += 8;
+
+  const asegurarEspacio = (alto) => {
+    if(y + alto > pageH - margen){ doc.addPage(); y = margen; }
+  };
+
+  const POR_FILA = 4;
+  const cajaAncho = anchoUtil / POR_FILA;
+  const cajaAlto = 16;
+
+  const dibujarCajas = (acordes, letra, total) => {
+    const filas = Math.ceil(total / POR_FILA);
+    asegurarEspacio(filas * cajaAlto + 2);
+    for(let j = 0; j < total; j++){
+      const fila = Math.floor(j / POR_FILA);
+      const col = j % POR_FILA;
+      const x = margen + col * cajaAncho;
+      const yCaja = y + fila * cajaAlto;
+      doc.setDrawColor(180); doc.rect(x, yCaja, cajaAncho, cajaAlto);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(140);
+      doc.text('c.' + (j + 1), x + 1.5, yCaja + 4);
+      doc.setTextColor(20);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+      const acorde = (acordes && acordes[j]) || '';
+      doc.text(acorde, x + cajaAncho / 2, yCaja + 8, { align: 'center' });
+      const le = (letra && letra[j]) || '';
+      if(le){
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(7);
+        const leCorta = le.length > 22 ? le.slice(0, 21) + '…' : le;
+        doc.text(leCorta, x + cajaAncho / 2, yCaja + 13, { align: 'center' });
+      }
+    }
+    y += filas * cajaAlto + 4;
+  };
+
+  // v1.24: (a pedido) color compartido — una sección con origenId usa
+  // el color de su origen (colorDeSeccionEnLista) en vez de uno por
+  // posición propia, y se le agrega "(D.C.)" al nombre para dejar
+  // claro que es la misma idea repetida (da capo). El cuadro de
+  // acordes/letra se sigue dibujando COMPLETO en cada aparición (ya
+  // tiene su propia copia de datos, no hay nada que "ver arriba").
+  const secciones = seccionesEnEdicion.slice().sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
+  secciones.forEach((s, i) => {
+    if(!(s.nombre || '').trim()) return;
+    asegurarEspacio(10);
+    const color = colorDeSeccionEnLista(secciones, i);
+    const rgb = [parseInt(color.slice(1,3),16), parseInt(color.slice(3,5),16), parseInt(color.slice(5,7),16)];
+    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+    doc.rect(margen, y, anchoUtil, 7, 'F');
+    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    // v1.26: si es una variación, la etiqueta avisa que el cuadro NO es
+    // igual al original (no alcanza con "ya lo vi arriba") — incluye la
+    // nota corta si el staff cargó una.
+    const etiquetaDC = s.origenId
+      ? (s.esVariacion
+          ? ` (D.C. — variación${(s.notaVariacion || '').trim() ? ': ' + s.notaVariacion.trim() : ''})`
+          : ' (D.C.)')
+      : '';
+    doc.text(s.nombre + etiquetaDC, margen + 2, y + 5);
+    y += 9;
+    doc.setTextColor(20);
+
+    if(s.tipo === 'vamp'){
+      const ciclo = s.cicloCompases || (s.acordesCiclo && s.acordesCiclo.length) || 0;
+      if(ciclo > 0){
+        dibujarCajas(s.acordesCiclo, s.letraCiclo, ciclo);
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
+        doc.text('🔁 se repite (ciclo de ' + ciclo + ' comp.)', margen, y);
+        y += 6; doc.setTextColor(20);
+      } else {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
+        doc.text('Definí el ciclo de compases arriba para ver las cajas acá.', margen, y);
+        y += 6; doc.setTextColor(20);
+      }
+    } else {
+      const duracion = duracionCompasesSeccion(s);
+      if(duracion != null && duracion > 0){
+        if(s.nombre === 'Intro' && (s.acordesSinTiempo || '').trim()){
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
+          doc.text('Libre/rubato: ' + s.acordesSinTiempo, margen, y);
+          y += 6;
+        }
+        // v1.23: (a pedido) repetición con 1ra/2da vez — dibuja UNA sola
+        // pasada (basePase cajas, lo que realmente cargó el staff en la
+        // grilla de arriba) en vez de repetir la fila entera
+        // `repeticiones` veces; abajo, nota de repetición y, si hay 2da
+        // vez cargada, una fila chica aparte con esas cajas.
+        // repeticiones=1 (default) no cambia nada.
+        const repeticiones = s.repeticiones || 1;
+        if(repeticiones > 1){
+          const basePase = Math.max(1, Math.round(duracion / repeticiones));
+          dibujarCajas(s.acordesPorCompas, s.letraPorCompas, basePase);
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
+          doc.text('𝄇 se repite x' + repeticiones + ' (' + duracion + ' comp. reales)', margen, y);
+          y += 6; doc.setTextColor(20);
+          const finalN = Math.min(basePase, s.finalDistintoN || 1);
+          const hay2da = (s.acordesFinal2 && s.acordesFinal2.some(a => (a||'').trim())) || (s.letraFinal2 && s.letraFinal2.some(l => (l||'').trim()));
+          if(hay2da){
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+            doc.text('2ª vez:', margen, y); y += 4;
+            dibujarCajas(s.acordesFinal2, s.letraFinal2, finalN);
+          }
+        } else {
+          dibujarCajas(s.acordesPorCompas, s.letraPorCompas, duracion);
+        }
+      } else {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
+        doc.text('Definí el fin de la sección para ver las cajas acá.', margen, y);
+        y += 6; doc.setTextColor(20);
+      }
+    }
+    y += 2;
+  });
+
+  const nombreArchivo = 'estructura-' + nombreTema.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '.pdf';
+  // v1.28: (a pedido) preview antes de descargar — en vez de forzar la
+  // descarga directa con doc.save(), se abre el PDF ya armado (mismo
+  // dibujo de siempre, cero cambios en dibujarCajas/cálculo de
+  // compases) en una pestaña nueva con el visor nativo del navegador.
+  // Desde ahí el staff ve el resultado real y decide si lo descarga o
+  // imprime con los controles propios del visor — no se duplica
+  // ninguna lógica de renderizado. setProperties(title) hace que el
+  // visor y el nombre sugerido al guardar coincidan con nombreArchivo.
+  doc.setProperties({ title: nombreArchivo });
+  const urlPreview = doc.output('bloburl');
+  const ventana = window.open(urlPreview, '_blank');
+  if(!ventana){
+    // Bloqueador de pop-ups u otro impedimento: no se pierde el PDF,
+    // se cae al comportamiento anterior (descarga directa).
+    doc.save(nombreArchivo);
+  }
+}
+
 async function guardarSecciones(){
+  // v1.24: propagación — antes de armar el objeto a guardar, cada
+  // sección que es origen de otras y tiene su checkbox tildado
+  // (propagarCambios !== false) empuja sus campos de contenido
+  // actuales a todas sus dependientes, sobrescribiendo la copia vieja
+  // de cada una. Si está destildado, esa sección no toca a nadie y
+  // cada dependiente se guarda tal cual está.
+  // v1.26: las dependientes marcadas esVariacion nunca se pisan acá,
+  // aunque el checkbox de propagación del origen esté tildado — son
+  // una copia inicial que después se editó a mano (ej. "2da vuelta con
+  // variación") y no deben volver a sincronizarse con el origen.
+  seccionesEnEdicion.forEach(o => {
+    if(o.propagarCambios === false) return;
+    const deps = dependientesDe(o.id).filter(d => !d.esVariacion);
+    if(!deps.length) return;
+    const copia = copiarContenidoSeccion(o);
+    deps.forEach(d => Object.assign(d, copia));
+  });
   // v1.3: snap al borde de compás más cercano (usa BPM/compás/offset
   // actuales) — así el tiempo guardado no depende de que el staff lo
   // haya escrito exacto a mano.
@@ -575,12 +1574,25 @@ async function guardarSecciones(){
   // automático").
   const limpio = seccionesEnEdicion
     .filter(s => (s.nombre || '').trim())
-    .map(s => ({
-      ...s,
-      desdeSegundos: snapASegundoDeCompas(s.desdeSegundos || 0),
-      hastaSegundos: (s.hastaSegundos != null) ? snapASegundoDeCompas(s.hastaSegundos) : null
-    }))
-    .sort((a,b) => (a.desdeSegundos||0) - (b.desdeSegundos||0));
+    .map(s => {
+      // v1.28: _colapsada es solo estado de UI (colapsar/expandir la
+      // tarjeta) — se descarta igual que mostrarNombreLibre, nunca se
+      // guarda en Firebase.
+      const { mostrarNombreLibre, _colapsada, ...resto } = s;
+      return {
+        ...resto,
+        desdeSegundos: snapASegundoDeCompas(s.desdeSegundos || 0),
+        hastaSegundos: (s.hastaSegundos != null) ? snapASegundoDeCompas(s.hastaSegundos) : null
+      };
+    })
+    .sort((a,b) => (a.desdeSegundos||0) - (b.desdeSegundos||0))
+    // v1.25: red de seguridad — si alguna sección quedó con una clave
+    // en `undefined` de antes de este fix, se elimina la clave (no se
+    // manda como null) antes de guardar; Firebase rechaza `undefined`.
+    .map(s => {
+      Object.keys(s).forEach(k => { if(s[k] === undefined) delete s[k]; });
+      return s;
+    });
   try{
     await temaRef.update({ practicaSecciones: limpio });
     temaDataActual.practicaSecciones = limpio;
@@ -617,6 +1629,44 @@ function campoInstrumentoHtml(m, i){
   </select>`;
 }
 
+// v1.14: (a pedido) mini reproductor propio para las filas de audio de
+// Maquetas — mismo look que el playerbar de musico.html (▶ / tiempo /
+// barra / 🔊), pero chiquito y aislado: no depende de nada del motor
+// de metrónomo/waveform de musico.html (acá no aplica). Los <audio>
+// se recrean cada vez que pintarMaquetas() redibuja, así que estas
+// funciones consultan el DOM por id en cada llamada en vez de guardar
+// referencias.
+function fmtTiempoMaqueta(s){
+  if(!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+function toggleMaquetaAudio(i){
+  const audio = document.getElementById('mqaudio-' + i);
+  if(!audio) return;
+  if(audio.paused) audio.play(); else audio.pause();
+}
+function actualizarTiempoMaquetaAudio(i){
+  const audio = document.getElementById('mqaudio-' + i);
+  const tiempo = document.getElementById('mqaudiotiempo-' + i);
+  const seek = document.getElementById('mqaudioseek-' + i);
+  if(!audio || !tiempo || !seek) return;
+  tiempo.textContent = fmtTiempoMaqueta(audio.currentTime) + ' / ' + fmtTiempoMaqueta(audio.duration);
+  if(audio.duration) seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
+}
+function seekMaquetaAudio(i, val){
+  const audio = document.getElementById('mqaudio-' + i);
+  if(!audio || !audio.duration) return;
+  audio.currentTime = (val / 1000) * audio.duration;
+}
+function toggleMuteMaquetaAudio(i){
+  const audio = document.getElementById('mqaudio-' + i);
+  const btn = document.getElementById('mqaudiovolbtn-' + i);
+  if(!audio || !btn) return;
+  audio.muted = !audio.muted;
+  btn.textContent = audio.muted ? '🔇' : '🔊';
+}
+
 function pintarMaquetas(){
   const cont = document.getElementById('listaMaquetas');
   if(!maquetasEnEdicion.length){
@@ -624,26 +1674,71 @@ function pintarMaquetas(){
     return;
   }
   cont.innerHTML = maquetasEnEdicion.map((m, i) => `
-    <div class="fila">
-      ${campoInstrumentoHtml(m, i)}
-      <input type="text" placeholder="URL (YouTube o audio)" value="${(m.url || '').replace(/"/g,'&quot;')}" onchange="maquetasEnEdicion[${i}].url = this.value">
-      <select onchange="maquetasEnEdicion[${i}].tipo = this.value">
-        <option value="youtube" ${m.tipo === 'youtube' ? 'selected' : ''}>YouTube</option>
-        <option value="audio" ${m.tipo === 'audio' ? 'selected' : ''}>Audio directo</option>
-      </select>
-      <label class="btn-ghost btn-upload-audio">
-        📤 Subir audio
-        <input type="file" accept="audio/*" style="display:none" onchange="subirAudioMaqueta(${i}, this.files[0])">
-      </label>
-      <button class="btn-del" onclick="eliminarMaqueta(${i})" title="Eliminar">🗑️</button>
+    <div class="maqueta-card" style="${m.color ? `border-left-color:${m.color};` : ''}">
+      <div class="maqueta-card-fila">
+        <div class="maqueta-campo">
+          <label>Instrumento</label>
+          ${campoInstrumentoHtml(m, i)}
+        </div>
+        <div class="maqueta-campo">
+          <label>Etiqueta</label>
+          <input type="text" placeholder="ej: Sin bajo" value="${(m.etiqueta || '').replace(/"/g,'&quot;')}" onchange="maquetasEnEdicion[${i}].etiqueta = this.value" title="Si un instrumento tiene varias maquetas, esto se ve como chip para elegir cuál escuchar">
+        </div>
+        <div class="maqueta-campo maqueta-color-campo">
+          <label>Color</label>
+          <div class="maqueta-color-swatches">
+            ${MAQUETA_COLORES.map(c => `<button type="button" class="maqueta-color-dot${m.color === c ? ' activo' : ''}" style="background:${c}" onclick="setMaquetaColor(${i}, '${c}')" title="Color de esta pista"></button>`).join('')}
+          </div>
+        </div>
+        <button class="btn-del maqueta-card-del" onclick="eliminarMaqueta(${i})" title="Eliminar maqueta">🗑️</button>
+      </div>
+      <div class="maqueta-card-fila">
+        <div class="maqueta-campo maqueta-campo-url">
+          <label>URL (YouTube o audio)</label>
+          <input type="text" placeholder="https://…" value="${(m.url || '').replace(/"/g,'&quot;')}" onchange="maquetasEnEdicion[${i}].url = this.value">
+        </div>
+        <div class="maqueta-campo maqueta-campo-tipo">
+          <label>Tipo</label>
+          <select onchange="maquetasEnEdicion[${i}].tipo = this.value">
+            <option value="youtube" ${m.tipo === 'youtube' ? 'selected' : ''}>YouTube</option>
+            <option value="audio" ${m.tipo === 'audio' ? 'selected' : ''}>Audio directo</option>
+          </select>
+        </div>
+        <label class="btn-ghost btn-upload-audio">
+          📤 Subir audio
+          <input type="file" accept="audio/*" style="display:none" onchange="subirAudioMaqueta(${i}, this.files[0])">
+        </label>
+      </div>
+      ${(m.tipo === 'audio' && (m.url || '').trim()) ? `
+      <div class="mqaudio-bar">
+        <audio class="mqaudio-el" id="mqaudio-${i}" src="${(m.url || '').replace(/"/g,'&quot;')}" preload="metadata"
+          ontimeupdate="actualizarTiempoMaquetaAudio(${i})"
+          onloadedmetadata="actualizarTiempoMaquetaAudio(${i})"
+          onplay="document.getElementById('mqaudioplay-${i}').textContent='⏸'"
+          onpause="document.getElementById('mqaudioplay-${i}').textContent='▶'"
+          onended="document.getElementById('mqaudioplay-${i}').textContent='▶'"></audio>
+        <button type="button" class="mqaudio-btn" id="mqaudioplay-${i}" onclick="toggleMaquetaAudio(${i})" title="Reproducir / Pausar">▶</button>
+        <span class="mqaudio-tiempo" id="mqaudiotiempo-${i}">0:00 / 0:00</span>
+        <input type="range" class="mqaudio-seek" id="mqaudioseek-${i}" min="0" max="1000" step="1" value="0" oninput="seekMaquetaAudio(${i}, this.value)">
+        <button type="button" class="mqaudio-btn" id="mqaudiovolbtn-${i}" onclick="toggleMuteMaquetaAudio(${i})" title="Silenciar">🔊</button>
+      </div>` : ''}
+      <div class="upload-status" id="maquetaUploadStatus-${i}"></div>
     </div>
-    ${(m.tipo === 'audio' && (m.url || '').trim()) ? `<audio controls style="width:100%;margin-top:4px;" src="${(m.url || '').replace(/"/g,'&quot;')}"></audio>` : ''}
-    <div class="upload-status" id="maquetaUploadStatus-${i}"></div>
   `).join('');
 }
 
+// v1.16: paleta fija de colores opcionales por maqueta (dorado, verde,
+// violeta, azul, naranja, gris) — solo para diferenciar pistas de un
+// vistazo (ej. "con bajo" / "sin bajo"), sin significado fijo por sí
+// mismos. musico.html usa el mismo color en los chips de versión.
+const MAQUETA_COLORES = ['#c9a24b','#4caf7d','#a78bd6','#5a9bd6','#e0785d','#8a8a8a'];
+function setMaquetaColor(i, color){
+  maquetasEnEdicion[i].color = (maquetasEnEdicion[i].color === color) ? null : color;
+  pintarMaquetas();
+}
+
 function agregarFilaMaqueta(){
-  maquetasEnEdicion.push({ instrumento: '', url: '', tipo: 'youtube' });
+  maquetasEnEdicion.push({ instrumento: '', etiqueta: '', url: '', tipo: 'youtube' });
   pintarMaquetas();
 }
 
@@ -697,10 +1792,6 @@ async function subirAudioMaqueta(i, file){
     });
     maquetasEnEdicion[i].url = url;
     maquetasEnEdicion[i].tipo = 'audio';
-    // v1.10: (a pedido) Cloudinary no conserva el nombre original del
-    // archivo en la URL (queda un ID generado) — se guarda acá aparte,
-    // en un campo nuevo, para que musico.html lo pueda mostrar.
-    maquetasEnEdicion[i].nombreArchivo = file.name;
     pintarMaquetas();
     // v1.8: pintarMaquetas() recrea la fila (y el div de estado, vacío
     // de nuevo) — el URL ya cargado en el campo de texto es la
