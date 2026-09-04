@@ -4,7 +4,65 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v3.96
+<!-- AUDIOLINK · musico.html · v3.100
+     v3.100: (a pedido, "que los dos PDF se vean iguales") exportarEstructuraPracticaPDF
+     ya no dibuja el PDF acá adentro (dibujarCajas/dibujarCajaBreak propios,
+     que estaban desincronizados de guia-practica.html: sin letra de
+     ensayo, sin barra de repetición dibujada, sin ícono de coda) — ahora
+     arma los datos (bpm/compás/clave + cada sección con su duración y
+     color ya resueltos, con el MISMO cálculo de duración que ya usaba
+     este archivo vía secPerBar/hastaSegundos-o-próxima-sección, sin
+     tocarlo) y se los pasa a generarEstructuraPDF() (pdf-estructura.js,
+     nuevo <script src>), compartida con guia-practica.html. El PDF de
+     músico ahora sale con el mismo nivel de detalle que el del staff:
+     letra de ensayo, D.C./variación/coda con ícono, Break/Corte, barra de
+     repetición dibujada y corchete de 2da casilla. Cero cambios en
+     colorDeSeccionEnLista ni en cómo actualizarCifradoPractica/el resto de
+     la pantalla en vivo leen las secciones.
+     v3.99
+     v3.99: (a pedido) portea a este PDF (exportarEstructuraPracticaPDF)
+     la sección "Break/Corte" que guia-practica.html ya tenía desde su
+     v1.29.11 y que acá todavía no existía (se habían desincronizado).
+     Se identifica igual que en staff — por nombre exacto "Break/Corte",
+     sigue siendo tipo 'fija-bloque' como Verso/Coro — y usa una caja
+     especial (dibujarCajaBreak + dibujarIconoAcentoBreak, código
+     idéntico al de guia-practica.html) en vez de la grilla de
+     dibujarCajas: una única caja ancha con el/los acorde(s) grandes y
+     centrados, sin números de compás, y debajo "BREAK" + ícono de
+     acento + la nota de tiempo si el staff cargó una
+     (s.notaTiempoCorte). Mismos datos de entrada
+     (acordesPorCompas/letraPorCompas) que ya carga el staff — no se
+     agregó ningún campo nuevo. dibujarCajas y el resto del PDF
+     (repeticiones, D.C./variación, vamp) quedan intactos: solo cambia
+     qué función de dibujo se usa cuando el nombre de la sección es
+     "Break/Corte". Nota aparte: sigue pendiente si querés que el mapa
+     visual (mapaSeccionesHtml) también distinga Break/Corte, y la
+     letra de ensayo automática (letraEnsayoSugerida) — ninguna de las
+     dos se tocó, no fueron parte de este pedido puntual.
+     v3.98: (a pedido) dos ajustes al mapa de estructura:
+     1) se quita del render la fila de chips redondos
+     (seccionesChipsHtml) debajo del mapa — quedaba duplicando la misma
+     info que ya muestra el mapa de arriba. La función queda definida
+     en el archivo por si se quiere retomar, solo se sacó su llamada en
+     el return de renderPractica.
+     2) mapaSeccionesHtml: el ancho de cada bloque ahora es proporcional
+     a TIEMPOS reales (compases × pulsos/compás), no a compases crudos
+     — mismo criterio que guia-practica.html (LINEA_TIEMPOS) — así una
+     sección pesa lo mismo visualmente sin importar el compás del tema.
+     Factor elegido para que en 4/4 el ancho quede idéntico al de antes.
+     Cero cambios en colorDeSeccionEnLista, duracionCompasesSeccion,
+     irASeccionPractica ni en cómo se cargan las secciones desde
+     Firestore.
+     v3.97: (a pedido, "el metrónomo en móvil no es constante") el audio
+     del click/clave/metrónomo libre ya no se dispara desde rAF (podía
+     retrasarse o saltar frames en móvil) — ahora un scheduler propio
+     (setInterval de 25ms) agenda los próximos beeps ~100ms adelante
+     usando el reloj de Web Audio (audioCtxPractica.currentTime), que
+     corre en el hilo de audio con precisión de hardware. Lo visual
+     (dots, números, flash de clave) sigue en rAF sin cambios — solo se
+     separó "cuándo suena" de "cuándo se pinta". Ver
+     schedulerTickGlobalPractica() y el nuevo parámetro `when` de
+     beepPractica(). No se tocó ningún cálculo de compás/offset/acento.
      v3.96: (a pedido) dos ajustes:
      1) Chips/bloques de sección vuelven al estilo "outline" (borde +
         texto con el color de la sección, fondo neutro en reposo,
@@ -952,6 +1010,7 @@
 <script src="utils.js"></script>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="pdf-estructura.js"></script>
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -2009,7 +2068,16 @@ function mapaSeccionesHtml(uid, secciones, bpm, compasesPorBarra, offset){
     const siguiente = ordenadas[i+1] || null;
     const finSec = (sec.hastaSegundos != null) ? sec.hastaSegundos : (siguiente ? siguiente.desdeSegundos : null);
     const duracion = (secPerBar > 0 && finSec != null) ? Math.max(1, Math.round((finSec - (sec.desdeSegundos||0)) / secPerBar)) : null;
-    const anchoMin = duracion != null ? Math.min(140, Math.max(48, duracion * 6)) : 60;
+    // v3.98: (a pedido) ancho proporcional a TIEMPOS reales (compases ×
+    // pulsos por compás), no a compases crudos — mismo criterio que
+    // guia-practica.html (LINEA_TIEMPOS) para que una sección de igual
+    // duración "pese" lo mismo visualmente sea cual sea el compás del
+    // tema. El factor 1.5 está elegido para que en 4/4 (caso más común,
+    // 4 pulsos/compás) el ancho quede IGUAL al de antes (duracion*6 ==
+    // tiempos*1.5 cuando compasesPorBarra=4) — solo cambia el resultado
+    // para compases distintos de 4/4.
+    const tiempos = duracion != null ? duracion * compasesPorBarra : null;
+    const anchoMin = tiempos != null ? Math.min(140, Math.max(48, tiempos * 1.5)) : 60;
     const color = colorDeSeccionEnLista(ordenadas, i);
     return `<div class="practica-mapa-bloque" id="mapabloque-${uid}-${sec.desdeSegundos}" style="--sec-color:${color};--sec-text:${colorTextoContraste(color)};min-width:${anchoMin}px;" onclick="irASeccionPractica('${uid}', ${sec.desdeSegundos})">${sec.esVariacion ? '<span class="practica-chip-variacion">🔁</span>' : ''}${escapeHtml(sec.nombre)}${duracion != null ? `<span class="practica-mapa-comp">${duracion} c.</span>` : ''}</div>`;
   }).join('');
@@ -2163,7 +2231,6 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
         <div class="practica-badge" id="badge-${uid}"></div>
 
         ${mapaSeccionesHtml(uid, secciones, bpm, compasesPorBarra)}
-        ${seccionesChipsHtml(uid, secciones, bpm, compasesPorBarra)}
 
         <div class="practica-progreso">
           <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop"><div class="practica-progreso-fill" id="progfill-${uid}"></div></div>
@@ -2413,6 +2480,98 @@ function snapACompasPractica(seg, bpm, compasesPorBarra, offset){
 }
 
 let audioCtxPractica = null;
+
+// v3.97: (a pedido, "el metrónomo en móvil no es constante") scheduler
+// de audio independiente del rAF visual. Antes, cada beep se disparaba
+// EN EL MISMO INSTANTE en que actualizarContadorPractica() (llamada
+// desde requestAnimationFrame) detectaba el cambio de beat — y rAF no
+// tiene garantía de timing: el sistema operativo puede retrasarlo o
+// saltarse frames (batería, pantalla, etc.), sobre todo en móvil. En
+// escritorio casi no se nota porque rAF es mucho más estable ahí.
+// Solución (estándar para metrónomos web, técnica de Chris Wilson/
+// Web Audio): un setInterval corto agenda los próximos beeps ~100ms
+// hacia adelante usando el reloj de Web Audio (audioCtxPractica.
+// currentTime, que corre en el hilo de audio con precisión de
+// hardware) en vez de esperar a que rAF "note" que tocaba sonar.
+// El rAF/actualizarContadorPractica() sigue intacto para lo VISUAL
+// (dots, números, flash de clave) — el jitter ahí no se nota ni se
+// oye. Ver bloques removidos en actualizarContadorPractica (click y
+// clave) que antes disparaban el beep directamente.
+const SCHED_LOOKAHEAD_SEC = 0.1;
+const SCHED_INTERVAL_MS = 25;
+function schedulerTickGlobalPractica(){
+  for(const uid in estadoPractica){
+    const est = estadoPractica[uid];
+    if(!est) continue;
+    const clickOn = !!est.clickActivo;
+    const claveOn = est.claveActiva !== false && !!(est.claveEfectiva !== undefined ? est.claveEfectiva : est.clave);
+    const libreOn = !!est.metroLibreActivo;
+    if(!clickOn && !claveOn && !libreOn) continue;
+
+    if(!audioCtxPractica) audioCtxPractica = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtxPractica.state === 'suspended') audioCtxPractica.resume();
+
+    const bpmEf = est.bpmEfectivo || est.bpm;
+    if(!bpmEf) continue;
+    const secPerBeat = 60 / bpmEf;
+    const offset = (est.offset || 0) + (est.offsetLocalDelta || 0);
+    const tiempoActual = libreOn
+      ? (performance.now() - est.metroLibreInicio) / 1000
+      : (est.getTiempoActual ? est.getTiempoActual() : 0);
+    const tRel = Math.max(0, tiempoActual - offset);
+    const ahoraCtx = audioCtxPractica.currentTime;
+    const ventanaHasta = tRel + SCHED_LOOKAHEAD_SEC;
+
+    // --- pulso normal (click / metrónomo libre) ---
+    if(clickOn || libreOn){
+      if(est.schedNextBeatIdx == null ||
+         Math.abs(est.schedNextBeatIdx * secPerBeat - tRel) > secPerBeat * 1.5){
+        // primera vez, o desincronizado (seek/loop/cambio de bpm): resync
+        est.schedNextBeatIdx = Math.ceil(tRel / secPerBeat);
+      }
+      while(est.schedNextBeatIdx * secPerBeat < ventanaHasta){
+        const beatTime = est.schedNextBeatIdx * secPerBeat;
+        const when = ahoraCtx + (beatTime - tRel);
+        const beatEnBarra = ((est.schedNextBeatIdx % est.compasesPorBarra) + est.compasesPorBarra) % est.compasesPorBarra;
+        const acento = (est.acentos && est.acentos[beatEnBarra]) || 'normal';
+        if(acento !== 'mudo') beepPractica(acento === 'fuerte', est.sonidoClick, acento === 'fuerte' ? est.volFuerte : est.volNormal, false, when);
+        est.schedNextBeatIdx++;
+      }
+    }
+
+    // --- clave ---
+    if(claveOn){
+      const claveOnsetsEf = est.claveOnsetsEfectivo || est.claveOnsets;
+      const claveCicloSecEf = est.claveCicloSecEfectivo || est.claveCicloSec;
+      if(claveOnsetsEf && claveOnsetsEf.length && claveCicloSecEf){
+        const n = claveOnsetsEf.length;
+        const tiempoDeEvento = (g) => {
+          const ciclo = Math.floor(g / n);
+          const idxLocal = ((g % n) + n) % n;
+          return ciclo * claveCicloSecEf + claveOnsetsEf[idxLocal];
+        };
+        if(est.schedNextClaveIdx == null ||
+           Math.abs(tiempoDeEvento(est.schedNextClaveIdx) - tRel) > claveCicloSecEf * 1.5){
+          // resync: primer evento con tiempo > tRel
+          const cicloIndex = Math.floor(tRel / claveCicloSecEf);
+          const tCiclo = tRel - cicloIndex * claveCicloSecEf;
+          let nextLocal = claveOnsetsEf.findIndex(o => o > tCiclo);
+          est.schedNextClaveIdx = nextLocal === -1 ? (cicloIndex + 1) * n : cicloIndex * n + nextLocal;
+        }
+        while(tiempoDeEvento(est.schedNextClaveIdx) < ventanaHasta){
+          const idxLocal = ((est.schedNextClaveIdx % n) + n) % n;
+          const acentoClave = (est.acentosClave && est.acentosClave[idxLocal]) || 'normal';
+          if(acentoClave !== 'mudo'){
+            const when = ahoraCtx + (tiempoDeEvento(est.schedNextClaveIdx) - tRel);
+            beepPractica(acentoClave === 'fuerte', (est.sonidoClave || 'clasico'), acentoClave === 'fuerte' ? est.volFuerte : est.volNormal, false, when);
+          }
+          est.schedNextClaveIdx++;
+        }
+      }
+    }
+  }
+}
+setInterval(schedulerTickGlobalPractica, SCHED_INTERVAL_MS);
 // v2.4: parámetro sonido ('clasico'|'grave'|'woodblock') — solo cambia
 // waveform/frecuencias del beep, la lógica de timing no se toca.
 // v2.5: parámetro volumen (0 a 1) — antes el "acento" solo cambiaba la
@@ -2440,13 +2599,18 @@ const SONIDOS_CLICK = {
   // sostenido. Ver rama 'noise' en beepPractica().
   claveorganica: { tipo: 'noise', fFuerte: 2800, fNormal: 2100 }
 };
-function beepPractica(fuerte, sonido, volumen, precuenta){
+function beepPractica(fuerte, sonido, volumen, precuenta, when){
   if(!audioCtxPractica) audioCtxPractica = new (window.AudioContext || window.webkitAudioContext)();
   if(audioCtxPractica.state === 'suspended') audioCtxPractica.resume();
   const cfg = SONIDOS_CLICK[sonido] || SONIDOS_CLICK.clasico;
   const vol = Math.max(0, Math.min(1, volumen == null ? 1 : volumen));
   if(vol <= 0) return;
   const ctx = audioCtxPractica;
+  // v3.97: si viene un instante agendado (scheduler de audio), el beep
+  // arranca AHÍ en vez de "ya" — así el timing no depende de cuándo
+  // rAF llegó a llamar esta función. Sin `when` (pre-conteo, u otros
+  // usos puntuales) se comporta exactamente igual que antes.
+  const t0 = when != null ? when : ctx.currentTime;
   // v3.71: rama de síntesis por ruido filtrado (clave orgánica) — no
   // usa oscilador, sino un buffer de ruido blanco corto pasado por un
   // filtro pasa-banda centrado en la frecuencia del acento, con
@@ -2467,11 +2631,11 @@ function beepPractica(fuerte, sonido, volumen, precuenta){
     bandpass.frequency.value = (fuerte ? cfg.fFuerte : cfg.fNormal) * (precuenta ? 1.3 : 1);
     bandpass.Q.value = 7;
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.6 * vol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    gain.gain.setValueAtTime(0.6 * vol, t0);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
     noiseSource.connect(bandpass).connect(gain).connect(ctx.destination);
-    noiseSource.start();
-    noiseSource.stop(ctx.currentTime + dur);
+    noiseSource.start(t0);
+    noiseSource.stop(t0 + dur);
     return;
   }
   const osc = ctx.createOscillator();
@@ -2481,11 +2645,11 @@ function beepPractica(fuerte, sonido, volumen, precuenta){
   // normal, para que se note claramente la diferencia entre "todavía es
   // el conteo" y "ya arrancó de verdad".
   osc.frequency.value = (fuerte ? cfg.fFuerte : cfg.fNormal) * (precuenta ? 1.5 : 1);
-  gain.gain.setValueAtTime(0.22 * vol, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+  gain.gain.setValueAtTime(0.22 * vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08);
   osc.connect(gain).connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + 0.08);
+  osc.start(t0);
+  osc.stop(t0 + 0.08);
 }
 
 // v1.9: acceso rápido — salta directo al inicio de la sección tocada,
@@ -2572,143 +2736,39 @@ function toggleLoopSeccionPractica(uid){
 function exportarEstructuraPracticaPDF(uid){
   const est = estadoPractica[uid];
   if(!est){ return; }
-  if(!window.jspdf){ alert('No se pudo cargar el generador de PDF. Revisá tu conexión e intentá de nuevo.'); return; }
   if(!est.secciones || !est.secciones.length){ alert('Este tema no tiene secciones cargadas todavía.'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margen = 12;
-  const anchoUtil = pageW - margen * 2;
-  let y = margen;
 
+  // v3.100: mismo cálculo de duración que ya usaba este archivo (secPerBar
+  // a partir de bpm/compasesPorBarra, fin = hastaSegundos manual o el
+  // desdeSegundos de la próxima sección) — es lo único que de verdad
+  // difiere de guia-practica.html (que usa duracionCompasesSeccion, basado
+  // solo en hastaSegundos manual, sin caer a la próxima sección). El
+  // dibujo (dibujarCajas/dibujarCajaBreak/letra de ensayo/D.C./coda/barra
+  // de repetición) vive en pdf-estructura.js, compartido con el staff.
   const secPerBar = est.bpm ? (60 / est.bpm) * est.compasesPorBarra : 0;
   const claveTxt = est.clave ? (CLAVE_ETIQUETAS[est.clave] || est.clave) : null;
 
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
-  doc.text(est.temaNombre || 'Tema', margen, y); y += 7;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-  doc.text(`BPM ${est.bpm || '—'} · Compás ${est.compasTexto || '4/4'}${claveTxt ? ' · Clave: ' + claveTxt : ''}`, margen, y);
-  y += 8;
-
-  const asegurarEspacio = (alto) => {
-    if(y + alto > pageH - margen){ doc.addPage(); y = margen; }
-  };
-
-  const POR_FILA = 4;
-  const cajaAncho = anchoUtil / POR_FILA;
-  const cajaAlto = 16;
-
-  const dibujarCajas = (acordes, letra, total) => {
-    const filas = Math.ceil(total / POR_FILA);
-    asegurarEspacio(filas * cajaAlto + 2);
-    for(let j = 0; j < total; j++){
-      const fila = Math.floor(j / POR_FILA);
-      const col = j % POR_FILA;
-      const x = margen + col * cajaAncho;
-      const yCaja = y + fila * cajaAlto;
-      doc.setDrawColor(180); doc.rect(x, yCaja, cajaAncho, cajaAlto);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(140);
-      doc.text('c.' + (j + 1), x + 1.5, yCaja + 4);
-      doc.setTextColor(20);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-      const acorde = (acordes && acordes[j]) || '';
-      doc.text(acorde, x + cajaAncho / 2, yCaja + 8, { align: 'center' });
-      const le = (letra && letra[j]) || '';
-      if(le){
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(7);
-        const leCorta = le.length > 22 ? le.slice(0, 21) + '…' : le;
-        doc.text(leCorta, x + cajaAncho / 2, yCaja + 13, { align: 'center' });
-      }
-    }
-    y += filas * cajaAlto + 4;
-  };
-
   const secciones = est.secciones.slice().sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
-  secciones.forEach((s, i) => {
-    if(!(s.nombre || '').trim()) return;
-    asegurarEspacio(10);
-    const color = colorDeSeccionEnLista(secciones, i);
-    const rgb = [parseInt(color.slice(1,3),16), parseInt(color.slice(3,5),16), parseInt(color.slice(5,7),16)];
-    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-    doc.rect(margen, y, anchoUtil, 7, 'F');
-    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-    // v3.91: (a pedido) faltaba acá la etiqueta "(D.C.)"/variación que
-    // guia-practica.html v1.24/v1.26 ya tiene en su propio PDF — este
-    // PDF (exportarEstructuraPracticaPDF) solo compartía el color
-    // (colorDeSeccionEnLista) pero nunca avisaba con texto que la
-    // sección es la misma idea repetida. Mismo criterio exacto.
-    const etiquetaDC = s.origenId
-      ? (s.esVariacion
-          ? ` (D.C. — variación${(s.notaVariacion || '').trim() ? ': ' + s.notaVariacion.trim() : ''})`
-          : ' (D.C.)')
-      : '';
-    doc.text(s.nombre + etiquetaDC, margen + 2, y + 5);
-    y += 9;
-    doc.setTextColor(20);
-
-    if(s.tipo === 'vamp'){
-      const ciclo = s.cicloCompases || (s.acordesCiclo && s.acordesCiclo.length) || 0;
-      if(ciclo > 0){
-        dibujarCajas(s.acordesCiclo, s.letraCiclo, ciclo);
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
-        doc.text('Se repite (ciclo de ' + ciclo + ' comp.)', margen, y);
-        y += 6; doc.setTextColor(20);
-      } else {
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
-        doc.text('Sin ciclo de compases definido en guía de práctica.', margen, y);
-        y += 6; doc.setTextColor(20);
-      }
-    } else {
+  const seccionesParaPDF = secciones.map((s, i) => {
+    let duracion = null;
+    if(s.tipo !== 'vamp'){
       const siguiente = secciones[i+1] || null;
       const finSec = (s.hastaSegundos != null) ? s.hastaSegundos : (siguiente ? siguiente.desdeSegundos : null);
-      const duracion = (secPerBar > 0 && finSec != null) ? Math.max(1, Math.round((finSec - (s.desdeSegundos||0)) / secPerBar)) : null;
-      if(duracion != null && duracion > 0){
-        if(s.nombre === 'Intro' && (s.acordesSinTiempo || '').trim()){
-          doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
-          doc.text('Libre/rubato: ' + s.acordesSinTiempo, margen, y);
-          y += 6;
-        }
-        // v3.86: (a pedido) repetición con 1ra/2da vez — dibuja UNA sola
-        // pasada (basePase cajas, lo que realmente cargó el staff) en
-        // vez de repetir la fila entera `repeticiones` veces; abajo, una
-        // nota de repetición y, si hay 2da vez cargada, una fila chica
-        // aparte con esas cajas. repeticiones=1 (default) no cambia nada.
-        const repeticiones = s.repeticiones || 1;
-        if(repeticiones > 1){
-          const basePase = Math.max(1, Math.round(duracion / repeticiones));
-          dibujarCajas(s.acordesPorCompas, s.letraPorCompas, basePase);
-          doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
-          doc.text('Se repite x' + repeticiones + ' (' + duracion + ' comp. reales)', margen, y);
-          y += 6; doc.setTextColor(20);
-          const finalN = Math.min(basePase, s.finalDistintoN || 1);
-          const hay2da = (s.acordesFinal2 && s.acordesFinal2.some(a => (a||'').trim())) || (s.letraFinal2 && s.letraFinal2.some(l => (l||'').trim()));
-          if(hay2da){
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-            doc.text('2ª vez:', margen, y); y += 4;
-            dibujarCajas(s.acordesFinal2, s.letraFinal2, finalN);
-          }
-        } else {
-          dibujarCajas(s.acordesPorCompas, s.letraPorCompas, duracion);
-        }
-      } else {
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
-        doc.text('Sin fin de sección definido en guía de práctica.', margen, y);
-        y += 6; doc.setTextColor(20);
-      }
-    }    y += 2;
+      duracion = (secPerBar > 0 && finSec != null) ? Math.max(1, Math.round((finSec - (s.desdeSegundos||0)) / secPerBar)) : null;
+    }
+    return Object.assign({}, s, {
+      duracion: duracion,
+      color: colorDeSeccionEnLista(secciones, i)
+    });
   });
 
-  const nombreArchivo = 'estructura-' + (est.temaNombre || 'tema').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '.pdf';
-  // v3.89: (a pedido) mismo cambio que guia-practica.html v1.28 —
-  // preview en pestaña nueva (visor nativo del navegador) en vez de
-  // descarga directa. Mismo dibujo/cálculo de siempre, sin cambios.
-  doc.setProperties({ title: nombreArchivo });
-  const urlPreview = doc.output('bloburl');
-  const ventana = window.open(urlPreview, '_blank');
-  if(!ventana){
-    doc.save(nombreArchivo);
-  }
+  generarEstructuraPDF({
+    temaNombre: est.temaNombre || 'Tema',
+    bpm: est.bpm || '—',
+    compasTexto: est.compasTexto || '4/4',
+    claveTxt: claveTxt,
+    secciones: seccionesParaPDF
+  });
 }
 
 function toggleCifradoPractica(uid){
@@ -3853,17 +3913,11 @@ function actualizarContadorPractica(uid, tiempoActual){
       // podía sonar sola. Ahora depende solo de claveActiva: puede
       // sonar con el metrónomo apagado, prendido, o los dos juntos
       // (superposición ya resuelta en v3.73).
-      if(est.claveActiva !== false && eventoGlobal >= 0){
-        // v3.8: cada golpe de la clave usa su propio acento
-        // (normal/fuerte/mudo, ciclable en el panel) en vez de que
-        // solo el primer golpe del ciclo suene distinto — mismo
-        // criterio y mismos volúmenes calibrables (volFuerte/volNormal)
-        // que ya existían para el primer golpe (v2.0/v2.5).
-        const acentoClave = (est.acentosClave && est.acentosClave[idxLocal]) || 'normal';
-        if(acentoClave !== 'mudo'){
-          beepPractica(acentoClave === 'fuerte', (est.sonidoClave || 'clasico'), acentoClave === 'fuerte' ? est.volFuerte : est.volNormal);
-        }
-      }
+      // v3.97: el beep de la clave ya NO se dispara acá (dependía de
+      // rAF, con jitter en móvil) — ahora lo agenda con anticipación
+      // schedulerTickGlobalPractica() usando el reloj de Web Audio. Este
+      // bloque queda solo para el flash VISUAL de la ×, que no necesita
+      // precisión de muestra.
       if(est.ultimaNotaClaveEl) est.ultimaNotaClaveEl.classList.remove('activo');
       clearTimeout(est.claveNotaFlashTimeoutId);
       clearTimeout(est.claveNotaVisualOnTimeoutId);
@@ -3927,25 +3981,13 @@ function actualizarContadorPractica(uid, tiempoActual){
     }
   }
 
-  if(est.clickActivo){
-    // v3.73: (a pedido) antes, en cuanto había una clave configurada,
-    // el pulso normal del click se apagaba por completo (se asumía
-    // que los golpes de la clave "reemplazaban" al pulso llano) — pero
-    // la clave tiene silencios propios en su patrón, así que se sentía
-    // como si el click se hubiera desactivado. Ahora el pulso normal
-    // SIEMPRE suena mientras clickActivo esté prendido, haya o no
-    // clave — y si además claveActiva está prendida (botón 🪘 del
-    // frente), los golpes de clave se superponen (ver bloque de arriba,
-    // que ya dependía de clickActivo && claveActiva). El control real
-    // pasa a ser 100% los botones del frente (▯ y 🪘), no la selección
-    // de clave en Ajustes.
-    const beatGlobal = Math.floor(tRel / secPerBeat);
-    if(beatGlobal !== est.ultimoBeatClick){
-      est.ultimoBeatClick = beatGlobal;
-      const acento = (est.acentos && est.acentos[beatEnBarra]) || 'normal';
-      if(acento !== 'mudo') beepPractica(acento === 'fuerte', est.sonidoClick, acento === 'fuerte' ? est.volFuerte : est.volNormal);
-    }
-  }
+  // v3.97: el beep del pulso normal (est.clickActivo) ya NO se dispara
+  // acá (dependía de rAF, con jitter/retraso notorio en móvil) — ahora
+  // lo agenda con anticipación schedulerTickGlobalPractica() usando el
+  // reloj de Web Audio (audioCtxPractica.currentTime). El pulso sigue
+  // sonando siempre que clickActivo esté prendido, haya o no clave,
+  // igual que antes (v3.73) — solo cambió el mecanismo de disparo, no
+  // el criterio de cuándo suena.
 
   // v3.48: respaldo de vigilar-y-saltar para el loop MANUAL — solo
   // corre si el motor actual no maneja loop nativo (YouTube, o <audio>

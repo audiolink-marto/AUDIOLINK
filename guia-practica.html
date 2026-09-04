@@ -4,7 +4,263 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.28
+<!-- AUDIOLINK · guia-practica.html · v1.36
+     v1.36: (a pedido) líneas de compás en el preview de pantalla
+     (patronRitmicoSVG) — mismo criterio que dibujarPatronRitmico en
+     pdf-estructura.js v1.7: apertura, cierre y una divisoria entre cada
+     compás si son 2+, para que pantalla y PDF se vean igual. La función
+     ahora recibe la duración (en compases) de la sección.
+     v1.35: (a pedido) 2 ajustes más a Break/Corte:
+     1) FIX — patronRitmicoSVG (preview de pantalla) hacía .toLowerCase()
+        al patrón antes de dibujar, así que un golpe acentuado ("X"
+        mayúscula) se dibujaba igual que uno normal ("x") — el PDF sí
+        distinguía. Ahora se conserva el case y se dibuja el mismo acento
+        ">" (adaptado a SVG) que ya usa dibujarIconoAcentoBreak en el PDF.
+     2) Guía de compás (SOLO aviso, no bloquea ni autocompleta) debajo del
+        patrón: cuenta los símbolos escritos vs. los que "caben" en la
+        duración real de la sección asumiendo corchea fija (2 símbolos
+        por tiempo, según previewBeatsPerBar() del tema) — ver
+        avisoPatronVsCompas(). Se recalcula en vivo con cada tecla.
+     La palabra "BREAK" y su caja vacía se sacaron en pdf-estructura.js
+     v1.6 — no requirió tocar este archivo.
+     v1.34: (a pedido) 3 ajustes a Break/Corte:
+     1) Se oculta el campo "Repeticiones" (y todo lo que depende de él:
+        "Compases distintos en la 2da vez" + su grilla) para secciones
+        Break/Corte — no aplica a un golpe/corte puntual. htmlAcordesSeccion
+        ahora fuerza basePase=duracion para esta sección (sin dividir por
+        repeticiones). Al cargar un tema (cargarSeccionesDesdeDatos), si una
+        sección Break/Corte trae repeticiones>1 guardado de antes, se
+        limpia a 1 (no se borra nada más del dato).
+     2) patronRitmicoSVG (preview de pantalla) no dibujaba nada para el
+        token "." (silencio) — ahora dibuja una marca simplificada, en el
+        mismo estilo/posición que ya usa dibujarSilencio() en
+        pdf-estructura.js, para que pantalla y PDF se vean igual.
+     3) El ancho de la caja de Break/Corte en el PDF (dibujarCajaBreak, ver
+        pdf-estructura.js v1.4) pasa a ser proporcional a sus compases en
+        vez de ancho completo de página — no se toca nada de este archivo
+        para eso, es 100% en pdf-estructura.js.
+     v1.33: (a pedido) los chips del mapa de tema (pintarMapaTema) ahora
+     son clickeables — llevan directo a la tarjeta de esa sección en
+     listaSecciones, la abren y cierran cualquier otra que estuviera
+     abierta (una sola expandida a la vez). Si se toca el chip de la
+     sección que ya está abierta, la cierra (toggle), sin scroll. Nueva
+     función irASeccionYAbrir(i); no se tocó pintarSecciones ni ningún
+     cálculo de compases/tiempos, solo se agregó el onclick al chip y
+     cursor:pointer en su CSS.
+     v1.32.1: FIX — el parser del patrón rítmico (patronRitmicoSVG) solo
+     reconocía "x" minúscula; si el staff escribía "X" mayúscula (caso
+     común si el teclado/mayúsculas quedó activado), esa X se descartaba
+     silenciosamente y solo quedaban los puntos — el preview se veía
+     vacío (línea sin ninguna plica). Ahora normaliza a minúscula antes
+     de filtrar. Mismo fix aplicado en pdf-estructura.js
+     (dibujarPatronRitmico) para que el PDF no tenga el mismo problema.
+     v1.32: (a pedido) preview en pantalla del patrón rítmico del
+     Break/Corte — mini-SVG (patronRitmicoSVG) debajo del input, se
+     actualiza en cada tecla (actualizarPatronRitmico ahora también
+     repinta ese div puntual, sin pintarSecciones() completo). Replica a
+     mano el mismo agrupado de a 2 corcheas que dibujarPatronRitmico() en
+     pdf-estructura.js (corchete si el par es golpe completo, gancho
+     suelto si no) — es una copia deliberada por las limitaciones de
+     jsPDF vs SVG de pantalla, documentada en el código; si cambia el
+     dibujo del PDF hay que portear el cambio acá a mano. No toca nada
+     de guardado, duración ni el PDF en sí.
+     v1.31: (a pedido) patrón rítmico opcional para Break/Corte — nuevo
+     campo patronRitmico (texto libre: "x" golpe, "." silencio, ej.
+     "x.xx.x.."), input al lado de "Tiempo del corte" (mismo patrón:
+     no dispara pintarSecciones, no toca duración ni grilla, solo se
+     guarda y se imprime). El dibujo (notación real acotada — plicas de
+     corchea agrupadas de a 2, sin silencios propios ni ligaduras) vive
+     en pdf-estructura.js (dibujarPatronRitmico, v1.2), compartido con
+     musico.html. Sin patrón cargado, el Break se ve exactamente igual
+     que antes.
+     v1.30.0: (a pedido, "que los dos PDF se vean iguales") el generador
+     de PDF ya no vive acá adentro — se movió a pdf-estructura.js
+     (nuevo, compartido con musico.html vía <script src>). Esta pagina
+     ahora solo arma los datos (bpm/compas/clave + cada seccion con
+     duracionCompasesSeccion/colorDeSeccionEnLista ya resueltos, que es
+     lo unico que de verdad difiere entre staff y musico) y llama a
+     generarEstructuraPDF() (pdf-estructura.js). El PDF que genera esta
+     pagina queda pixel-a-pixel igual al de antes — dibujarCajas,
+     dibujarCajaBreak, iconos, D.C./variacion/coda, letra de ensayo,
+     compas por seccion, barra de repeticion: todo el dibujo se movio
+     tal cual, sin cambiar ninguna linea de logica, solo de archivo.
+     duracionCompasesSeccion, colorDeSeccionEnLista, seccionesEnEdicion
+     y todo lo demas de esta pagina quedan intactos.
+     v1.29.13: (a pedido) mapa de tema — renglones fijos por TIEMPOS (no
+     compases), como un real book en papel. LINEA_TIEMPOS=32 tiempos
+     por línea; en 4/4 son 8 compases por renglón, en 3/4 ~10-11 —
+     mismo "peso temporal" real sin importar el compás del tema. Los
+     tiempos por compás salen de previewBeatsPerBar() (función ya
+     existente, reutilizada tal cual, sin duplicar el parseo de
+     "4/4"). Empaquetado greedy sin partir secciones: si una sección
+     entra completa en lo que queda del renglón va ahí, si no salta de
+     línea; si una sección sola supera un renglón entero, ocupa su
+     propio renglón completo (caso raro). El ancho de cada bloque
+     ahora es un % fijo de tiempos/LINEA_TIEMPOS (no flex-grow relativo
+     al total de la tarjeta como antes v1.29.12) — así 2 compases pesan
+     lo mismo visualmente en un tema de 20 compases que en uno de 200.
+     compasOverride por sección sigue sin usarse para este cálculo
+     (sigue siendo solo nota visual en el PDF, como ya era). Fila de
+     chips (v1.29.12) sin cambios. Cero cambios en
+     colorDeSeccionEnLista, duracionCompasesSeccion,
+     letraEnsayoSugerida, previewBeatsPerBar.
+     v1.29.12: (a pedido) rediseño del mapa de tema (pintarMapaTema) —
+     las secciones cortas (ej. Break/Corte de 2 comp., Remate de 2) se
+     apeñuscaban porque el nombre completo + duración competían por el
+     mismo ancho proporcional a la duración. Ahora la barra de colores
+     (mismo criterio de ancho por duración, colorDeSeccionEnLista sin
+     tocar) muestra SOLO la letra de ensayo grande y centrada (misma
+     convención que ya usa el músico para hablar de las secciones —
+     "vamos a la C" — y que ya existe en el sistema: s.letraEnsayo o,
+     si no cargó una a mano, letraEnsayoSugerida(i) como fallback, sin
+     tocar esa función). Debajo, fila nueva de chips (mapa-tema-chips)
+     con color + letra + nombre completo + duración — esos SÍ tienen
+     ancho libre (sin flex-grow por duración), así que nunca se
+     aprietan sea cual sea la duración real. Cero cambios en
+     colorDeSeccionEnLista, duracionCompasesSeccion, letraEnsayoSugerida
+     ni en cómo se cargan/editan las secciones — solo cambia el dibujo
+     de pintarMapaTema.
+     v1.29.11: (a pedido) nueva sección de catálogo "Break/Corte" (tipo
+     'fija-bloque', se carga igual que Verso/Coro/Moña — Desde/Hasta +
+     grilla de acordes por compás, sin campos nuevos de carga). Cambia
+     SOLO cómo se ve en el PDF (exportarEstructuraPDF): en vez de
+     dibujarCajas() con grilla de 4 columnas, una única caja ancha y
+     baja (dibujarCajaBreak, todo el anchoUtil) con el/los acorde(s)
+     grandes y centrados, sin números de compás, y debajo "BREAK" +
+     acento dibujado a mano (mismo criterio que los íconos de
+     repetición/coda: nada de emoji). Nuevo campo de texto libre
+     notaTiempoCorte (visible solo para Break/Corte, ej. "tiempo 3")
+     que se imprime chico entre paréntesis junto a "BREAK" — es
+     puramente descriptivo, no se sincroniza con nada ni mueve
+     Desde/Hasta (que sigue enganchado al borde de compás como
+     siempre vía snapASegundoDeCompas, sin tocar). El color de la
+     sección en el mapa de tema y en el header del PDF sigue el mismo
+     criterio que todas las demás (colorSeccionPorIndice/
+     colorDeSeccionEnLista, por posición en la lista) — no se
+     introduce un color fijo para no romper ese patrón compartido.
+     Cero cambios en dibujarCajas, duracionCompasesSeccion, snap,
+     guardado, repeticiones ni D.C./variación.
+     v1.29.10: (a pedido) el campo "Hasta (compás)" pasa a mostrar/
+     aceptar el ÚLTIMO compás de ESTA sección (inclusive, ej. 4) en vez
+     del compás donde arranca la próxima (ej. 5) — más natural de leer
+     que la v1.29.9. hastaSegundos sigue guardándose EXACTAMENTE igual
+     que siempre (límite exclusivo) — no se tocó duracionCompasesSeccion,
+     snap, PDF, ni musico.html. Solo se convierte en el borde de este
+     campo puntual: actualizarSeccionHastaCompas escribe con +1
+     (n+1 → segundosDeCompas), y los 3 lugares que mostraban ese
+     compás como placeholder/texto (input compás, header colapsado)
+     ahora restan 1 al leer. El campo "Hasta (tiempo)" no cambió —
+     el tiempo es continuo, no tiene la ambigüedad de "último vs
+     próximo" que sí tiene un número de compás discreto.
+     v1.29.9: (a pedido) dos ajustes:
+     1) pintarSecciones() ahora ordena seccionesEnEdicion por
+        desdeSegundos en CADA pintado (mismo criterio que ya usaba
+        ordenarYPintarSecciones, que antes solo se disparaba al editar
+        "Desde" a mano) — las tarjetas siempre reflejan el orden
+        cronológico real, aunque se hayan cargado/agregado en otro
+        orden (ej. una sección al final que empieza en compás 1).
+     2) Etiquetas de "Hasta (compás/tiempo)" aclaradas: ahora dicen
+        "— arranca la próxima sección" + title en el input, para dejar
+        claro que ese valor es donde EMPIEZA la sección siguiente (no
+        el último compás/segundo de esta). No cambia la lógica ni el
+        cálculo, solo el texto — la convención (límite exclusivo) ya
+        era así desde antes.
+     v1.29.8: (a pedido) FIX — el corchete "2." (y la barra de
+     repetición grande) capturaban la posición Y ANTES de llamar
+     asegurarEspacio()/dibujarCajas(). Si eso disparaba un salto de
+     página adentro (addPage resetea y=margen), la Y capturada quedaba
+     vieja (de la página anterior) mientras las cajas se dibujaban con
+     la Y nueva — el corchete/barra quedaban flotando, pisando el
+     contenido. Ahora se asegura el espacio ANTES de capturar la Y de
+     referencia, en los dos bloques (repetición grande y "2da vez").
+     No cambia el cálculo de compases ni el guardado.
+     v1.29.7: (a pedido) select de tipo para secciones "Otro…" —
+     mientras el nombre no está en el catálogo, tipoDeNombreSeccion no
+     le asigna `tipo` y sin `tipo` htmlAcordesSeccion() no dibujaba
+     nada (ni grilla de acordes, ni Repeticiones). Ahora, debajo del
+     input de nombre libre, aparece un select "Fija/bloque vs Vamp"
+     (nueva función seleccionarTipoSeccionLibre) para que el staff
+     elija a mano — mismo campo `tipo` que ya usa el resto del código,
+     así que nada más se tuvo que tocar (ni PDF, ni guardado). Sin
+     elegir nada, la tarjeta se comporta igual que en v1.29.6 (sin
+     grilla) — no rompe secciones "Otro" ya guardadas sin tipo.
+     v1.29.6: (a pedido) dos ajustes chicos:
+     1) Header colapsado de la tarjeta: el rango solo mostraba
+        minuto:segundo ("0:31 – 0:46"); ahora agrega el compás entre
+        paréntesis (compasDeSegundos, misma función que ya usa el
+        placeholder de "Desde (compás)") — "0:31 (c.5) – 0:46 (c.9)".
+     2) Se sacó el botón de eliminar duplicado de la fila interna
+        (junto a "Desde") — quedaba redundante con el del header.
+        Solo queda el del header (event.stopPropagation, no colapsa la
+        tarjeta al clickearlo).
+     Pendiente de confirmar (no se tocó todavía): select "Fija/bloque
+     vs Vamp" para secciones "Otro…" sin tipo — hoy esas tarjetas no
+     muestran grilla de acordes/Repeticiones porque tipo queda
+     undefined (ver seleccionarNombreSeccion).
+     v1.29.5: (a pedido) convención "prima" para variaciones —
+     letraEnsayoSugerida() ahora sugiere la letra del origen + "'" (ej.
+     "A'") para una sección esVariacion, en vez de contarla como
+     sección nueva (antes le tocaba, ej., "D"). Comunica "misma idea
+     que A, con un cambio", coherente con notaVariacion. Las
+     repeticiones lisas (origenId sin esVariacion) siguen compartiendo
+     la letra tal cual. El input de letra de ensayo pasa de 1 a 2
+     caracteres (maxlength, CSS más ancho) para poder guardar "A'"
+     manualmente; el PDF dibuja la caja un poco más ancha cuando hace
+     falta y muestra hasta 2 caracteres en vez de truncar a 1.
+     v1.29.4: (a pedido) FIX visual — el input de letra de ensayo
+     (.seccion-letra-ensayo) no tenía borde/fondo propio, se camuflaba
+     con el header oscuro de la tarjeta y no se notaba que era editable
+     (se leía como texto fijo). Se le agregó borde, fondo sutil y
+     placeholder atenuado para que se distinga como campo. No cambia
+     nada de la lógica (letraEnsayoSugerida, guardado, PDF).
+     v1.29.3: (a pedido) FIX — la barra de repetición usaba `anchoUtil`
+     (ancho de fila completa, 4 columnas) para su lado derecho, así que
+     en secciones con menos de 4 compases (ej. "Coda/Final" con 2) la
+     barra derecha quedaba lejos, flotando fuera de las cajas reales.
+     dibujarBarraRepeticion() ahora recibe `anchoBloque` (ancho real de
+     la fila más ancha del bloque, min(basePase, POR_FILA)*cajaAncho) y
+     lo usa en vez de `anchoUtil` — la nota "xN (...)" también se
+     recentra sobre ese ancho real.
+     v1.29.2: (a pedido) dos fixes sobre v1.29 detectados al probar el PDF:
+     1) La barra de repetición (dibujarBarraRepeticion) caía DENTRO de la
+        primera caja y tapaba el texto "c.1". Ahora se dibuja
+        completamente afuera del recuadro (izq. de `margen`, der. de
+        `margen+anchoUtil`), sin superponerse a ningún contenido.
+     2) Los emoji (🔁 del ciclo vamp, ⊕ que se había agregado para el
+        modo coda) salían rotos en el PDF — jsPDF con fuente helvetica
+        estándar no soporta unicode alto. Se reemplazaron por íconos
+        dibujados a mano con las primitivas de jsPDF (dibujarIconoRepeticion:
+        mini barra + puntos; dibujarIconoCoda: círculo con cruz, blanco
+        sobre la barra de color del header) + texto plano al lado
+        ("se repite (ciclo de N comp.)", "D.S. al Coda"). Mismo criterio
+        que ya se usaba para la barra de repetición grande.
+     v1.29: (a pedido) 5 mejoras de notación al PDF (exportarEstructuraPDF),
+     acercándolo a un lead sheet/chart real. Todo opcional — secciones
+     viejas sin estos campos se ven exactamente igual que en v1.28:
+     1) Barra de repetición real (║: :║, dibujarBarraRepeticion) sobre
+        el bloque de cajas en vez del texto italic "se repite xN"; la
+        2da vez (finalDistintoN) lleva corchete "2." (dibujarCorcheteCasilla)
+        en vez del texto "2ª vez:" suelto. Cero cambios en el cálculo
+        de basePase/finalN, solo el dibujo encima de lo ya armado.
+     2) Modo compacto "D.S. al Coda" (⊕) — nuevo campo por sección
+        modoRepeticionPDF ('completo' default | 'coda'), toggle en la
+        caja de variación (solo visible con origenId). En 'coda', una
+        sección D.C. no reimprime el cuadro completo: solo el header
+        con ⊕ y "Ver primera aparición arriba."
+     3) Letra de ensayo (nuevo campo letraEnsayo, input de 1 char en el
+        header de la tarjeta) — caja cuadrada antes del nombre en el
+        PDF. letraEnsayoSugerida() autocompleta A/B/C... como
+        placeholder (no pisa lo que el staff haya cargado a mano),
+        saltando D.C. no-variación (comparten letra con su origen).
+     4) Compás por sección (nuevo campo compasOverride, input junto al
+        botón de eliminar en la fila de "Desde") — si está cargado, se
+        imprime a la derecha del nombre de sección en el PDF.
+     5) "N.C." (no chord / silencio armónico) — no es campo nuevo, es
+        convención de captura: se agregó title="Silencio armónico:
+        escribí N.C." a los inputs de acorde para que el staff sepa
+        qué escribir en vez de dejar la casilla vacía.
+     guardarSecciones() no se tocó — ya persiste toda la sección con
+     spread (...resto), así que los 3 campos nuevos se guardan solos.
      v1.28: (a pedido) dos ajustes de flujo de trabajo:
      (1) PDF con preview: exportarEstructuraPDF() ya no hace doc.save()
      directo — arma el PDF exactamente igual que antes (mismo
@@ -365,6 +621,7 @@
 <script src="utils.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="pdf-estructura.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="nav.css">
@@ -485,9 +742,16 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .acorde-celda{display:flex;flex-direction:column;gap:3px;flex:0 0 auto;}
 .letra-input{width:64px;text-align:center;font-size:0.72rem;color:var(--muted);}
 .seccion-repeticion-campos{margin-top:10px;padding-top:8px;border-top:1px dashed var(--brd);}
-.mapa-tema{display:flex;gap:2px;margin-bottom:14px;border-radius:8px;overflow:hidden;min-height:40px;}
-.mapa-tema-bloque{flex:1 1 0;min-width:36px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.72rem;font-weight:700;text-align:center;padding:6px 4px;text-shadow:0 1px 2px rgba(0,0,0,0.35);line-height:1.2;}
+.mapa-tema{display:flex;gap:2px;margin-bottom:8px;border-radius:8px;overflow:hidden;min-height:40px;}
+.mapa-tema-bloque{flex:0 0 auto;min-width:24px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.05rem;font-weight:800;text-align:center;padding:6px 2px;text-shadow:0 1px 2px rgba(0,0,0,0.35);line-height:1.2;}
 .mapa-tema-vacio{font-size:0.8rem;color:var(--muted);margin-bottom:10px;}
+/* v1.29.12: fila de chips debajo del mapa de tema — ancho libre (wrap
+   normal), no compite por espacio con la duración real como la barra
+   de arriba, así el nombre completo + duración siempre entran. */
+.mapa-tema-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.mapa-tema-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border-radius:6px;padding:3px 8px 3px 6px;font-size:0.72rem;color:var(--muted);cursor:pointer;}
+.mapa-tema-chip-color{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+.mapa-tema-chip-letra{font-weight:800;color:#fff;}
 .seccion-aviso{font-size:0.8rem;color:var(--muted);font-style:italic;}
 .seccion-ciclo-campo{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .seccion-ciclo-campo input{width:70px;}
@@ -503,6 +767,8 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
    antes eran filas sueltas dentro de la tarjeta, ahora quedan
    agrupadas como un sub-bloque reconocible de un vistazo. */
 .seccion-repeticion-box{margin-top:10px;padding:10px 12px;border:1px dashed var(--brd);border-radius:8px;background:rgba(127,127,127,0.06);}
+.seccion-letra-ensayo{width:32px;height:22px;text-align:center;font-weight:700;font-size:0.8rem;padding:0;flex-shrink:0;border:1px solid var(--brd, #666);border-radius:4px;background:rgba(127,127,127,0.15);color:inherit;}
+.seccion-letra-ensayo::placeholder{opacity:0.55;}
 .seccion-repeticion-titulo{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;font-weight:700;margin-bottom:8px;}
 .seccion-ayuda{font-size:0.76rem;color:var(--muted);margin-top:4px;line-height:1.3;}
 .seccion-variacion-box{margin-top:8px;padding:8px 10px;border-left:3px solid var(--brd);}
@@ -641,6 +907,12 @@ const CATALOGO_SECCIONES = [
   { nombre: 'Moña', tipo: 'bloque' },
   { nombre: 'Remate', tipo: 'bloque' },
   { nombre: 'Coda/Final', tipo: 'fija' },
+  // v1.29.11: (a pedido) Break/Corte — se carga exactamente igual que
+  // cualquier fija/bloque (Desde/Hasta + acordes por compás); lo único
+  // especial es el dibujo en el PDF (ver dibujarCajaBreak). Sin campo
+  // "color" propio a propósito: el color sigue saliendo de
+  // colorSeccionPorIndice/colorDeSeccionEnLista, igual que el resto.
+  { nombre: 'Break/Corte', tipo: 'fija-bloque' },
 ];
 function tipoDeNombreSeccion(nombre){
   const match = CATALOGO_SECCIONES.find(c => c.nombre === nombre || c.alias === nombre);
@@ -817,7 +1089,16 @@ function nuevoIdSeccion(){
 }
 
 function renderSecciones(secciones){
-  seccionesEnEdicion = secciones.map(s => ({ ...s, id: s.id || nuevoIdSeccion(), tipo: s.tipo || tipoDeNombreSeccion(s.nombre) }));
+  // v1.34: (a pedido) Break/Corte ya no ofrece "Repeticiones" — si una
+  // sección Break/Corte trae repeticiones>1 guardado de antes (v1.33 o
+  // anterior), se limpia a 1 acá, una sola vez al cargar. No se toca
+  // ningún otro campo de la sección (acordesPorCompas, etc. quedan
+  // igual, solo dejan de usarse en modo "pasadas").
+  seccionesEnEdicion = secciones.map(s => {
+    const tipo = s.tipo || tipoDeNombreSeccion(s.nombre);
+    const repeticiones = (s.nombre === 'Break/Corte' && (s.repeticiones || 1) > 1) ? 1 : s.repeticiones;
+    return { ...s, id: s.id || nuevoIdSeccion(), tipo, repeticiones };
+  });
   pintarSecciones();
 }
 
@@ -942,13 +1223,60 @@ function pintarMapaTema(){
     cont.innerHTML = '';
     return;
   }
-  cont.className = 'mapa-tema';
-  cont.innerHTML = seccionesEnEdicion.map((s, i) => {
+  cont.className = '';
+  const LINEA_TIEMPOS = 32;
+  const beatsPorBarra = previewBeatsPerBar();
+  // v1.29.13: letra (s.letraEnsayo o su sugerencia) y ancho en TIEMPOS
+  // (no compases) de cada sección — mismo dato que ya usa el header de
+  // la tarjeta y el PDF, sin recalcular nada propio.
+  const datos = seccionesEnEdicion.map((s, i) => {
     const duracion = duracionCompasesSeccion(s);
-    const anchoFlex = duracion != null ? Math.max(1, duracion) : 3;
-    const etiqueta = duracion != null ? `${s.nombre || '—'} (${duracion})` : (s.nombre || '—');
-    return `<div class="mapa-tema-bloque" style="flex-grow:${anchoFlex};background:${colorDeSeccionEnLista(seccionesEnEdicion, i)};" title="${(s.nombre || '—').replace(/"/g,'&quot;')}${duracion != null ? ' · ' + duracion + ' comp.' : ' · duración sin definir'}">${etiqueta}</div>`;
+    const compasesEquiv = duracion != null ? Math.max(1, duracion) : 3;
+    return {
+      s, duracion,
+      tiempos: compasesEquiv * beatsPorBarra,
+      letra: (s.letraEnsayo || '').trim() || letraEnsayoSugerida(i),
+      color: colorDeSeccionEnLista(seccionesEnEdicion, i),
+    };
+  });
+  // Empaqueta en renglones de LINEA_TIEMPOS sin partir ninguna sección:
+  // si entra completa en lo que queda del renglón, va ahí; si no,
+  // salta de línea. Si una sección sola supera un renglón entero,
+  // ocupa su propio renglón (más ancha, caso raro).
+  const renglones = [];
+  let actual = [];
+  let acumTiempos = 0;
+  datos.forEach(d => {
+    if(actual.length && acumTiempos + d.tiempos > LINEA_TIEMPOS){
+      renglones.push(actual);
+      actual = [];
+      acumTiempos = 0;
+    }
+    actual.push(d);
+    acumTiempos += d.tiempos;
+  });
+  if(actual.length) renglones.push(actual);
+
+  const barras = renglones.map(fila => {
+    const bloques = fila.map(d => {
+      const anchoPct = Math.min(100, (d.tiempos / LINEA_TIEMPOS) * 100);
+      const titulo = `${(d.s.nombre || '—').replace(/"/g,'&quot;')}${d.duracion != null ? ' · ' + d.duracion + ' comp.' : ' · duración sin definir'}`;
+      return `<div class="mapa-tema-bloque" style="width:${anchoPct}%;background:${d.color};" title="${titulo}">${d.letra}</div>`;
+    }).join('');
+    return `<div class="mapa-tema">${bloques}</div>`;
   }).join('');
+
+  // Fila de chips (v1.29.12) — sin cambios de criterio, ancho libre.
+  const chips = datos.map((d, i) => {
+    if(!(d.s.nombre || '').trim()) return '';
+    const etiqueta = d.duracion != null ? `${d.s.nombre} (${d.duracion})` : d.s.nombre;
+    // v1.33: onclick lleva a la tarjeta correspondiente (mismo índice i
+    // que usa pintarSecciones sobre el mismo seccionesEnEdicion ya
+    // ordenado, así que no hace falta buscar por id).
+    return `<div class="mapa-tema-chip" onclick="irASeccionYAbrir(${i})" title="Ir a la tarjeta de esta sección"><span class="mapa-tema-chip-color" style="background:${d.color};"></span><span class="mapa-tema-chip-letra">${d.letra}</span> ${etiqueta}</div>`;
+  }).join('');
+
+  cont.innerHTML = barras + `<div class="mapa-tema-chips">${chips}</div>`;
 }
 
 // v1.20: (a pedido) las tarjetas se reordenan solas por compás (desde
@@ -968,6 +1296,17 @@ function ordenarYPintarSecciones(){
 }
 
 function pintarSecciones(){
+  // v1.29.9: (a pedido) las tarjetas se pintaban en el orden del array
+  // (inserción/carga), no por posición en el tiempo — una sección
+  // cargada al final (ej. "SOLO" en c.1) podía aparecer última en la
+  // lista aunque suene primero. ordenarYPintarSecciones() ya hacía
+  // este mismo sort, pero solo se disparaba al editar "Desde" a mano.
+  // Ahora se ordena siempre, en cada pintado, así la lista refleja el
+  // orden real sin depender de que se toque ese campo.
+  seccionesEnEdicion = seccionesEnEdicion
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => (a.s.desdeSegundos || 0) - (b.s.desdeSegundos || 0) || a.i - b.i)
+    .map(x => x.s);
   pintarMapaTema();
   const cont = document.getElementById('listaSecciones');
   if(!seccionesEnEdicion.length){
@@ -981,13 +1320,24 @@ function pintarSecciones(){
     // agregarFilaSeccion() la abre expandida directo. _colapsada es
     // solo de UI (no se guarda en Firebase, ver guardarSecciones/limpio).
     const colapsada = s._colapsada !== false;
-    const rangoTxt = segundosATexto(s.desdeSegundos || 0) + (s.hastaSegundos != null ? ' – ' + segundosATexto(s.hastaSegundos) : '');
+    // v1.29.6: (a pedido) el header colapsado solo mostraba el rango en
+    // minuto:segundo — se agrega el compás (compasDeSegundos, misma
+    // función que ya usa el placeholder de "Desde (compás)") entre
+    // paréntesis, así no hace falta expandir la tarjeta para saber en
+    // qué compás arranca/termina.
+    // v1.29.10: el "hasta" mostrado acá también pasa a ser el último
+    // compás de ESTA sección (-1), igual que el campo de edición, para
+    // que el header colapsado no muestre un número distinto al que se
+    // ve al expandir la tarjeta.
+    const rangoTxt = segundosATexto(s.desdeSegundos || 0) + ' (c.' + compasDeSegundos(s.desdeSegundos || 0) + ')' +
+      (s.hastaSegundos != null ? ' – ' + segundosATexto(s.hastaSegundos) + ' (c.' + (compasDeSegundos(s.hastaSegundos) - 1) + ')' : '');
     const badge = s.origenId ? (s.esVariacion ? '🔁 variación · ' : '🔁 ') : '';
     const nombreResumen = (s.nombre || 'Sin nombre').replace(/"/g,'&quot;');
     return `
     <div class="seccion-card">
       <div class="seccion-card-header" onclick="toggleColapsoSeccion(${i})">
         <span class="seccion-card-header-color" style="background:${colorDeSeccionEnLista(seccionesEnEdicion, i)}"></span>
+        <input class="seccion-letra-ensayo" maxlength="2" value="${(s.letraEnsayo || '').replace(/"/g,'&quot;')}" placeholder="${letraEnsayoSugerida(i)}" title="Letra de ensayo (A/B/C… o A' para variación) para el PDF" onclick="event.stopPropagation()" oninput="seccionesEnEdicion[${i}].letraEnsayo = this.value.slice(0,2).toUpperCase(); this.value = seccionesEnEdicion[${i}].letraEnsayo;">
         <span class="seccion-card-header-nombre">${badge}${nombreResumen}</span>
         <span class="seccion-card-header-tiempo">${rangoTxt}</span>
         <button class="btn-del" onclick="event.stopPropagation(); eliminarSeccion(${i})" title="Eliminar sección">🗑️</button>
@@ -1002,7 +1352,24 @@ function pintarSecciones(){
             ${CATALOGO_SECCIONES.map(c => `<option value="${c.nombre}"${s.nombre === c.nombre ? ' selected' : ''}>${c.nombre}${c.alias ? ` (${c.alias})` : ''}</option>`).join('')}
             <option value="__otro__"${(s.nombre && !CATALOGO_SECCIONES.some(c => c.nombre === s.nombre)) ? ' selected' : ''}>Otro…</option>
           </select>
-          ${(s.nombre !== undefined && s.nombre !== '' && !CATALOGO_SECCIONES.some(c => c.nombre === s.nombre)) || s.mostrarNombreLibre ? `<input type="text" placeholder="Nombre de la sección" style="margin-top:6px;" value="${(s.nombre || '').replace(/"/g,'&quot;')}" oninput="seccionesEnEdicion[${i}].nombre = this.value">` : ''}
+          ${(() => {
+            const esNombreLibre = (s.nombre !== undefined && s.nombre !== '' && !CATALOGO_SECCIONES.some(c => c.nombre === s.nombre)) || s.mostrarNombreLibre;
+            if(!esNombreLibre) return '';
+            // v1.29.7: (a pedido) una sección "Otro…" no tiene tipo
+            // asignado por catálogo (tipoDeNombreSeccion no la
+            // reconoce), y sin tipo htmlAcordesSeccion() no dibuja
+            // nada (ni grilla, ni Repeticiones). Se le pide al staff
+            // que elija a mano — sin elegir, la tarjeta se comporta
+            // igual que antes (sin grilla), nada se rompe.
+            const inputNombre = `<input type="text" placeholder="Nombre de la sección" style="margin-top:6px;" value="${(s.nombre || '').replace(/"/g,'&quot;')}" oninput="seccionesEnEdicion[${i}].nombre = this.value">`;
+            const selectTipo = `
+              <select style="margin-top:6px;" onchange="seleccionarTipoSeccionLibre(${i}, this.value)">
+                <option value=""${!s.tipo ? ' selected' : ''}>Tipo — elegir…</option>
+                <option value="fija-bloque"${s.tipo === 'fija-bloque' ? ' selected' : ''}>Fija/bloque (acordes por compás exacto)</option>
+                <option value="vamp"${s.tipo === 'vamp' ? ' selected' : ''}>Vamp (ciclo corto que se repite)</option>
+              </select>`;
+            return inputNombre + selectTipo;
+          })()}
         </div>
         <div class="seccion-campo">
           <label>Desde (compás)</label>
@@ -1012,12 +1379,15 @@ function pintarSecciones(){
           <label>Desde (tiempo)</label>
           <input type="text" id="sectiempo-${i}" placeholder="Minuto:segundo (ej: 1:30)" value="${segundosATexto(s.desdeSegundos)}" oninput="actualizarSeccionDesdeTiempo(${i}, this.value)" onblur="ordenarYPintarSecciones()">
         </div>
-        <button class="btn-del seccion-card-del" onclick="eliminarSeccion(${i})" title="Eliminar sección">🗑️</button>
+        <div class="seccion-campo" style="max-width:110px;">
+          <label>Compás (si cambia acá)</label>
+          <input type="text" value="${(s.compasOverride || '').replace(/"/g,'&quot;')}" placeholder="ej. 3/4" title="Dejar vacío = usa el compás general del tema" oninput="seccionesEnEdicion[${i}].compasOverride = this.value">
+        </div>
       </div>
       <div class="seccion-card-fila">
         <div class="seccion-campo">
-          <label>Hasta (compás, opcional)</label>
-          <input type="number" min="1" step="1" id="sechastacompas-${i}" placeholder="${'compás ' + (s.hastaSegundos != null ? compasDeSegundos(s.hastaSegundos) : '— auto —')}" oninput="actualizarSeccionHastaCompas(${i}, this.value)">
+          <label>Hasta (compás, opcional) — último compás de esta sección</label>
+          <input type="number" min="1" step="1" id="sechastacompas-${i}" title="Último compás de ESTA sección (inclusive)" placeholder="${'compás ' + (s.hastaSegundos != null ? (compasDeSegundos(s.hastaSegundos) - 1) : '— auto —')}" oninput="actualizarSeccionHastaCompas(${i}, this.value)">
         </div>
         <div class="seccion-campo">
           <label>Hasta (tiempo, opcional)</label>
@@ -1040,10 +1410,64 @@ function pintarSecciones(){
   pintarPropagacionSecciones();
 }
 
+// v1.29: (a pedido) sugerencia de letra de ensayo (A/B/C…) para el
+// header de la tarjeta y el PDF — solo se usa como placeholder si el
+// staff no cargó una a mano (s.letraEnsayo tiene prioridad siempre).
+// Saltea secciones que son D.C. de otra (origenId sin ser variación),
+// porque esas comparten la letra de su origen en vez de tener una
+// propia — mismo criterio que colorDeSeccionEnLista.
+// v1.29.5: (a pedido) una variación (esVariacion) ahora sugiere la
+// letra del origen + prima (ej. "A'") en vez de una letra nueva — es
+// la convención real para "misma idea, con un cambio", coherente con
+// notaVariacion. Antes contaba como sección nueva (ej. "D"), lo cual
+// no comunicaba que viene del Coro. Las repeticiones lisas (origenId
+// sin esVariacion) siguen compartiendo la letra tal cual, sin prima.
+function letraEnsayoSugerida(i){
+  const s = seccionesEnEdicion[i];
+  if(s && s.origenId){
+    const origenIdx = seccionesEnEdicion.findIndex(x => x.id === s.origenId);
+    if(origenIdx >= 0){
+      const base = letraEnsayoSugerida(origenIdx);
+      return s.esVariacion ? base + '\'' : base;
+    }
+  }
+  let n = 0;
+  for(let j = 0; j <= i; j++){
+    const sj = seccionesEnEdicion[j];
+    if(!sj || !(sj.nombre || '').trim()) continue;
+    if(sj.origenId) continue; // comparte (o deriva con prima) la letra del origen, no cuenta como nueva
+    if(j === i) break;
+    n++;
+  }
+  return String.fromCharCode(65 + (n % 26));
+}
+
 function toggleColapsoSeccion(i){
   const s = seccionesEnEdicion[i];
   s._colapsada = !(s._colapsada !== false); // toggle, arrancando en "colapsada"
   pintarSecciones();
+}
+
+// v1.33: (a pedido) chip del mapa de tema -> tarjeta correspondiente.
+// Cierra todas las demás tarjetas y abre la de esta sección; si esta
+// ya estaba abierta, la cierra (toggle) sin hacer scroll. Reusa
+// _colapsada (mismo campo de UI que toggleColapsoSeccion) y el mismo
+// índice i que ya comparten pintarMapaTema/pintarSecciones sobre el
+// arreglo ordenado, así que no hace falta buscar por id.
+function irASeccionYAbrir(i){
+  const s = seccionesEnEdicion[i];
+  if(!s) return;
+  const yaAbierta = s._colapsada === false;
+  seccionesEnEdicion.forEach(x => { x._colapsada = true; });
+  if(!yaAbierta) s._colapsada = false;
+  pintarSecciones();
+  if(!yaAbierta){
+    setTimeout(() => {
+      const cont = document.getElementById('listaSecciones');
+      const tarjeta = cont && cont.children[i];
+      if(tarjeta) tarjeta.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  }
 }
 
 // v1.24: selector "Es igual a" — copia el contenido de otra sección
@@ -1066,6 +1490,11 @@ function htmlOrigenSeccion(s, i){
         Es una variación
       </label>
       <div class="seccion-ayuda">Se copió una vez de la sección de arriba, pero esta queda con contenido propio: aunque "actualizar las secciones iguales" esté tildado, esta ya no se vuelve a pisar.</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;margin-top:8px;">
+        <input type="checkbox" ${s.modoRepeticionPDF === 'coda' ? 'checked' : ''} onchange="seccionesEnEdicion[${i}].modoRepeticionPDF = this.checked ? 'coda' : 'completo'; pintarSecciones();">
+        En el PDF, mostrar compacto (⊕ D.S. al Coda) en vez del cuadro completo
+      </label>
+      <div class="seccion-ayuda">Por defecto el PDF repite el cuadro completo cada vez que suena (más fácil de leer en vivo). Si tildás esto, en su lugar imprime solo el nombre con el símbolo de coda, remitiendo a la primera aparición — ahorra espacio en temas con muchas repeticiones idénticas.</div>
       ${s.esVariacion ? `
       <div class="seccion-campo" style="margin-top:8px;max-width:320px;">
         <label>Nota de variación (opcional)</label>
@@ -1108,7 +1537,7 @@ function htmlAcordesSeccion(s, i){
         </div>
         <div class="acordes-grid">
           ${acordes.map((a, j) => `<div class="acorde-celda">
-            <input type="text" class="acorde-input" placeholder="c.${j+1}" value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordeCiclo(${i}, ${j}, this.value)">
+            <input type="text" class="acorde-input" placeholder="c.${j+1}" title="Silencio armónico: escribí N.C." value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordeCiclo(${i}, ${j}, this.value)">
             <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraCiclo(${i}, ${j}, this.value)">
           </div>`).join('')}
         </div>
@@ -1132,7 +1561,27 @@ function htmlAcordesSeccion(s, i){
         <div class="seccion-aviso">Definí el fin de la sección arriba (o un preset x4/x8/etc) para cargar los acordes por compás.</div>
       </div>`;
   }
-  const repeticiones = s.repeticiones || 1;
+  // v1.29.11: (a pedido) nota de tiempo del corte, solo para
+  // Break/Corte — texto libre, no numérico, no calculado. No toca
+  // Desde/Hasta ni ningún cálculo, es puramente descriptiva (mismo
+  // criterio que ya usamos con "N.C."). Se imprime en el PDF entre
+  // paréntesis, junto al patrón (ver dibujarCajaBreak).
+  // v1.35: (a pedido) guía de compás — SOLO avisa (no bloquea ni
+  // autocompleta) cuántos símbolos del patrón "caben" en la duración real
+  // de la sección, asumiendo corchea fija (2 símbolos por tiempo, según
+  // previewBeatsPerBar() del tema). Ver contarPatronVsCompas().
+  const notaTiempoCorte = s.nombre === 'Break/Corte' ? `
+        <div class="seccion-contenido-campo">
+          <label>Tiempo del corte dentro del compás (opcional)</label>
+          <input type="text" placeholder='ej: "tiempo 3", "y de 2"' value="${(s.notaTiempoCorte || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaTiempoCorte(${i}, this.value)">
+        </div>
+        <div class="seccion-contenido-campo">
+          <label>Patrón rítmico (opcional) — "x" golpe, "X" golpe acentuado, "." silencio, ej: x.xx.x..</label>
+          <input type="text" placeholder='ej: x.xx.x..' value="${(s.patronRitmico || '').replace(/"/g,'&quot;')}" oninput="actualizarPatronRitmico(${i}, this.value)">
+          <div id="patronRitmicoPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.patronRitmico, duracion)}</div>
+          <div id="patronRitmicoAviso-${i}" style="margin-top:4px;font-size:0.75rem;color:var(--muted);">${avisoPatronVsCompas(s.patronRitmico, duracion)}</div>
+        </div>` : '';
+  const repeticiones = s.nombre === 'Break/Corte' ? 1 : (s.repeticiones || 1);
   // v1.22.1: FIX — `duracion` sale del tiempo real (Desde/Hasta), que ya
   // incluye TODAS las pasadas si repeticiones>1 (ej: 16 comp. reales =
   // 2 pasadas de 8). La grilla tiene que pedir solo UNA pasada
@@ -1146,16 +1595,13 @@ function htmlAcordesSeccion(s, i){
   const finalN = Math.min(basePase, s.finalDistintoN || 1);
   const acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, finalN);
   const letraFinal2 = resizeArrayAcordes(s.letraFinal2, finalN);
-  return `
-    <div class="seccion-fila-acordes">
-      ${introLibre}
-      <label>Acordes y letra (${basePase} comp.${repeticiones > 1 ? ` × ${repeticiones} pasadas = ${duracion} comp. reales` : ''})</label>
-      <div class="acordes-grid">
-        ${acordes.map((a, j) => `<div class="acorde-celda">
-          <input type="text" class="acorde-input" placeholder="c.${j+1}" value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordePorCompas(${i}, ${j}, this.value)">
-          <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraPorCompas(${i}, ${j}, this.value)">
-        </div>`).join('')}
-      </div>
+  // v1.34: (a pedido) Break/Corte no ofrece "Repeticiones" — es un golpe
+  // puntual, no un pasaje que se repite con variante en la 2da vez.
+  // repeticiones queda forzado a 1 arriba, así que este bloque completo
+  // (campo + "2da vez") simplemente no se imprime para esta sección; el
+  // resto del dibujo (grilla de acordes) sigue exactamente igual.
+  const esBreak = s.nombre === 'Break/Corte';
+  const bloqueRepeticiones = esBreak ? '' : `
       <div class="seccion-repeticion-campos">
         <div class="seccion-ciclo-campo">
           <label style="margin:0;">Repeticiones</label>
@@ -1173,7 +1619,19 @@ function htmlAcordesSeccion(s, i){
             <input type="text" class="letra-input" placeholder="letra" value="${(letraFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraFinal2(${i}, ${j}, this.value)">
           </div>`).join('')}
         </div>` : ''}
+      </div>`;
+  return `
+    <div class="seccion-fila-acordes">
+      ${introLibre}
+      ${notaTiempoCorte}
+      <label>Acordes y letra (${basePase} comp.${repeticiones > 1 ? ` × ${repeticiones} pasadas = ${duracion} comp. reales` : ''})</label>
+      <div class="acordes-grid">
+        ${acordes.map((a, j) => `<div class="acorde-celda">
+          <input type="text" class="acorde-input" placeholder="c.${j+1}" title="Silencio armónico: escribí N.C." value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordePorCompas(${i}, ${j}, this.value)">
+          <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraPorCompas(${i}, ${j}, this.value)">
+        </div>`).join('')}
       </div>
+      ${bloqueRepeticiones}
     </div>`;
 }
 
@@ -1194,6 +1652,133 @@ function actualizarAcordeCiclo(i, j, valor){
 function actualizarAcordePorCompas(i, j, valor){
   if(!Array.isArray(seccionesEnEdicion[i].acordesPorCompas)) seccionesEnEdicion[i].acordesPorCompas = [];
   seccionesEnEdicion[i].acordesPorCompas[j] = valor;
+}
+// v1.29.11: (a pedido) nota libre de tiempo del corte — solo para
+// Break/Corte, no dispara pintarSecciones() (no afecta duración ni
+// grilla, mismo patrón que el resto de campos de texto suelto).
+// v1.32: (a pedido) mini-preview en pantalla del patrón rítmico del
+// Break/Corte — MISMA lógica de agrupado que dibujarPatronRitmico() en
+// pdf-estructura.js (pares de corcheas con corchete si las dos son
+// golpe, gancho individual si queda sola), pero dibujada liviano acá con
+// SVG en vez de jsPDF, para que el staff vea el resultado ANTES de
+// exportar. ⚠️ Es una copia deliberada, no una reutilización: si el día
+// de mañana cambia el dibujo en dibujarPatronRitmico (pdf-estructura.js),
+// esta función tiene que actualizarse a mano junto con esa — no hay forma
+// de compartir el dibujo entre jsPDF (server-side-like, canvas propio) y
+// SVG de pantalla sin un tercer formato intermedio, así que se aceptó
+// duplicar esta lógica puntual (es corta: agrupar de a 2 y decidir
+// corchete/gancho/nada) a cambio de tener preview inmediato.
+function patronRitmicoSVG(patron, compases){
+  // v1.35: FIX — el .toLowerCase() de acá abajo igualaba "X" (golpe
+  // ACENTUADO) con "x" (golpe normal) antes de dibujar, así que el
+  // acento se perdía siempre en el preview de pantalla aunque sí se
+  // respetaba en el PDF (dibujarPatronRitmico usa el caracter tal cual,
+  // sin bajar a minúscula). Ahora se conserva el case original.
+  const tokens = (patron || '').replace(/\s+/g, '').split('').filter(c => c === 'x' || c === 'X' || c === '.');
+  if(!tokens.length) return '<span style="color:#888;font-size:11px;">Sin patrón — escribí "x" (golpe), "X" (golpe acentuado) y "." (silencio)</span>';
+  const n = tokens.length;
+  const anchoTotal = Math.max(60, n * 16);
+  const alto = 34;
+  const paso = anchoTotal / n;
+  const yBase = alto - 6;
+  const altoPlica = 16;
+  const xCentro = (idx) => paso * idx + paso / 2;
+  const esGolpe = (c) => c === 'x' || c === 'X';
+  // v1.35: mismo dibujo de acento (">") que dibujarIconoAcentoBreak en
+  // pdf-estructura.js, adaptado a este tamaño de SVG — se ubica encima
+  // de la cabeza de la plica cuando el token es "X" mayúscula.
+  const acentoSVG = (cx) => {
+    const x0 = cx + 2.4 - 1.3, y0 = yBase - altoPlica - 1;
+    return `<path d="M ${x0} ${y0 - 3.4} L ${x0 + 2.6} ${y0 - 1.7} L ${x0} ${y0}" stroke="#1a1a1a" stroke-width="0.9" fill="none"/>`;
+  };
+  let svg = `<svg width="${anchoTotal}" height="${alto}" viewBox="0 0 ${anchoTotal} ${alto}" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<line x1="0" y1="${yBase}" x2="${anchoTotal}" y2="${yBase}" stroke="#999" stroke-width="1"/>`;
+  // v1.36: (a pedido) líneas de compás — mismo criterio que
+  // dibujarPatronRitmico en pdf-estructura.js v1.7: barra de apertura,
+  // barra de cierre y una divisoria entre cada compás si son 2+, para
+  // que pantalla y PDF se vean igual.
+  const totalCompases = Math.max(1, compases || 1);
+  for(let k = 0; k <= totalCompases; k++){
+    const xBarra = (anchoTotal * k) / totalCompases;
+    svg += `<line x1="${xBarra}" y1="${yBase - 4}" x2="${xBarra}" y2="${yBase + 4}" stroke="#1a1a1a" stroke-width="1"/>`;
+  }
+  // v1.34: (a pedido) pasada de silencios — antes un token "." no dibujaba
+  // nada (hueco vacío), a diferencia del PDF (dibujarSilencio en
+  // pdf-estructura.js) que sí marca el silencio con un trazo propio.
+  // Mismo criterio visual acá (adaptado a SVG): dos líneas en zigzag
+  // centradas en el casillero, escaladas a este tamaño de preview.
+  for(let j = 0; j < n; j++){
+    if(tokens[j] !== '.') continue;
+    const xj = xCentro(j);
+    const yc = yBase - altoPlica * 0.45;
+    svg += `<line x1="${xj - 1.6}" y1="${yc - 2.4}" x2="${xj + 1.3}" y2="${yc + 0.7}" stroke="#1a1a1a" stroke-width="1.2"/>`;
+    svg += `<line x1="${xj + 1.3}" y1="${yc + 0.7}" x2="${xj - 0.4}" y2="${yc + 2.7}" stroke="#1a1a1a" stroke-width="1.2"/>`;
+  }
+  for(let g = 0; g < n; g += 2){
+    const a = tokens[g], b = (g + 1 < n) ? tokens[g + 1] : null;
+    const xa = xCentro(g), xb = (b != null) ? xCentro(g + 1) : null;
+    if(esGolpe(a)){
+      svg += `<circle cx="${xa}" cy="${yBase}" r="2.4" fill="#1a1a1a"/>`;
+      svg += `<line x1="${xa + 2.4}" y1="${yBase}" x2="${xa + 2.4}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="1.4"/>`;
+      if(a === 'X') svg += acentoSVG(xa);
+    }
+    if(esGolpe(b)){
+      svg += `<circle cx="${xb}" cy="${yBase}" r="2.4" fill="#1a1a1a"/>`;
+      svg += `<line x1="${xb + 2.4}" y1="${yBase}" x2="${xb + 2.4}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="1.4"/>`;
+      if(b === 'X') svg += acentoSVG(xb);
+      if(esGolpe(a)){
+        svg += `<line x1="${xa + 2.4}" y1="${yBase - altoPlica}" x2="${xb + 2.4}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="2.6"/>`;
+      } else {
+        svg += `<line x1="${xb + 2.4}" y1="${yBase - altoPlica}" x2="${xb + 2.4 + 4}" y2="${yBase - altoPlica + 4}" stroke="#1a1a1a" stroke-width="1.2"/>`;
+      }
+    } else if(esGolpe(a)){
+      svg += `<line x1="${xa + 2.4}" y1="${yBase - altoPlica}" x2="${xa + 2.4 + 4}" y2="${yBase - altoPlica + 4}" stroke="#1a1a1a" stroke-width="1.2"/>`;
+    }
+  }
+  svg += '</svg>';
+  return svg;
+}
+function actualizarNotaTiempoCorte(i, valor){
+  seccionesEnEdicion[i].notaTiempoCorte = valor;
+}
+// v1.31: (a pedido) patrón rítmico del Break/Corte — texto libre ("x"
+// golpe, "." silencio), no dispara pintarSecciones() (no afecta duración
+// ni grilla, mismo patrón que notaTiempoCorte). Se dibuja en el PDF con
+// notación real acotada (plicas de corchea agrupadas, ver
+// dibujarPatronRitmico en pdf-estructura.js) solo si viene con datos.
+// v1.32: además repinta el mini-preview SVG en pantalla (ver
+// patronRitmicoSVG, arriba) — actualización puntual de un solo div, no
+// un pintarSecciones() completo.
+function actualizarPatronRitmico(i, valor){
+  seccionesEnEdicion[i].patronRitmico = valor;
+  const s = seccionesEnEdicion[i];
+  const dur = duracionCompasesSeccion(s);
+  const prev = document.getElementById('patronRitmicoPreview-' + i);
+  if(prev) prev.innerHTML = patronRitmicoSVG(valor, dur);
+  // v1.35: repinta también el aviso de compás (ver avisoPatronVsCompas),
+  // usando la misma duración (en compases) ya calculada para esta sección.
+  const aviso = document.getElementById('patronRitmicoAviso-' + i);
+  if(aviso){
+    aviso.innerHTML = avisoPatronVsCompas(valor, dur);
+  }
+}
+// v1.35: (a pedido) guía de compás para el patrón rítmico del
+// Break/Corte — SOLO avisa, no bloquea ni autocompleta nada. Asume
+// corchea fija como subdivisión base (2 símbolos por tiempo), usando el
+// compás real del tema (previewBeatsPerBar): en 4/4 son 8 símbolos por
+// compás, en 3/4 son 6, etc. No usa ninguna otra subdivisión (ver charla
+// con el staff) para no sumar una decisión más al flujo de carga.
+function avisoPatronVsCompas(patron, duracionCompases){
+  const tokens = (patron || '').replace(/\s+/g, '').split('').filter(c => c === 'x' || c === 'X' || c === '.');
+  if(!tokens.length || duracionCompases == null) return '';
+  const beatsPorBarra = previewBeatsPerBar();
+  const esperados = beatsPorBarra * 2 * duracionCompases;
+  const diff = esperados - tokens.length;
+  if(diff === 0){
+    return `<span style="color:#4caf7d;">✓ Completa ${duracionCompases} comp. exacto (${tokens.length}/${esperados} corcheas)</span>`;
+  }
+  const quien = diff > 0 ? 'faltan' : 'sobran';
+  return `<span style="color:#d99a3d;">⚠ ${quien} ${Math.abs(diff)} corchea(s) para completar ${duracionCompases} comp. (${tokens.length}/${esperados})</span>`;
 }
 // v1.19: (a pedido, Fase 3) letra línea-por-línea, mismo índice de
 // compás que ya usan acordesCiclo/acordesPorCompas — sin campo de
@@ -1262,6 +1847,15 @@ function seleccionarNombreSeccion(i, valor){
     seccionesEnEdicion[i].tipo = tipoDeNombreSeccion(valor);
     seccionesEnEdicion[i].mostrarNombreLibre = false;
   }
+  pintarSecciones();
+}
+
+// v1.29.7: (a pedido) tipo elegido a mano para una sección "Otro…" sin
+// tipo de catálogo — mismo campo `tipo` que usa tipoDeNombreSeccion,
+// así que htmlAcordesSeccion/exportarEstructuraPDF no necesitan saber
+// que vino de acá en vez del catálogo.
+function seleccionarTipoSeccionLibre(i, valor){
+  seccionesEnEdicion[i].tipo = valor || undefined;
   pintarSecciones();
 }
 
@@ -1344,14 +1938,23 @@ function actualizarSeccionHastaCompas(i, valor){
     // vuelve a escribir.
     return;
   }
-  seccionesEnEdicion[i].hastaSegundos = segundosDeCompas(n);
+  // v1.29.10: (a pedido) el staff ahora tipea el ÚLTIMO compás de esta
+  // sección (inclusive, ej. 4), no el compás donde arranca la próxima
+  // (ej. 5) — más natural para leer. hastaSegundos internamente sigue
+  // guardando el límite exclusivo de siempre (arranca la próxima), así
+  // que acá se convierte con +1 al escribir. Nada más del archivo
+  // (duración, snap, PDF, musico.html) se tocó — siguen leyendo
+  // hastaSegundos igual que siempre.
+  seccionesEnEdicion[i].hastaSegundos = segundosDeCompas(n + 1);
   if(inputTiempoEl) inputTiempoEl.value = segundosATexto(seccionesEnEdicion[i].hastaSegundos);
 }
 function actualizarSeccionHastaTiempo(i, txt){
   if(!(txt || '').trim()) return; // igual que arriba: vaciar no borra el valor guardado
   seccionesEnEdicion[i].hastaSegundos = textoASegundos(txt);
   const inputCompasEl = document.getElementById('sechastacompas-' + i);
-  if(inputCompasEl) inputCompasEl.placeholder = 'compás ' + compasDeSegundos(seccionesEnEdicion[i].hastaSegundos);
+  // v1.29.10: mismo criterio que el placeholder de arriba — muestra el
+  // último compás de esta sección (-1), no el de la próxima.
+  if(inputCompasEl) inputCompasEl.placeholder = 'compás ' + (compasDeSegundos(seccionesEnEdicion[i].hastaSegundos) - 1);
 }
 function limpiarSeccionHasta(i){
   seccionesEnEdicion[i].hastaSegundos = null;
@@ -1393,160 +1996,38 @@ function esPresetHastaActivo(s, i, n){
 // el resto del ecosistema (sitio estático). Usa temaDataActual/inputBpm/
 // inputCompas/inputClave tal cual ya los completa el staff arriba, sin
 // dato nuevo.
+// v2.0: (a pedido, unificacion con musico.html) exportarEstructuraPDF
+// ya NO dibuja el PDF acá adentro -- arma los datos (bpm/compas/clave +
+// cada seccion con su duracion y color ya resueltos, que es lo unico
+// que de verdad difiere entre staff y musico) y se los pasa a
+// generarEstructuraPDF() (pdf-estructura.js), compartida con
+// musico.html. Antes de esto, este archivo tenia su propia copia
+// completa del dibujo (dibujarCajas/dibujarCajaBreak/iconos/etc) que
+// habia que ir porteando a mano cada vez que cambiaba (asi se
+// desincronizo Break/Corte). Ahora hay una sola funcion de dibujo para
+// los dos PDF.
 function exportarEstructuraPDF(){
-  if(!window.jspdf){ alert('No se pudo cargar el generador de PDF. Revisá tu conexión e intentá de nuevo.'); return; }
-  if(!seccionesEnEdicion.length){ alert('No hay secciones cargadas todavía.'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margen = 12;
-  const anchoUtil = pageW - margen * 2;
-  let y = margen;
-
+  if(!seccionesEnEdicion.length){ alert('No hay secciones cargadas todavia.'); return; }
   const bpm = document.getElementById('inputBpm').value || '—';
   const compas = document.getElementById('inputCompas').value || '4/4';
   const claveSel = document.getElementById('inputClave');
   const claveTxt = claveSel && claveSel.value ? claveSel.options[claveSel.selectedIndex].textContent : null;
   const nombreTema = temaDataActual.nombre || 'Tema sin nombre';
 
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
-  doc.text(nombreTema, margen, y); y += 7;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-  doc.text(`BPM ${bpm} · Compás ${compas}${claveTxt ? ' · Clave: ' + claveTxt : ''}`, margen, y);
-  y += 8;
-
-  const asegurarEspacio = (alto) => {
-    if(y + alto > pageH - margen){ doc.addPage(); y = margen; }
-  };
-
-  const POR_FILA = 4;
-  const cajaAncho = anchoUtil / POR_FILA;
-  const cajaAlto = 16;
-
-  const dibujarCajas = (acordes, letra, total) => {
-    const filas = Math.ceil(total / POR_FILA);
-    asegurarEspacio(filas * cajaAlto + 2);
-    for(let j = 0; j < total; j++){
-      const fila = Math.floor(j / POR_FILA);
-      const col = j % POR_FILA;
-      const x = margen + col * cajaAncho;
-      const yCaja = y + fila * cajaAlto;
-      doc.setDrawColor(180); doc.rect(x, yCaja, cajaAncho, cajaAlto);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(140);
-      doc.text('c.' + (j + 1), x + 1.5, yCaja + 4);
-      doc.setTextColor(20);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-      const acorde = (acordes && acordes[j]) || '';
-      doc.text(acorde, x + cajaAncho / 2, yCaja + 8, { align: 'center' });
-      const le = (letra && letra[j]) || '';
-      if(le){
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(7);
-        const leCorta = le.length > 22 ? le.slice(0, 21) + '…' : le;
-        doc.text(leCorta, x + cajaAncho / 2, yCaja + 13, { align: 'center' });
-      }
-    }
-    y += filas * cajaAlto + 4;
-  };
-
-  // v1.24: (a pedido) color compartido — una sección con origenId usa
-  // el color de su origen (colorDeSeccionEnLista) en vez de uno por
-  // posición propia, y se le agrega "(D.C.)" al nombre para dejar
-  // claro que es la misma idea repetida (da capo). El cuadro de
-  // acordes/letra se sigue dibujando COMPLETO en cada aparición (ya
-  // tiene su propia copia de datos, no hay nada que "ver arriba").
   const secciones = seccionesEnEdicion.slice().sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
-  secciones.forEach((s, i) => {
-    if(!(s.nombre || '').trim()) return;
-    asegurarEspacio(10);
-    const color = colorDeSeccionEnLista(secciones, i);
-    const rgb = [parseInt(color.slice(1,3),16), parseInt(color.slice(3,5),16), parseInt(color.slice(5,7),16)];
-    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-    doc.rect(margen, y, anchoUtil, 7, 'F');
-    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-    // v1.26: si es una variación, la etiqueta avisa que el cuadro NO es
-    // igual al original (no alcanza con "ya lo vi arriba") — incluye la
-    // nota corta si el staff cargó una.
-    const etiquetaDC = s.origenId
-      ? (s.esVariacion
-          ? ` (D.C. — variación${(s.notaVariacion || '').trim() ? ': ' + s.notaVariacion.trim() : ''})`
-          : ' (D.C.)')
-      : '';
-    doc.text(s.nombre + etiquetaDC, margen + 2, y + 5);
-    y += 9;
-    doc.setTextColor(20);
+  const seccionesParaPDF = secciones.map((s, i) => Object.assign({}, s, {
+    duracion: duracionCompasesSeccion(s),
+    color: colorDeSeccionEnLista(secciones, i)
+  }));
 
-    if(s.tipo === 'vamp'){
-      const ciclo = s.cicloCompases || (s.acordesCiclo && s.acordesCiclo.length) || 0;
-      if(ciclo > 0){
-        dibujarCajas(s.acordesCiclo, s.letraCiclo, ciclo);
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
-        doc.text('🔁 se repite (ciclo de ' + ciclo + ' comp.)', margen, y);
-        y += 6; doc.setTextColor(20);
-      } else {
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
-        doc.text('Definí el ciclo de compases arriba para ver las cajas acá.', margen, y);
-        y += 6; doc.setTextColor(20);
-      }
-    } else {
-      const duracion = duracionCompasesSeccion(s);
-      if(duracion != null && duracion > 0){
-        if(s.nombre === 'Intro' && (s.acordesSinTiempo || '').trim()){
-          doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
-          doc.text('Libre/rubato: ' + s.acordesSinTiempo, margen, y);
-          y += 6;
-        }
-        // v1.23: (a pedido) repetición con 1ra/2da vez — dibuja UNA sola
-        // pasada (basePase cajas, lo que realmente cargó el staff en la
-        // grilla de arriba) en vez de repetir la fila entera
-        // `repeticiones` veces; abajo, nota de repetición y, si hay 2da
-        // vez cargada, una fila chica aparte con esas cajas.
-        // repeticiones=1 (default) no cambia nada.
-        const repeticiones = s.repeticiones || 1;
-        if(repeticiones > 1){
-          const basePase = Math.max(1, Math.round(duracion / repeticiones));
-          dibujarCajas(s.acordesPorCompas, s.letraPorCompas, basePase);
-          doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
-          doc.text('𝄇 se repite x' + repeticiones + ' (' + duracion + ' comp. reales)', margen, y);
-          y += 6; doc.setTextColor(20);
-          const finalN = Math.min(basePase, s.finalDistintoN || 1);
-          const hay2da = (s.acordesFinal2 && s.acordesFinal2.some(a => (a||'').trim())) || (s.letraFinal2 && s.letraFinal2.some(l => (l||'').trim()));
-          if(hay2da){
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-            doc.text('2ª vez:', margen, y); y += 4;
-            dibujarCajas(s.acordesFinal2, s.letraFinal2, finalN);
-          }
-        } else {
-          dibujarCajas(s.acordesPorCompas, s.letraPorCompas, duracion);
-        }
-      } else {
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
-        doc.text('Definí el fin de la sección para ver las cajas acá.', margen, y);
-        y += 6; doc.setTextColor(20);
-      }
-    }
-    y += 2;
+  generarEstructuraPDF({
+    temaNombre: nombreTema,
+    bpm: bpm,
+    compasTexto: compas,
+    claveTxt: claveTxt,
+    secciones: seccionesParaPDF
   });
-
-  const nombreArchivo = 'estructura-' + nombreTema.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '.pdf';
-  // v1.28: (a pedido) preview antes de descargar — en vez de forzar la
-  // descarga directa con doc.save(), se abre el PDF ya armado (mismo
-  // dibujo de siempre, cero cambios en dibujarCajas/cálculo de
-  // compases) en una pestaña nueva con el visor nativo del navegador.
-  // Desde ahí el staff ve el resultado real y decide si lo descarga o
-  // imprime con los controles propios del visor — no se duplica
-  // ninguna lógica de renderizado. setProperties(title) hace que el
-  // visor y el nombre sugerido al guardar coincidan con nombreArchivo.
-  doc.setProperties({ title: nombreArchivo });
-  const urlPreview = doc.output('bloburl');
-  const ventana = window.open(urlPreview, '_blank');
-  if(!ventana){
-    // Bloqueador de pop-ups u otro impedimento: no se pierde el PDF,
-    // se cae al comportamiento anterior (descarga directa).
-    doc.save(nombreArchivo);
-  }
 }
-
 async function guardarSecciones(){
   // v1.24: propagación — antes de armar el objeto a guardar, cada
   // sección que es origen de otras y tiene su checkbox tildado
