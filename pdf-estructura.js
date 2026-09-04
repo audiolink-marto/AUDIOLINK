@@ -128,8 +128,15 @@ function generarEstructuraPDF(datos){
   // OFFSET_Y/SIN_LOGO) leída de header-config.js, con typeof-guards por
   // si esa hoja no llegó a cargar. Reemplaza el header discreto de v1.9
   // (13mm, solo logo + línea dorada).
+  // v1.11: FIX contraste — el subtítulo usaba mutedRGB [154,151,143]
+  // (gris beige), mismo color que logistica.html deja "fuera de alcance"
+  // en su propio jsPDF (v2.128: ahí solo se corrigió el header piloto en
+  // CSS, no el PDF real, por quedar afuera del pedido de ese momento).
+  // Acá sí se corrige: blanco/crema con opacidad 0.85
+  // (rgba(250,247,238,0.85), el mismo valor que usaron en el CSS
+  // corregido de logistica.html), legible sobre el fondo oscuro/
+  // texturizado sin competir con el dorado.
   const goldRGB = [201, 162, 75];
-  const mutedRGB = [154, 151, 143];
   const headerH = 28;
   const imgDiffuserHdr = document.getElementById('hdrDiffuser');
   const imgLogoHdr = document.getElementById('hdrLogo');
@@ -140,12 +147,41 @@ function generarEstructuraPDF(datos){
   const headerDiffuserOpacity = typeof HEADER_DIFFUSER_OPACITY !== 'undefined' ? HEADER_DIFFUSER_OPACITY : 1.0;
   const headerColorOpacity = typeof HEADER_COLOR_OPACITY !== 'undefined' ? HEADER_COLOR_OPACITY : 0.62;
 
+  // v1.11: FIX estiramiento — el diffuser se forzaba a pageW×headerH sin
+  // respetar su proporción real; con headerH=28 (más bajo que los 38mm de
+  // logistica.html) la distorsión horizontal se notaba mucho. Recorte
+  // tipo "cover" (mismo criterio que background-size:cover en CSS): se
+  // recorta el sobrante de la imagen (centrado) para llenar el header sin
+  // deformarla, en vez de estirarla. Se calcula una sola vez por PDF.
+  function recortarImagenCover(img, targetWmm, targetHmm){
+    const targetRatio = targetWmm / targetHmm;
+    const srcRatio = img.naturalWidth / img.naturalHeight;
+    let sx, sy, sw, sh;
+    if(srcRatio > targetRatio){
+      sh = img.naturalHeight;
+      sw = sh * targetRatio;
+      sx = (img.naturalWidth - sw) / 2;
+      sy = 0;
+    } else {
+      sw = img.naturalWidth;
+      sh = sw / targetRatio;
+      sx = 0;
+      sy = (img.naturalHeight - sh) / 2;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = sw;
+    canvas.height = sh;
+    canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  }
+
   function pintarHeader(){
     if(!headerSinFondo){
       if(diffuserOkHdr){
+        const diffuserCover = recortarImagenCover(imgDiffuserHdr, pageW, headerH);
         doc.saveGraphicsState();
         doc.setGState(new doc.GState({ opacity: headerDiffuserOpacity }));
-        doc.addImage(imgDiffuserHdr, 'JPEG', 0, 0, pageW, headerH);
+        doc.addImage(diffuserCover, 'JPEG', 0, 0, pageW, headerH);
         doc.restoreGraphicsState();
         doc.saveGraphicsState();
         doc.setGState(new doc.GState({ opacity: headerColorOpacity }));
@@ -173,12 +209,16 @@ function generarEstructuraPDF(datos){
       doc.addImage(imgLogoHdr, 'PNG', logoX, logoY, logoW, logoH);
     }
     // v1.10: subtítulo derecha, mismo patrón que logistica.html.
+    // v1.11: color corregido (ver nota de contraste arriba).
+    doc.saveGraphicsState();
+    doc.setGState(new doc.GState({ opacity: 0.85 }));
+    doc.setTextColor(250, 247, 238);
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...mutedRGB);
     doc.text('GUÍA DE PRÁCTICA', pageW - margen, headerH - 12, { align: 'right' });
     doc.setFontSize(8);
     doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - margen, headerH - 5, { align: 'right' });
+    doc.restoreGraphicsState();
   }
 
   pintarHeader();

@@ -1,4 +1,15 @@
-// AUDIOLINK · header-config.js · v1.8
+// AUDIOLINK · header-config.js · v1.9
+// v1.9: (a pedido) inicializarHeaderConfig() ahora también LEE
+// configHeader/global de Firestore (antes v1.8 solo escribía) — ver nota
+// completa junto a la función, más abajo. Efecto: el diseño del header
+// configurado una vez en header-config.html se ve igual en todas las
+// páginas consumidoras (logistica.html, guia-practica.html,
+// musico.html) sin depender del localStorage de cada navegador/origen
+// file://. La función vieja se renombró a _aplicarHeaderConfigLocal()
+// (lógica intacta, ni una línea cambiada) y inicializarHeaderConfig()
+// pasa a ser un wrapper: aplica local primero, después intenta Firestore
+// y reaplica si hay datos. Ningún consumidor necesita cambiar nada — el
+// nombre público de la función es el mismo.
 // v1.8: (a pedido) la config del header ahora también se sincroniza a
 // Firestore (configHeader/global, un solo doc) además de localStorage —
 // ver sincronizarConfigHeaderFirestore() más abajo. Motivo: localStorage
@@ -502,7 +513,7 @@ function actualizarHeaderPreview(){
   sincronizarConfigHeaderFirestore();
 }
 
-function inicializarHeaderConfig(){
+function _aplicarHeaderConfigLocal(){
   // Restaura todos los valores desde localStorage y pinta el preview.
   // Cada página consumidora llama a esto dentro de su propio
   // DOMContentLoaded (después de que el HTML de los inputs ya existe).
@@ -642,6 +653,44 @@ function inicializarHeaderConfig(){
   // que la sesión de Firebase ya esté confirmada (ver guard de sesión en
   // header-config.html), así que ese archivo la dispara directamente
   // después de validar auth, no en cada inicializarHeaderConfig().
+}
+
+// v1.9: (a pedido) el diseño del header ahora se comparte de verdad entre
+// páginas/dispositivos, no solo dentro del mismo navegador. Antes,
+// inicializarHeaderConfig() solo leía localStorage — que es por
+// navegador/origen, así que el mismo diseño configurado en
+// header-config.html no se veía en otra página abierta en otro
+// dispositivo, ni entre archivos file:// locales (cada uno puede quedar
+// como origen distinto). configHeader/global YA se escribe en Firestore
+// desde v1.8 (sincronizarConfigHeaderFirestore()) pero nunca se leía de
+// vuelta. Ahora: se aplica primero lo que haya en localStorage (sin
+// esperar red, cero parpadeo visual) y, si `db` existe y el doc trae
+// datos, esos valores pisan localStorage y se vuelven a aplicar — así
+// cualquier página que cargue después ve el mismo diseño ya guardado.
+// Si `db` no está disponible o la lectura falla, todo sigue exactamente
+// igual que en v1.8 (no rompe nada). Solo se traen los mismos campos que
+// ya sincroniza sincronizarConfigHeaderFirestore() (logo/diffuser/color/
+// opacidades/tamaño/align/offsetY del logo/sin-fondo/sin-logo) — los
+// efectos CSS "solo modo piloto" siguen siendo 100% locales, como ya
+// documentado en v1.8.
+function inicializarHeaderConfig(){
+  _aplicarHeaderConfigLocal();
+  if(typeof db === 'undefined' || !db) return;
+  db.collection('configHeader').doc('global').get().then(doc => {
+    if(!doc.exists) return;
+    const d = doc.data();
+    if(d.logoPath !== undefined) localStorage.setItem('audiolink_logo_path', d.logoPath);
+    if(d.diffuserPath !== undefined) localStorage.setItem('audiolink_diffuser_path', d.diffuserPath);
+    if(d.headerColor !== undefined) localStorage.setItem('audiolink_header_color', d.headerColor);
+    if(d.headerSinFondo !== undefined) localStorage.setItem('audiolink_header_sin_fondo', d.headerSinFondo ? '1' : '0');
+    if(d.headerColorOpacity !== undefined) localStorage.setItem('audiolink_header_color_opacity', String(d.headerColorOpacity));
+    if(d.headerDiffuserOpacity !== undefined) localStorage.setItem('audiolink_header_diffuser_opacity', String(d.headerDiffuserOpacity));
+    if(d.logoSize !== undefined) localStorage.setItem('audiolink_logo_size', String(d.logoSize));
+    if(d.logoAlign !== undefined) localStorage.setItem('audiolink_logo_align', d.logoAlign);
+    if(d.logoOffsetY !== undefined) localStorage.setItem('audiolink_logo_offset_y', String(d.logoOffsetY));
+    if(d.logoSinLogo !== undefined) localStorage.setItem('audiolink_logo_sin_logo', d.logoSinLogo ? '1' : '0');
+    _aplicarHeaderConfigLocal();
+  }).catch(err => console.warn('No se pudo leer configHeader/global de Firestore:', err));
 }
 
 function resetearHeaderDefaults(){
