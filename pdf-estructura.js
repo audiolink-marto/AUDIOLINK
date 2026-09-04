@@ -1,4 +1,18 @@
-// AUDIOLINK · pdf-estructura.js · v1.9
+// AUDIOLINK · pdf-estructura.js · v1.10
+// v1.10: (a pedido) header ampliado — de vuelta a franja de color +
+// diffuser + logo + subtítulo (mismo espíritu visual que logistica.html),
+// pero headerH=28mm (no 38mm): decisión acordada con el usuario, esta
+// hoja sigue siendo de atril y necesita más espacio para las tarjetas de
+// acordes que un informe de logística. Lee las mismas variables globales
+// de header-config.js que logistica.html (HEADER_SIN_FONDO,
+// HEADER_COLOR_RGB, HEADER_DIFFUSER_OPACITY, HEADER_COLOR_OPACITY,
+// LOGO_SIZE/ALIGN/OFFSET_Y/SIN_LOGO), con typeof-guards por si esa hoja
+// no cargó. Subtítulo derecho nuevo: "GUÍA DE PRÁCTICA" + fecha, mismo
+// patrón que el subtítulo de exportarPDF() en logistica.html. Reemplaza
+// el header discreto de v1.9 (13mm, solo logo + línea dorada, sin fondo).
+// El resto del PDF (cajas de acordes, patrón rítmico, cálculos de
+// compases) no se tocó — solo el bloque de header y el punto de arranque
+// de `y` (ahora headerH+9 = 37 en vez de 22).
 // v1.9: (a pedido) header discreto (pintarHeader()) al inicio de la
 // primera página — logo (leído de #hdrLogo, mismo criterio que
 // logistica.html: LOGO_SIZE/LOGO_ALIGN/LOGO_OFFSET_Y/LOGO_SIN_LOGO de
@@ -105,22 +119,49 @@ function generarEstructuraPDF(datos){
   const margen = 12;
   const anchoUtil = pageW - margen * 2;
 
-  // v1.9: header discreto (logo + línea dorada fina, sin franja de color
-  // ni diffuser) — mismo origen de datos que logistica.html (variables
-  // globales de header-config.js: LOGO_SIZE/LOGO_ALIGN/LOGO_OFFSET_Y/
-  // LOGO_SIN_LOGO, leídas de #hdrLogo), pero a propósito NO reutiliza el
-  // header "protagónico" de logistica.html (franja de 38mm + diffuser):
-  // esta es una hoja de referencia rápida para atril, el header no debe
-  // competir en espacio/atención con las cajas de acordes. headerH fijo
-  // en 13mm (rango acordado 12-14mm) en vez de los 38mm de logistica.html.
+  // v1.10: (a pedido) header ampliado igual en espíritu al de
+  // logistica.html (franja de color + diffuser + logo + subtítulo), pero
+  // a headerH=28 (no 38) — hoja de atril, prioriza espacio para las
+  // tarjetas de acordes sobre el protagonismo visual del header. Misma
+  // lógica de pintado (HEADER_SIN_FONDO, HEADER_COLOR_RGB,
+  // HEADER_DIFFUSER_OPACITY, HEADER_COLOR_OPACITY, LOGO_SIZE/ALIGN/
+  // OFFSET_Y/SIN_LOGO) leída de header-config.js, con typeof-guards por
+  // si esa hoja no llegó a cargar. Reemplaza el header discreto de v1.9
+  // (13mm, solo logo + línea dorada).
   const goldRGB = [201, 162, 75];
-  const headerH = 13;
+  const mutedRGB = [154, 151, 143];
+  const headerH = 28;
+  const imgDiffuserHdr = document.getElementById('hdrDiffuser');
   const imgLogoHdr = document.getElementById('hdrLogo');
+  const diffuserOkHdr = imgDiffuserHdr && imgDiffuserHdr.complete && imgDiffuserHdr.naturalWidth > 0;
   const logoOkHdr = imgLogoHdr && imgLogoHdr.complete && imgLogoHdr.naturalWidth > 0;
+  const headerSinFondo = typeof HEADER_SIN_FONDO !== 'undefined' ? HEADER_SIN_FONDO : false;
+  const headerColorRGB = typeof HEADER_COLOR_RGB !== 'undefined' ? HEADER_COLOR_RGB : [11, 11, 13];
+  const headerDiffuserOpacity = typeof HEADER_DIFFUSER_OPACITY !== 'undefined' ? HEADER_DIFFUSER_OPACITY : 1.0;
+  const headerColorOpacity = typeof HEADER_COLOR_OPACITY !== 'undefined' ? HEADER_COLOR_OPACITY : 0.62;
 
   function pintarHeader(){
-    if(logoOkHdr && typeof LOGO_SIN_LOGO !== 'undefined' && !LOGO_SIN_LOGO){
-      const logoH = Math.min(typeof LOGO_SIZE !== 'undefined' ? LOGO_SIZE : 16, headerH - 3);
+    if(!headerSinFondo){
+      if(diffuserOkHdr){
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: headerDiffuserOpacity }));
+        doc.addImage(imgDiffuserHdr, 'JPEG', 0, 0, pageW, headerH);
+        doc.restoreGraphicsState();
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: headerColorOpacity }));
+        doc.setFillColor(...headerColorRGB);
+        doc.rect(0, 0, pageW, headerH, 'F');
+        doc.restoreGraphicsState();
+      } else {
+        doc.setFillColor(...headerColorRGB);
+        doc.rect(0, 0, pageW, headerH, 'F');
+      }
+    }
+    doc.setDrawColor(...goldRGB);
+    doc.setLineWidth(0.5);
+    doc.line(0, headerH, pageW, headerH);
+    if(logoOkHdr && !(typeof LOGO_SIN_LOGO !== 'undefined' && LOGO_SIN_LOGO)){
+      const logoH = Math.min(typeof LOGO_SIZE !== 'undefined' ? LOGO_SIZE : 16, headerH - 4);
       const logoW = logoH * (imgLogoHdr.naturalWidth / imgLogoHdr.naturalHeight);
       const offsetY = typeof LOGO_OFFSET_Y !== 'undefined' ? LOGO_OFFSET_Y : 0;
       const logoY = (headerH - logoH) / 2 + offsetY;
@@ -131,9 +172,13 @@ function generarEstructuraPDF(datos){
       else logoX = margen;
       doc.addImage(imgLogoHdr, 'PNG', logoX, logoY, logoW, logoH);
     }
-    doc.setDrawColor(...goldRGB);
-    doc.setLineWidth(0.4);
-    doc.line(0, headerH, pageW, headerH);
+    // v1.10: subtítulo derecha, mismo patrón que logistica.html.
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...mutedRGB);
+    doc.text('GUÍA DE PRÁCTICA', pageW - margen, headerH - 12, { align: 'right' });
+    doc.setFontSize(8);
+    doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - margen, headerH - 5, { align: 'right' });
   }
 
   pintarHeader();

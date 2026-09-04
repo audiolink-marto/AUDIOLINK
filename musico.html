@@ -4,7 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v3.101
+<!-- AUDIOLINK · musico.html · v3.102
+     v3.102: FIX — las imágenes ocultas #hdrDiffuser/#hdrLogo (v3.101) se
+     hacían visibles y gigantes al final de la página: header-config.js
+     resetea su `style.display` a '' (no 'none') cada vez que
+     LOGO_SIN_LOGO/HEADER_SIN_FONDO están en false (su default), pisando
+     el display:none inline con el que se agregaron. Se sumó una regla
+     CSS `#hdrDiffuser,#hdrLogo{display:none!important}` al final del
+     body (mismo fix que guia-practica.html v1.40) — queda oculta pase lo
+     que pase, sin afectar en nada a pdf-estructura.js. No se tocó nada
+     más de esta hoja; el header ampliado de pdf-estructura.js v1.10
+     (28mm, franja de color + diffuser + logo + subtítulo) ya aplica acá
+     también porque comparte ese archivo, sin cambios propios de
+     musico.html para eso.
      v3.101: (a pedido) se conecta al header-config.js compartido — nuevo
      <script src="header-config.js"> (antes de pdf-estructura.js), los 2
      <img> ocultos #hdrLogo/#hdrDiffuser al final del body (mismo patrón
@@ -5737,6 +5749,14 @@ async function responderRsvp(proyectoId, sesionId, respuesta){
 
 <img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none">
 <img id="hdrLogo"     src="img/logo%201.png"   style="display:none">
+<!-- v3.102: FIX — header-config.js pisa este display:none inline con
+     style.display='' cada vez que LOGO_SIN_LOGO/HEADER_SIN_FONDO están en
+     false (su valor por defecto), dejando estas 2 imágenes visibles y
+     gigantes al final de la página (mismo bug detectado y arreglado en
+     guia-practica.html v1.40). Esta regla !important las mantiene siempre
+     ocultas visualmente sin afectar en nada su lectura por pintarHeader()
+     (doc.addImage() funciona igual con la imagen oculta). -->
+<style>#hdrDiffuser,#hdrLogo{display:none!important;}</style>
 
 </body>
 </html>

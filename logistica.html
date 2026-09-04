@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Logística (v2.129)</title>
-<!-- AUDIOLINK · logistica.html · v2.129
+<!-- AUDIOLINK · logistica.html · v2.130
+     v2.130: FIX — las imágenes ocultas #hdrDiffuser/#hdrLogo se hacían
+     visibles y gigantes al final de la página: header-config.js resetea
+     su `style.display` a '' (no 'none') cada vez que LOGO_SIN_LOGO/
+     HEADER_SIN_FONDO están en false (su default), pisando el
+     display:none inline con el que se agregaron. Se sumó una regla CSS
+     `#hdrDiffuser,#hdrLogo{display:none!important}` al final del body
+     (mismo fix ya aplicado en guia-practica.html v1.40 y musico.html
+     v3.102) — queda oculta pase lo que pase, sin afectar en nada a
+     pintarHeader(). No se tocó nada más de esta hoja.
+
      v2.129: unificado el tamaño de página a Carta (215.9×279.4mm) en
      TODOS los PDF — antes exportarPDF() y exportarPDFSesion() (jsPDF)
      estaban en A4 (210×297mm) mientras exportarPDFSesionHTML() (piloto)
@@ -5104,6 +5114,15 @@ body{
      y pintarHeader() cae al rect oscuro de siempre. -->
 <img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none">
 <img id="hdrLogo"     src="img/logo%201.png"   style="display:none">
+<!-- v2.130: FIX — header-config.js pisa este display:none inline con
+     style.display='' cada vez que LOGO_SIN_LOGO/HEADER_SIN_FONDO están en
+     false (su valor por defecto), dejando estas 2 imágenes visibles y
+     gigantes al final de la página (mismo bug detectado y arreglado en
+     guia-practica.html v1.40 y musico.html v3.102). Esta regla
+     !important las mantiene siempre ocultas visualmente sin afectar en
+     nada su lectura por pintarHeader() (doc.addImage() funciona igual
+     con la imagen oculta). -->
+<style>#hdrDiffuser,#hdrLogo{display:none!important;}</style>
 
 </body>
 </html>

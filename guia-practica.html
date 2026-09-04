@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.39
+<!-- AUDIOLINK · guia-practica.html · v1.40
+     v1.40: FIX — las imágenes ocultas #hdrDiffuser/#hdrLogo (v1.38) se
+     hacían visibles y gigantes al final de la página: header-config.js
+     resetea su `style.display` a '' (no 'none') cada vez que
+     LOGO_SIN_LOGO/HEADER_SIN_FONDO están en false (su default), pisando
+     el display:none inline con el que se agregaron. Se sumó una regla
+     CSS `#hdrDiffuser,#hdrLogo{display:none!important}` al final del
+     body — queda oculta pase lo que pase, sin afectar en nada a
+     pdf-estructura.js (lee la imagen igual esté oculta o visible).
+     También: pdf-estructura.js pasa a v1.10 (header ampliado 28mm, ver
+     su propio changelog) — este archivo no cambió nada más para eso,
+     solo el fix del display de arriba.
      v1.39: FIX — v1.38 introdujo choque de nombres: header-config.js
      también declara `const CLOUDINARY_CLOUD_NAME` (cloud del logo/header,
      'dv7lelmoy'), distinto del cloud usado acá para audio ('mqwgjh3u').
@@ -2415,6 +2426,13 @@ if(estaModoOfflineActivo()){
 
 <img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none">
 <img id="hdrLogo"     src="img/logo%201.png"   style="display:none">
+<!-- v1.40: FIX — header-config.js pisa este display:none inline con
+     style.display='' cada vez que LOGO_SIN_LOGO/HEADER_SIN_FONDO están en
+     false (su valor por defecto), dejando estas 2 imágenes visibles y
+     gigantes al final de la página. Esta regla !important las mantiene
+     siempre ocultas visualmente sin afectar en nada su lectura por
+     pdf-estructura.js (doc.addImage() funciona igual con la imagen oculta). -->
+<style>#hdrDiffuser,#hdrLogo{display:none!important;}</style>
 
 </body>
 </html>
