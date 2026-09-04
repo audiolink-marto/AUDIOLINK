@@ -1,17 +1,40 @@
-// AUDIOLINK · pdf-estructura.js · v1.7
-// v1.7: (a pedido) líneas de compás en dibujarPatronRitmico — antes solo
-// había una línea base continua, sin barra de apertura/cierre ni
-// divisorias entre compases (a diferencia de notación real). Ahora
-// recibe el número de compases (mismo `total` que ya usaba
-// dibujarCajaBreak) y dibuja esas barras. No cambia el dibujo de golpes,
-// silencios, ligados ni acentos.
-// v1.6: (a pedido) se saca la palabra "BREAK" de dibujarCajaBreak — ya
-// está en el título de la sección (barra de color "Break/Corte" arriba),
-// era redundante repetirla. Si no hay nota de tiempo ni patrón cargados,
-// tampoco se reserva ya ninguna línea extra debajo (o de nada, si
-// tampoco hay caja) — calcularAltoSeccion se ajustó a esto también. No
-// se tocó dibujarCajas, dibujarPatronRitmico, ni ningún cálculo de
-// compases.
+// AUDIOLINK · pdf-estructura.js · v1.9
+// v1.9: (a pedido) header discreto (pintarHeader()) al inicio de la
+// primera página — logo (leído de #hdrLogo, mismo criterio que
+// logistica.html: LOGO_SIZE/LOGO_ALIGN/LOGO_OFFSET_Y/LOGO_SIN_LOGO de
+// header-config.js) + línea dorada fina debajo, headerH=13mm fijo. A
+// propósito NO usa franja de color de fondo ni diffuser (a diferencia de
+// logistica.html) — decisión tomada con el usuario: este PDF es una hoja
+// de referencia rápida para atril, un header protagónico le come espacio
+// útil y compite con las cajas de acordes. Si LOGO_SIN_LOGO está activo
+// (o no hay imagen cargada en #hdrLogo), solo se dibuja la línea dorada
+// y el PDF queda visualmente igual que antes de este cambio, solo
+// desplazado ~13mm. El nombre del tema + BPM se corren ese mismo alto
+// (y arranca en headerH+9 en vez de margen) pero se dibujan exactamente
+// igual que antes (mismo texto, tamaños y orden). No toca
+// dibujarCajas/dibujarCajaBreak/patrón rítmico ni ningún cálculo de
+// compases — es exclusivamente el bloque de header y el punto de arranque
+// de `y`.
+// v1.8: (a pedido) ícono de acento ">" (dibujarIconoAcentoBreak) más chico
+// — de 2.6x3.4 a ~1.7x2.2 (65%), con su espacio reservado ajustado (return
+// 4 → 2.6) para que no quede hueco de más al lado del golpe acentuado. Se
+// re-centró el offset en dibujarPatronRitmico (que lo reutiliza sobre la
+// plica) para que siga alineado con el nuevo tamaño. No cambia el resto
+// del dibujo del patrón ni ningún cálculo de compases.
+// v1.7: (a pedido) líneas de compás en el patrón rítmico
+// (dibujarPatronRitmico) — barra de apertura al inicio, cierre al final, y
+// una divisoria entre cada compás si la sección dura 2+ compases (mismo
+// criterio visual que ya separaba los acordes en dibujarCajaBreak). Nuevo
+// parámetro `compases` (con default 1 para no romper otros llamados);
+// dibujarCajaBreak ahora se lo pasa (`total`) en su propio llamado. No
+// cambia el agrupado de a 2 ni el dibujo de golpes/silencios/ligados.
+// v1.6: (a pedido) se saca el texto "BREAK" de dibujarCajaBreak — la nota
+// de tiempo (notaTiempoCorte), si el staff cargó una, se recorre para
+// arrancar donde antes empezaba "BREAK" (columna del margen) en vez de
+// desaparecer. Si no hay nota, ese renglón queda vacío pero se sigue
+// reservando el mismo alto (y += 6) que antes, así calcularAltoSeccion no
+// necesita tocarse. No afecta la caja de acordes condicional (v1.5) ni el
+// patrón rítmico.
 // v1.5: (a pedido) 2 ajustes a dibujarCajaBreak: 1) si ningún compás de la
 // sección Break/Corte tiene acorde cargado, la caja de acordes no se
 // dibuja (antes salía un rectángulo vacío) — va directo a "BREAK" +
@@ -81,11 +104,45 @@ function generarEstructuraPDF(datos){
   const pageH = doc.internal.pageSize.getHeight();
   const margen = 12;
   const anchoUtil = pageW - margen * 2;
-  let y = margen;
+
+  // v1.9: header discreto (logo + línea dorada fina, sin franja de color
+  // ni diffuser) — mismo origen de datos que logistica.html (variables
+  // globales de header-config.js: LOGO_SIZE/LOGO_ALIGN/LOGO_OFFSET_Y/
+  // LOGO_SIN_LOGO, leídas de #hdrLogo), pero a propósito NO reutiliza el
+  // header "protagónico" de logistica.html (franja de 38mm + diffuser):
+  // esta es una hoja de referencia rápida para atril, el header no debe
+  // competir en espacio/atención con las cajas de acordes. headerH fijo
+  // en 13mm (rango acordado 12-14mm) en vez de los 38mm de logistica.html.
+  const goldRGB = [201, 162, 75];
+  const headerH = 13;
+  const imgLogoHdr = document.getElementById('hdrLogo');
+  const logoOkHdr = imgLogoHdr && imgLogoHdr.complete && imgLogoHdr.naturalWidth > 0;
+
+  function pintarHeader(){
+    if(logoOkHdr && typeof LOGO_SIN_LOGO !== 'undefined' && !LOGO_SIN_LOGO){
+      const logoH = Math.min(typeof LOGO_SIZE !== 'undefined' ? LOGO_SIZE : 16, headerH - 3);
+      const logoW = logoH * (imgLogoHdr.naturalWidth / imgLogoHdr.naturalHeight);
+      const offsetY = typeof LOGO_OFFSET_Y !== 'undefined' ? LOGO_OFFSET_Y : 0;
+      const logoY = (headerH - logoH) / 2 + offsetY;
+      const align = typeof LOGO_ALIGN !== 'undefined' ? LOGO_ALIGN : 'izquierda';
+      let logoX;
+      if(align === 'centro') logoX = (pageW - logoW) / 2;
+      else if(align === 'derecha') logoX = pageW - margen - logoW;
+      else logoX = margen;
+      doc.addImage(imgLogoHdr, 'PNG', logoX, logoY, logoW, logoH);
+    }
+    doc.setDrawColor(...goldRGB);
+    doc.setLineWidth(0.4);
+    doc.line(0, headerH, pageW, headerH);
+  }
+
+  pintarHeader();
+  let y = headerH + 9;
 
   const nombreTema = temaNombre || 'Tema sin nombre';
 
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+  doc.setTextColor(20, 20, 20);
   doc.text(nombreTema, margen, y); y += 7;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
   doc.text(`BPM ${bpm || '—'} · Compás ${compasTexto || '4/4'}${claveTxt ? ' · Clave: ' + claveTxt : ''}`, margen, y);
@@ -185,9 +242,9 @@ function generarEstructuraPDF(datos){
   // porque ese la reutiliza para marcar golpes acentuados.
   const dibujarIconoAcentoBreak = (x, yBase) => {
     doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.5);
-    doc.line(x, yBase - 3.4, x + 2.6, yBase - 1.7);
-    doc.line(x + 2.6, yBase - 1.7, x, yBase - 0.0);
-    return 4;
+    doc.line(x, yBase - 2.2, x + 1.7, yBase - 1.1);
+    doc.line(x + 1.7, yBase - 1.1, x, yBase - 0.0);
+    return 2.6;
   };
 
   // v1.3: (a pedido) vocabulario completo del patrón rítmico — sigue
@@ -210,14 +267,12 @@ function generarEstructuraPDF(datos){
   // golpe solo (por tener un "." o "-" al lado) lleva gancho individual.
   // Silencios y ligados no tienen cabeza ni plica propia — no "ocupan"
   // lugar en el agrupado de golpes, se dibujan aparte en una pasada previa.
-  // v1.7: (a pedido) líneas de compás — antes solo había una línea base
-  // continua, sin ninguna barra que marque dónde empieza/termina cada
-  // compás (a diferencia de notación real). Ahora dibujarPatronRitmico
-  // recibe `compases` (cuántos compases representa el patrón completo,
-  // mismo `total` que ya se le pasaba a dibujarCajaBreak) y dibuja: barra
-  // de apertura, barra de cierre, y una barra divisoria entre cada
-  // compás si son 2+. No cambia nada del resto del dibujo (golpes,
-  // silencios, ligados, acentos, agrupado de a 2).
+  // v1.7: (a pedido) líneas de compás — barra de apertura, cierre y una
+  // divisoria entre cada compás si la sección dura 2+ compases (mismo
+  // criterio visual que separa los acordes en dibujarCajaBreak). Nuevo
+  // parámetro `compases` (duración de la sección en compases, default 1
+  // si no se pasa, para no romper otros llamados existentes). No cambia
+  // el agrupado de a 2 ni el dibujo de golpes/silencios/ligados.
   const dibujarPatronRitmico = (patron, xStart, ancho, yBase, compases) => {
     const tokens = (patron || '').replace(/\s+/g, '').split('').filter(c => c === 'x' || c === 'X' || c === '.' || c === '-');
     if(!tokens.length) return 0;
@@ -228,16 +283,20 @@ function generarEstructuraPDF(datos){
     const esNota = (t) => t === 'x' || t === 'X';
     doc.setDrawColor(20); doc.setLineWidth(0.25);
     doc.line(xStart, yBase, xStart + ancho, yBase); // línea base (una sola, sin alturas)
-    // v1.7: barras de compás — apertura, cierre y divisorias internas.
-    // Altura fija chica (no depende de altoPlica) para que se lean como
-    // barras de compás y no se confundan con las plicas de los golpes.
+
+    // v1.7: barras de compás — apertura, cierre y divisorias intermedias
+    // si son 2+ compases. Mismo alto que la plica (de yBase-altoPlica a
+    // yBase), independiente del agrupado de golpes.
     const totalCompases = Math.max(1, compases || 1);
     doc.setDrawColor(20); doc.setLineWidth(0.3);
-    for(let k = 0; k <= totalCompases; k++){
-      const xBarra = xStart + (ancho * k / totalCompases);
-      doc.line(xBarra, yBase - 3, xBarra, yBase + 3);
+    doc.line(xStart, yBase - altoPlica, xStart, yBase);
+    doc.line(xStart + ancho, yBase - altoPlica, xStart + ancho, yBase);
+    if(totalCompases >= 2){
+      for(let c = 1; c < totalCompases; c++){
+        const xDiv = xStart + (ancho / totalCompases) * c;
+        doc.line(xDiv, yBase - altoPlica, xDiv, yBase);
+      }
     }
-    doc.setDrawColor(20); doc.setLineWidth(0.25);
     doc.setFillColor(20, 20, 20);
 
     // silencio: marca simplificada (dos trazos, no el símbolo estándar de
@@ -274,13 +333,13 @@ function generarEstructuraPDF(datos){
         doc.circle(xa, yBase, 0.9, 'F');
         doc.setLineWidth(0.35);
         doc.line(xa + 0.9, yBase, xa + 0.9, yBase - altoPlica);
-        if(a === 'X') dibujarIconoAcentoBreak(xa + 0.9 - 1.3, yBase - altoPlica - 1);
+        if(a === 'X') dibujarIconoAcentoBreak(xa + 0.9 - 0.85, yBase - altoPlica - 1);
       }
       if(esNota(b)){
         doc.circle(xb, yBase, 0.9, 'F');
         doc.setLineWidth(0.35);
         doc.line(xb + 0.9, yBase, xb + 0.9, yBase - altoPlica);
-        if(b === 'X') dibujarIconoAcentoBreak(xb + 0.9 - 1.3, yBase - altoPlica - 1);
+        if(b === 'X') dibujarIconoAcentoBreak(xb + 0.9 - 0.85, yBase - altoPlica - 1);
         if(esNota(a)){
           // corchete uniendo el par (2 corcheas agrupadas)
           doc.setLineWidth(0.9);
@@ -326,11 +385,6 @@ function generarEstructuraPDF(datos){
   //    el criterio ahora es escribir el ritmo real con el patrón (donde
   //    "X" mayúscula sigue marcando acento con ese mismo ícono, eso no
   //    cambia), en vez de un ícono genérico y fijo junto al texto.
-  // v1.6: (a pedido) se saca la palabra "BREAK" — ya está en el título de
-  // la sección (barra de color arriba dice "Break/Corte"), repetirlo acá
-  // era redundante. Si no hay nota de tiempo ni patrón cargados, ya no se
-  // reserva ninguna línea extra debajo de la caja (o de nada, si tampoco
-  // hay caja) — calcularAltoSeccion se ajustó igual más abajo.
   const dibujarCajaBreak = (acordes, total, nota, patron) => {
     const altoCaja = 15;
     const hayAcordes = Array.isArray(acordes) && acordes.some(a => (a || '').trim());
@@ -361,8 +415,8 @@ function generarEstructuraPDF(datos){
       doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(120);
       doc.text('(' + notaTxt + ')', margen, y);
       doc.setTextColor(20);
-      y += 6;
     }
+    y += 6;
     if((patron || '').trim()){
       y += 4;
       // v1.4: el patrón rítmico ahora se dibuja al ancho de la caja
@@ -419,9 +473,7 @@ function generarEstructuraPDF(datos){
       const altoBloque = (n) => {
         if(!esBreak) return Math.ceil(n / POR_FILA) * cajaAlto + 4;
         const hayAcordes = Array.isArray(s.acordesPorCompas) && s.acordesPorCompas.slice(0, n).some(a => (a||'').trim());
-        const hayNota = (s.notaTiempoCorte || '').trim();
-        const hayPatron = (s.patronRitmico || '').trim();
-        return (hayAcordes ? 15 + 3 : 0) + (hayNota ? 6 : 0) + (hayPatron ? 10 : 0);
+        return (hayAcordes ? 15 + 3 : 0) + 6 + ((s.patronRitmico||'').trim() ? 10 : 0);
       };
       const repeticiones = s.repeticiones || 1;
       if(repeticiones > 1){

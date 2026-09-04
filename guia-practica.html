@@ -4,7 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.36
+<!-- AUDIOLINK · guia-practica.html · v1.39
+     v1.39: FIX — v1.38 introdujo choque de nombres: header-config.js
+     también declara `const CLOUDINARY_CLOUD_NAME` (cloud del logo/header,
+     'dv7lelmoy'), distinto del cloud usado acá para audio ('mqwgjh3u').
+     Redeclarar un `const` con el mismo nombre es un SyntaxError que
+     frenaba TODO el script de esta página (pantalla se quedaba en
+     "Cargando..."). Se renombró la constante propia de este archivo a
+     CLOUDINARY_CLOUD_NAME_AUDIO (línea de declaración + su único uso en
+     subirArchivoACloudinary()). No se tocó header-config.js ni ningún
+     otro flujo.
+     v1.38: (a pedido) se conecta al header-config.js compartido — nuevo
+     <script src="header-config.js"> (antes de pdf-estructura.js), los 2
+     <img> ocultos #hdrLogo/#hdrDiffuser al final del body (mismo patrón
+     que logistica.html) y llamada a inicializarHeaderConfig() en un
+     DOMContentLoaded propio. Así el PDF de estructura (generado por
+     pdf-estructura.js v1.9) lee la misma config de logo/header que ya se
+     configura una sola vez en header-config.html. No toca ninguna otra
+     función ni flujo de esta página.
+     v1.37: (a pedido) mismo achique del ícono de acento (">") que
+     pdf-estructura.js v1.8, para que pantalla y PDF sigan viéndose igual.
      v1.36: (a pedido) líneas de compás en el preview de pantalla
      (patronRitmicoSVG) — mismo criterio que dibujarPatronRitmico en
      pdf-estructura.js v1.7: apertura, cierre y una divisoria entre cada
@@ -619,9 +638,15 @@
 <script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
+<script src="header-config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="pdf-estructura.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  inicializarHeaderConfig();
+});
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="nav.css">
@@ -1687,9 +1712,12 @@ function patronRitmicoSVG(patron, compases){
   // v1.35: mismo dibujo de acento (">") que dibujarIconoAcentoBreak en
   // pdf-estructura.js, adaptado a este tamaño de SVG — se ubica encima
   // de la cabeza de la plica cuando el token es "X" mayúscula.
+  // v1.37: (a pedido) mismo achique de ícono que dibujarIconoAcentoBreak
+  // en pdf-estructura.js v1.8 (≈65% del tamaño anterior), para que
+  // pantalla y PDF se vean igual.
   const acentoSVG = (cx) => {
-    const x0 = cx + 2.4 - 1.3, y0 = yBase - altoPlica - 1;
-    return `<path d="M ${x0} ${y0 - 3.4} L ${x0 + 2.6} ${y0 - 1.7} L ${x0} ${y0}" stroke="#1a1a1a" stroke-width="0.9" fill="none"/>`;
+    const x0 = cx + 2.4 - 0.85, y0 = yBase - altoPlica - 1;
+    return `<path d="M ${x0} ${y0 - 2.2} L ${x0 + 1.7} ${y0 - 1.1} L ${x0} ${y0}" stroke="#1a1a1a" stroke-width="0.9" fill="none"/>`;
   };
   let svg = `<svg width="${anchoTotal}" height="${alto}" viewBox="0 0 ${anchoTotal} ${alto}" xmlns="http://www.w3.org/2000/svg">`;
   svg += `<line x1="0" y1="${yBase}" x2="${anchoTotal}" y2="${yBase}" stroke="#999" stroke-width="1"/>`;
@@ -2236,13 +2264,13 @@ function eliminarMaqueta(i){
 // Cloudinary, no separa un tipo "audio" aparte) — eso habilita el
 // procesamiento con soporte de range requests, necesario para que el
 // seek/scrub de musico.html siga siendo instantáneo.
-const CLOUDINARY_CLOUD_NAME = 'mqwgjh3u';
+const CLOUDINARY_CLOUD_NAME_AUDIO = 'mqwgjh3u';
 const CLOUDINARY_PRESET_AUDIO = 'GUIASAUDIO';
 
 function subirArchivoACloudinary(file, onProgress){
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`);
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME_AUDIO}/video/upload`);
     xhr.upload.onprogress = (e) => {
       if(e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
     };
@@ -2384,6 +2412,9 @@ if(estaModoOfflineActivo()){
   });
 }
 </script>
+
+<img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none">
+<img id="hdrLogo"     src="img/logo%201.png"   style="display:none">
 
 </body>
 </html>

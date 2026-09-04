@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v3.100
+<!-- AUDIOLINK · musico.html · v3.101
+     v3.101: (a pedido) se conecta al header-config.js compartido — nuevo
+     <script src="header-config.js"> (antes de pdf-estructura.js), los 2
+     <img> ocultos #hdrLogo/#hdrDiffuser al final del body (mismo patrón
+     que logistica.html) y llamada a inicializarHeaderConfig() en un
+     DOMContentLoaded propio. Así el PDF de estructura (generado por
+     pdf-estructura.js v1.9) lee la misma config de logo/header que ya se
+     configura una sola vez en header-config.html. No toca ninguna otra
+     función ni flujo de esta página.
      v3.100: (a pedido, "que los dos PDF se vean iguales") exportarEstructuraPracticaPDF
      ya no dibuja el PDF acá adentro (dibujarCajas/dibujarCajaBreak propios,
      que estaban desincronizados de guia-practica.html: sin letra de
@@ -1008,6 +1016,7 @@
 <script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
+<script src="header-config.js"></script>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="pdf-estructura.js"></script>
@@ -1016,6 +1025,11 @@
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
   document.documentElement.setAttribute('data-tema', tema);
 })();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  inicializarHeaderConfig();
+});
 </script>
 <style>
 :root{
@@ -5720,6 +5734,9 @@ async function responderRsvp(proyectoId, sesionId, respuesta){
   }
 }
 </script>
+
+<img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none">
+<img id="hdrLogo"     src="img/logo%201.png"   style="display:none">
 
 </body>
 </html>

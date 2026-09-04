@@ -1,4 +1,24 @@
-// AUDIOLINK · header-config.js · v1.7
+// AUDIOLINK · header-config.js · v1.8
+// v1.8: (a pedido) la config del header ahora también se sincroniza a
+// Firestore (configHeader/global, un solo doc) además de localStorage —
+// ver sincronizarConfigHeaderFirestore() más abajo. Motivo: localStorage
+// es por navegador/dispositivo, así que páginas abiertas por otras
+// personas en sus propios dispositivos (ej. musico.html) no podían leer
+// la config guardada acá. Se enganchó UNA sola vez, al final de
+// actualizarHeaderPreview() (que ya se llama desde cada actualizar*() de
+// este archivo) en vez de agregar la escritura a mano en cada una de las
+// ~15 funciones — mismo efecto ("cada cambio también escribe a
+// Firestore"), un solo punto de entrada, cero riesgo de que una función
+// nueva se quede sin sincronizar. Con debounce de 600ms para no escribir
+// un doc por cada pixel que se arrastra en un slider. Se sincronizan
+// solo los campos que un PDF jsPDF usa de verdad (logo/diffuser path,
+// color, opacidades, tamaño/align/offsetY del logo, sin-fondo/sin-logo)
+// — los efectos CSS "solo modo piloto" (blur, grises, contraste, sombra,
+// rotación, hue, saturate, sepia) se omiten a propósito, ya documentados
+// como sin efecto en jsPDF. No cambia ningún flujo existente
+// (localStorage, preview, Cloudinary, galería) — es 100% agregado. Si
+// `db` (Firestore) no está disponible en la página, la sincronización se
+// omite en silencio (no rompe el preview).
 // v1.7: (1) Nuevo checkbox LOGO_SIN_LOGO — oculta el logo por completo
 // (display:none, no solo opacity) tanto en el preview (#headerPreviewLogo)
 // como en la imagen oculta que usa pintarHeader() de cada página
@@ -372,6 +392,36 @@ function construirFiltroDiffuser(){
   return partes.length ? partes.join(' ') : 'none';
 }
 
+// v1.8: escribe a configHeader/global (Firestore) los campos que jsPDF
+// usa de verdad, leídos tal cual quedan en localStorage (fuente única de
+// verdad ya existente). merge:true para no pisar otros campos que a
+// futuro se agreguen al doc por fuera de este archivo. Debounce de
+// 600ms: se llama desde actualizarHeaderPreview() en cada cambio, pero
+// solo se escribe una vez que el usuario deja de mover el control.
+let _syncConfigHeaderTimeout = null;
+function sincronizarConfigHeaderFirestore(){
+  if(typeof db === 'undefined' || !db) return;
+  clearTimeout(_syncConfigHeaderTimeout);
+  _syncConfigHeaderTimeout = setTimeout(() => {
+    const payload = {
+      logoPath: localStorage.getItem('audiolink_logo_path') || '',
+      diffuserPath: localStorage.getItem('audiolink_diffuser_path') || '',
+      headerColor: localStorage.getItem('audiolink_header_color') || HEADER_COLOR_DEFAULT,
+      headerSinFondo: localStorage.getItem('audiolink_header_sin_fondo') === '1',
+      headerColorOpacity: parseFloat(localStorage.getItem('audiolink_header_color_opacity')) || HEADER_COLOR_OPACITY_DEFAULT,
+      headerDiffuserOpacity: parseFloat(localStorage.getItem('audiolink_header_diffuser_opacity')) ?? HEADER_DIFFUSER_OPACITY_DEFAULT,
+      logoSize: parseFloat(localStorage.getItem('audiolink_logo_size')) || LOGO_SIZE_DEFAULT,
+      logoAlign: localStorage.getItem('audiolink_logo_align') || LOGO_ALIGN_DEFAULT,
+      logoOffsetY: parseFloat(localStorage.getItem('audiolink_logo_offset_y')) || LOGO_OFFSET_Y_DEFAULT,
+      logoSinLogo: localStorage.getItem('audiolink_logo_sin_logo') === '1',
+      actualizadoEn: new Date().toISOString()
+    };
+    db.collection('configHeader').doc('global').set(payload, { merge: true }).catch(err => {
+      console.warn('No se pudo sincronizar configHeader/global a Firestore:', err);
+    });
+  }, 600);
+}
+
 function actualizarHeaderPreview(){
   // Refleja visualmente (CSS, no jsPDF) las mismas variables que
   // pintarHeader() de cada página usa para exportar — puramente
@@ -446,6 +496,10 @@ function actualizarHeaderPreview(){
     if(capaColor) capaColor.style.background = `rgb(${HEADER_COLOR_RGB.join(',')})`;
     if(capaColor) capaColor.style.opacity = String(HEADER_COLOR_OPACITY);
   }
+
+  // v1.8: cada repintado del preview = cada cambio de valor real, así
+  // que este es el mismo punto de entrada para sincronizar a Firestore.
+  sincronizarConfigHeaderFirestore();
 }
 
 function inicializarHeaderConfig(){
