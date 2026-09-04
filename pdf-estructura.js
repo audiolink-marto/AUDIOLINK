@@ -1,4 +1,24 @@
-// AUDIOLINK · pdf-estructura.js · v1.10
+// AUDIOLINK · pdf-estructura.js · v1.13
+// v1.13: (a pedido) headerH sube de 28 a 38mm — igual que logistica.html
+// — así el recorte "cover" del diffuser usa la misma proporción
+// (pageW/headerH) que logistica.html y no se ve tan recortado/achatado
+// (antes 210/28≈7.5:1, ahora 210/38≈5.5:1, mucho más parecido al 215.9/
+// 38≈5.7:1 de logistica). Contrapartida asumida por el usuario: menos
+// espacio para las cajas de acordes debajo, que era la razón original de
+// v1.10 para dejarlo en 28mm. `y` arranca en headerH+9 = 47 (antes 37).
+// No se tocó el recorte cover en sí (recortarImagenCover), el color del
+// subtítulo (v1.12), ni ningún cálculo de compases/dibujo de cajas.
+// v1.12: FIX contraste — el subtítulo del header (derecha, "GUÍA DE
+// PRÁCTICA" + fecha) usaba crema/blanco (v1.11), pensado para un header
+// con velo oscuro como el de logistica.html. Esta hoja usa el header sin
+// ese velo (fondo queda con la textura metálica clara del diffuser tal
+// cual, a propósito, confirmado con el usuario vía captura), así que el
+// crema quedaba casi invisible sobre ese fondo claro. Se cambia a gris
+// oscuro (60,56,50), mismo tono que el logo, en vez de agregar un fondito
+// oscuro detrás del texto — así no se rompe el look limpio y claro del
+// header. No se tocó tamaño, posición, texto, logo, diffuser, ni ningún
+// otro color/cálculo. Afecta a guia-practica.html y musico.html (comparten
+// este archivo vía <script src>).
 // v1.10: (a pedido) header ampliado — de vuelta a franja de color +
 // diffuser + logo + subtítulo (mismo espíritu visual que logistica.html),
 // pero headerH=28mm (no 38mm): decisión acordada con el usuario, esta
@@ -137,7 +157,15 @@ function generarEstructuraPDF(datos){
   // corregido de logistica.html), legible sobre el fondo oscuro/
   // texturizado sin competir con el dorado.
   const goldRGB = [201, 162, 75];
-  const headerH = 28;
+  // v1.13: headerH sube de 28 a 38mm — igual que logistica.html — a
+  // pedido del usuario, para que el recorte "cover" del diffuser use la
+  // misma proporción (pageW/headerH) que logistica y no se vea tan
+  // recortado/achatado como con 28mm. Contrapartida ya asumida: menos
+  // espacio para las cajas de acordes debajo (que era la razón original
+  // de v1.10 para dejarlo en 28mm). El punto de arranque de `y` se ajusta
+  // proporcionalmente más abajo (ver `let y = headerH + 9`). No se tocó
+  // ningún cálculo de compases ni el resto del dibujo.
+  const headerH = 38;
   const imgDiffuserHdr = document.getElementById('hdrDiffuser');
   const imgLogoHdr = document.getElementById('hdrLogo');
   const diffuserOkHdr = imgDiffuserHdr && imgDiffuserHdr.complete && imgDiffuserHdr.naturalWidth > 0;
@@ -209,10 +237,19 @@ function generarEstructuraPDF(datos){
       doc.addImage(imgLogoHdr, 'PNG', logoX, logoY, logoW, logoH);
     }
     // v1.10: subtítulo derecha, mismo patrón que logistica.html.
-    // v1.11: color corregido (ver nota de contraste arriba).
+    // v1.11: color corregido a crema (ver nota de contraste arriba) —
+    // pensado para un header con velo oscuro encima, como logistica.html.
+    // v1.12: FIX contraste real — a diferencia de logistica.html, esta
+    // hoja usa el header sin velo oscuro (fondo queda con la textura
+    // metálica clara del diffuser tal cual, a propósito, confirmado con
+    // el usuario), así que el crema de v1.11 quedaba casi invisible sobre
+    // ese fondo claro. Se cambia a gris oscuro (mismo tono que el logo)
+    // en vez de agregar un fondito oscuro detrás, para no romper el look
+    // limpio del header. No toca tamaño, posición, texto, logo, diffuser
+    // ni ningún otro cálculo.
     doc.saveGraphicsState();
     doc.setGState(new doc.GState({ opacity: 0.85 }));
-    doc.setTextColor(250, 247, 238);
+    doc.setTextColor(60, 56, 50);
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
     doc.text('GUÍA DE PRÁCTICA', pageW - margen, headerH - 12, { align: 'right' });
