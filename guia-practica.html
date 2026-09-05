@@ -4,7 +4,171 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.40
+<!-- AUDIOLINK · guia-practica.html · v1.51
+     v1.51: (a pedido) ligadura más profunda — de 3 a 4.5 — se veía corta.
+     Sigue siendo la misma curva quadratic suave, solo más pronunciada.
+     Mismo criterio aplicado en pdf-estructura.js (dibujarLigado v1.29),
+     que además se corrigió de 2 líneas rectas en ángulo a la misma curva
+     bezier (antes se veían distintas entre preview y PDF). También en
+     pdf-estructura.js se corrigió el tamaño del acento (">"), que estaba
+     usando las medidas de un ícono pensado para otra escala y se veía
+     desproporcionado en el PDF — ver detalle en pdf-estructura.js v1.29.
+     No cambia acá en el preview (el acento del SVG ya estaba bien, según
+     confirmación directa).
+
+     v1.50: FIX — a pedido, tras revisar otra captura real: el corchete de
+     tresillo/sextillo volvió a anclarse de PLICA a PLICA (borde derecho
+     de la cabeza de la primera nota real del grupo hasta el mismo punto
+     de la última), en vez del borde del casillero — en v1.45 se había
+     extendido al ancho completo del grupo (para resolver que quedara
+     angosto/descentrado con silencios en las puntas), pero visualmente
+     el corchete se salía por los costados de la plica, y eso gustaba
+     menos que el problema que se había querido resolver. Como
+     consecuencia, el tick de cierre de v1.48 ya no hace falta (ambas
+     puntas del corchete siempre caen justo en una plica real, que ya
+     "cierra" la esquina por sí sola) y se saca. Si el grupo tiene un
+     solo golpe real (resto silencios), se dibuja la bandera curva en vez
+     de corchete, ya que no hay 2 plicas que unir. No cambia silencios,
+     ligados, parser, pesos, doble barra (v1.49) ni radios de cabeza
+     (v1.48). Mismo criterio aplicado en pdf-estructura.js
+     (dibujarPatronRitmico v1.28) para que preview y PDF sigan viéndose
+     igual — probado con jsPDF real antes de aplicar.
+
+     v1.49: (a pedido, acercando el dibujo a la notación musical estándar,
+     comparando con una tabla de referencia real) 3 ajustes:
+     1) Doble barra en el corchete cuando el grupo es de 6 (sextillo =
+     subdivisión en semicorcheas), igual que la notación real (semicorchea
+     siempre 2 barras); el tresillo (size=3, corchea) sigue con 1 sola.
+     Separación de 3.4 (barra de grosor 2.2) para que no se vean fundidas
+     en un bloque — y el tick de cierre se extiende de 3 a 5 para seguir
+     cerrando ambas puntas.
+     2) Plica más fina: de 1.4 a 0.9 de grosor.
+     3) Bandera curva (path bezier) en vez de la línea recta diagonal para
+     la corchea suelta — mismo alcance/tamaño, solo cambia la forma.
+     No toca silencios, ligados, parser, pesos, ni el ancho del corchete
+     de grupo (v1.46) ni el tick de cierre en sí (v1.48, solo se alargó).
+     Mismo criterio aplicado en pdf-estructura.js (dibujarPatronRitmico
+     v1.27) para que preview y PDF sigan viéndose igual — la curva bezier
+     se probó aislada en Node+jsPDF real antes de aplicarla, para no
+     arriesgar el PDF de producción.
+
+     v1.48: (a pedido, revisando otra captura real) 2 ajustes:
+     1) Vuelve la cabeza (círculo) de nota — se había sacado en v1.47,
+     pero no convenció estéticamente. Ahora, dentro de un grupo
+     (tresillo/sextillo) se dibuja más chica (r=1.3 en vez de 2.4) para
+     que las cabezas de golpes consecutivos no se toquen entre sí; fuera
+     de un grupo, cabeza normal como el diseño original.
+     2) El corchete de tresillo/sextillo suma un tick de cierre vertical
+     en cada punta — antes, si el extremo del grupo era un silencio (sin
+     plica propia que llegara hasta la altura del corchete), esa esquina
+     quedaba "abierta"/sin cerrar visualmente.
+     No cambia silencios, ligados, parser, pesos, ni el ancho del
+     corchete (v1.46). Mismo criterio aplicado en pdf-estructura.js
+     (dibujarPatronRitmico v1.26) para que preview y PDF sigan
+     viéndose igual.
+
+     v1.47: (a pedido) se saca la cabeza (círculo) de todas las notas del
+     patrón rítmico — queda solo la plica (línea vertical), como en la
+     notación de patrones de rasgueo/ritmo sin altura definida. Esto
+     resuelve que en tresillos/sextillos las cabezas de notas consecutivas
+     casi se tocaran entre sí (se veían "pegadas" en el sextillo). La
+     plica ahora se centra exactamente en el punto del pulso (antes iba
+     corrida +2.4 a la derecha para no pisar la cabeza) — el acento y los
+     corchetes de agrupado se reacomodan a este nuevo anclaje. No cambia
+     el ancho de los corchetes de tresillo/sextillo (v1.46), ni silencios,
+     ligados, parser o pesos. Mismo cambio aplicado en pdf-estructura.js
+     (dibujarPatronRitmico v1.25) para que preview y PDF sigan viéndose
+     igual.
+
+     v1.46: FIX — a pedido, tras revisar una captura real: el ajuste de
+     v1.45 (corchete de tresillo/sextillo cubriendo el ancho real del
+     grupo) tuvo 2 efectos colaterales:
+     1) El número (3/6), al centrarse ahora sobre el ancho completo del
+     grupo, en patrones con la nota acentuada cerca del centro quedaba
+     dibujado encima del ">" de acento y lo tapaba. Se sube la posición
+     del número (de yBase-altoPlica-3 a yBase-altoPlica-8) para que quede
+     siempre por encima de la franja del acento, nunca superpuesto. El
+     lienzo SVG crece de 40 a 48px de alto (todo el margen extra se suma
+     ARRIBA, no abajo — yBase sigue a alto-12 así que los silencios/barras
+     de compás no se mueven) para que el número no se corte.
+     2) El corchete, al llegar hasta el borde justo del grupo, en el
+     primer/último grupo del patrón terminaba tocando la línea de compás
+     y visualmente se "fundían" (se veía como si la línea de compás
+     hubiera crecido, aunque su alto no cambió). Se le resta 0.6px de
+     cada lado al corchete para separarlo visualmente de la barra.
+     Mismo criterio aplicado en pdf-estructura.js (dibujarPatronRitmico
+     v1.24) para que preview y PDF sigan viéndose igual.
+
+     v1.45: (a pedido) el corchete y el número de tresillo/sextillo en
+     patronRitmicoSVG ahora cubren el ancho REAL de todo el grupo (borde
+     izquierdo de su primera posición a borde derecho de su última), no
+     solo el tramo entre el primer y el último golpe — antes, si el grupo
+     empezaba o terminaba en silencio, el corchete quedaba angosto/corrido
+     y el número descentrado. Se dibuja siempre que el grupo sea válido,
+     aunque no tenga ningún golpe adentro. Mismo criterio aplicado en
+     paralelo en dibujarPatronRitmico (pdf-estructura.js v1.23) para que
+     preview y PDF sigan viéndose igual. No cambia el parser, el peso de
+     columnas, ni el dibujo de golpes/silencios/ligados.
+
+     v1.44: FIX — a pedido, tras revisar una captura real: la marca de
+     silencio (".") se dibujaba arriba, cerca de la plica, casi en la
+     misma zona y tamaño que el chevrón de acento (">") de la "X" — a
+     este tamaño de preview eran visualmente indistinguibles, aunque el
+     dato de fondo era correcto (solo la "X" llevaba acento; se verificó
+     generando el SVG a mano y contando: 1 solo chevrón dibujado). Ahora
+     el silencio se dibuja SIEMPRE debajo de la línea base, en gris tenue
+     (#999) en vez de negro — zona y color exclusivos, no puede
+     confundirse con el acento (que sigue arriba de la plica, en negro).
+     El lienzo SVG creció de 34 a 40px de alto (yBase bajó de 28 a 28
+     igual pero con más margen debajo) para que la marca no se corte.
+     Mismo cambio aplicado en pdf-estructura.js (dibujarPatronRitmico
+     v1.18) para que preview y PDF sigan viéndose igual.
+
+     v1.43: (a pedido) tresillos y sextillos en el patrón rítmico —
+     sintaxis nueva "{...}" dentro del mismo string libre: {xxx} = tresillo
+     (3 notas en el espacio de 2 corcheas), {xxxxxx} = sextillo (6 notas en
+     el mismo espacio). Conviven con el agrupado normal de a 2: todo lo
+     que quede fuera de {} sigue exactamente igual que siempre. Nuevas
+     funciones parsearPatronRitmico(), aplanarColumnasPatron() y
+     pesoTotalPatron() (compartidas entre patronRitmicoSVG y
+     avisoPatronVsCompas). patronRitmicoSVG reescrito para dibujar el
+     grupo con un corchete único + número (3/6) centrado arriba, en vez
+     del corchete de a pares de siempre, SOLO cuando el grupo es válido.
+     Un grupo mal formado (sin "}" de cierre, o con tamaño distinto de
+     3/6) se renderiza como notas sueltas sin bracket — no se dibuja algo
+     que no es un agrupado real. avisoPatronVsCompas() ahora: (1) reporta
+     ese error de patrón ANTES de calcular nada más si hay un grupo
+     inválido, (2) si todo es válido, compara "peso" en corcheas-
+     equivalentes contra lo esperado (un grupo siempre pesa 2 corcheas
+     completas, sin importar cuántas notas tenga adentro) en vez de
+     contar tokens 1 a 1 — mismo fórmula de esperados de siempre
+     (previewBeatsPerBar()*2*duracionCompases). Nuevos botones rápidos
+     "³ Tresillo" / "⁶ Sextillo" que insertan "{xxx}"/"{xxxxxx}" con
+     insertarSimboloPatron() (sin cambios en esa función: ya soportaba
+     strings de más de un carácter). Mismo parser/columnas duplicados a
+     mano en pdf-estructura.js (dibujarPatronRitmico v1.3) para que
+     pantalla y PDF se vean igual — mismo criterio de duplicación
+     deliberada que ya se usa en este módulo.
+
+     v1.42: (a pedido) botones rápidos de símbolo (♪ Golpe / ➤♪ Acento /
+     𝄽 Silencio) arriba del input de patrón rítmico — insertan "x"/"X"/"."
+     en la posición del cursor (nueva función insertarSimboloPatron()) en
+     vez de tener que escribirlos a mano. El input ahora tiene id
+     (patronRitmicoInput-N) para poder ubicarlo. NO se tocó el modelo de
+     datos (sigue siendo el mismo string libre en `patronRitmico`), ni
+     actualizarPatronRitmico() (se sigue llamando igual, sincroniza
+     preview+aviso como siempre), ni patronRitmicoSVG, ni
+     dibujarPatronRitmico en pdf-estructura.js — el input de texto libre
+     sigue funcionando igual que antes, esto es 100% aditivo encima.
+
+     v1.41: (a pedido) preview del patrón rítmico (patronRitmicoSVG) ~35%
+     más grande — se agregó width/height en CSS al <svg> (más grande que
+     el viewBox interno), que escala todo el dibujo vectorialmente sin
+     pixelar. No se tocó el viewBox ni ninguna coordenada del dibujo
+     (plicas, corchetes, silencios, líneas de compás) — es 100% visual,
+     mismo patrón que ya interpreta pintarSecciones()/PDF, sin cambios ahí.
+
+     v1.40
      v1.40: FIX — las imágenes ocultas #hdrDiffuser/#hdrLogo (v1.38) se
      hacían visibles y gigantes al final de la página: header-config.js
      resetea su `style.display` a '' (no 'none') cada vez que
@@ -1612,8 +1776,15 @@ function htmlAcordesSeccion(s, i){
           <input type="text" placeholder='ej: "tiempo 3", "y de 2"' value="${(s.notaTiempoCorte || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaTiempoCorte(${i}, this.value)">
         </div>
         <div class="seccion-contenido-campo">
-          <label>Patrón rítmico (opcional) — "x" golpe, "X" golpe acentuado, "." silencio, ej: x.xx.x..</label>
-          <input type="text" placeholder='ej: x.xx.x..' value="${(s.patronRitmico || '').replace(/"/g,'&quot;')}" oninput="actualizarPatronRitmico(${i}, this.value)">
+          <label>Patrón rítmico (opcional) — "x" golpe, "X" golpe acentuado, "." silencio, {xxx} tresillo, {xxxxxx} sextillo, ej: x.xx.x..{xxx}x.</label>
+          <div class="patron-simbolos-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+            <button type="button" class="btn-ghost" title="Insertar golpe" onclick="insertarSimboloPatron(${i}, 'x')">♪ Golpe</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe acentuado" onclick="insertarSimboloPatron(${i}, 'X')">➤♪ Acento</button>
+            <button type="button" class="btn-ghost" title="Insertar silencio" onclick="insertarSimboloPatron(${i}, '.')">𝄽 Silencio</button>
+            <button type="button" class="btn-ghost" title="Insertar tresillo (3 notas en el espacio de 2 corcheas)" onclick="insertarSimboloPatron(${i}, '{xxx}')">³ Tresillo</button>
+            <button type="button" class="btn-ghost" title="Insertar sextillo (6 notas en el espacio de 2 corcheas)" onclick="insertarSimboloPatron(${i}, '{xxxxxx}')">⁶ Sextillo</button>
+          </div>
+          <input type="text" id="patronRitmicoInput-${i}" placeholder='ej: x.xx.x..' value="${(s.patronRitmico || '').replace(/"/g,'&quot;')}" oninput="actualizarPatronRitmico(${i}, this.value)">
           <div id="patronRitmicoPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.patronRitmico, duracion)}</div>
           <div id="patronRitmicoAviso-${i}" style="margin-top:4px;font-size:0.75rem;color:var(--muted);">${avisoPatronVsCompas(s.patronRitmico, duracion)}</div>
         </div>` : '';
@@ -1704,74 +1875,210 @@ function actualizarAcordePorCompas(i, j, valor){
 // SVG de pantalla sin un tercer formato intermedio, así que se aceptó
 // duplicar esta lógica puntual (es corta: agrupar de a 2 y decidir
 // corchete/gancho/nada) a cambio de tener preview inmediato.
+// v1.43: (a pedido) tresillos/sextillos en el patrón rítmico — sintaxis
+// nueva "{...}" para marcar un grupo irregular dentro del mismo string
+// libre: {xxx} = tresillo (3 notas en el espacio de 2 corcheas), {xxxxxx}
+// = sextillo (6 notas en el mismo espacio de 2 corcheas). Conviven con el
+// agrupado normal de a 2 — todo lo que quede FUERA de {} sigue exactamente
+// igual que siempre (mismo corchete de a pares, mismo gancho suelto).
+// parsearPatronRitmico() separa el string en "items" (simple o grupo),
+// aplanarColumnasPatron() los convierte en columnas con su peso relativo
+// (una nota de tresillo pesa 2/3 de corchea, de sextillo 2/6 — así el
+// grupo completo sigue ocupando 2 corcheas de espacio visual/temporal,
+// sin importar cuántas notas tenga adentro). Un grupo mal formado (sin
+// "}" de cierre, o con un tamaño que no es 3 ni 6) se marca inválido:
+// NO se dibuja con corchete de tresillo (se renderiza como notas sueltas,
+// sin bracket, para no fingir un agrupado que no es válido) y
+// avisoPatronVsCompas() lo reporta como error en vez de calcular la
+// duración. Mismo parser/columnas duplicados en pdf-estructura.js
+// (dibujarPatronRitmico v1.3) por el mismo motivo de siempre: no hay
+// forma de compartir el dibujo entre jsPDF y SVG de pantalla sin un
+// tercer formato intermedio.
+function parsearPatronRitmico(patron){
+  const str = (patron || '').replace(/\s+/g, '');
+  const items = [];
+  let i = 0;
+  while(i < str.length){
+    const c = str[i];
+    if(c === '{'){
+      const fin = str.indexOf('}', i + 1);
+      const cerrado = fin !== -1;
+      const inner = cerrado ? str.slice(i + 1, fin) : str.slice(i + 1);
+      const valores = inner.split('').filter(ch => ch === 'x' || ch === 'X' || ch === '.' || ch === '-');
+      const n = valores.length;
+      const numero = (n === 3) ? 3 : (n === 6 ? 6 : null);
+      items.push({
+        tipo: 'grupo', valores, numero,
+        valido: cerrado && numero !== null,
+        motivo: !cerrado ? `"{${inner}" sin cerrar (falta "}")` : (numero === null ? `"{${inner}}" tiene ${n} nota(s) — un grupo debe tener 3 (tresillo) o 6 (sextillo)` : null)
+      });
+      i = cerrado ? fin + 1 : str.length;
+    } else if(c === 'x' || c === 'X' || c === '.' || c === '-'){
+      items.push({ tipo: 'simple', valor: c });
+      i++;
+    } else {
+      i++; // carácter desconocido fuera de {}: se ignora en silencio, igual que siempre
+    }
+  }
+  return items;
+}
+function aplanarColumnasPatron(items){
+  const cols = [];
+  items.forEach(it => {
+    if(it.tipo === 'simple'){
+      cols.push({ caracter: it.valor, peso: 1, grupo: null });
+    } else {
+      const pesoCada = it.valido ? (2 / it.valores.length) : 1;
+      it.valores.forEach((v, idx) => {
+        cols.push({
+          caracter: v, peso: pesoCada,
+          grupo: it.valido ? { numero: it.numero, idx, size: it.valores.length } : null
+        });
+      });
+    }
+  });
+  return cols;
+}
+function pesoTotalPatron(items){
+  let total = 0;
+  items.forEach(it => { total += (it.tipo === 'simple') ? 1 : (it.valido ? 2 : it.valores.length); });
+  return total;
+}
 function patronRitmicoSVG(patron, compases){
-  // v1.35: FIX — el .toLowerCase() de acá abajo igualaba "X" (golpe
-  // ACENTUADO) con "x" (golpe normal) antes de dibujar, así que el
-  // acento se perdía siempre en el preview de pantalla aunque sí se
-  // respetaba en el PDF (dibujarPatronRitmico usa el caracter tal cual,
-  // sin bajar a minúscula). Ahora se conserva el case original.
-  const tokens = (patron || '').replace(/\s+/g, '').split('').filter(c => c === 'x' || c === 'X' || c === '.');
-  if(!tokens.length) return '<span style="color:#888;font-size:11px;">Sin patrón — escribí "x" (golpe), "X" (golpe acentuado) y "." (silencio)</span>';
-  const n = tokens.length;
-  const anchoTotal = Math.max(60, n * 16);
-  const alto = 34;
-  const paso = anchoTotal / n;
-  const yBase = alto - 6;
+  const items = parsearPatronRitmico(patron);
+  if(!items.length) return '<span style="color:#888;font-size:11px;">Sin patrón — escribí "x" (golpe), "X" (golpe acentuado), "." (silencio); agrupá con {xxx} para tresillo o {xxxxxx} para sextillo</span>';
+  const cols = aplanarColumnasPatron(items);
+  const pesoTotal = pesoTotalPatron(items);
+  const n = cols.length;
+  const anchoTotal = Math.max(60, Math.round(pesoTotal * 16));
+  const alto = 48;
+  const yBase = alto - 12;
   const altoPlica = 16;
-  const xCentro = (idx) => paso * idx + paso / 2;
   const esGolpe = (c) => c === 'x' || c === 'X';
-  // v1.35: mismo dibujo de acento (">") que dibujarIconoAcentoBreak en
-  // pdf-estructura.js, adaptado a este tamaño de SVG — se ubica encima
-  // de la cabeza de la plica cuando el token es "X" mayúscula.
-  // v1.37: (a pedido) mismo achique de ícono que dibujarIconoAcentoBreak
-  // en pdf-estructura.js v1.8 (≈65% del tamaño anterior), para que
-  // pantalla y PDF se vean igual.
-  const acentoSVG = (cx) => {
-    const x0 = cx + 2.4 - 0.85, y0 = yBase - altoPlica - 1;
+  let acumPeso = 0;
+  const xInfo = cols.map(col => {
+    const x0 = (acumPeso / pesoTotal) * anchoTotal;
+    const ancho = (col.peso / pesoTotal) * anchoTotal;
+    acumPeso += col.peso;
+    return { xCentro: x0 + ancho / 2, x0, x1: x0 + ancho };
+  });
+  // v1.48: (a pedido) vuelve la cabeza de nota; acentoSVG ahora recibe
+  // directamente la coordenada X de la plica (ya no asume un radio fijo),
+  // así funciona igual con cabeza normal o con la cabeza chica de grupo.
+  const acentoSVG = (xPlica) => {
+    const x0 = xPlica - 0.85, y0 = yBase - altoPlica - 1;
     return `<path d="M ${x0} ${y0 - 2.2} L ${x0 + 1.7} ${y0 - 1.1} L ${x0} ${y0}" stroke="#1a1a1a" stroke-width="0.9" fill="none"/>`;
   };
-  let svg = `<svg width="${anchoTotal}" height="${alto}" viewBox="0 0 ${anchoTotal} ${alto}" xmlns="http://www.w3.org/2000/svg">`;
+  let svg = `<svg width="${anchoTotal}" height="${alto}" viewBox="0 0 ${anchoTotal} ${alto}" style="width:${Math.round(anchoTotal * 1.35)}px;height:${Math.round(alto * 1.35)}px;" xmlns="http://www.w3.org/2000/svg">`;
   svg += `<line x1="0" y1="${yBase}" x2="${anchoTotal}" y2="${yBase}" stroke="#999" stroke-width="1"/>`;
-  // v1.36: (a pedido) líneas de compás — mismo criterio que
-  // dibujarPatronRitmico en pdf-estructura.js v1.7: barra de apertura,
-  // barra de cierre y una divisoria entre cada compás si son 2+, para
-  // que pantalla y PDF se vean igual.
   const totalCompases = Math.max(1, compases || 1);
   for(let k = 0; k <= totalCompases; k++){
     const xBarra = (anchoTotal * k) / totalCompases;
     svg += `<line x1="${xBarra}" y1="${yBase - 4}" x2="${xBarra}" y2="${yBase + 4}" stroke="#1a1a1a" stroke-width="1"/>`;
   }
-  // v1.34: (a pedido) pasada de silencios — antes un token "." no dibujaba
-  // nada (hueco vacío), a diferencia del PDF (dibujarSilencio en
-  // pdf-estructura.js) que sí marca el silencio con un trazo propio.
-  // Mismo criterio visual acá (adaptado a SVG): dos líneas en zigzag
-  // centradas en el casillero, escaladas a este tamaño de preview.
+  // pasada de silencios y ligados (igual criterio visual que siempre)
+  // v1.44: (a pedido) FIX visual — la marca de silencio se movió de "arriba
+  // cerca de la plica" (donde se confundía con el chevrón de acento a
+  // este tamaño) a "abajo, colgando de la línea base", en gris tenue en
+  // vez de negro. Ahora ocupan zonas distintas del dibujo (silencio
+  // siempre debajo de la línea, acento siempre arriba de la plica) — no
+  // pueden confundirse aunque se achique el preview.
   for(let j = 0; j < n; j++){
-    if(tokens[j] !== '.') continue;
-    const xj = xCentro(j);
-    const yc = yBase - altoPlica * 0.45;
-    svg += `<line x1="${xj - 1.6}" y1="${yc - 2.4}" x2="${xj + 1.3}" y2="${yc + 0.7}" stroke="#1a1a1a" stroke-width="1.2"/>`;
-    svg += `<line x1="${xj + 1.3}" y1="${yc + 0.7}" x2="${xj - 0.4}" y2="${yc + 2.7}" stroke="#1a1a1a" stroke-width="1.2"/>`;
-  }
-  for(let g = 0; g < n; g += 2){
-    const a = tokens[g], b = (g + 1 < n) ? tokens[g + 1] : null;
-    const xa = xCentro(g), xb = (b != null) ? xCentro(g + 1) : null;
-    if(esGolpe(a)){
-      svg += `<circle cx="${xa}" cy="${yBase}" r="2.4" fill="#1a1a1a"/>`;
-      svg += `<line x1="${xa + 2.4}" y1="${yBase}" x2="${xa + 2.4}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="1.4"/>`;
-      if(a === 'X') svg += acentoSVG(xa);
+    const col = cols[j];
+    if(col.caracter === '.'){
+      const xj = xInfo[j].xCentro;
+      const yc = yBase + 4.5;
+      svg += `<line x1="${xj - 1.6}" y1="${yc - 2.4}" x2="${xj + 1.3}" y2="${yc + 0.7}" stroke="#999" stroke-width="1.1"/>`;
+      svg += `<line x1="${xj + 1.3}" y1="${yc + 0.7}" x2="${xj - 0.4}" y2="${yc + 2.7}" stroke="#999" stroke-width="1.1"/>`;
+    } else if(col.caracter === '-' && j > 0){
+      // v1.51: (a pedido) ligadura más profunda (de 3 a 4.5) — se veía
+      // corta/chata. Sigue siendo una curva suave (quadratic), solo más
+      // pronunciada.
+      const xDesde = xInfo[j - 1].xCentro, xHasta = xInfo[j].xCentro;
+      const yTie = yBase + 3, xMid = (xDesde + xHasta) / 2;
+      svg += `<path d="M ${xDesde} ${yTie} Q ${xMid} ${yTie + 4.5} ${xHasta} ${yTie}" stroke="#1a1a1a" stroke-width="0.9" fill="none"/>`;
     }
-    if(esGolpe(b)){
-      svg += `<circle cx="${xb}" cy="${yBase}" r="2.4" fill="#1a1a1a"/>`;
-      svg += `<line x1="${xb + 2.4}" y1="${yBase}" x2="${xb + 2.4}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="1.4"/>`;
-      if(b === 'X') svg += acentoSVG(xb);
-      if(esGolpe(a)){
-        svg += `<line x1="${xa + 2.4}" y1="${yBase - altoPlica}" x2="${xb + 2.4}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="2.6"/>`;
-      } else {
-        svg += `<line x1="${xb + 2.4}" y1="${yBase - altoPlica}" x2="${xb + 2.4 + 4}" y2="${yBase - altoPlica + 4}" stroke="#1a1a1a" stroke-width="1.2"/>`;
+  }
+  // cabezas + plicas + acento de todos los golpes (sueltos o en grupo)
+  // v1.48: (a pedido) vuelve la cabeza (círculo) — dentro de un grupo
+  // (tresillo/sextillo) se dibuja más chica (r=1.3 en vez de 2.4) para
+  // que no se toquen entre sí cuando quedan casilleros consecutivos con
+  // golpe; fuera de grupos, cabeza normal como el original. La plica se
+  // ubica siempre en el borde derecho de la cabeza (xj + r).
+  for(let j = 0; j < n; j++){
+    const col = cols[j];
+    if(!esGolpe(col.caracter)) continue;
+    const xj = xInfo[j].xCentro;
+    const r = col.grupo ? 1.3 : 2.4;
+    const xPlica = xj + r;
+    svg += `<circle cx="${xj}" cy="${yBase}" r="${r}" fill="#1a1a1a"/>`;
+    svg += `<line x1="${xPlica}" y1="${yBase}" x2="${xPlica}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="0.9"/>`;
+    if(col.caracter === 'X') svg += acentoSVG(xPlica);
+  }
+  // beams: grupos válidos llevan un solo corchete abarcando todo el grupo
+  // + el número (3/6) centrado arriba; fuera de grupo sigue el agrupado
+  // de a 2 de siempre (corchete de par / gancho suelto).
+  let j = 0;
+  while(j < n){
+    const col = cols[j];
+    if(col.grupo){
+      const size = col.grupo.size;
+      let jFin = j;
+      while(jFin < n && cols[jFin].grupo && cols[jFin].grupo.idx < size) jFin++;
+      // v1.50: (a pedido) FIX — el corchete vuelve a ir de PLICA a PLICA
+      // (borde derecho de la cabeza de la primera nota del grupo, hasta
+      // el mismo punto de la última), no del borde del casillero — en
+      // v1.45 se había extendido al ancho completo del grupo para que no
+      // quedara angosto/descentrado cuando el grupo empezaba o terminaba
+      // en silencio, pero visualmente el corchete quedaba "saliéndose"
+      // por los costados de la plica. Si el grupo tiene un solo golpe
+      // real (el resto puros silencios), se dibuja la bandera curva en
+      // vez de un corchete (no hay 2 plicas que unir). Si no tiene
+      // ningún golpe, no se dibuja nada (nada que conectar).
+      const idxGolpes = [];
+      for(let k = j; k < jFin; k++) if(esGolpe(cols[k].caracter)) idxGolpes.push(k);
+      if(idxGolpes.length >= 2){
+        const rIni = cols[idxGolpes[0]].grupo ? 1.3 : 2.4;
+        const rFin = cols[idxGolpes[idxGolpes.length - 1]].grupo ? 1.3 : 2.4;
+        const xIni = xInfo[idxGolpes[0]].xCentro + rIni;
+        const xFin = xInfo[idxGolpes[idxGolpes.length - 1]].xCentro + rFin;
+        svg += `<line x1="${xIni}" y1="${yBase - altoPlica}" x2="${xFin}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="2.2"/>`;
+        // v1.49: (a pedido) doble barra cuando el grupo es de 6 (sextillo =
+        // subdivisión en semicorcheas), igual que la notación real, donde
+        // semicorchea siempre lleva 2 barras y corchea (tresillo, size=3)
+        // lleva 1 sola. Separación de 3.4 (vs. grosor 2.2) para que quede
+        // un hueco blanco claro entre ambas y no se vean fundidas en un
+        // solo bloque.
+        if(size === 6){
+          svg += `<line x1="${xIni}" y1="${yBase - altoPlica + 3.4}" x2="${xFin}" y2="${yBase - altoPlica + 3.4}" stroke="#1a1a1a" stroke-width="2.2"/>`;
+        }
+        const xMedio = (xIni + xFin) / 2;
+        svg += `<text x="${xMedio}" y="${yBase - altoPlica - 8}" font-size="7" text-anchor="middle" fill="#1a1a1a" font-family="sans-serif">${col.grupo.numero}</text>`;
+      } else if(idxGolpes.length === 1){
+        const r = cols[idxGolpes[0]].grupo ? 1.3 : 2.4;
+        const xa = xInfo[idxGolpes[0]].xCentro + r;
+        const yTop = yBase - altoPlica;
+        svg += `<path d="M ${xa} ${yTop} C ${xa + 4.2} ${yTop + 0.8}, ${xa + 4.6} ${yTop + 3.6}, ${xa + 1.1} ${yTop + 6.5} C ${xa + 3} ${yTop + 3.4}, ${xa + 2.3} ${yTop + 1.6}, ${xa} ${yTop} Z" fill="#1a1a1a"/>`;
+        svg += `<text x="${xa}" y="${yBase - altoPlica - 8}" font-size="7" text-anchor="middle" fill="#1a1a1a" font-family="sans-serif">${col.grupo.numero}</text>`;
       }
-    } else if(esGolpe(a)){
-      svg += `<line x1="${xa + 2.4}" y1="${yBase - altoPlica}" x2="${xa + 2.4 + 4}" y2="${yBase - altoPlica + 4}" stroke="#1a1a1a" stroke-width="1.2"/>`;
+      j = jFin;
+    } else if(esGolpe(col.caracter)){
+      const nextCol = (j + 1 < n && !cols[j + 1].grupo) ? cols[j + 1] : null;
+      const xa = xInfo[j].xCentro + 2.4;
+      if(nextCol && esGolpe(nextCol.caracter)){
+        const xb = xInfo[j + 1].xCentro + 2.4;
+        svg += `<line x1="${xa}" y1="${yBase - altoPlica}" x2="${xb}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="2.6"/>`;
+        j += 2;
+      } else {
+        // v1.49: (a pedido) bandera curva (bezier) en vez de la línea
+        // recta diagonal, acercándose a la notación real de corchea
+        // suelta. Misma altura/alcance que antes, solo cambia la forma.
+        const yTop = yBase - altoPlica;
+        svg += `<path d="M ${xa} ${yTop} C ${xa + 4.2} ${yTop + 0.8}, ${xa + 4.6} ${yTop + 3.6}, ${xa + 1.1} ${yTop + 6.5} C ${xa + 3} ${yTop + 3.4}, ${xa + 2.3} ${yTop + 1.6}, ${xa} ${yTop} Z" fill="#1a1a1a"/>`;
+        j += 1;
+      }
+    } else {
+      j += 1;
     }
   }
   svg += '</svg>';
@@ -1788,6 +2095,26 @@ function actualizarNotaTiempoCorte(i, valor){
 // v1.32: además repinta el mini-preview SVG en pantalla (ver
 // patronRitmicoSVG, arriba) — actualización puntual de un solo div, no
 // un pintarSecciones() completo.
+// v1.42: (a pedido) botones rápidos de símbolo (golpe/acento/silencio)
+// para el patrón rítmico — insertan el carácter en la posición del
+// cursor del input de texto, en vez de tener que escribirlo a mano. NO
+// se toca el modelo de datos: sigue siendo el mismo string libre
+// ("x"/"X"/"."), el mismo campo `patronRitmico`, el mismo
+// actualizarPatronRitmico() de siempre (que ya repinta preview + aviso) —
+// esto es 100% aditivo sobre el input existente, reversible sin dejar
+// rastro si no se quiere más.
+function insertarSimboloPatron(i, simbolo){
+  const input = document.getElementById('patronRitmicoInput-' + i);
+  if(!input) return;
+  const inicio = input.selectionStart != null ? input.selectionStart : input.value.length;
+  const fin = input.selectionEnd != null ? input.selectionEnd : input.value.length;
+  const nuevoValor = input.value.slice(0, inicio) + simbolo + input.value.slice(fin);
+  input.value = nuevoValor;
+  actualizarPatronRitmico(i, nuevoValor);
+  input.focus();
+  const nuevaPos = inicio + simbolo.length;
+  input.setSelectionRange(nuevaPos, nuevaPos);
+}
 function actualizarPatronRitmico(i, valor){
   seccionesEnEdicion[i].patronRitmico = valor;
   const s = seccionesEnEdicion[i];
@@ -1807,17 +2134,32 @@ function actualizarPatronRitmico(i, valor){
 // compás real del tema (previewBeatsPerBar): en 4/4 son 8 símbolos por
 // compás, en 3/4 son 6, etc. No usa ninguna otra subdivisión (ver charla
 // con el staff) para no sumar una decisión más al flujo de carga.
+// v1.43: (a pedido) ahora valida también tresillos/sextillos — un grupo
+// {...} mal formado (sin cerrar, o con tamaño distinto de 3/6) se reporta
+// como error de patrón ANTES de calcular la duración (no tiene sentido
+// comparar contra el compás si el patrón en sí está mal escrito). Un
+// grupo válido pesa 2 corcheas completas sin importar cuántas notas
+// tenga adentro (ver pesoTotalPatron), así que la fórmula de "esperados"
+// (beatsPorBarra*2*duracionCompases) no cambia — sigue comparando
+// corcheas-equivalentes contra corcheas-equivalentes.
 function avisoPatronVsCompas(patron, duracionCompases){
-  const tokens = (patron || '').replace(/\s+/g, '').split('').filter(c => c === 'x' || c === 'X' || c === '.');
-  if(!tokens.length || duracionCompases == null) return '';
+  const items = parsearPatronRitmico(patron);
+  if(!items.length || duracionCompases == null) return '';
+  const invalidos = items.filter(it => it.tipo === 'grupo' && !it.valido);
+  if(invalidos.length){
+    const detalle = invalidos.map(it => it.motivo).join('; ');
+    return `<span style="color:#d9534f;">⚠ patrón inválido — ${detalle}</span>`;
+  }
   const beatsPorBarra = previewBeatsPerBar();
   const esperados = beatsPorBarra * 2 * duracionCompases;
-  const diff = esperados - tokens.length;
-  if(diff === 0){
-    return `<span style="color:#4caf7d;">✓ Completa ${duracionCompases} comp. exacto (${tokens.length}/${esperados} corcheas)</span>`;
+  const pesoTotal = pesoTotalPatron(items);
+  const fmt = (v) => (Math.round(v * 100) / 100).toString();
+  const diff = esperados - pesoTotal;
+  if(Math.abs(diff) < 0.01){
+    return `<span style="color:#4caf7d;">✓ Completa ${duracionCompases} comp. exacto (${fmt(pesoTotal)}/${esperados} corcheas)</span>`;
   }
   const quien = diff > 0 ? 'faltan' : 'sobran';
-  return `<span style="color:#d99a3d;">⚠ ${quien} ${Math.abs(diff)} corchea(s) para completar ${duracionCompases} comp. (${tokens.length}/${esperados})</span>`;
+  return `<span style="color:#d99a3d;">⚠ ${quien} ${fmt(Math.abs(diff))} corchea(s) para completar ${duracionCompases} comp. (${fmt(pesoTotal)}/${esperados})</span>`;
 }
 // v1.19: (a pedido, Fase 3) letra línea-por-línea, mismo índice de
 // compás que ya usan acordesCiclo/acordesPorCompas — sin campo de

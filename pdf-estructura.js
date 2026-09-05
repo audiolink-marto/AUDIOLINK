@@ -1,4 +1,196 @@
-// AUDIOLINK · pdf-estructura.js · v1.13
+// AUDIOLINK · pdf-estructura.js · v1.29
+// v1.29: (a pedido) 2 FIX de consistencia preview/PDF:
+// 1) Acento (">") del patrón se veía "muy grande" — estaba reusando
+// dibujarIconoAcentoBreak() con sus medidas fijas (2.2x1.7mm, grosor
+// 0.5mm), pensadas para otra escala/contexto en el documento. Se dibuja
+// ahora un acento propio dentro de dibujarPatronRitmico, escalado a la
+// misma proporción que usa patronRitmicoSVG en el preview (relativo a
+// altoPlica=6mm). NO se tocó dibujarIconoAcentoBreak en sí, por si se usa
+// en otro lado a su tamaño original — solo se dejó de llamar desde acá.
+// 2) Ligadura: estaba dibujada con 2 líneas rectas en ángulo (∧),
+// distinta a la curva suave del preview. Se reemplaza por una curva
+// bezier (aproximación cúbica de la misma quadratic del SVG) con la
+// misma profundidad proporcional (v1.51 en guia-practica.html).
+//
+// v1.28: FIX — mismo fix que guia-practica.html v1.50: el corchete de
+// tresillo/sextillo vuelve a ir de PLICA a PLICA (no del borde del
+// casillero, que se salía por los costados). Se saca el tick de cierre
+// de v1.26 (ya no hace falta, ambas puntas caen en una plica real). Si
+// el grupo tiene un solo golpe real, bandera curva en vez de corchete.
+// Probado con jsPDF real (test_patron3.pdf) antes de aplicar. No cambia
+// silencios, ligados, parser, pesos, doble barra (v1.27) ni radios de
+// cabeza (v1.26).
+//
+// v1.27: (a pedido) mismo cambio que guia-practica.html v1.49 —
+// acercando el dibujo a la notación musical estándar:
+// 1) Doble barra cuando el grupo es de 6 (sextillo/semicorchea), simple
+// para 3 (tresillo/corchea). Separación 1.3mm, barra 0.75mm de grosor,
+// tick de cierre extendido de 1.1 a 1.8mm para cerrar ambas.
+// 2) Plica más fina: de 0.35 a 0.28mm.
+// 3) Bandera curva (bezier vía doc.lines con segmentos de 6 valores) en
+// vez de la línea recta diagonal, para la corchea suelta. Probada
+// aislada en Node+jsPDF real (test_flag.pdf) antes de aplicarla acá,
+// para no arriesgar el PDF de producción sin verificar que jsPDF la
+// soporta bien.
+// No toca silencios, ligados, parser, pesos, ni el ancho del corchete de
+// grupo (v1.24).
+//
+// v1.26: (a pedido) mismo cambio que guia-practica.html v1.48 — vuelve la
+// cabeza de nota (más chica dentro de grupos, r=0.55mm vs 0.9mm, para que
+// no se toquen entre sí) y se agrega tick de cierre en cada punta del
+// corchete de tresillo/sextillo (antes quedaba "abierto" si el extremo
+// del grupo era un silencio). No cambia silencios, ligados, parser,
+// pesos, ni el ancho del corchete (v1.24).
+//
+// v1.25: (a pedido) mismo cambio que guia-practica.html v1.47 — se saca
+// la cabeza (círculo) de todas las notas del patrón rítmico, queda solo
+// la plica. Resuelve que en tresillos/sextillos las cabezas de notas
+// consecutivas quedaran casi pegadas entre sí. La plica se centra en el
+// punto exacto del pulso (antes +0.9 a la derecha). No cambia el ancho
+// de los corchetes de tresillo/sextillo (v1.24), silencios, ligados,
+// parser ni pesos.
+//
+// v1.24: FIX — mismo fix que guia-practica.html v1.46: el ajuste de v1.23
+// (corchete cubriendo el ancho real del grupo) tapaba el acento (">")
+// cuando la nota acentuada quedaba cerca del centro del grupo — se sube
+// el número de yBase-altoPlica-1 a yBase-altoPlica-4.5. Y el corchete, al
+// tocar la línea de compás en el primer/último grupo del patrón, se le
+// resta 0.25mm de cada lado para separarlo visualmente de la barra (antes
+// se "fundían" y parecía que la línea de compás había crecido, aunque su
+// alto no cambió). No requirió tocar el margen reservado (altoPlica+7)
+// porque el número sigue dentro de esa franja.
+//
+// v1.23: (a pedido) el corchete y el número de tresillo/sextillo en
+// dibujarPatronRitmico ahora cubren el ancho REAL de todo el grupo (borde
+// izquierdo de su primera posición a borde derecho de su última), no solo
+// el tramo entre el primer y el último golpe — antes, si el grupo
+// empezaba o terminaba en silencio, el corchete quedaba angosto/corrido y
+// el número descentrado. Se dibuja siempre que el grupo sea válido, aunque
+// no tenga ningún golpe adentro. Mismo criterio aplicado en paralelo en
+// patronRitmicoSVG (guia-practica.html v1.45) para que pantalla y PDF
+// sigan viéndose igual. No cambia el parser, el peso de columnas, ni el
+// dibujo de golpes/silencios/ligados.
+//
+// v1.22: FIX del fix de v1.21 — el diffuser ya no se estiraba, pero se
+// filtraba (sin recortar) por debajo del header, tapando el título y la
+// primera sección. Probado en aislado (Node + jsPDF real + render a
+// imagen): doc.rect(x,y,w,h) SIN un 4to argumento de estilo pinta un
+// trazo (stroke) por defecto, lo que "cierra" el path ANTES de que
+// doc.clip() llegue a aplicarlo — el recorte de PDF exige pedirse ANTES
+// de pintar el trazado. Fix real: doc.rect(x,y,w,h,null) — el `null`
+// evita que se pinte nada, dejando el path abierto para que clip() sí
+// lo tome. Verificado con un rectángulo de prueba: sin el `null` el
+// "recorte" no cortaba nada (se veía completo); con `null` corta
+// exactamente en el borde esperado. No cambia ningún otro cálculo.
+//
+// v1.21: FIX estiramiento del diffuser en local (file://) — reportado con
+// captura real (perillas ovaladas en vez de circulares). recortarImagenCover()
+// (canvas.toDataURL()) siempre tira SecurityError bajo file://, y el plan B
+// de v1.15/v1.20 (imagen sin recortar, forzada a pageW×headerH) estiraba la
+// imagen sin respetar su proporción. Se elimina recortarImagenCover() y se
+// reemplaza por dibujarDiffuserCover(): calcula el mismo tamaño "cover" de
+// siempre, pero en vez de recortar píxeles con canvas, dibuja la imagen
+// completa a ese tamaño (centrada, más grande que el header) y usa el
+// doc.rect()+doc.clip() nativo de jsPDF para ocultar visualmente el
+// sobrante — 100% vectorial, nunca lee píxeles por su cuenta, así que
+// funciona igual en file:// y en servidor. También usa detectarFormatoImagen()
+// (v1.20) en vez de asumir 'JPEG'. No cambia el logo, headerH, colores,
+// opacidades, ni ningún otro dibujo/cálculo de compases.
+//
+// v1.20: FIX real de fondo (el de v1.19 no alcanzaba en todos los casos)
+// — cuando el logo/diffuser cae al último recurso (raw <img> sin
+// convertir, por SecurityError de canvas bajo file://), el código
+// pasaba SIEMPRE 'JPEG' como formato a doc.addImage(), sin importar el
+// archivo real. El logo por defecto (img/logo 1.png) es un PNG: al
+// decirle a jsPDF que es JPEG, jsPDF no confía en el dato y sale a
+// re-verificar los bytes reales con un XMLHttpRequest interno propio —
+// ese XHR es el que queda bloqueado por CORS bajo file:// (mismo
+// síntoma ya visto: "botón no responde"), y por eso funcionaba con
+// rutas de Cloudinary (XHR remoto sí permitido por sus headers CORS)
+// pero no con el logo local por defecto. Nueva función
+// detectarFormatoImagen(src) lee la extensión real del archivo
+// (.png → 'PNG', .webp → 'WEBP', cualquier otro caso incl. URLs sin
+// extensión como Cloudinary → 'JPEG', igual que antes) y se usa en el
+// catch de logo Y diffuser. No cambia el camino feliz (canvas→dataURL,
+// que ya fuerza JPEG real vía toDataURL), ni headerH, colores, tamaños,
+// ni ningún otro dibujo.
+//
+// v1.19: FIX de fondo (el try/catch de v1.16 no alcanzaba) — el botón
+// "Exportar PDF" seguía sin responder en local (file://) en musico.html y
+// guia-practica.html. La consola mostró la causa real: jsPDF, al recibir
+// el <img> crudo del logo en doc.addImage(), sale a buscar los bytes
+// ORIGINALES del archivo con un XMLHttpRequest interno propio — ese XHR
+// queda bloqueado por CORS bajo file://, y el TypeError que sigue explota
+// DENTRO de un callback asíncrono de jsPDF (addimage.js), fuera de
+// cualquier try/catch síncrono alrededor de la llamada — por eso el
+// try/catch de v1.16 nunca lo atrapaba, aunque el síntoma (mismo mensaje
+// de error) era idéntico. Fix real: nueva función imagenComoDataURL()
+// convierte el logo a dataURL vía canvas ANTES de pasarlo a jsPDF (mismo
+// mecanismo que el diffuser ya usa con éxito desde v1.11/v1.15) — así
+// jsPDF ya tiene los bytes inline y nunca sale a buscarlos por su cuenta.
+// Verificado con el patrón real del logo (.jfif) reportado por el
+// usuario. No cambia headerH, colores, diffuser, ni ningún otro dibujo.
+//
+// v1.18: FIX — a pedido, tras revisar una captura real del preview: la
+// marca de silencio se dibujaba arriba, casi en la misma zona/tamaño que
+// el chevrón de acento, confundibles a simple vista. Ahora dibujarSilencio
+// dibuja SIEMPRE debajo de la línea base, en gris (150,150,150) en vez de
+// negro. dibujarPatronRitmico ahora reserva altoPlica+7 (antes +4) para
+// que el llamador no pise esa marca. Mismo cambio en guia-practica.html
+// (patronRitmicoSVG v1.44) para que preview y PDF se sigan viendo igual.
+//
+// v1.17: (a pedido) tresillos y sextillos en dibujarPatronRitmico —
+// misma sintaxis "{...}" que guia-practica.html (patronRitmicoSVG v1.43):
+// {xxx} tresillo, {xxxxxx} sextillo, ambos ocupan el espacio de 2
+// corcheas normales sin importar cuántas notas tengan adentro. Nuevas
+// funciones locales parsearPatronRitmico(), aplanarColumnasPatron() y
+// pesoTotalPatron() (duplicadas a mano en guia-practica.html por el
+// mismo motivo de siempre: jsPDF y SVG de pantalla no comparten dibujo).
+// dibujarPatronRitmico ahora posiciona cada columna según su peso
+// relativo (antes era ancho/n fijo) y dibuja los grupos válidos con un
+// corchete único + número (3/6) centrado arriba en vez del corchete de a
+// pares de siempre. Un grupo mal formado se dibuja como notas sueltas
+// sin bracket. No cambia la firma de la función ni lo que devuelve
+// (altoPlica + 4), ni ningún otro dibujo de este archivo.
+//
+// v1.16: FIX — el fallback de v1.15 no alcanzaba: la consola mostró que
+// el verdadero corte pasaba en el LOGO, no en el diffuser. Bajo file://,
+// jsPDF intenta traer los bytes originales del logo con un
+// XMLHttpRequest directo al archivo (para incrustar el JPEG/JFIF sin
+// recomprimir, mejor calidad) — esa petición queda bloqueada por CORS
+// sin excepción posible bajo file:// (más estricto que el "tainted
+// canvas" del diffuser), y tiraba un TypeError no capturado dentro de
+// addImage() (Cannot read properties of undefined (reading 'data')) que
+// cortaba TODO el PDF. Se envuelve ese doc.addImage() del logo en
+// try/catch: si falla, se omite el logo puntual (el resto del header —
+// diffuser, línea dorada, subtítulo — sigue intacto) en vez de cortar la
+// generación completa. Servido por Netlify (http/https, mismo origen) el
+// logo vuelve a incrustarse normal, sin cambios. No es un bug 100%
+// arreglable en file:// (XMLHttpRequest a archivos locales está
+// bloqueado sin excepción en el navegador) — la recomendación real es
+// probar sirviendo el HTML con un servidor local (ej. `netlify dev`,
+// Live Server), donde este problema no existe.
+// v1.15: FIX — recortarImagenCover (v1.11) usa canvas.toDataURL(), que
+// tira SecurityError ("tainted canvas") si el HTML se abre con file://
+// (sin servidor) en vez de http(s), ya que el navegador no confía en
+// imágenes locales cargadas así para leer el canvas. Eso cortaba TODA la
+// generación del PDF sin aviso — el botón "Exportar PDF" quedaba sin
+// responder en local, mientras que logistica.html (que nunca usa canvas,
+// solo addImage directo con el <img>) sí funcionaba. Se envuelve el
+// llamado en try/catch dentro de pintarHeader(): si falla, cae a
+// addImage directo con la imagen original sin recortar (mismo criterio
+// que logistica.html) — se pierde el recorte "cover" fino solo en ese
+// caso puntual (file://), el PDF se sigue generando igual. Servido por
+// Netlify (mismo origen http/https) el recorte cover sigue funcionando
+// normal, sin cambios. No toca headerH, colores, ni el resto del dibujo.
+// v1.14: (a pedido) el subtítulo del header ("GUÍA DE PRÁCTICA" + fecha)
+// seguía con poco contraste (v1.12) contra las líneas de la textura del
+// diffuser en esa zona. Se oscurece más (25,22,18, casi negro), el título
+// pasa a negrita y opacidad plena (antes 0.85, gris 60,56,50) — la fecha
+// queda en peso normal para mantener la jerarquía. Sigue sin fondito
+// detrás (decisión tomada con el usuario, prioriza el look limpio del
+// header sobre agregar un parche). No toca tamaño, posición, texto, logo,
+// diffuser, headerH, ni ningún otro cálculo.
 // v1.13: (a pedido) headerH sube de 28 a 38mm — igual que logistica.html
 // — así el recorte "cover" del diffuser usa la misma proporción
 // (pageW/headerH) que logistica.html y no se ve tan recortado/achatado
@@ -181,36 +373,68 @@ function generarEstructuraPDF(datos){
   // tipo "cover" (mismo criterio que background-size:cover en CSS): se
   // recorta el sobrante de la imagen (centrado) para llenar el header sin
   // deformarla, en vez de estirarla. Se calcula una sola vez por PDF.
-  function recortarImagenCover(img, targetWmm, targetHmm){
+  // v1.21: recorte "cover" del diffuser, ahora 100% vectorial (rect+clip
+  // nativo de jsPDF) — reemplaza a recortarImagenCover() (basado en
+  // canvas.toDataURL(), eliminada). El canvas fallaba siempre bajo
+  // file:// (SecurityError, "tainted canvas"); el plan B de v1.15/v1.20
+  // (imagen sin recortar, forzada a pageW×headerH) ESTIRABA la imagen
+  // (perillas ovaladas en vez de circulares, visto en captura real del
+  // usuario). Esta versión calcula el tamaño real "cover" (misma
+  // matemática de antes: iguala el lado que sobra y centra) pero en vez
+  // de recortar píxeles con canvas, dibuja la imagen completa a ese
+  // tamaño (más grande que el hueco del header) y usa doc.clip() para
+  // ocultar visualmente el sobrante — nunca lee píxeles por su cuenta,
+  // así que funciona igual en file:// y en servidor, sin try/catch.
+  function dibujarDiffuserCover(img, targetWmm, targetHmm, opacity, formato){
     const targetRatio = targetWmm / targetHmm;
     const srcRatio = img.naturalWidth / img.naturalHeight;
-    let sx, sy, sw, sh;
+    let drawW, drawH;
     if(srcRatio > targetRatio){
-      sh = img.naturalHeight;
-      sw = sh * targetRatio;
-      sx = (img.naturalWidth - sw) / 2;
-      sy = 0;
+      drawH = targetHmm;
+      drawW = targetHmm * srcRatio;
     } else {
-      sw = img.naturalWidth;
-      sh = sw / targetRatio;
-      sx = 0;
-      sy = (img.naturalHeight - sh) / 2;
+      drawW = targetWmm;
+      drawH = targetWmm / srcRatio;
     }
+    const drawX = (targetWmm - drawW) / 2;
+    const drawY = (targetHmm - drawH) / 2;
+    doc.saveGraphicsState();
+    doc.rect(0, 0, targetWmm, targetHmm, null);
+    doc.clip();
+    doc.discardPath();
+    doc.setGState(new doc.GState({ opacity }));
+    doc.addImage(img, formato, drawX, drawY, drawW, drawH);
+    doc.restoreGraphicsState();
+  }
+  // v1.19: (a pedido, FIX real de fondo) conversión simple imagen→dataURL
+  // vía canvas, SIN recorte (a diferencia de recortarImagenCover) — para
+  // el logo, que no necesita "cover", solo evitar que jsPDF reciba el
+  // <img> crudo. Mismo mecanismo que ya usa el diffuser desde v1.11/v1.15
+  // (canvas.drawImage + toDataURL), reutilizado tal cual.
+  function imagenComoDataURL(img, calidad){
     const canvas = document.createElement('canvas');
-    canvas.width = sw;
-    canvas.height = sh;
-    canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-    return canvas.toDataURL('image/jpeg', 0.92);
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    return canvas.toDataURL('image/jpeg', calidad != null ? calidad : 0.95);
+  }
+  // v1.20: solo se usa en el camino de "último recurso" (raw <img> sin
+  // convertir vía canvas) — ahí SÍ importa que el formato declarado a
+  // jsPDF coincida con el archivo real, para que no salga a re-verificar
+  // los bytes por su cuenta (ver changelog v1.20 arriba). Default 'JPEG'
+  // cubre .jpg/.jpeg/.jfif y también rutas sin extensión reconocible
+  // (ej. URLs de Cloudinary), igual que el comportamiento anterior.
+  function detectarFormatoImagen(src){
+    const limpio = (src || '').split('?')[0].split('#')[0].toLowerCase();
+    if(limpio.endsWith('.png')) return 'PNG';
+    if(limpio.endsWith('.webp')) return 'WEBP';
+    return 'JPEG';
   }
 
   function pintarHeader(){
     if(!headerSinFondo){
       if(diffuserOkHdr){
-        const diffuserCover = recortarImagenCover(imgDiffuserHdr, pageW, headerH);
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: headerDiffuserOpacity }));
-        doc.addImage(diffuserCover, 'JPEG', 0, 0, pageW, headerH);
-        doc.restoreGraphicsState();
+        dibujarDiffuserCover(imgDiffuserHdr, pageW, headerH, headerDiffuserOpacity, detectarFormatoImagen(imgDiffuserHdr.src));
         doc.saveGraphicsState();
         doc.setGState(new doc.GState({ opacity: headerColorOpacity }));
         doc.setFillColor(...headerColorRGB);
@@ -234,7 +458,31 @@ function generarEstructuraPDF(datos){
       if(align === 'centro') logoX = (pageW - logoW) / 2;
       else if(align === 'derecha') logoX = pageW - margen - logoW;
       else logoX = margen;
-      doc.addImage(imgLogoHdr, 'PNG', logoX, logoY, logoW, logoH);
+      // v1.19: FIX de FONDO (el try/catch de v1.16 no alcanzaba) — el
+      // error real, visto en consola bajo file://, es un XMLHttpRequest
+      // interno de jsPDF que sale a buscar los bytes ORIGINALES del logo
+      // cuando se le pasa el <img> crudo a addImage(). Ese XHR queda
+      // bloqueado por CORS y el TypeError que sigue explota DENTRO de un
+      // callback asíncrono de jsPDF (addimage.js) — fuera de cualquier
+      // try/catch síncrono puesto alrededor del addImage() en sí, por eso
+      // v1.16 no lo atrapaba pese a envolver la llamada. La solución real
+      // (mismo mecanismo ya probado acá con el diffuser desde v1.15):
+      // convertir el logo a dataURL vía canvas ANTES de pasarlo a jsPDF —
+      // así jsPDF ya tiene los bytes inline y nunca sale a buscarlos por
+      // su cuenta, evitando el XHR problemático de raíz.
+      let logoParaPintar = imgLogoHdr;
+      let logoFormato = 'JPEG';
+      try {
+        logoParaPintar = imagenComoDataURL(imgLogoHdr);
+        // imagenComoDataURL() fuerza JPEG real vía canvas.toDataURL(), así
+        // que 'JPEG' siempre es correcto en este camino (éxito).
+      } catch(e){
+        logoParaPintar = imgLogoHdr; // último recurso: sin conversión, ver v1.16
+        logoFormato = detectarFormatoImagen(imgLogoHdr.src); // v1.20: formato real, no asumido
+      }
+      try {
+        doc.addImage(logoParaPintar, logoFormato, logoX, logoY, logoW, logoH);
+      } catch(e){ /* logo omitido puntualmente, ver nota v1.19 arriba */ }
     }
     // v1.10: subtítulo derecha, mismo patrón que logistica.html.
     // v1.11: color corregido a crema (ver nota de contraste arriba) —
@@ -247,12 +495,19 @@ function generarEstructuraPDF(datos){
     // en vez de agregar un fondito oscuro detrás, para no romper el look
     // limpio del header. No toca tamaño, posición, texto, logo, diffuser
     // ni ningún otro cálculo.
+    // v1.14: (a pedido) el gris de v1.12 seguía perdiéndose contra las
+    // líneas de la textura del diffuser en esa zona — se oscurece más
+    // (casi negro), pasa a negrita y a opacidad plena (antes 0.85), sigue
+    // sin fondito atrás (decisión tomada con el usuario: prioriza el look
+    // limpio del header). No toca tamaño, posición, texto, logo, diffuser
+    // ni ningún otro cálculo.
     doc.saveGraphicsState();
-    doc.setGState(new doc.GState({ opacity: 0.85 }));
-    doc.setTextColor(60, 56, 50);
+    doc.setGState(new doc.GState({ opacity: 1 }));
+    doc.setTextColor(25, 22, 18);
     doc.setFontSize(8.5);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'bold');
     doc.text('GUÍA DE PRÁCTICA', pageW - margen, headerH - 12, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - margen, headerH - 5, { align: 'right' });
     doc.restoreGraphicsState();
@@ -395,13 +650,65 @@ function generarEstructuraPDF(datos){
   // parámetro `compases` (duración de la sección en compases, default 1
   // si no se pasa, para no romper otros llamados existentes). No cambia
   // el agrupado de a 2 ni el dibujo de golpes/silencios/ligados.
+  // v1.3: (a pedido) tresillos/sextillos — misma sintaxis "{...}" dentro
+  // del patrón libre que patronRitmicoSVG en guia-practica.html: {xxx}
+  // tresillo, {xxxxxx} sextillo, ambos ocupan el mismo espacio de 2
+  // corcheas normales sin importar cuántas notas tengan adentro. Parser
+  // y aplanado de columnas duplicados a mano acá (mismo criterio de
+  // duplicación deliberada de siempre entre jsPDF y SVG de pantalla) para
+  // que PDF y preview se vean igual. Un grupo mal formado (sin "}" de
+  // cierre, o con tamaño distinto de 3/6) se dibuja como notas sueltas
+  // sin bracket — no se dibuja un agrupado que no es válido.
+  const parsearPatronRitmico = (patron) => {
+    const str = (patron || '').replace(/\s+/g, '');
+    const items = [];
+    let i = 0;
+    while(i < str.length){
+      const c = str[i];
+      if(c === '{'){
+        const fin = str.indexOf('}', i + 1);
+        const cerrado = fin !== -1;
+        const inner = cerrado ? str.slice(i + 1, fin) : str.slice(i + 1);
+        const valores = inner.split('').filter(ch => ch === 'x' || ch === 'X' || ch === '.' || ch === '-');
+        const n = valores.length;
+        const numero = (n === 3) ? 3 : (n === 6 ? 6 : null);
+        items.push({ tipo: 'grupo', valores, numero, valido: cerrado && numero !== null });
+        i = cerrado ? fin + 1 : str.length;
+      } else if(c === 'x' || c === 'X' || c === '.' || c === '-'){
+        items.push({ tipo: 'simple', valor: c });
+        i++;
+      } else {
+        i++;
+      }
+    }
+    return items;
+  };
+  const aplanarColumnasPatron = (items) => {
+    const cols = [];
+    items.forEach(it => {
+      if(it.tipo === 'simple'){
+        cols.push({ caracter: it.valor, peso: 1, grupo: null });
+      } else {
+        const pesoCada = it.valido ? (2 / it.valores.length) : 1;
+        it.valores.forEach((v, idx) => {
+          cols.push({ caracter: v, peso: pesoCada, grupo: it.valido ? { numero: it.numero, idx, size: it.valores.length } : null });
+        });
+      }
+    });
+    return cols;
+  };
+  const pesoTotalPatron = (items) => {
+    let total = 0;
+    items.forEach(it => { total += (it.tipo === 'simple') ? 1 : (it.valido ? 2 : it.valores.length); });
+    return total;
+  };
   const dibujarPatronRitmico = (patron, xStart, ancho, yBase, compases) => {
-    const tokens = (patron || '').replace(/\s+/g, '').split('').filter(c => c === 'x' || c === 'X' || c === '.' || c === '-');
-    if(!tokens.length) return 0;
-    const n = tokens.length;
-    const paso = ancho / n;
+    const items = parsearPatronRitmico(patron);
+    if(!items.length) return 0;
+    const cols = aplanarColumnasPatron(items);
+    const pesoTotal = pesoTotalPatron(items);
+    const n = cols.length;
     const altoPlica = 6;
-    const xCentro = (idx) => xStart + paso * idx + paso / 2;
     const esNota = (t) => t === 'x' || t === 'X';
     doc.setDrawColor(20); doc.setLineWidth(0.25);
     doc.line(xStart, yBase, xStart + ancho, yBase); // línea base (una sola, sin alturas)
@@ -421,63 +728,178 @@ function generarEstructuraPDF(datos){
     }
     doc.setFillColor(20, 20, 20);
 
+    // posiciones: ancho de cada columna proporcional a su peso (una nota
+    // de tresillo/sextillo pesa menos que una corchea suelta, pero el
+    // grupo completo sigue ocupando el mismo espacio de 2 corcheas).
+    let acumPeso = 0;
+    const xInfo = cols.map(col => {
+      const x0 = xStart + (acumPeso / pesoTotal) * ancho;
+      const w = (col.peso / pesoTotal) * ancho;
+      acumPeso += col.peso;
+      return { xCentro: x0 + w / 2, x0, x1: x0 + w };
+    });
+
     // silencio: marca simplificada (dos trazos, no el símbolo estándar de
-    // edición impresa) centrada en su casillero.
+    // edición impresa) — v1.18: ahora colgando DEBAJO de la línea base,
+    // en gris tenue, para no confundirse con el acento (que va arriba de
+    // la plica, en negro). Antes iba arriba cerca de la plica y a este
+    // tamaño era casi indistinguible del chevrón de acento.
     const dibujarSilencio = (x) => {
-      doc.setDrawColor(20); doc.setLineWidth(0.5);
-      const yc = yBase - altoPlica * 0.45;
+      doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.45);
+      const yc = yBase + 2;
       doc.line(x - 1.1, yc - 1.6, x + 0.9, yc + 0.5);
       doc.line(x + 0.9, yc + 0.5, x - 0.3, yc + 1.8);
+      doc.setDrawColor(20);
     };
     // ligado: arco chico entre la posición anterior y esta.
+    // v1.29: (a pedido) FIX — la ligadura estaba dibujada con 2 líneas
+    // rectas formando un ángulo (∧), distinta a la curva suave del
+    // preview (patronRitmicoSVG). Se reemplaza por una curva bezier
+    // (aproximación cúbica de la misma quadratic que usa el SVG: mismos
+    // puntos de control convertidos con la fórmula estándar C1=P0+2/3
+    // (Q-P0), C2=P1+2/3(Q-P1)) para que preview y PDF se vean IGUAL.
+    // Profundidad 1.7mm, misma proporción que el preview (4.5 con
+    // altoPlica=16 → ratio 0.28; acá altoPlica=6 → 6*0.28≈1.7).
     const dibujarLigado = (xDesde, xHasta) => {
       doc.setDrawColor(20); doc.setLineWidth(0.35);
       const yTie = yBase + 2;
-      const xMid = (xDesde + xHasta) / 2;
-      doc.line(xDesde, yTie, xMid, yTie - 1.3);
-      doc.line(xMid, yTie - 1.3, xHasta, yTie);
+      const profundidad = 1.7;
+      const dx = xHasta - xDesde;
+      doc.lines(
+        [[dx / 3, (2 / 3) * profundidad, (dx * 2) / 3, (2 / 3) * profundidad, dx, 0]],
+        xDesde, yTie, [1, 1], 'S', false
+      );
     };
 
-    // pasada 1: silencios y ligados (independiente del agrupado de a 2)
+    // pasada 1: silencios y ligados (independiente del agrupado de golpes)
     for(let j = 0; j < n; j++){
-      const t = tokens[j];
-      if(t === '.') dibujarSilencio(xCentro(j));
-      else if(t === '-' && j > 0) dibujarLigado(xCentro(j - 1), xCentro(j));
+      const col = cols[j];
+      if(col.caracter === '.') dibujarSilencio(xInfo[j].xCentro);
+      else if(col.caracter === '-' && j > 0) dibujarLigado(xInfo[j - 1].xCentro, xInfo[j].xCentro);
     }
 
-    // pasada 2: golpes (x/X) — cabeza, plica, acento si corresponde, y
-    // agrupado de a 2 con corchete/gancho (mismo criterio que v1.2).
-    for(let g = 0; g < n; g += 2){
-      const a = tokens[g];
-      const b = (g + 1 < n) ? tokens[g + 1] : null;
-      const xa = xCentro(g), xb = b != null ? xCentro(g + 1) : null;
-      if(esNota(a)){
-        doc.circle(xa, yBase, 0.9, 'F');
-        doc.setLineWidth(0.35);
-        doc.line(xa + 0.9, yBase, xa + 0.9, yBase - altoPlica);
-        if(a === 'X') dibujarIconoAcentoBreak(xa + 0.9 - 0.85, yBase - altoPlica - 1);
+    // pasada 2: golpes (x/X) — cabeza, plica, acento si corresponde
+    // v1.26: (a pedido) vuelve la cabeza — dentro de un grupo
+    // (tresillo/sextillo) se dibuja más chica (r=0.55mm en vez de 0.9mm)
+    // para que no se toquen entre sí; fuera de grupos, cabeza normal.
+    for(let j = 0; j < n; j++){
+      const col = cols[j];
+      if(!esNota(col.caracter)) continue;
+      const xj = xInfo[j].xCentro;
+      const r = col.grupo ? 0.55 : 0.9;
+      const xPlica = xj + r;
+      doc.circle(xj, yBase, r, 'F');
+      doc.setLineWidth(0.28);
+      doc.line(xPlica, yBase, xPlica, yBase - altoPlica);
+      // v1.29: (a pedido) FIX — el acento se veía "muy grande" en el PDF.
+      // Estaba reusando dibujarIconoAcentoBreak() con sus medidas fijas
+      // (2.2 x 1.7mm, grosor 0.5mm), pensadas para un ícono a tamaño de
+      // lectura normal en otra parte del documento — acá, sobre una
+      // plica de solo 6mm de alto (altoPlica), esas medidas resultaban
+      // desproporcionadas (el acento ocupaba más de un tercio del alto
+      // de la plica). Se dibuja un acento propio, escalado a la misma
+      // proporción que usa patronRitmicoSVG en el preview (alto ≈13.75%
+      // de altoPlica, ancho ≈77% del alto, grosor ≈5.6% de altoPlica) —
+      // no se toca dibujarIconoAcentoBreak por si se usa en otro lado a
+      // su tamaño original.
+      if(col.caracter === 'X'){
+        const ax = xPlica - 0.32, ay = yBase - altoPlica - 0.4;
+        doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.34);
+        doc.line(ax, ay - 0.83, ax + 0.64, ay - 0.42);
+        doc.line(ax + 0.64, ay - 0.42, ax, ay - 0.0);
       }
-      if(esNota(b)){
-        doc.circle(xb, yBase, 0.9, 'F');
-        doc.setLineWidth(0.35);
-        doc.line(xb + 0.9, yBase, xb + 0.9, yBase - altoPlica);
-        if(b === 'X') dibujarIconoAcentoBreak(xb + 0.9 - 0.85, yBase - altoPlica - 1);
-        if(esNota(a)){
-          // corchete uniendo el par (2 corcheas agrupadas)
-          doc.setLineWidth(0.9);
-          doc.line(xa + 0.9, yBase - altoPlica, xb + 0.9, yBase - altoPlica);
-        } else {
-          // corchea suelta (gancho individual)
-          doc.setLineWidth(0.35);
-          doc.line(xb + 0.9, yBase - altoPlica, xb + 0.9 + 1.6, yBase - altoPlica + 1.6);
+    }
+
+    // pasada 3: beams — grupos válidos llevan un solo corchete abarcando
+    // todo el grupo + número (3/6) centrado arriba; fuera de grupo sigue
+    // el agrupado de a 2 de siempre (corchete de par / gancho suelto).
+    let j = 0;
+    while(j < n){
+      const col = cols[j];
+      if(col.grupo){
+        const size = col.grupo.size;
+        let jFin = j;
+        while(jFin < n && cols[jFin].grupo && cols[jFin].grupo.idx < size) jFin++;
+        // v1.50: (a pedido) FIX — el corchete vuelve a ir de PLICA a
+        // PLICA (borde derecho de la cabeza de la primera nota real del
+        // grupo, hasta el mismo punto de la última), no del borde del
+        // casillero — en v1.23 se había extendido al ancho completo del
+        // grupo, pero visualmente se salía por los costados de la plica.
+        // Mismo criterio que patronRitmicoSVG v1.50. Si el grupo tiene un
+        // solo golpe real, se dibuja la bandera curva en vez de corchete
+        // (no hay 2 plicas que unir); si no tiene ninguno, no se dibuja
+        // nada.
+        const idxGolpes = [];
+        for(let k = j; k < jFin; k++) if(esNota(cols[k].caracter)) idxGolpes.push(k);
+        if(idxGolpes.length >= 2){
+          const rIni = cols[idxGolpes[0]].grupo ? 0.55 : 0.9;
+          const rFin = cols[idxGolpes[idxGolpes.length - 1]].grupo ? 0.55 : 0.9;
+          const xIni = xInfo[idxGolpes[0]].xCentro + rIni;
+          const xFin = xInfo[idxGolpes[idxGolpes.length - 1]].xCentro + rFin;
+          doc.setLineWidth(0.75);
+          doc.line(xIni, yBase - altoPlica, xFin, yBase - altoPlica);
+          // v1.27: (a pedido) doble barra cuando el grupo es de 6
+          // (sextillo = semicorchea), simple para 3 (tresillo/corchea).
+          if(size === 6){
+            doc.line(xIni, yBase - altoPlica + 1.3, xFin, yBase - altoPlica + 1.3);
+          }
+          const xMedio = (xIni + xFin) / 2;
+          doc.setFontSize(5);
+          doc.setTextColor(20);
+          doc.text(String(col.grupo.numero), xMedio, yBase - altoPlica - 4.5, { align: 'center' });
+        } else if(idxGolpes.length === 1){
+          const r = cols[idxGolpes[0]].grupo ? 0.55 : 0.9;
+          const xa = xInfo[idxGolpes[0]].xCentro + r;
+          const yTop = yBase - altoPlica;
+          doc.setFillColor(20, 20, 20);
+          doc.lines(
+            [
+              [1.6, 0.3, 1.75, 1.35, 0.4, 2.45],
+              [0.7, -1.15, 0.45, -1.85, -0.4, -2.45]
+            ],
+            xa, yTop, [1, 1], 'F', true
+          );
+          doc.setFontSize(5);
+          doc.setTextColor(20);
+          doc.text(String(col.grupo.numero), xa, yBase - altoPlica - 4.5, { align: 'center' });
         }
-      } else if(esNota(a)){
-        doc.setLineWidth(0.35);
-        doc.line(xa + 0.9, yBase - altoPlica, xa + 0.9 + 1.6, yBase - altoPlica + 1.6);
+        j = jFin;
+      } else if(esNota(col.caracter)){
+        const nextCol = (j + 1 < n && !cols[j + 1].grupo) ? cols[j + 1] : null;
+        const xa = xInfo[j].xCentro + 0.9;
+        if(nextCol && esNota(nextCol.caracter)){
+          const xb = xInfo[j + 1].xCentro + 0.9;
+          doc.setLineWidth(0.75);
+          doc.line(xa, yBase - altoPlica, xb, yBase - altoPlica);
+          j += 2;
+        } else {
+          // v1.27: (a pedido) bandera curva (bezier) en vez de la línea
+          // recta diagonal, acercándose a la notación real de corchea
+          // suelta. Mismo criterio/forma que patronRitmicoSVG v1.49,
+          // adaptado a la API de curvas de jsPDF (doc.lines con
+          // segmentos de 6 valores = bezier, deltas relativos al punto
+          // anterior). Probado aislado en Node+jsPDF antes de aplicar.
+          const yTop = yBase - altoPlica;
+          doc.setFillColor(20, 20, 20);
+          doc.lines(
+            [
+              [1.6, 0.3, 1.75, 1.35, 0.4, 2.45],
+              [0.7, -1.15, 0.45, -1.85, -0.4, -2.45]
+            ],
+            xa, yTop, [1, 1], 'F', true
+          );
+          j += 1;
+        }
+      } else {
+        j += 1;
       }
     }
     doc.setTextColor(20);
-    return altoPlica + 4;
+    // v1.18: se sube de +4 a +7 el margen reservado — el silencio ahora
+    // cuelga debajo de la línea base (antes iba arriba, ya cubierto por
+    // altoPlica) y necesita su propio espacio para no pisar el contenido
+    // que dibuja el llamador justo debajo.
+    return altoPlica + 7;
   };
   // v1.29.11: caja especial para Break/Corte — en vez de dibujarCajas() con
   // grilla de 4 columnas chicas, una única caja ancha y baja con el/los
