@@ -4,7 +4,183 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.51
+<!-- AUDIOLINK · guia-practica.html · v1.73
+     v1.73: (a pedido) presets rápidos de duración (setSeccionHastaPreset,
+     v1.7) — se agregan x1 y x2 antes de x4, para secciones cortas (ej.
+     una Intro de 1-2 compases) que antes no tenían preset propio y
+     obligaban a cargar el fin a mano. Mismo botón/función de siempre,
+     solo se suman 2 valores a la lista.
+     NOTA: el título de este bloque venía marcando "v1.62" a pesar de que
+     el código ya tenía cambios de v1.63 a v1.71 aplicados (comentarios
+     sueltos junto a cada función) — parece que el header no se actualizó
+     en esas pasadas. No toqué el historial viejo, solo corrijo el
+     número de acá en adelante para que vuelva a reflejar la realidad.
+     v1.72: (a pedido) el tiempo/anticipación del acorde (select de 8
+     posiciones agregado en v1.71 solo a la grilla principal) ahora
+     también está disponible en el bloque Vamp/ciclo (nuevo campo
+     acordesTiempoCiclo, mismo índice que acordesCiclo) y en la 2da vez
+     de fija-bloque (nuevo campo acordesTiempoFinal2, mismo índice que
+     acordesFinal2) — mismo criterio de resize automático que ya usan
+     esos 2 bloques para sus demás arrays (acordesCiclo/letraCiclo/
+     notasCiclo y acordesFinal2/letraFinal2/notasFinal2, respectivamente).
+     Sigue sin aplicar a Break/Corte (resuelve tiempo con patrón
+     rítmico/golpe, no con este selector). Ver pdf-estructura.js v1.72
+     para el dibujo de la regla en esos 2 bloques nuevos + el fix visual
+     de solapamiento con la letra.
+     v1.62: (a pedido) 2 ajustes:
+      (a) Break/Corte también se saca del desplegable "Es igual a" de
+          OTRAS secciones (opcionesOrigenSeccion) — quedaba disponible
+          como origen para copiar, mezclaría formatos de datos
+          incompatibles.
+      (b) FIX/mejora sobre v1.59 — con un Break/Corte de más de 1 compás,
+          la grilla "acordes por golpe" mostraba todas las notas del
+          patrón en una sola fila corrida, sin indicar dónde termina un
+          compás y empieza el siguiente (el patrón es un string continuo
+          para toda la sección, igual que ya lo trata dibujarPatronRitmico
+          en el PDF). Se agrega indicesDivisorPatron(), que calcula los
+          mismos cortes por PESO rítmico que ya usa el PDF (no por
+          cantidad de símbolos, para que tresillos/sextillos no rompan la
+          cuenta), y un separador visual en la grilla en esos puntos.
+     Ver detalle junto a cada función.
+     v1.61: (a pedido) se termina de sacar "repetición" de Break/Corte —
+     quedaba visible el bloque "🔁 Repetición / Es igual a" (copiar
+     acordes/letra de otra sección, marcar variación, D.S. al Coda).
+     Break/Corte es un golpe puntual, no una sección que se repite igual
+     a lo largo del tema, así que ese bloque entero ahora no se imprime
+     para Break/Corte (antes solo se le había sacado el campo numérico
+     "Repeticiones" en v1.34, y la insignia del header en v1.60). Nota:
+     una sección Break/Corte SIGUE apareciendo en el dropdown "Es igual
+     a" de OTRAS secciones (opcionesOrigenSeccion no filtra por tipo) —
+     no se tocó porque no fue parte de lo pedido, pero copiar de un
+     Break/Corte a una sección normal mezclaría formatos de datos
+     incompatibles (golpe/texto libre vs. grilla); si hace falta,
+     avisar para filtrarlo también ahí.
+     v1.60: (a pedido) 2 ajustes sobre v1.59:
+      (a) FIX — la insignia del header colapsado ("🔁 xN") no filtraba
+          Break/Corte; si una sección Break traía un s.repeticiones viejo
+          guardado (de antes de v1.34, cuando Break sí ofrecía
+          repeticiones), la mostraba igual aunque ya no se use en ningún
+          lado. Se agrega el mismo filtro que ya tiene el resto del
+          editor y pdf-estructura.js.
+      (b) Las notas de sección (✏️ Notas por compás) ya no están
+          bloqueadas para Break/Corte — se ven igual que en el resto de
+          los tipos, tanto en la grilla vieja (por compás) como en la
+          nueva por golpe (v1.59), con un campo nuevo notasPorGolpe
+          alineado 1 a 1 con acordesPorGolpe.
+     Ver detalle junto a cada punto.
+     v1.59: (a pedido) primer paso de "acordes alineados a cada golpe" en
+     Break/Corte — hasta ahora los acordes de un corte eran un solo texto
+     libre por compás (ej. "E7 G Am Bbdim7b..."), sin relación visual con
+     el patrón rítmico. Ahora, si la sección tiene un patrón rítmico
+     cargado con al menos 1 nota real, aparece una grilla nueva "acordes
+     por golpe" con un input chico por cada nota del patrón (nuevo campo
+     acordesPorGolpe, alineado 1 a 1 con las notas — silencios no cuentan).
+     Sin patrón (o patrón vacío/solo silencios), sigue exactamente como
+     antes — no se tocó nada de acordesPorCompas ni de los Break/Corte ya
+     cargados a la vieja usanza. Este paso es SOLO el editor; el PDF
+     (dibujarCajaBreak en pdf-estructura.js) todavía no lee
+     acordesPorGolpe — sigue mostrando el texto libre de siempre hasta que
+     se haga ese siguiente paso. Ver detalle junto a contarNotasPatron(),
+     actualizarPatronRitmico() y htmlAcordesPorGolpeInputs().
+     v1.58: FIX sobre v1.57 — la marquita "1ª/2ª vez" del header colapsado
+     (hay2daFlag) se calculaba solo mirando si acordesFinal2/letraFinal2
+     tenían contenido, sin filtrar por s.tipo. pdf-estructura.js (v1.43)
+     jamás lee esos campos cuando s.tipo === 'vamp' (esa rama hace return
+     antes de llegar a esa lógica, tanto en calcularAltoSeccion como en el
+     dibujo real) — son datos que solo aplican a fija-bloque. Si una
+     sección tuvo 2da vez cargada siendo fija-bloque y después se cambió
+     a Vamp, los campos viejos quedaban guardados (no se borran solos) y
+     la marquita nueva los mostraba igual, aunque el PDF los ignora por
+     completo. Ahora hay2daFlag agrega `s.tipo !== 'vamp' &&` al frente,
+     mismo criterio que ya usa el PDF. No se tocan ni se borran los datos
+     viejos de acordesFinal2/letraFinal2 (quedan guardados por si la
+     sección vuelve a Fija/bloque) — solo cambia qué marquita se muestra.
+     v1.57: (a pedido) marquitas en el header colapsado de cada tarjeta
+     de sección — para saber de un vistazo (sin expandir) si tiene
+     repeticiones (🔁 xN), 2da vez cargada (1ª/2ª vez), casilla
+     horizontal activada (↔), o es Break (⏸ Break) / Vamp (🔂 Vamp). Solo
+     lectura de campos existentes, no cambia ningún cálculo. En mobile,
+     con varias marquitas juntas, el nombre de la sección puede
+     achicarse más de lo normal (ya tiene overflow:ellipsis) — si se ve
+     muy apretado avisar para ajustar.
+     v1.56: (a pedido) checkbox nuevo "Casilla en horizontal (al lado, no
+     abajo)" junto a "Compases distintos en la 2da vez" — guarda
+     s.casillaHorizontal (default false/sin tildar = comportamiento de
+     siempre). Es pdf-estructura.js (v1.43) el que decide en el momento
+     de dibujar si realmente entra al lado o si cae al apilado de
+     siempre (si no hay columnas libres, o si la fila ocuparía más de un
+     renglón). No dispara pintarSecciones() — no cambia nada de lo que
+     se ve/edita en el staff en sí.
+     v1.55: (a pedido) 2 cambios:
+     1) Se quita el campo "Tiempo del corte dentro del compás" (input de
+     texto libre en Break/Corte, notaTiempoCorte) — quedó redundante frente
+     al patrón rítmico con botones (♪ Golpe / ➤♪ Acento / 𝄽 Silencio),
+     que ya marca visualmente en qué posición cae el golpe. Se elimina
+     también actualizarNotaTiempoCorte() (quedaba sin ningún llamador).
+     Nota: pdf-estructura.js sigue leyendo s.notaTiempoCorte en
+     dibujarCajaBreak (no se tocó ese archivo más que el comentario de
+     cabecera) — con el campo eliminado acá, ese dato simplemente queda
+     siempre vacío; no rompe nada, imprime igual que si nunca se cargó.
+     2) Chips del mapa de tema (.mapa-tema-chip) — área táctil más grande
+     para mobile: padding 3px→7px vertical, min-height 32px agregado,
+     fuente 0.72rem→0.78rem. No se tocó el layout flex-wrap ni la lógica
+     de irASeccionYAbrir().
+     v1.54: (a pedido) staff para cargar la "nota corta por compás" que
+     pdf-estructura.js ya sabía dibujar desde v1.32/v1.33
+     (notasCiclo/notasPorCompas/notasFinal2) pero que no tenía dónde
+     escribirse acá. Es un campo por compás (mismo índice que su acorde
+     correspondiente, NO ligado a qué acorde puntual haya en la caja).
+     Botón toggle "✏️ Notas por compás" por sección (no en Break/Corte,
+     que usa notaTiempoCorte — un campo distinto, una sola frase para
+     todo el bloque) que muestra/oculta un 3er input chico (.nota-input,
+     itálica, naranja, mismo criterio visual que la 3ra línea del PDF)
+     debajo de cada casilla de acorde/letra ya existente, en las 3
+     grillas que puede tener una sección (ciclo/vamp, bloque principal,
+     2da vez). El estado del toggle vive en s._notasAbiertas, un campo de
+     UI que nunca se guarda en Firebase (mismo patrón que _colapsada,
+     ver guardarSecciones). Los 3 arrays de notas se redimensionan junto
+     con sus acordes/letra en actualizarCicloCompases, actualizarRepeticiones
+     y actualizarFinalDistintoN, para que nunca queden desalineados.
+     Nuevas funciones actualizarNotaCiclo/actualizarNotaPorCompas/
+     actualizarNotaFinal2, mismo patrón que las de acorde/letra (sin
+     pintarSecciones() en cada tecla). No se tocó ningún cálculo de
+     compases, el parser rítmico, la propagación entre secciones, ni
+     dibujarCajas/calcularAltoSeccion en pdf-estructura.js.
+     v1.53: (a pedido) nueva "nota de sección" (s.notaSeccion) — frase
+     corta opcional (máx. 70 caracteres, límite duro tanto en el input
+     como en actualizarNotaSeccion) disponible para TODAS las secciones,
+     no solo las que tienen origen/variación (a diferencia de
+     notaVariacion, que sigue existiendo tal cual para su caso puntual).
+     Nuevo campo de texto en el formulario de cada sección ("Nota de
+     sección (opcional)"), debajo de la fila de nombre/compás. Se guarda
+     solo (guardarSecciones ya persiste cualquier campo del objeto vía
+     spread, no hizo falta tocar esa función). En el PDF se imprime en
+     itálica gris chica, DEBAJO de la barra de título (no adentro, para
+     no pelearse con el nombre/etiqueta D.C./compás que ya viven ahí) —
+     solo aparece si hay contenido, las secciones sin nota quedan
+     exactamente igual que antes. Ver detalle de dibujo + red de
+     seguridad de auto-ajuste de fuente en pdf-estructura.js v1.31,
+     probado con jsPDF real (incluyendo el peor caso: 70 "M" mayúsculas
+     seguidas) antes de aplicar.
+
+     v1.52: FIX — a pedido, tras una pregunta muy acertada sobre notación
+     ("¿la plica después de la ligadura también se escribe?"): una
+     ligadura conecta DOS notas completas, cada una con su propia cabeza
+     y plica — no una nota "fantasma" invisible. Antes, "-" solo disparaba
+     la curva de ligado (pasada 1) pero no entraba en esGolpe, así que no
+     se le dibujaba cabeza/plica ni participaba de la pasada de beams.
+     Ahora esGolpe también es true para "-" (se le dibuja cabeza+plica
+     normal, sin acento). Efecto colateral detectado y corregido en el
+     mismo cambio: al entrar en esGolpe, "-" empezaba a agruparse con la
+     nota anterior en un corchete de a 2 — redundante con la curva de
+     ligado que ya los conecta. Se agrega esBeamable (solo x/X, sin "-")
+     para la pasada de beams específicamente, y una rama dedicada para
+     "-" que siempre dibuja su propia bandera suelta, nunca se beamea.
+     No cambia silencios, parser, pesos, corchetes de grupo, doble barra,
+     ni la curva de ligado en sí (v1.51). Mismo criterio aplicado en
+     pdf-estructura.js (dibujarPatronRitmico v1.30) para que preview y
+     PDF sigan viéndose igual — probado con jsPDF real antes de aplicar.
+
      v1.51: (a pedido) ligadura más profunda — de 3 a 4.5 — se veía corta.
      Sigue siendo la misma curva quadratic suave, solo más pronunciada.
      Mismo criterio aplicado en pdf-estructura.js (dibujarLigado v1.29),
@@ -939,8 +1115,10 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .seccion-fila-acordes label{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
 .acordes-grid{display:flex;flex-wrap:wrap;gap:6px;}
 .acorde-input{width:64px;text-align:center;flex:0 0 auto;}
+.tiempo-select{width:64px;text-align:center;flex:0 0 auto;font-size:11px;color:var(--txt-soft,#777);}
 .acorde-celda{display:flex;flex-direction:column;gap:3px;flex:0 0 auto;}
 .letra-input{width:64px;text-align:center;font-size:0.72rem;color:var(--muted);}
+.nota-input{width:64px;text-align:center;font-size:0.66rem;font-style:italic;color:#b8781f;}
 .seccion-repeticion-campos{margin-top:10px;padding-top:8px;border-top:1px dashed var(--brd);}
 .mapa-tema{display:flex;gap:2px;margin-bottom:8px;border-radius:8px;overflow:hidden;min-height:40px;}
 .mapa-tema-bloque{flex:0 0 auto;min-width:24px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.05rem;font-weight:800;text-align:center;padding:6px 2px;text-shadow:0 1px 2px rgba(0,0,0,0.35);line-height:1.2;}
@@ -949,7 +1127,7 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
    normal), no compite por espacio con la duración real como la barra
    de arriba, así el nombre completo + duración siempre entran. */
 .mapa-tema-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
-.mapa-tema-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border-radius:6px;padding:3px 8px 3px 6px;font-size:0.72rem;color:var(--muted);cursor:pointer;}
+.mapa-tema-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border-radius:8px;padding:7px 10px 7px 8px;min-height:32px;font-size:0.78rem;color:var(--muted);cursor:pointer;}
 .mapa-tema-chip-color{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
 .mapa-tema-chip-letra{font-weight:800;color:#fff;}
 .seccion-aviso{font-size:0.8rem;color:var(--muted);font-style:italic;}
@@ -977,6 +1155,8 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .seccion-card-header-color{width:12px;height:12px;border-radius:50%;flex:0 0 auto;}
 .seccion-card-header-nombre{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .seccion-card-header-tiempo{font-size:0.78rem;color:var(--muted);flex:0 0 auto;}
+.seccion-card-header-flags-wrap{flex:0 0 auto;}
+.seccion-card-header-flags{font-size:0.68rem;color:var(--muted);background:rgba(255,255,255,0.06);border-radius:5px;padding:2px 6px;white-space:nowrap;}
 .seccion-card-header-flecha{font-size:0.9rem;color:var(--muted);flex:0 0 auto;width:14px;text-align:center;}
 .seccion-card-body{margin-top:12px;}
 </style>
@@ -1350,7 +1530,11 @@ function seleccionarOrigenSeccion(i, origenId){
 // misma, y solo las que a su vez no dependen de otra (relación de un
 // solo nivel, sin cadenas A→B→C).
 function opcionesOrigenSeccion(i){
-  return seccionesEnEdicion.filter((s, j) => j !== i && !s.origenId);
+  // v1.62: (a pedido) Break/Corte también se saca como candidato en el
+  // desplegable "Es igual a" de OTRAS secciones — mezclaría formatos de
+  // datos incompatibles (acordesPorGolpe/texto libre de un golpe puntual
+  // vs. la grilla por compás de una sección normal).
+  return seccionesEnEdicion.filter((s, j) => j !== i && !s.origenId && s.nombre !== 'Break/Corte');
 }
 
 // true si la sección en el índice i es origen de al menos una
@@ -1533,12 +1717,37 @@ function pintarSecciones(){
       (s.hastaSegundos != null ? ' – ' + segundosATexto(s.hastaSegundos) + ' (c.' + (compasDeSegundos(s.hastaSegundos) - 1) + ')' : '');
     const badge = s.origenId ? (s.esVariacion ? '🔁 variación · ' : '🔁 ') : '';
     const nombreResumen = (s.nombre || 'Sin nombre').replace(/"/g,'&quot;');
+    // v1.57: (a pedido) marquitas de header — para saber de un vistazo,
+    // sin expandir la tarjeta, si la sección tiene repeticiones, 2da
+    // vez, casilla horizontal, o es Break/Vamp. Solo lectura de campos
+    // que ya existen (no cambia ningún cálculo). Ver estilos en
+    // .seccion-card-header-flags.
+    const esBreakFlag = s.nombre === 'Break/Corte';
+    // v1.60: (a pedido) FIX — Break/Corte no usa repeticiones (forzado a 1
+    // en todos lados desde v1.34), pero esta insignia leía s.repeticiones
+    // directo sin filtrar por Break — si una sección Break traía un valor
+    // viejo guardado (de antes de v1.34), mostraba "🔁 xN" igual, aunque
+    // el PDF y el resto del editor ya lo ignoran por completo.
+    const repeticionesFlag = esBreakFlag ? 1 : (s.repeticiones || 1);
+    // v1.58: FIX — se agrega el mismo filtro que ya usa pdf-estructura.js
+    // (s.tipo === 'vamp' nunca lee acordesFinal2/letraFinal2); antes esta
+    // marquita ignoraba el tipo y mostraba "1ª/2ª vez" con datos viejos
+    // de cuando la sección era fija-bloque, aunque el PDF ya no los use.
+    const hay2daFlag = s.tipo !== 'vamp' && ((s.acordesFinal2 && s.acordesFinal2.some(a => (a||'').trim())) || (s.letraFinal2 && s.letraFinal2.some(l => (l||'').trim())));
+    const flags = [];
+    if(esBreakFlag) flags.push('⏸ Break');
+    else if(s.tipo === 'vamp') flags.push('🔂 Vamp');
+    if(repeticionesFlag > 1) flags.push('🔁 x' + repeticionesFlag);
+    if(hay2daFlag) flags.push('1ª/2ª vez');
+    if(s.casillaHorizontal) flags.push('↔');
+    const flagsHtml = flags.length ? `<span class="seccion-card-header-flags" title="${flags.join(' · ')}">${flags.join(' · ')}</span>` : '';
     return `
     <div class="seccion-card">
       <div class="seccion-card-header" onclick="toggleColapsoSeccion(${i})">
         <span class="seccion-card-header-color" style="background:${colorDeSeccionEnLista(seccionesEnEdicion, i)}"></span>
         <input class="seccion-letra-ensayo" maxlength="2" value="${(s.letraEnsayo || '').replace(/"/g,'&quot;')}" placeholder="${letraEnsayoSugerida(i)}" title="Letra de ensayo (A/B/C… o A' para variación) para el PDF" onclick="event.stopPropagation()" oninput="seccionesEnEdicion[${i}].letraEnsayo = this.value.slice(0,2).toUpperCase(); this.value = seccionesEnEdicion[${i}].letraEnsayo;">
         <span class="seccion-card-header-nombre">${badge}${nombreResumen}</span>
+        <span class="seccion-card-header-flags-wrap">${flagsHtml}</span>
         <span class="seccion-card-header-tiempo">${rangoTxt}</span>
         <button class="btn-del" onclick="event.stopPropagation(); eliminarSeccion(${i})" title="Eliminar sección">🗑️</button>
         <span class="seccion-card-header-flecha">${colapsada ? '▸' : '▾'}</span>
@@ -1585,6 +1794,12 @@ function pintarSecciones(){
         </div>
       </div>
       <div class="seccion-card-fila">
+        <div class="seccion-campo seccion-campo-nota">
+          <label>Nota de sección (opcional) — se imprime en itálica debajo del título en el PDF</label>
+          <input type="text" maxlength="70" value="${(s.notaSeccion || '').replace(/"/g,'&quot;')}" placeholder="ej. Tocar más suave, solo guitarra y voz" oninput="actualizarNotaSeccion(${i}, this.value)">
+        </div>
+      </div>
+      <div class="seccion-card-fila">
         <div class="seccion-campo">
           <label>Hasta (compás, opcional) — último compás de esta sección</label>
           <input type="number" min="1" step="1" id="sechastacompas-${i}" title="Último compás de ESTA sección (inclusive)" placeholder="${'compás ' + (s.hastaSegundos != null ? (compasDeSegundos(s.hastaSegundos) - 1) : '— auto —')}" oninput="actualizarSeccionHastaCompas(${i}, this.value)">
@@ -1596,7 +1811,7 @@ function pintarSecciones(){
         <div class="seccion-campo seccion-campo-presets">
           <label>Presets rápidos (fin = N compases desde el inicio)</label>
           <div class="hasta-presets">
-            ${[4,8,16,32,64].map(n => `<button type="button" class="btn-preset${esPresetHastaActivo(s, i, n) ? ' activo' : ''}" onclick="setSeccionHastaPreset(${i}, ${n})" title="Fin = ${n} compases desde el inicio de esta sección">x${n}</button>`).join('')}
+            ${[1,2,4,8,16,32,64].map(n => `<button type="button" class="btn-preset${esPresetHastaActivo(s, i, n) ? ' activo' : ''}" onclick="setSeccionHastaPreset(${i}, ${n})" title="Fin = ${n} compases desde el inicio de esta sección">x${n}</button>`).join('')}
           </div>
         </div>
         <button class="btn-del seccion-card-del" onclick="limpiarSeccionHasta(${i})" title="Volver a automático (sin fin manual)">↺</button>
@@ -1677,6 +1892,13 @@ function irASeccionYAbrir(i){
 // como origen ya no existe (se borró), origenId queda sin match y el
 // select cae solo en "— ninguno —".
 function htmlOrigenSeccion(s, i){
+  // v1.61: (a pedido) "de una vez quita lo de repetición de Break" —
+  // esto también quedaba visible para Break/Corte. El concepto "es igual
+  // a otra sección / variación / D.S. al Coda" está pensado para
+  // secciones tipo Coro/Verso que se repiten iguales a lo largo del
+  // tema; un Break/Corte es un golpe puntual, no tiene sentido copiarlo
+  // de otra sección ni marcarlo como "variación" de sí mismo.
+  if(s.nombre === 'Break/Corte') return '';
   const opciones = opcionesOrigenSeccion(i);
   if(!opciones.length && !s.origenId) return '';
   // v1.27: (a pedido) caja visual propia "🔁 Repetición" — agrupa
@@ -1729,16 +1951,25 @@ function htmlAcordesSeccion(s, i){
     const ciclo = s.cicloCompases || 2;
     const acordes = resizeArrayAcordes(s.acordesCiclo, ciclo);
     const letra = resizeArrayAcordes(s.letraCiclo, ciclo);
+    const notas = resizeArrayAcordes(s.notasCiclo, ciclo);
+    // v1.72: (a pedido) mismo tiempo/anticipación del acorde que ya tenía
+    // la grilla principal (v1.71) — ahora también en el ciclo de Vamp.
+    // Campo paralelo propio (acordesTiempoCiclo) porque el ciclo tiene su
+    // propio índice/tamaño (independiente de acordesPorCompas).
+    const acordesTiempoCiclo = resizeArrayAcordes(s.acordesTiempoCiclo, ciclo);
     return `
       <div class="seccion-fila-acordes">
         <div class="seccion-ciclo-campo">
           <label style="margin:0;">Ciclo (compases)</label>
           <input type="number" min="1" step="1" value="${ciclo}" oninput="actualizarCicloCompases(${i}, this.value)">
         </div>
+        <button type="button" class="btn-ghost" style="margin-bottom:6px;" onclick="toggleNotasPorCompas(${i})">${s._notasAbiertas ? '✏️ Ocultar notas por compás' : '✏️ Notas por compás'}</button>
         <div class="acordes-grid">
           ${acordes.map((a, j) => `<div class="acorde-celda">
             <input type="text" class="acorde-input" placeholder="c.${j+1}" title="Silencio armónico: escribí N.C." value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordeCiclo(${i}, ${j}, this.value)">
+            <select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempoCiclo(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempoCiclo[j])}</select>
             <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraCiclo(${i}, ${j}, this.value)">
+            ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notas[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaCiclo(${i}, ${j}, this.value)">` : ''}
           </div>`).join('')}
         </div>
         <div class="seccion-contenido-campo">
@@ -1772,10 +2003,6 @@ function htmlAcordesSeccion(s, i){
   // previewBeatsPerBar() del tema). Ver contarPatronVsCompas().
   const notaTiempoCorte = s.nombre === 'Break/Corte' ? `
         <div class="seccion-contenido-campo">
-          <label>Tiempo del corte dentro del compás (opcional)</label>
-          <input type="text" placeholder='ej: "tiempo 3", "y de 2"' value="${(s.notaTiempoCorte || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaTiempoCorte(${i}, this.value)">
-        </div>
-        <div class="seccion-contenido-campo">
           <label>Patrón rítmico (opcional) — "x" golpe, "X" golpe acentuado, "." silencio, {xxx} tresillo, {xxxxxx} sextillo, ej: x.xx.x..{xxx}x.</label>
           <div class="patron-simbolos-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
             <button type="button" class="btn-ghost" title="Insertar golpe" onclick="insertarSimboloPatron(${i}, 'x')">♪ Golpe</button>
@@ -1799,9 +2026,22 @@ function htmlAcordesSeccion(s, i){
   const basePase = repeticiones > 1 ? Math.max(1, Math.round(duracion / repeticiones)) : duracion;
   const acordes = resizeArrayAcordes(s.acordesPorCompas, basePase);
   const letra = resizeArrayAcordes(s.letraPorCompas, basePase);
+  const notas = resizeArrayAcordes(s.notasPorCompas, basePase);
+  // v1.71: (a pedido) acordesTiempo — tiempo/anticipación de cada acorde
+  // dentro del compás (menú corto: 1,a1,2,a2,3,a3,4,a4 — resolución de
+  // corchea completa; vacío = sin marcar, el caso más común). Mismo
+  // criterio de resize que notasPorCompas — un valor por celda de la
+  // grilla vieja (acordesPorCompas), no aplica a Break/Corte (que ya
+  // resuelve el tiempo con patrón rítmico/golpe).
+  const acordesTiempo = resizeArrayAcordes(s.acordesTiempo, basePase);
   const finalN = Math.min(basePase, s.finalDistintoN || 1);
   const acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, finalN);
   const letraFinal2 = resizeArrayAcordes(s.letraFinal2, finalN);
+  const notasFinal2 = resizeArrayAcordes(s.notasFinal2, finalN);
+  // v1.72: (a pedido) mismo tiempo/anticipación del acorde (v1.71) ahora
+  // también en la 2da vez — campo paralelo propio (acordesTiempoFinal2),
+  // mismo índice/tamaño que acordesFinal2 (finalN).
+  const acordesTiempoFinal2 = resizeArrayAcordes(s.acordesTiempoFinal2, finalN);
   // v1.34: (a pedido) Break/Corte no ofrece "Repeticiones" — es un golpe
   // puntual, no un pasaje que se repite con variante en la 2da vez.
   // repeticiones queda forzado a 1 arriba, así que este bloque completo
@@ -1819,23 +2059,48 @@ function htmlAcordesSeccion(s, i){
           <label style="margin:0;">Compases distintos en la 2da vez</label>
           <input type="number" min="1" max="${basePase}" step="1" value="${finalN}" oninput="actualizarFinalDistintoN(${i}, this.value)">
         </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+          <input type="checkbox" id="casillaHorizontal-${i}" ${s.casillaHorizontal ? 'checked' : ''} onchange="actualizarCasillaHorizontal(${i}, this.checked)">
+          <label for="casillaHorizontal-${i}" style="margin:0;">Casilla en horizontal (al lado, no abajo)</label>
+        </div>
         <label style="margin-top:4px;">2da vez (últimos ${finalN} comp.)</label>
         <div class="acordes-grid">
           ${acordesFinal2.map((a, j) => `<div class="acorde-celda">
             <input type="text" class="acorde-input" placeholder="2v c.${basePase - finalN + j + 1}" value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordeFinal2(${i}, ${j}, this.value)">
+            <select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempoFinal2(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempoFinal2[j])}</select>
             <input type="text" class="letra-input" placeholder="letra" value="${(letraFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraFinal2(${i}, ${j}, this.value)">
+            ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notasFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaFinal2(${i}, ${j}, this.value)">` : ''}
           </div>`).join('')}
         </div>` : ''}
       </div>`;
+  // v1.55: (a pedido) si Break/Corte tiene un patrón rítmico con al menos
+  // 1 nota real cargada, se usa la grilla nueva "acordes por golpe" (un
+  // input por nota, alineado con el patrón) en vez de la vieja (un solo
+  // texto libre por compás). Sin patrón (o patrón vacío/solo silencios),
+  // sigue exactamente como antes — no se pierde ni se oculta nada de lo
+  // ya cargado en acordesPorCompas para los Break/Corte viejos.
+  const notasPatronBreak = esBreak ? contarNotasPatron(s.patronRitmico) : 0;
+  const usaAcordesPorGolpe = esBreak && notasPatronBreak > 0;
+  if(usaAcordesPorGolpe){
+    seccionesEnEdicion[i].acordesPorGolpe = resizeArrayAcordes(s.acordesPorGolpe, notasPatronBreak);
+  }
   return `
     <div class="seccion-fila-acordes">
       ${introLibre}
       ${notaTiempoCorte}
       <label>Acordes y letra (${basePase} comp.${repeticiones > 1 ? ` × ${repeticiones} pasadas = ${duracion} comp. reales` : ''})</label>
-      <div class="acordes-grid">
+      <button type="button" class="btn-ghost" style="margin-bottom:6px;" onclick="toggleNotasPorCompas(${i})">${s._notasAbiertas ? '✏️ Ocultar notas por compás' : '✏️ Notas por compás'}</button>
+      ${esBreak ? `
+      <div id="acordesPorGolpeWrap-${i}" style="${usaAcordesPorGolpe ? '' : 'display:none;'}">
+        <label style="margin-top:6px;">Acordes por golpe (1 por nota del patrón, <span id="acordesPorGolpeCcount-${i}">${notasPatronBreak}</span> nota(s))</label>
+        <div id="acordesPorGolpeGrid-${i}" style="display:flex;gap:4px;flex-wrap:wrap;align-items:stretch;margin-bottom:6px;">${htmlAcordesPorGolpeInputs(i, seccionesEnEdicion[i].acordesPorGolpe || [], s._notasAbiertas, seccionesEnEdicion[i].notasPorGolpe || [], indicesDivisorPatron(s.patronRitmico, duracion))}</div>
+      </div>` : ''}
+      <div class="acordes-grid"${esBreak ? ` id="acordesGridViejaBreak-${i}"` : ''} style="${usaAcordesPorGolpe ? 'display:none;' : ''}">
         ${acordes.map((a, j) => `<div class="acorde-celda">
           <input type="text" class="acorde-input" placeholder="c.${j+1}" title="Silencio armónico: escribí N.C." value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordePorCompas(${i}, ${j}, this.value)">
+          ${!esBreak ? `<select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempo(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempo[j])}</select>` : ''}
           <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraPorCompas(${i}, ${j}, this.value)">
+          ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notas[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPorCompas(${i}, ${j}, this.value)">` : ''}
         </div>`).join('')}
       </div>
       ${bloqueRepeticiones}
@@ -1850,6 +2115,11 @@ function actualizarCicloCompases(i, valor){
   // acordesCiclo — se redimensiona en el mismo momento, para que
   // nunca quede desalineada de la grilla de acordes.
   seccionesEnEdicion[i].letraCiclo = resizeArrayAcordes(seccionesEnEdicion[i].letraCiclo, n);
+  // v1.54: notasCiclo sigue el mismo índice — se redimensiona junto con
+  // acordesCiclo/letraCiclo para no quedar desalineada.
+  seccionesEnEdicion[i].notasCiclo = resizeArrayAcordes(seccionesEnEdicion[i].notasCiclo, n);
+  // v1.72: mismo resize para acordesTiempoCiclo (tiempo/anticipación).
+  seccionesEnEdicion[i].acordesTiempoCiclo = resizeArrayAcordes(seccionesEnEdicion[i].acordesTiempoCiclo, n);
   pintarSecciones();
 }
 function actualizarAcordeCiclo(i, j, valor){
@@ -1859,6 +2129,53 @@ function actualizarAcordeCiclo(i, j, valor){
 function actualizarAcordePorCompas(i, j, valor){
   if(!Array.isArray(seccionesEnEdicion[i].acordesPorCompas)) seccionesEnEdicion[i].acordesPorCompas = [];
   seccionesEnEdicion[i].acordesPorCompas[j] = valor;
+}
+// v1.71: (a pedido) tiempo/anticipación del acorde dentro del compás —
+// mismo patrón que actualizarAcordePorCompas (array paralelo, un valor
+// por celda). Valores posibles: '', '1','a1','2','a2','3','a3','4','a4'
+// (resolución de corchea completa; '' = sin marcar).
+function actualizarAcordeTiempo(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].acordesTiempo)) seccionesEnEdicion[i].acordesTiempo = [];
+  seccionesEnEdicion[i].acordesTiempo[j] = valor;
+}
+// v1.72: mismo patrón, para el ciclo de Vamp y la 2da vez de fija-bloque.
+function actualizarAcordeTiempoCiclo(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].acordesTiempoCiclo)) seccionesEnEdicion[i].acordesTiempoCiclo = [];
+  seccionesEnEdicion[i].acordesTiempoCiclo[j] = valor;
+}
+function actualizarAcordeTiempoFinal2(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].acordesTiempoFinal2)) seccionesEnEdicion[i].acordesTiempoFinal2 = [];
+  seccionesEnEdicion[i].acordesTiempoFinal2[j] = valor;
+}
+// v1.71: opciones del select de tiempo/acorde — helper para no repetir
+// el mismo <option> 9 veces en cada celda de la grilla.
+function htmlOpcionesTiempoAcorde(valorActual){
+  const opciones = ['', '1', 'a1', '2', 'a2', '3', 'a3', '4', 'a4'];
+  return opciones.map(o => `<option value="${o}"${(valorActual || '') === o ? ' selected' : ''}>${o || '—'}</option>`).join('');
+}
+// v1.54: (a pedido) nota corta por compás — mismo patrón que
+// actualizarAcorde*/actualizarLetra* (sin pintarSecciones(), no afecta
+// duración ni grilla), un array por cada bloque (ciclo/porCompas/final2)
+// alineado 1 a 1 con su acorde correspondiente.
+function actualizarNotaCiclo(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].notasCiclo)) seccionesEnEdicion[i].notasCiclo = [];
+  seccionesEnEdicion[i].notasCiclo[j] = valor;
+}
+function actualizarNotaPorCompas(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].notasPorCompas)) seccionesEnEdicion[i].notasPorCompas = [];
+  seccionesEnEdicion[i].notasPorCompas[j] = valor;
+}
+function actualizarNotaFinal2(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].notasFinal2)) seccionesEnEdicion[i].notasFinal2 = [];
+  seccionesEnEdicion[i].notasFinal2[j] = valor;
+}
+// v1.54: toggle de UI (no se guarda, ver guardarSecciones) que
+// muestra/oculta el 3er input de nota debajo de cada casilla de
+// acorde/letra ya existente, en las 3 grillas (ciclo, principal, 2da
+// vez) de la sección i.
+function toggleNotasPorCompas(i){
+  seccionesEnEdicion[i]._notasAbiertas = !seccionesEnEdicion[i]._notasAbiertas;
+  pintarSecciones();
 }
 // v1.29.11: (a pedido) nota libre de tiempo del corte — solo para
 // Break/Corte, no dispara pintarSecciones() (no afecta duración ni
@@ -1944,6 +2261,44 @@ function pesoTotalPatron(items){
   items.forEach(it => { total += (it.tipo === 'simple') ? 1 : (it.valido ? 2 : it.valores.length); });
   return total;
 }
+// v1.55: (a pedido) cuenta cuántas notas REALES tiene un patrón rítmico
+// (para armar "acordes por golpe" — un input por nota, no por silencio).
+// "Real" = mismo criterio que esNota() en dibujarPatronRitmico
+// (pdf-estructura.js): 'x'/'X'/'-' cuentan, '.' (silencio) no. Reusa
+// parsearPatronRitmico + aplanarColumnasPatron, que ya hacen todo el
+// trabajo de desarmar grupos {xxx}/{xxxxxx} en columnas individuales.
+function contarNotasPatron(patron){
+  const items = parsearPatronRitmico(patron);
+  if(!items.length) return 0;
+  const cols = aplanarColumnasPatron(items);
+  return cols.filter(c => c.caracter === 'x' || c.caracter === 'X' || c.caracter === '-').length;
+}
+// v1.62: (a pedido, "qué pasa si el break dura 2 compases") con más de 1
+// compás, el patrón sigue siendo UN string continuo (mismo criterio que
+// dibujarPatronRitmico en el PDF, que también lo divide por PESO
+// rítmico, no por cantidad de símbolos — así tresillos/sextillos no
+// rompen la cuenta). Devuelve, para cada límite de compás, en qué índice
+// de nota (dentro del array de golpes reales, sin contar silencios) cae
+// ese corte — para poder dibujar un separador visual en la grilla de
+// "acordes por golpe" y no perder de vista dónde empieza cada compás.
+function indicesDivisorPatron(patron, compases){
+  const items = parsearPatronRitmico(patron);
+  if(!items.length || compases <= 1) return [];
+  const cols = aplanarColumnasPatron(items);
+  const pesoTotal = pesoTotalPatron(items);
+  if(pesoTotal <= 0) return [];
+  const divisores = [];
+  let acumPeso = 0, notaIdx = 0, siguienteLimite = 1;
+  for(let k = 0; k < cols.length; k++){
+    while(siguienteLimite < compases && acumPeso >= (pesoTotal / compases) * siguienteLimite - 1e-6){
+      divisores.push(notaIdx);
+      siguienteLimite++;
+    }
+    if(cols[k].caracter !== '.') notaIdx++;
+    acumPeso += cols[k].peso;
+  }
+  return divisores;
+}
 function patronRitmicoSVG(patron, compases){
   const items = parsearPatronRitmico(patron);
   if(!items.length) return '<span style="color:#888;font-size:11px;">Sin patrón — escribí "x" (golpe), "X" (golpe acentuado), "." (silencio); agrupá con {xxx} para tresillo o {xxxxxx} para sextillo</span>';
@@ -1954,7 +2309,20 @@ function patronRitmicoSVG(patron, compases){
   const alto = 48;
   const yBase = alto - 12;
   const altoPlica = 16;
-  const esGolpe = (c) => c === 'x' || c === 'X';
+  // v1.52: FIX — a pedido, tras una pregunta muy acertada sobre notación:
+  // una ligadura conecta DOS notas completas (cada una con su propia
+  // cabeza y plica), no una nota "fantasma" sin dibujar. Antes, "-" solo
+  // disparaba la curva de ligado (pasada 1) pero no participaba de
+  // esGolpe, así que no se le dibujaba cabeza ni plica en la pasada 2 ni
+  // se beameaba en la pasada 3. Ahora esGolpe también es true para "-",
+  // y como no lleva acento (solo el chequeo de 'X' dispara el acento),
+  // se dibuja igual que un golpe normal sin acentuar.
+  const esGolpe = (c) => c === 'x' || c === 'X' || c === '-';
+  // v1.52: esBeamable es más estricto que esGolpe — se usa solo para
+  // decidir qué se agrupa con un corchete/barra (pasada de beams). La
+  // ligadura "-" cuenta como golpe para dibujarse (cabeza+plica), pero
+  // NUNCA debe agruparse en un corchete con la nota anterior o siguiente.
+  const esBeamable = (c) => c === 'x' || c === 'X';
   let acumPeso = 0;
   const xInfo = cols.map(col => {
     const x0 = (acumPeso / pesoTotal) * anchoTotal;
@@ -2035,8 +2403,13 @@ function patronRitmicoSVG(patron, compases){
       // real (el resto puros silencios), se dibuja la bandera curva en
       // vez de un corchete (no hay 2 plicas que unir). Si no tiene
       // ningún golpe, no se dibuja nada (nada que conectar).
+      // v1.52: al agregar "-" a esGolpe (para que dibuje su propia
+      // cabeza+plica), acá usamos esBeamable (solo x/X) para que una
+      // ligadura dentro de un grupo no se cuente como "golpe" a la hora
+      // de calcular el corchete — no debería pasar en el uso normal
+      // (las ligaduras van fuera de los grupos), pero por las dudas.
       const idxGolpes = [];
-      for(let k = j; k < jFin; k++) if(esGolpe(cols[k].caracter)) idxGolpes.push(k);
+      for(let k = j; k < jFin; k++) if(esBeamable(cols[k].caracter)) idxGolpes.push(k);
       if(idxGolpes.length >= 2){
         const rIni = cols[idxGolpes[0]].grupo ? 1.3 : 2.4;
         const rFin = cols[idxGolpes[idxGolpes.length - 1]].grupo ? 1.3 : 2.4;
@@ -2062,10 +2435,21 @@ function patronRitmicoSVG(patron, compases){
         svg += `<text x="${xa}" y="${yBase - altoPlica - 8}" font-size="7" text-anchor="middle" fill="#1a1a1a" font-family="sans-serif">${col.grupo.numero}</text>`;
       }
       j = jFin;
-    } else if(esGolpe(col.caracter)){
+    } else if(col.caracter === '-'){
+      // v1.52: FIX — la ligadura ya tiene su curva propia (pasada 1) que
+      // la conecta con la nota anterior; si además se la beamea (barra
+      // arriba) queda redundante/confuso (2 indicadores de conexión
+      // distintos para lo mismo). Así que la nota ligada SIEMPRE dibuja
+      // su propia bandera suelta, nunca se empareja con la anterior ni
+      // la siguiente para formar un corchete de a 2.
+      const xa = xInfo[j].xCentro + 2.4;
+      const yTop = yBase - altoPlica;
+      svg += `<path d="M ${xa} ${yTop} C ${xa + 4.2} ${yTop + 0.8}, ${xa + 4.6} ${yTop + 3.6}, ${xa + 1.1} ${yTop + 6.5} C ${xa + 3} ${yTop + 3.4}, ${xa + 2.3} ${yTop + 1.6}, ${xa} ${yTop} Z" fill="#1a1a1a"/>`;
+      j += 1;
+    } else if(esBeamable(col.caracter)){
       const nextCol = (j + 1 < n && !cols[j + 1].grupo) ? cols[j + 1] : null;
       const xa = xInfo[j].xCentro + 2.4;
-      if(nextCol && esGolpe(nextCol.caracter)){
+      if(nextCol && esBeamable(nextCol.caracter)){
         const xb = xInfo[j + 1].xCentro + 2.4;
         svg += `<line x1="${xa}" y1="${yBase - altoPlica}" x2="${xb}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="2.6"/>`;
         j += 2;
@@ -2084,8 +2468,16 @@ function patronRitmicoSVG(patron, compases){
   svg += '</svg>';
   return svg;
 }
-function actualizarNotaTiempoCorte(i, valor){
-  seccionesEnEdicion[i].notaTiempoCorte = valor;
+// v1.31: (a pedido) nota de sección libre — frase corta opcional que se
+// imprime en itálica debajo de la barra de título en el PDF, disponible
+// para TODAS las secciones (a diferencia de notaVariacion, que solo
+// existe para secciones con origenId). Límite duro de 70 caracteres acá
+// además del maxlength del input (por si algo pega texto más largo por
+// fuera del tecleo normal, ej. pegar con el mouse). No dispara
+// pintarSecciones() — no afecta duración ni grilla, mismo criterio que
+// notaTiempoCorte/patronRitmico.
+function actualizarNotaSeccion(i, valor){
+  seccionesEnEdicion[i].notaSeccion = valor.slice(0, 70);
 }
 // v1.31: (a pedido) patrón rítmico del Break/Corte — texto libre ("x"
 // golpe, "." silencio), no dispara pintarSecciones() (no afecta duración
@@ -2127,6 +2519,59 @@ function actualizarPatronRitmico(i, valor){
   if(aviso){
     aviso.innerHTML = avisoPatronVsCompas(valor, dur);
   }
+  // v1.55: (a pedido) al cambiar el patrón, la cantidad de notas reales
+  // puede cambiar — se reajusta acordesPorGolpe al nuevo tamaño (mismo
+  // resizeArrayAcordes de siempre: conserva lo ya tipeado en los índices
+  // que siguen existiendo, agrega vacíos si hay notas nuevas) y se
+  // repinta la grillita. Los dos contenedores (golpe / compás viejo) ya
+  // están en el DOM desde el render inicial — acá solo se alterna cuál
+  // se ve (ver más abajo), nunca se recrean, así el input de patrón
+  // (donde está el foco mientras se tipea) no se pierde.
+  const nuevoTotal = contarNotasPatron(valor);
+  seccionesEnEdicion[i].acordesPorGolpe = resizeArrayAcordes(seccionesEnEdicion[i].acordesPorGolpe, nuevoTotal);
+  // v1.60: notasPorGolpe se redimensiona junto con acordesPorGolpe, mismo
+  // criterio que notasPorCompas/notasCiclo (alineados 1 a 1 con su acorde).
+  seccionesEnEdicion[i].notasPorGolpe = resizeArrayAcordes(seccionesEnEdicion[i].notasPorGolpe, nuevoTotal);
+  const gridGolpe = document.getElementById('acordesPorGolpeGrid-' + i);
+  if(gridGolpe) gridGolpe.innerHTML = htmlAcordesPorGolpeInputs(i, seccionesEnEdicion[i].acordesPorGolpe, seccionesEnEdicion[i]._notasAbiertas, seccionesEnEdicion[i].notasPorGolpe, indicesDivisorPatron(valor, dur));
+  const countSpan = document.getElementById('acordesPorGolpeCcount-' + i);
+  if(countSpan) countSpan.textContent = nuevoTotal;
+  // v1.55: alterna qué grilla se ve (por golpe vs. por compás vieja) sin
+  // recrear ningún nodo — los dos contenedores YA están en el DOM desde
+  // el render inicial (ver htmlAcordesSeccion), acá solo se cambia
+  // style.display. Así el input de patrón (donde está el foco mientras
+  // se tipea) nunca se destruye/recrea.
+  const wrapGolpe = document.getElementById('acordesPorGolpeWrap-' + i);
+  const gridVieja = document.getElementById('acordesGridViejaBreak-' + i);
+  if(wrapGolpe) wrapGolpe.style.display = nuevoTotal > 0 ? '' : 'none';
+  if(gridVieja) gridVieja.style.display = nuevoTotal > 0 ? 'none' : '';
+}
+// v1.55: (a pedido) "acordes por golpe" — un input chico por cada nota
+// REAL del patrón rítmico (no por compás), para poder alinear cada
+// acorde con su golpe exacto en el PDF (dibujarCajaBreak, próximo paso).
+// Separado de htmlAcordesSeccion (la grilla vieja por compás) para no
+// tocar esa función ni el campo acordesPorCompas — los Break/Corte sin
+// patrón siguen exactamente como estaban.
+// v1.60: (a pedido) "que las notas de sección se vean igual que todas
+// las secciones" — se agrega el mismo input de nota (nota-input) que ya
+// tiene la grilla vieja, dentro del mismo acorde-celda por golpe, cuando
+// notasAbiertas está prendido. Nuevo campo notasPorGolpe, alineado 1 a 1
+// con acordesPorGolpe (mismo criterio que notasPorCompas/notasCiclo).
+function htmlAcordesPorGolpeInputs(i, acordesPorGolpe, notasAbiertas, notasPorGolpe, divisores){
+  const notas = notasPorGolpe || [];
+  const divs = divisores || [];
+  return acordesPorGolpe.map((a, j) => `${divs.includes(j) ? '<div style="width:2px;background:var(--brd);align-self:stretch;margin:0 2px;" title="Inicio de compás"></div>' : ''}<div class="acorde-celda">
+    <input type="text" class="acorde-input" style="width:54px;text-align:center;" placeholder="#${j+1}" value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordePorGolpe(${i}, ${j}, this.value)">
+    ${notasAbiertas ? `<input type="text" class="nota-input" style="width:54px;" placeholder="nota" value="${(notas[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPorGolpe(${i}, ${j}, this.value)">` : ''}
+  </div>`).join('');
+}
+function actualizarAcordePorGolpe(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].acordesPorGolpe)) seccionesEnEdicion[i].acordesPorGolpe = [];
+  seccionesEnEdicion[i].acordesPorGolpe[j] = valor;
+}
+function actualizarNotaPorGolpe(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].notasPorGolpe)) seccionesEnEdicion[i].notasPorGolpe = [];
+  seccionesEnEdicion[i].notasPorGolpe[j] = valor;
 }
 // v1.35: (a pedido) guía de compás para el patrón rítmico del
 // Break/Corte — SOLO avisa, no bloquea ni autocompleta nada. Asume
@@ -2191,10 +2636,18 @@ function actualizarRepeticiones(i, valor){
   const basePase = n > 1 ? Math.max(1, Math.round(duracion / n)) : duracion;
   s.acordesPorCompas = resizeArrayAcordes(s.acordesPorCompas, basePase);
   s.letraPorCompas = resizeArrayAcordes(s.letraPorCompas, basePase);
+  // v1.54: notasPorCompas/notasFinal2 siguen el mismo índice — mismo
+  // criterio de resize que acordes/letra.
+  s.notasPorCompas = resizeArrayAcordes(s.notasPorCompas, basePase);
+  // v1.71: mismo resize para acordesTiempo (tiempo/anticipación).
+  s.acordesTiempo = resizeArrayAcordes(s.acordesTiempo, basePase);
   if(n > 1){
     s.finalDistintoN = Math.min(basePase, s.finalDistintoN || 1);
     s.acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, s.finalDistintoN);
     s.letraFinal2 = resizeArrayAcordes(s.letraFinal2, s.finalDistintoN);
+    s.notasFinal2 = resizeArrayAcordes(s.notasFinal2, s.finalDistintoN);
+    // v1.72: mismo resize para acordesTiempoFinal2 (tiempo/anticipación).
+    s.acordesTiempoFinal2 = resizeArrayAcordes(s.acordesTiempoFinal2, s.finalDistintoN);
   }
   pintarSecciones();
 }
@@ -2207,7 +2660,19 @@ function actualizarFinalDistintoN(i, valor){
   s.finalDistintoN = n;
   s.acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, n);
   s.letraFinal2 = resizeArrayAcordes(s.letraFinal2, n);
+  s.notasFinal2 = resizeArrayAcordes(s.notasFinal2, n);
+  // v1.72: mismo resize para acordesTiempoFinal2 (tiempo/anticipación).
+  s.acordesTiempoFinal2 = resizeArrayAcordes(s.acordesTiempoFinal2, n);
   pintarSecciones();
+}
+// v1.56: (a pedido) checkbox "casilla en horizontal" — solo guarda la
+// preferencia (default false = comportamiento de siempre, apilada
+// abajo). El PDF (pdf-estructura.js) decide en el momento de dibujar si
+// realmente entra al lado o si de todos modos cae al apilado (si no hay
+// columnas libres en la fila). No dispara pintarSecciones(): no cambia
+// nada de lo que se ve/edita en el staff, solo el layout final del PDF.
+function actualizarCasillaHorizontal(i, checked){
+  seccionesEnEdicion[i].casillaHorizontal = checked;
 }
 function actualizarAcordeFinal2(i, j, valor){
   if(!Array.isArray(seccionesEnEdicion[i].acordesFinal2)) seccionesEnEdicion[i].acordesFinal2 = [];
@@ -2440,7 +2905,9 @@ async function guardarSecciones(){
       // v1.28: _colapsada es solo estado de UI (colapsar/expandir la
       // tarjeta) — se descarta igual que mostrarNombreLibre, nunca se
       // guarda en Firebase.
-      const { mostrarNombreLibre, _colapsada, ...resto } = s;
+      // v1.54: _notasAbiertas (toggle de "Notas por compás") es el mismo
+      // tipo de campo — solo UI, se descarta igual.
+      const { mostrarNombreLibre, _colapsada, _notasAbiertas, ...resto } = s;
       return {
         ...resto,
         desdeSegundos: snapASegundoDeCompas(s.desdeSegundos || 0),

@@ -4,30 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v3.105
-     v3.105: (a pedido) FIX de diseño sobre v3.104 — la nota de sección
-     pasa de un carril propio debajo del nombre a ir PEGADA al lado del
-     nombre, mismo renglón (como en el PDF), quitando el carril extra que
-     agregaba v3.104. Sigue truncada corta (16 car.) e itálica/chica/
-     colorFaint (secundaria frente al nombre). El ancho combinado
-     (nombre + nota) ahora entra en el mismo cálculo de `carril` que ya
-     evita que las etiquetas se pisen entre sí — una sección vecina se
-     sigue corriendo sola si hace falta, sin lógica de colisión nueva.
+<!-- AUDIOLINK · musico.html · v3.104
      v3.104: (a pedido) nota de sección (s.notaSeccion, ya la imprime el
      PDF desde pdf-estructura.js v1.53) ahora también visible en el
      waveform de la práctica — pensando en mobile (alto de pantalla
      escaso, la nota es dato de contexto, no lo urgente al tocar):
      truncada bien corta (16 car. + "…", contra los 70 del PDF), itálica,
      chica y en colorFaint (tenue a propósito, para que el ojo vaya
-     primero al nombre de sección). Se dibujaba pegada un renglón debajo
+     primero al nombre de sección). Se dibuja pegada un renglón debajo
      del nombre de su misma sección, en el mismo mecanismo de `carril`
      que ya evita que los NOMBRES se pisen entre sí (dibujarWaveform) —
-     la nota reservaba su lugar en el mismo array carrilesFinX, así que
-     si una sección próxima caía dentro de ese ancho, la asignación de su
-     nombre la corría sola a otro carril, sin agregar detección de
-     colisión aparte. Superado por v3.105 (ver arriba). Nada de esto se
-     edita desde acá (solo lectura, mismo campo que ya carga
-     guia-practica.html).
+     la nota reserva su lugar en el mismo array carrilesFinX, así que si
+     una sección próxima cae dentro de ese ancho, la asignación de su
+     nombre la corre sola a otro carril, sin agregar detección de
+     colisión aparte. carrilMaxUsado (y por lo tanto el alto del canvas)
+     ahora contempla también el carril de la nota. Si el carril de la
+     nota se pasa de WAVEFORM_MAX_CARRILES, se omite (no se dibuja) en
+     vez de desbordar. Nada de esto se edita desde acá (solo lectura,
+     mismo campo que ya carga guia-practica.html).
      v3.103
      v3.103: (a pedido, tras comparar el PDF de músico vs. el de práctica)
      FIX en exportarEstructuraPracticaPDF() — las secciones tipo Vamp
@@ -4644,24 +4638,20 @@ function dibujarWaveform(uid, tiempoActual){
     const sx = (tSec / dur) * W;
     const color = colorDeSeccionEnLista(secciones, i);
     const nombreSec = String(sec.nombre || '');
-    const anchoNombreSolo = nombreSec ? ctxDraw.measureText(nombreSec).width : 0;
-    // v3.105: (a pedido) la nota de sección va PEGADA al lado del
-    // nombre, mismo renglón (como en el PDF) — se dejó de usar un
-    // carril propio por debajo (v3.104). Truncada corta (16 car. + "…",
-    // contra los 70 del PDF) y con fuente más chica/tenue para que siga
-    // siendo claramente secundaria frente al nombre. anchoNombre pasa a
-    // ser el ancho TOTAL (nombre + separador + nota) — así el cálculo de
-    // carril de más abajo (que no cambió) sigue evitando choques sin
-    // agregar lógica nueva: una sección vecina larga se corre sola igual
-    // que antes, ahora contemplando también el espacio que ocupa la nota.
+    const anchoNombre = nombreSec ? ctxDraw.measureText(nombreSec).width : 0;
+    // v3.104: (a pedido) nota de sección (s.notaSeccion) también en el
+    // waveform, mismo dato que ya imprime el PDF (pdf-estructura.js
+    // v1.53) — pero acá truncada bien corta (16 car. + "…", contra los
+    // 70 del PDF) y con fuente más chica: pensando en mobile, donde el
+    // alto de esta franja compite con la playerbar/contador, se prioriza
+    // no crecer de más y que el ojo vaya primero al nombre (la nota es
+    // dato de contexto, no lo urgente en el momento de tocar).
     const notaCruda = (sec.notaSeccion || '').trim();
     const notaSec = notaCruda.length > 16 ? notaCruda.slice(0, 16) + '…' : notaCruda;
     ctxDraw.font = 'italic 11px monospace';
     const anchoNota = notaSec ? ctxDraw.measureText(notaSec).width : 0;
     ctxDraw.font = 'bold 14px monospace'; // vuelve al tamaño de medición del nombre
-    const SEP_NOTA = 6;
-    const anchoNombre = anchoNombreSolo + (notaSec ? SEP_NOTA + anchoNota : 0);
-    infoSecciones.push({ sec, tSec, sx, color, nombreSec, anchoNombre, anchoNombreSolo, notaSec });
+    infoSecciones.push({ sec, tSec, sx, color, nombreSec, anchoNombre, notaSec, anchoNota });
   });
   // asigna carril (0 = pegado a la onda, va creciendo hacia abajo):
   // primer carril libre donde la etiqueta no choca con la anterior de
@@ -4688,6 +4678,21 @@ function dibujarWaveform(uid, tiempoActual){
     carrilesFinX[elegido] = labelX + info.anchoNombre + 6;
     info.carril = elegido;
     if(elegido > carrilMaxUsado) carrilMaxUsado = elegido;
+    // v3.104: la nota (si hay) va pegada un renglón debajo del nombre de
+    // ESA sección, sin chequeo de colisión propio — reserva su lugar en
+    // el mismo array carrilesFinX que ya usa el nombre, así que si una
+    // sección próxima cae dentro de ese ancho, la asignación de SU
+    // nombre (unas líneas más abajo en este mismo loop, próxima vuelta)
+    // va a ver ese carril ocupado y se corre sola a otro, sin código
+    // nuevo de detección. Si carril+1 se pasa de WAVEFORM_MAX_CARRILES,
+    // se omite la nota en vez de desbordar el canvas.
+    if(info.notaSec && elegido + 1 < WAVEFORM_MAX_CARRILES){
+      const carrilNota = elegido + 1;
+      const finNota = labelX + info.anchoNota + 6;
+      if(finNota > carrilesFinX[carrilNota]) carrilesFinX[carrilNota] = finNota;
+      info.carrilNota = carrilNota;
+      if(carrilNota > carrilMaxUsado) carrilMaxUsado = carrilNota;
+    }
   });
   const nCarriles = infoSecciones.some(i => i.nombreSec) ? (carrilMaxUsado + 1) : 0;
   const H = WAVEFORM_ONDA_H + nCarriles * WAVEFORM_LANE_H;
@@ -4942,7 +4947,7 @@ function dibujarWaveform(uid, tiempoActual){
   });
 
   // -- pasada 2: etiquetas, cada una en su carril ya asignado arriba --
-  infoSecciones.forEach(({ nombreSec, anchoNombre, anchoNombreSolo, sx, carril, encendida, color, notaSec }) => {
+  infoSecciones.forEach(({ nombreSec, anchoNombre, sx, carril, encendida, color, notaSec, carrilNota }) => {
     if(!nombreSec) return;
     ctxDraw.font = encendida ? 'bold 14px monospace' : 'bold 13px monospace';
     const labelX = sx + 1;
@@ -4951,16 +4956,18 @@ function dibujarWaveform(uid, tiempoActual){
     ctxDraw.fillRect(labelX, labelY, anchoNombre + 6, 16);
     ctxDraw.fillStyle = encendida ? colorMezclarBlanco(color, 0.55) : color;
     ctxDraw.fillText(nombreSec, labelX + 3, labelY + 12);
-    // v3.105: nota de sección pegada al lado del nombre, mismo renglón
-    // (como en el PDF) — itálica, chica y en colorFaint (tenue a
-    // propósito, dato secundario) para que el ojo vaya primero al
-    // nombre. El fondo ya se dibujó de una sola vez arriba, con el ancho
-    // combinado (anchoNombre incluye la nota), así no hace falta un
-    // segundo fillRect pegado.
-    if(notaSec){
+    // v3.104: nota de sección — itálica, chica y en colorFaint (tenue a
+    // propósito, dato secundario) pegada un renglón debajo del nombre,
+    // en el carril que ya le reservamos arriba (carrilNota puede no
+    // existir si no había espacio — en ese caso, no se dibuja nada).
+    if(notaSec && carrilNota != null){
       ctxDraw.font = 'italic 11px monospace';
+      const labelYNota = WAVEFORM_ONDA_H + carrilNota * WAVEFORM_LANE_H + 3;
+      const anchoNotaTxt = ctxDraw.measureText(notaSec).width;
+      ctxDraw.fillStyle = colorFondoTick;
+      ctxDraw.fillRect(labelX, labelYNota, anchoNotaTxt + 6, 16);
       ctxDraw.fillStyle = colorFaint;
-      ctxDraw.fillText(notaSec, labelX + 3 + anchoNombreSolo + 6, labelY + 11);
+      ctxDraw.fillText(notaSec, labelX + 3, labelYNota + 11);
     }
   });
 
