@@ -4,6 +4,25 @@ Historial de versiones del ecosistema. Antes vivía repartido en el comentario d
 
 ---
 
+## pdf-armonias.js / pdf-percusion.js
+
+### v1.0 (ambos) — split de pdf-estructura.js
+pdf-estructura.js (llegó a v1.92, compartido por guia-practica.html y
+musico.html) se separó en 2 archivos independientes, sin tercero
+compartido: pdf-armonias.js (generarEstructuraPDF, PDF de
+acordes/armonías) y pdf-percusion.js (generarEstructuraPDFPercusion,
+PDF de guía de percusión). Las 2 funciones ya eran 100% autocontenidas
+(sin helpers compartidos ni referencias cruzadas), así que el corte es
+limpio: cada archivo pesa la mitad y cada página carga solo el que
+necesita. El historial completo de cada función hasta v1.92 queda en
+el comentario de cabecera de pdf-estructura.js (conservar ese archivo
+como referencia histórica); de acá en adelante cada archivo nuevo
+lleva su propio changelog independiente, empezando en v1.0.
+Pendiente: actualizar el/los `<script src="pdf-estructura.js">` en
+guia-practica.html (y musico.html si aplica) por los 2 nuevos.
+
+---
+
 ## firestore.rules
 
 ### v2.27

@@ -4,7 +4,252 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.73
+<!-- AUDIOLINK · guia-practica.html · v1.98
+     v1.98: (a pedido) GOLPE DE NEGRA (nota tocada, no silencio) — hasta
+     v1.97 la negra combinada solo tenía silencio (","). Se agrega "n"
+     (golpe de negra normal) y "N" (golpe de negra acentuado), mismo
+     criterio que x/X, sin símbolo distinto para "mayúscula de n" porque
+     no existe — se usó N igual que con x/X. Cambios:
+     (1) parsearPatronRitmico(): acepta "n"/"N" como símbolo simple más
+     (no dentro de grupos {}, igual que ",").
+     (2) pesoTotalPatron()/aplanarColumnasPatron(): "n"/"N" pesan 2
+     corcheas, igual que ",".
+     (3) patronRitmicoSVG(): "n"/"N" ahora entran a esGolpe() (dibujan
+     cabeza + plica, como cualquier golpe) pero NO a esBeamable() —
+     nunca se les dibuja corchete ni bandera de corchea, quedan con
+     plica limpia (negra real no lleva gancho). "N" dispara el mismo
+     acento (➤) que ya dibuja "X". No se tocó la cabeza (mismo círculo
+     relleno que la corchea) ni el ancho de columna (ya es el doble por
+     pesar 2, automático via xInfo).
+     (4) Mejora visual del silencio de negra (",", agregado en v1.96):
+     antes eran 2 curvas rígidas encadenadas, ahora es un solo trazo en
+     zigzag suave (path continuo), más parecido al símbolo real.
+     (5) Botones nuevos "♩ Negra" / "➤♩ Acento negra" en Break/Corte y
+     Clave de sección; el botón de "," se renombra a "𝄼 Sil. negra" para
+     no confundirlo con el golpe. Etiquetas de ayuda y placeholder
+     actualizados. avisoPatronVsCompas()/contarNotasPatron()/
+     indicesDivisorPatron() no se tocaron — ya reusan pesoTotalPatron()
+     y funcionan solos; "n"/"N" sí cuentan como nota real en
+     contarNotasPatron() (son golpes, no silencios), igual que x/X.
+     Patrones existentes sin n/N/, quedan IDÉNTICOS a v1.95.
+     v1.97: (a pedido, FIX) la negra de v1.96 estaba en el motor pero no
+     había forma de escribirla salvo tipeándola a mano — ninguno de los
+     2 editores (Break/Corte con insertarSimboloPatron, Clave de sección
+     con insertarSimboloClave) tenía botón para insertar "," ni mencionaba
+     el símbolo en su etiqueta de ayuda. Se agrega el botón "𝄼 Negra" en
+     ambos (mismo criterio que el resto de botones — inserta en la
+     posición del cursor, sin lógica nueva) y se actualizan las 2
+     etiquetas para nombrar "," como silencio de negra junto al resto de
+     símbolos. Cero cambios en insertarSimboloClave/insertarSimboloPatron/
+     actualizarClaveSeccion/actualizarPatronRitmico — ya eran genéricas.
+     v1.96: (a pedido) resolución de NEGRA combinada con corchea en el
+     patrón rítmico — hasta ahora todo símbolo (x/X/./-) valía 1 corchea
+     de peso. Se agrega "," como nuevo símbolo de SOLO SILENCIO DE NEGRA
+     (no nota de negra, tal como se pidió), que pesa 2 corcheas en vez de
+     1. Cambios, los 3 en el motor puro reusado por Break/Corte y por
+     clave de sección (mismo patrón que v1.93):
+     (1) parsearPatronRitmico() acepta "," como símbolo simple más (junto
+     a x/X/./-). NO se agrega dentro de grupos {xxx}/{xxxxxx} — el
+     tresillo/sextillo sigue siendo solo corcheas, tal como se pidió
+     ("solo el silencio de negra").
+     (2) pesoTotalPatron()/aplanarColumnasPatron(): "," pesa 2 en vez de
+     1 — ocupa el doble de espacio visual (ancho de columna) y de cálculo
+     de compás/beams que un símbolo normal.
+     (3) patronRitmicoSVG(): nueva rama de dibujo para "," — silencio de
+     negra clásico (trazo en forma de "S" quebrada), visualmente distinto
+     del silencio de corchea (las 2 rayitas diagonales que ya existían),
+     dibujado en la misma zona (debajo de la línea base, gris tenue).
+     avisoPatronVsCompas() no se tocó — ya reusa pesoTotalPatron(), así
+     que el chequeo de "completa/faltan/sobran corcheas" cuenta la negra
+     como 2 automáticamente. Tampoco se tocó contarNotasPatron() (la
+     coma es silencio, no cuenta como nota real, mismo criterio que "."),
+     ni indicesDivisorPatron() (genérico por peso, ya funciona solo).
+     Patrones existentes sin "," dan resultado IDÉNTICO a v1.95 — cero
+     cambio para quien no use el símbolo nuevo. Texto de ayuda del
+     preview vacío y placeholder del input actualizados para mencionar
+     la coma. Pendiente (fuera de esta hoja, a pedido): replicar el mismo
+     ajuste en pdf-estructura.js (dibujarPatronRitmico) cuando se suba
+     ese archivo, para que el PDF dibuje la misma negra.
+     v1.95: (a pedido) el preview de la clave de sección (notación bajo
+     el input de claveSeccion) se veía muy grande para ser solo
+     informativo — se agrega un 3er parámetro opcional `escala` a
+     patronRitmicoSVG (default 1.35 = igual que siempre, Break/Corte no
+     lo pasa y queda sin cambios) y se llama con 0.68 (~50%) SOLO en el
+     preview de clave de sección.
+     v1.94: (a pedido) "la hoja está gigante" — 2 cambios de simplificación
+     visual, sin tocar ninguna lógica de guardado/edición:
+     (1) los 4 bloques principales (Datos del tema, Secciones, Maquetas,
+     Previsualizar contador) ahora son colapsables — header clickeable
+     con flecha, estado persistido en localStorage por bloque,
+     independiente entre bloques. Cerrados por defecto la primera vez.
+     (2) las tarjetas de sección individuales (dentro de "Secciones")
+     pasan a comportarse como acordeón: abrir una cierra las demás
+     (mismo criterio que ya usaba irASeccionYAbrir para los chips del
+     mapa, ahora también desde el propio header), y un click fuera de
+     cualquier tarjeta de sección cierra la que esté abierta.
+     v1.93: (a pedido) clave por sección (s.claveSeccion) — nuevo campo en
+     el editor de secciones, mismo lenguaje de patrón libre que ya usa
+     patronRitmico (Break/Corte): "x" golpe, "X" acentuado, "." silencio,
+     "-" ligado, {xxx}/{xxxxxx} tresillo/sextillo, pero aplica a CUALQUIER
+     sección (no solo Break/Corte) y el ciclo es siempre de 2 compases
+     (no la duración total de la sección). Vacío = hereda la clave
+     general del tema. Reusa el motor puro ya existente
+     (patronRitmicoSVG/avisoPatronVsCompas/parsearPatronRitmico/
+     pesoTotalPatron) con wiring propio (actualizarClaveSeccion/
+     insertarSimboloClave) para no arrastrar la lógica de acordesPorGolpe
+     de actualizarPatronRitmico, exclusiva de Break/Corte. Sin cambios en
+     guardarSecciones()/exportarEstructuraPDF()/exportarEstructuraPDFPercusion()
+     — ya hacen spread completo del objeto sección, claveSeccion viaja
+     solo a Firestore y al armado de datos del PDF. Primera entrega de 3
+     (siguen pdf-armonias.js+pdf-percusion.js para imprimir el patrón, y
+     musico.html para que suene en vivo — ver plan consolidado acordado).
+     v1.83: (a pedido) amalgama, 3ra tanda (cierre) — los 3 puntos que
+     quedaban pendientes desde v1.81/v1.82 ("Desde (compás)",
+     snapASegundoDeCompas, contador de compás en vivo del preview) ya
+     no asumen compás único desde el offset: se agrega recorrerTramos()
+     (camina las secciones EN ORDEN CRONOLÓGICO — por desdeSegundos, no
+     por orden de edición — acumulando compases/segundos tramo a tramo,
+     cada uno con su propio compás vía beatsPorBarraDeSeccion) y
+     segundosDeCompas/compasDeSegundos/snapASegundoDeCompas/previewUpdate
+     pasan a resolver contra ese recorrido. Anclaje de grilla: cada
+     tramo realinea su reloj de tiempos en su propio inicio (como una
+     partitura real), el NÚMERO de compás sigue siendo secuencial/
+     absoluto de principio a fin (nunca reinicia a 1). El último tramo
+     (o cualquiera sin hastaSegundos) queda abierto y se extrapola con
+     su propio compás. Sin ningún compasOverride cargado, el recorrido
+     da un solo tramo con el compás general desde el offset = resultado
+     IDÉNTICO a la fórmula vieja — cero cambio para temas sin amalgama.
+     Superficie más grande que v1.81/v1.82 a propósito: estas 3
+     funciones se llaman en cada tecla/arrastre/tick del preview, así
+     que conviene verificar con un tema real que sí tenga
+     compasOverride antes de darlo por bueno. Con esto se cierra el gap
+     que quedaba marcado desde v1.81.
+     v1.82: (a pedido) amalgama, 2da tanda — 2 lugares más que usaban
+     siempre el compás general ahora usan el propio de la sección
+     (beatsPorBarraDeSeccion): (1) los botones "PRESETS RÁPIDOS"
+     (x1/x2/x4/x8/x16/x32/x64) en setSeccionHastaPreset/
+     esPresetHastaActivo — antes un preset "x4" en una sección con
+     compasOverride calculaba el final con el compás general, no el
+     propio; (2) avisoPatronVsCompas() (validación del patrón rítmico
+     de Break/Corte) ahora recibe la sección como 3er parámetro y valida
+     contra su compás propio. Sin compasOverride, cero cambio en ambos.
+     Gap que sigue afuera a propósito (necesita recorrido secuencial):
+     "Desde (compás)", snapASegundoDeCompas, contador de compás en vivo
+     durante el preview de audio (previewUpdate).
+     v1.81: (a pedido) amalgama — el campo s.compasOverride ("Compás (si
+     cambia acá)", ya existía en el editor pero era solo texto decorativo
+     en el PDF) ahora se usa de verdad: nueva beatsPorBarraDeSeccion(s)
+     (lee el override, si no cae al compás general); duracionCompasesSeccion()
+     y pintarMapaTema() (ancho en "tiempos" del mapa) pasan a usar el
+     compás PROPIO de cada sección en vez de siempre el general del tema.
+     Mismo criterio de redondeo de siempre (compasDeSegundosConBeats,
+     parametrizada) — sin override, resultado idéntico al de antes, cero
+     cambio para temas sin amalgama. Mismo fix aplicado en musico.html
+     v3.108 (sus 2 exports de PDF). Gap conocido, sin tocar a propósito:
+     el campo "Desde (compás)" del editor (segundosDeCompas/
+     compasDeSegundos) sigue asumiendo compás único desde el offset —
+     para secciones después de un cambio de compás, cargar "Desde
+     (tiempo)" a mano en vez de "Desde (compás)".
+     v1.80: (a pedido) pdf-estructura.js (v1.92) se dividió en 2 archivos
+     independientes: pdf-armonias.js (generarEstructuraPDF) y
+     pdf-percusion.js (generarEstructuraPDFPercusion), esta hoja usa las
+     dos, así que el <script src="pdf-estructura.js"> se reemplazó por
+     los 2 nuevos <script>. Cero cambios de lógica/comportamiento; ambas
+     funciones quedaron 100% autocontenidas en el split, sin helpers
+     compartidos entre ellas.
+     v1.79: (a pedido, FIX) exportarEstructuraPDFPercusion() no traía el
+     mismo fallback de letra de ensayo que ya tiene exportarEstructuraPDF
+     (v1.90: si el staff no cargó letraEnsayo a mano, usa la sugerida
+     A/B/C... en vez de dejarla vacía) — por eso la letra de ensayo no se
+     veía en el PDF de percusión aunque sí se viera en el de acordes. Se
+     agrega la misma línea al armado de seccionesParaPDF acá. Cero
+     cambios en exportarEstructuraPDF, letraEnsayoSugerida ni en el resto
+     de exportarEstructuraPDFPercusion. Ver pdf-estructura.js v1.88 para
+     3 ajustes más sobre generarEstructuraPDFPercusion (orden de "se
+     repite...", FIX del contador en la 2da vez, 2da vez horizontal) —
+     ninguno toca este archivo.
+     v1.78: (a pedido) 2 ajustes sobre la "guía de percusión" de v1.77,
+     pensando en el percusionista y en cómo se carga esa info:
+      (a) el select "Instrumento" (valor único) pasa a checkboxes de
+          selección múltiple — una sección puede tener varios
+          instrumentos a la vez (ej. Conga+Bongó+Güiro), cosa que el
+          select no podía representar. s.instrumentoPercusion pasa de
+          string a array de strings. Migración sin pérdida: si una
+          sección vieja todavía tiene el string guardado,
+          instrumentosPercusionArray() lo envuelve en un array de 1
+          elemento al leerlo (en vivo); recién se sobreescribe como
+          array real la próxima vez que se togglee un checkbox de esa
+          sección. El texto libre de "Otro…" (instrumentoPercusionOtro)
+          sigue siendo un solo campo, sin cambios.
+      (b) esCampana + instrumento(s) se sacan de la tarjeta principal y
+          pasan a un modal aparte ("🥁 Percusión", botón nuevo en la
+          tarjeta) — la tarjeta traía bastante campo ya (notas, acentos,
+          ciclo, break, etc.) y esto es exclusivo de percusión. El modal
+          vive en su propio <div id="modalPercusion"> FUERA de
+          #listaSecciones a propósito: pintarSecciones() reescribe el
+          innerHTML de #listaSecciones en cada cambio, y si el modal
+          estuviera adentro se cerraría solo cada vez que se toca un
+          checkbox. Las insignias de estado en el header colapsado de
+          la tarjeta (🔔 Campana) NO se tocaron — siguen leyendo
+          s.esCampana igual que antes, sin importar desde dónde se edite.
+     NO se tocó notasPercusionPorCompas/acentosPorCompas — siguen
+     tejidos en la grilla de acordes por compás (junto a acorde/letra/
+     tiempo), no se movieron al modal porque separarlos de ahí implicaba
+     tocar los 3 bloques (principal/Ciclo/Final2) con más riesgo de
+     romper la sincronía de índices; queda pendiente como paso aparte si
+     hace falta. Ver pdf-estructura.js v1.79 para el ajuste equivalente
+     en la lectura de instrumentoPercusion (ahora array) — cero cambios
+     en el resto del dibujo de percusión ni en generarEstructuraPDF.
+     v1.77: (a pedido) 2 campos nuevos, exclusivos de la "guía de
+     percusión" (pensados para salsa, pero disponibles en cualquier
+     sección):
+      - esCampana (checkbox "🔔 Sección de campana"): marca la sección
+        para que el PDF de percusión la resalte visualmente. Se agrega
+        insignia "🔔 Campana" al header colapsado de la tarjeta (mismo
+        patrón que 🔁 xN, ⏸ Break, etc.).
+      - instrumentoPercusion (select: Congas/Bongó/Campana/Timbal/
+        Güiro/Maracas/Clave/Kick-Drum/Todos-Tutti/Otro…) +
+        instrumentoPercusionOtro (texto libre, solo si se elige "Otro…").
+     Ambos viven en el bloque principal de la sección (no en Ciclo/
+     Final2 — son propiedades de la sección completa, no por compás, así
+     que no necesitan resize automático como notasPercusionPorCompas/
+     acentosPorCompas). Pasan solos al PDF de percusión porque
+     exportarEstructuraPDFPercusion ya arma seccionesParaPDF con
+     Object.assign({}, s, {...}) — copia todos los campos de s sin
+     necesidad de listarlos a mano. El PDF de acordes (generarEstructuraPDF)
+     no los lee, así que no cambia en nada. Ver pdf-estructura.js v1.78
+     para el dibujo (resaltado de campana + texto de instrumento) dentro
+     de generarEstructuraPDFPercusion — cero cambios en
+     generarEstructuraPDF, dibujarCajas ni dibujarCajaBreak.
+     v1.76: (a pedido) cierre del ciclo de "guía de percusión" para Vamp
+     y 2da vez — los campos notasPercusionCiclo/acentosCiclo y
+     notasPercusionFinal2/acentosFinal2 (editor + inputs ✏️) ya existían
+     de una pasada anterior, pero les faltaba el resize automático:
+     actualizarCicloCompases() no redimensionaba notasPercusionCiclo/
+     acentosCiclo, y actualizarRepeticiones()/actualizarFinalDistintoN()
+     no redimensionaban notasPercusionFinal2/acentosFinal2 — quedaban
+     desalineados del resto de los arrays paralelos si cambiaba el largo
+     del ciclo o de la 2da vez. Fix quirúrgico: se agregó ese resize en
+     las 3 funciones, mismo criterio que ya usan para acordesCiclo/
+     acordesFinal2. El dibujo en el PDF de percusión (que sí faltaba por
+     completo) se resolvió en pdf-estructura.js v1.76.
+     v1.74: (a pedido) "guía de percusión" — 2 campos nuevos, EXCLUSIVOS
+     de percusión (solo grilla principal, no Vamp/Final2 todavía — si
+     hace falta ahí también, se agrega con el mismo criterio):
+      - notasPercusionPorCompas: texto libre por compás ("sube a
+        campana", "cambio de patrón"), separado de notasPorCompas a
+        propósito (ese SÍ se imprime en el PDF de acordes, este no).
+      - acentosPorCompas: posición del acento con resolución de
+        semicorchea (16), notación 1/e/&/a por tiempo
+        (htmlOpcionesAcentoPercusion) — mismo criterio de select que ya
+        usa acordesTiempo, pero con más resolución.
+     Ambos con su resize automático en actualizarRepeticiones (mismo
+     patrón que el resto). Nuevo botón "🥁 PDF Percusión"
+     (exportarEstructuraPDFPercusion) al lado de "📄 Exportar PDF" —
+     arma los mismos `secciones` de siempre y llama a
+     generarEstructuraPDFPercusion en vez de generarEstructuraPDF (ver
+     pdf-estructura.js v1.73). No se tocó dibujarCajas, dibujarCajaBreak,
+     acordesTiempo ni ningún cálculo de compases existente.
      v1.73: (a pedido) presets rápidos de duración (setSeccionHastaPreset,
      v1.7) — se agregan x1 y x2 antes de x4, para secciones cortas (ej.
      una Intro de 1-2 compases) que antes no tenían preset propio y
@@ -992,7 +1237,8 @@
 <script src="header-config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="pdf-estructura.js"></script>
+<script src="pdf-armonias.js"></script>
+<script src="pdf-percusion.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
   inicializarHeaderConfig();
@@ -1044,6 +1290,13 @@ body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh
 header, main, .main-wrap{position:relative;z-index:1;}
 .card{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:18px 20px;margin-bottom:18px;}
 .card h3{font-family:var(--T);font-size:1.05rem;color:var(--gold);margin-bottom:12px;font-weight:600;}
+/* v1.9x: (a pedido) bloques principales colapsables — header clickeable
+   con flecha, estado persistido en localStorage por bloque. */
+.card-header-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.card-header-toggle h3{margin-bottom:0;}
+.card-header-toggle .card-flecha{color:var(--muted);font-size:0.9rem;transition:transform 0.15s;}
+.card-body-colapsable.colapsado{display:none;}
+.card-body-colapsable{margin-top:12px;}
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
 input, select, textarea{
@@ -1054,6 +1307,14 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .btn{padding:10px 16px;background:var(--gold);color:#1a1408;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;}
 .btn-ghost{padding:9px 15px;background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;cursor:pointer;font-size:0.85rem;}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+/* v1.78: modal "🥁 Percusión" — overlay simple, mismas variables de
+   tema que el resto de la página (funciona igual en modo claro/oscuro,
+   ver :root[data-tema="light"] arriba). z-index alto para quedar por
+   encima de las tarjetas de sección. */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
+.modal-box{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:18px 20px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;}
+.modal-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font-family:var(--T);font-size:1rem;color:var(--gold);font-weight:600;}
+.modal-box-footer{margin-top:16px;text-align:right;}
 .btn-del{background:none;border:none;color:var(--err);cursor:pointer;font-size:1rem;padding:4px 8px;}
 
 /* v1.7: presets rápidos de duración para el fin manual de sección
@@ -1178,7 +1439,11 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
     <p id="contextoTema" style="color:var(--muted); font-size:0.85rem; margin-bottom:20px;">Cargando…</p>
 
     <div class="card">
-      <h3>Datos del tema</h3>
+      <div class="card-header-toggle" onclick="toggleCardPrincipal('datosTema')">
+        <h3>Datos del tema</h3>
+        <span class="card-flecha" id="flecha-datosTema">▸</span>
+      </div>
+      <div class="card-body-colapsable colapsado" id="body-datosTema">
       <div class="row-2">
         <div class="field">
           <label>BPM</label>
@@ -1218,23 +1483,50 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
       </div>
       <button class="btn" onclick="guardarDatosTema()">Guardar BPM y compás</button>
       <div class="guardado-ok" id="okDatosTema">✓ Guardado</div>
+      </div>
     </div>
 
     <div class="card">
-      <h3>Secciones</h3>
+      <div class="card-header-toggle" onclick="toggleCardPrincipal('secciones')">
+        <h3>Secciones</h3>
+        <span class="card-flecha" id="flecha-secciones">▸</span>
+      </div>
+      <div class="card-body-colapsable colapsado" id="body-secciones">
       <div id="mapaTema"></div>
       <div id="listaSecciones"></div>
+      <!-- v1.78: modal "🥁 Percusión" (esCampana + instrumento(s)) —
+           vive fuera de #listaSecciones a propósito, ver comentario en
+           abrirModalPercusion()/pintarModalPercusion() más abajo en el
+           script. Oculto por defecto (display:none, lo abre JS). -->
+      <div id="modalPercusion" class="modal-overlay" style="display:none;" onclick="if(event.target === this) cerrarModalPercusion();">
+        <div class="modal-box">
+          <div class="modal-box-header">
+            <span id="modalPercusionTitulo"></span>
+            <button type="button" class="btn-ghost" onclick="cerrarModalPercusion()">✕</button>
+          </div>
+          <div id="modalPercusionBody"></div>
+          <div class="modal-box-footer">
+            <button type="button" class="btn" onclick="cerrarModalPercusion()">Listo</button>
+          </div>
+        </div>
+      </div>
       <button class="btn-ghost" onclick="agregarFilaSeccion()">+ Agregar sección</button>
       <div id="propagacionSecciones" class="seccion-repeticion-box" style="margin-top:10px;"></div>
       <div style="margin-top:12px;">
         <button class="btn" onclick="guardarSecciones()">Guardar secciones</button>
         <div class="guardado-ok" id="okSecciones">✓ Guardado</div>
         <button class="btn-ghost" onclick="exportarEstructuraPDF()" style="margin-left:8px;">📄 Exportar PDF</button>
+        <button class="btn-ghost" onclick="exportarEstructuraPDFPercusion()" style="margin-left:8px;">🥁 PDF Percusión</button>
+      </div>
       </div>
     </div>
 
     <div class="card">
-      <h3>Maquetas por instrumento</h3>
+      <div class="card-header-toggle" onclick="toggleCardPrincipal('maquetas')">
+        <h3>Maquetas por instrumento</h3>
+        <span class="card-flecha" id="flecha-maquetas">▸</span>
+      </div>
+      <div class="card-body-colapsable colapsado" id="body-maquetas">
       <p style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">El BPM/compás/secciones de arriba son del tema (compartidos). Acá cada instrumento puede tener su propia pista de referencia.</p>
       <div id="listaMaquetas"></div>
       <button class="btn-ghost" onclick="agregarFilaMaqueta()">+ Agregar maqueta</button>
@@ -1242,10 +1534,15 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
         <button class="btn" onclick="guardarMaquetas()">Guardar maquetas</button>
         <div class="guardado-ok" id="okMaquetas">✓ Guardado</div>
       </div>
+      </div>
     </div>
 
     <div class="card">
-      <h3>Previsualizar contador</h3>
+      <div class="card-header-toggle" onclick="toggleCardPrincipal('previsualizador')">
+        <h3>Previsualizar contador</h3>
+        <span class="card-flecha" id="flecha-previsualizador">▸</span>
+      </div>
+      <div class="card-body-colapsable colapsado" id="body-previsualizador">
       <div id="previewWrap">
         <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
           <button class="btn-ghost" id="previewPlayBtn" onclick="previewTogglePlay()">▶️ Reproducir click de prueba</button>
@@ -1255,6 +1552,7 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
           <div id="previewBar" style="font-size:36px; font-weight:600; color:var(--gold);">1</div>
           <div id="previewSeccion" style="font-size:13px; color:var(--muted); margin-top:4px;">—</div>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -1301,9 +1599,22 @@ function tipoDeNombreSeccion(nombre){
 // v1.18: duración exacta en compases de una sección fija/bloque —
 // null si todavía no tiene "hasta" definido (no hay cómo saber cuánto
 // dura sin un fin manual, ver presets x4/x8/etc ya existentes).
+// v1.81: (a pedido) usa el compás PROPIO de la sección
+// (beatsPorBarraDeSeccion, respeta s.compasOverride) en vez de siempre
+// el compás general del tema — mismo criterio de redondeo de antes
+// (cada borde redondeado independiente contra previewOffset(), después
+// restados), solo que ahora parametrizado por beats — con beats ===
+// previewBeatsPerBar() (sin override) da exactamente el mismo resultado
+// que antes, cero cambio para temas sin amalgama.
+function compasDeSegundosConBeats(seg, beatsPerBar){
+  const secPerBar = segundosPorCompas(previewBpm(), beatsPerBar);
+  if(!secPerBar) return 1;
+  return Math.max(1, Math.round(((seg || 0) - previewOffset()) / secPerBar) + 1);
+}
 function duracionCompasesSeccion(s){
   if(s.hastaSegundos == null) return null;
-  const d = compasDeSegundos(s.hastaSegundos) - compasDeSegundos(s.desdeSegundos || 0);
+  const beats = beatsPorBarraDeSeccion(s);
+  const d = compasDeSegundosConBeats(s.hastaSegundos, beats) - compasDeSegundosConBeats(s.desdeSegundos || 0, beats);
   return d > 0 ? d : null;
 }
 // ajusta un array de strings a longitud n, preservando lo ya escrito
@@ -1445,14 +1756,17 @@ function segundosPorCompas(bpm, beatsPerBar){
 // Redondea un segundo al borde de compás más cercano, respetando el
 // offset del compás 1. Si no hay BPM/compás válidos todavía, no
 // redondea (devuelve el valor tal cual) para no bloquear al staff.
+// v1.83: (a pedido) pasa a usar el recorrido por tramos (recorrerTramos,
+// ver más abajo) en vez de un solo compás/offset para todo el tema —
+// así el "enganche" cae en el tramo (con su propio compás) al que
+// pertenece ese segundo, en vez de siempre calcular contra la fórmula
+// del compás general. Sin compasOverride, un solo tramo = mismo
+// resultado que antes, cero cambio para temas sin amalgama.
 function snapASegundoDeCompas(seg){
-  const bpm = parseFloat(document.getElementById('inputBpm').value) || 0;
-  const beatsPerBar = previewBeatsPerBar();
-  const offset = parseFloat(document.getElementById('inputOffset').value) || 0;
-  const secPerBar = segundosPorCompas(bpm, beatsPerBar);
-  if(!secPerBar) return seg;
-  const n = Math.round((seg - offset) / secPerBar);
-  return Math.max(0, offset + n * secPerBar);
+  const t = tramoEnSegundo(seg);
+  if(!t || !t.secPerBar) return seg;
+  const n = Math.round(((seg || 0) - t.inicioSeg) / t.secPerBar);
+  return Math.max(0, t.inicioSeg + n * t.secPerBar);
 }
 
 // ============ SECCIONES ============
@@ -1609,7 +1923,11 @@ function pintarMapaTema(){
   }
   cont.className = '';
   const LINEA_TIEMPOS = 32;
-  const beatsPorBarra = previewBeatsPerBar();
+  // v1.81: (a pedido) antes usaba un único beatsPorBarra (compás
+  // general) para TODAS las secciones al calcular "tiempos" — una
+  // sección en 3/4 pesaba de más/menos en el renglón si el tema
+  // general era 4/4. Ahora cada sección usa su propio compás
+  // (beatsPorBarraDeSeccion, línea de abajo).
   // v1.29.13: letra (s.letraEnsayo o su sugerencia) y ancho en TIEMPOS
   // (no compases) de cada sección — mismo dato que ya usa el header de
   // la tarjeta y el PDF, sin recalcular nada propio.
@@ -1618,7 +1936,7 @@ function pintarMapaTema(){
     const compasesEquiv = duracion != null ? Math.max(1, duracion) : 3;
     return {
       s, duracion,
-      tiempos: compasesEquiv * beatsPorBarra,
+      tiempos: compasesEquiv * beatsPorBarraDeSeccion(s),
       letra: (s.letraEnsayo || '').trim() || letraEnsayoSugerida(i),
       color: colorDeSeccionEnLista(seccionesEnEdicion, i),
     };
@@ -1740,6 +2058,11 @@ function pintarSecciones(){
     if(repeticionesFlag > 1) flags.push('🔁 x' + repeticionesFlag);
     if(hay2daFlag) flags.push('1ª/2ª vez');
     if(s.casillaHorizontal) flags.push('↔');
+    // v1.77: (a pedido) insignia nueva "🔔 Campana" para saber de un
+    // vistazo, sin expandir la tarjeta, si esta sección está marcada
+    // como sección de campana (guía de percusión). Mismo patrón/lectura
+    // que las demás marquitas — no cambia ningún cálculo.
+    if(s.esCampana) flags.push('🔔 Campana');
     const flagsHtml = flags.length ? `<span class="seccion-card-header-flags" title="${flags.join(' · ')}">${flags.join(' · ')}</span>` : '';
     return `
     <div class="seccion-card">
@@ -1797,6 +2120,54 @@ function pintarSecciones(){
         <div class="seccion-campo seccion-campo-nota">
           <label>Nota de sección (opcional) — se imprime en itálica debajo del título en el PDF</label>
           <input type="text" maxlength="70" value="${(s.notaSeccion || '').replace(/"/g,'&quot;')}" placeholder="ej. Tocar más suave, solo guitarra y voz" oninput="actualizarNotaSeccion(${i}, this.value)">
+        </div>
+      </div>
+      <!-- v1.93: (a pedido) clave por sección — mismo lenguaje de patrón
+           libre que ya usa patronRitmico (Break/Corte): "x" golpe, "X"
+           golpe acentuado, "." silencio, "-" ligado, {xxx}/{xxxxxx}
+           tresillo/sextillo. A diferencia de patronRitmico (que cubre
+           TODA la duración de la sección), acá el ciclo es SIEMPRE de 2
+           compases (mismo criterio que la clave general del tema), por
+           eso el preview/aviso reciben "2" fijo, no duracionCompasesSeccion(s).
+           Aplica a CUALQUIER sección (no solo Break/Corte). Vacío = hereda
+           la clave general del tema (inputClave); cargado = rige el ciclo
+           de esa sección en musico.html y se dibuja en el PDF. Reusa el
+           motor ya existente (patronRitmicoSVG/avisoPatronVsCompas/
+           parsearPatronRitmico/pesoTotalPatron, genéricos) con wiring
+           propio (actualizarClaveSeccion/insertarSimboloClave) para NO
+           heredar la lógica de acordesPorGolpe de actualizarPatronRitmico,
+           que es exclusiva de Break/Corte y no aplica acá. -->
+      <div class="seccion-card-fila">
+        <div class="seccion-contenido-campo">
+          <label>Clave (si cambia acá) — opcional, ciclo de 2 compases. "x" golpe, "X" acentuado, "n" golpe de negra, "N" golpe de negra acentuado, "." silencio de corchea, "," silencio de negra, {xxx} tresillo, {xxxxxx} sextillo</label>
+          <div class="patron-simbolos-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+            <button type="button" class="btn-ghost" title="Insertar golpe" onclick="insertarSimboloClave(${i}, 'x')">♪ Golpe</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe acentuado" onclick="insertarSimboloClave(${i}, 'X')">➤♪ Acento</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe de negra (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, 'n')">♩ Negra</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe de negra acentuado (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, 'N')">➤♩ Acento negra</button>
+            <button type="button" class="btn-ghost" title="Insertar silencio de corchea" onclick="insertarSimboloClave(${i}, '.')">𝄽 Silencio</button>
+            <button type="button" class="btn-ghost" title="Insertar silencio de negra (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, ',')">𝄼 Sil. negra</button>
+            <button type="button" class="btn-ghost" title="Insertar tresillo" onclick="insertarSimboloClave(${i}, '{xxx}')">³ Tresillo</button>
+            <button type="button" class="btn-ghost" title="Insertar sextillo" onclick="insertarSimboloClave(${i}, '{xxxxxx}')">⁶ Sextillo</button>
+          </div>
+          <input type="text" id="claveSeccionInput-${i}" placeholder="Vacío = usa la clave general del tema" title="Dejar vacío = usa la clave general del tema" value="${(s.claveSeccion || '').replace(/"/g,'&quot;')}" oninput="actualizarClaveSeccion(${i}, this.value)">
+          <div id="claveSeccionPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.claveSeccion, 2, 0.68)}</div>
+          <div id="claveSeccionAviso-${i}" style="margin-top:4px;font-size:0.75rem;color:var(--muted);">${avisoPatronVsCompas(s.claveSeccion, 2, s)}</div>
+        </div>
+      </div>
+      <!-- v1.77: (a pedido) 2 campos nuevos, exclusivos de la "guía de
+           percusión" (salsa y afines): (a) checkbox "Sección de campana"
+           (s.esCampana) — resalta la sección en el PDF de percusión, no
+           afecta el PDF de acordes ni ningún cálculo de compases; (b)
+           select "Instrumento" (s.instrumentoPercusion) con lista fija
+           + "Otro…" (texto libre en s.instrumentoPercusionOtro) — quién
+           toca esa sección. Ambos son propiedades de la sección completa
+           (no por compás), así que no necesitan resize como
+           notasPercusionPorCompas/acentosPorCompas. Se imprimen solo en
+           generarEstructuraPDFPercusion; el PDF de acordes los ignora. -->
+      <div class="seccion-card-fila">
+        <div class="seccion-campo">
+          <button type="button" class="btn-ghost" onclick="abrirModalPercusion(${i})">🥁 Percusión${(s.esCampana || instrumentosPercusionArray(s).length) ? ' ✓' : ''}</button>
         </div>
       </div>
       <div class="seccion-card-fila">
@@ -1859,7 +2230,12 @@ function letraEnsayoSugerida(i){
 
 function toggleColapsoSeccion(i){
   const s = seccionesEnEdicion[i];
-  s._colapsada = !(s._colapsada !== false); // toggle, arrancando en "colapsada"
+  const yaAbierta = s._colapsada === false;
+  // v1.9x: (a pedido) acordeón — abrir una tarjeta cierra todas las
+  // demás (mismo criterio que ya usaba irASeccionYAbrir para los chips
+  // del mapa, ahora también acá).
+  seccionesEnEdicion.forEach(x => { x._colapsada = true; });
+  if(!yaAbierta) s._colapsada = false;
   pintarSecciones();
 }
 
@@ -1957,6 +2333,12 @@ function htmlAcordesSeccion(s, i){
     // Campo paralelo propio (acordesTiempoCiclo) porque el ciclo tiene su
     // propio índice/tamaño (independiente de acordesPorCompas).
     const acordesTiempoCiclo = resizeArrayAcordes(s.acordesTiempoCiclo, ciclo);
+    // v1.75: (a pedido) mismos 2 campos exclusivos de percusión que ya
+    // tiene la grilla principal (v1.74), ahora también en el ciclo de
+    // Vamp — mismo criterio: array paralelo propio, mismo índice/tamaño
+    // que acordesCiclo (ciclo).
+    const notasPercusionCiclo = resizeArrayAcordes(s.notasPercusionCiclo, ciclo);
+    const acentosCiclo = resizeArrayAcordes(s.acentosCiclo, ciclo);
     return `
       <div class="seccion-fila-acordes">
         <div class="seccion-ciclo-campo">
@@ -1970,6 +2352,8 @@ function htmlAcordesSeccion(s, i){
             <select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempoCiclo(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempoCiclo[j])}</select>
             <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraCiclo(${i}, ${j}, this.value)">
             ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notas[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaCiclo(${i}, ${j}, this.value)">` : ''}
+            ${s._notasAbiertas ? `<select class="tiempo-select" title="Acento de percusión dentro del compás (guía de percusión)" onchange="actualizarAcentoPercusionCiclo(${i}, ${j}, this.value)">${htmlOpcionesAcentoPercusion(acentosCiclo[j])}</select>
+            <input type="text" class="nota-input" placeholder="percu" title="Nota exclusiva de la guía de percusión (ej: sube a campana)" value="${(notasPercusionCiclo[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPercusionCiclo(${i}, ${j}, this.value)">` : ''}
           </div>`).join('')}
         </div>
         <div class="seccion-contenido-campo">
@@ -2003,17 +2387,20 @@ function htmlAcordesSeccion(s, i){
   // previewBeatsPerBar() del tema). Ver contarPatronVsCompas().
   const notaTiempoCorte = s.nombre === 'Break/Corte' ? `
         <div class="seccion-contenido-campo">
-          <label>Patrón rítmico (opcional) — "x" golpe, "X" golpe acentuado, "." silencio, {xxx} tresillo, {xxxxxx} sextillo, ej: x.xx.x..{xxx}x.</label>
+          <label>Patrón rítmico (opcional) — "x" golpe, "X" golpe acentuado, "n" golpe de negra, "N" golpe de negra acentuado, "." silencio de corchea, "," silencio de negra, {xxx} tresillo, {xxxxxx} sextillo, ej: x.xxn.,x.</label>
           <div class="patron-simbolos-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
             <button type="button" class="btn-ghost" title="Insertar golpe" onclick="insertarSimboloPatron(${i}, 'x')">♪ Golpe</button>
             <button type="button" class="btn-ghost" title="Insertar golpe acentuado" onclick="insertarSimboloPatron(${i}, 'X')">➤♪ Acento</button>
-            <button type="button" class="btn-ghost" title="Insertar silencio" onclick="insertarSimboloPatron(${i}, '.')">𝄽 Silencio</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe de negra (pesa 2 corcheas)" onclick="insertarSimboloPatron(${i}, 'n')">♩ Negra</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe de negra acentuado (pesa 2 corcheas)" onclick="insertarSimboloPatron(${i}, 'N')">➤♩ Acento negra</button>
+            <button type="button" class="btn-ghost" title="Insertar silencio de corchea" onclick="insertarSimboloPatron(${i}, '.')">𝄽 Silencio</button>
+            <button type="button" class="btn-ghost" title="Insertar silencio de negra (pesa 2 corcheas)" onclick="insertarSimboloPatron(${i}, ',')">𝄼 Sil. negra</button>
             <button type="button" class="btn-ghost" title="Insertar tresillo (3 notas en el espacio de 2 corcheas)" onclick="insertarSimboloPatron(${i}, '{xxx}')">³ Tresillo</button>
             <button type="button" class="btn-ghost" title="Insertar sextillo (6 notas en el espacio de 2 corcheas)" onclick="insertarSimboloPatron(${i}, '{xxxxxx}')">⁶ Sextillo</button>
           </div>
-          <input type="text" id="patronRitmicoInput-${i}" placeholder='ej: x.xx.x..' value="${(s.patronRitmico || '').replace(/"/g,'&quot;')}" oninput="actualizarPatronRitmico(${i}, this.value)">
+          <input type="text" id="patronRitmicoInput-${i}" placeholder='ej: x.xxn.,x.' value="${(s.patronRitmico || '').replace(/"/g,'&quot;')}" oninput="actualizarPatronRitmico(${i}, this.value)">
           <div id="patronRitmicoPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.patronRitmico, duracion)}</div>
-          <div id="patronRitmicoAviso-${i}" style="margin-top:4px;font-size:0.75rem;color:var(--muted);">${avisoPatronVsCompas(s.patronRitmico, duracion)}</div>
+          <div id="patronRitmicoAviso-${i}" style="margin-top:4px;font-size:0.75rem;color:var(--muted);">${avisoPatronVsCompas(s.patronRitmico, duracion, s)}</div>
         </div>` : '';
   const repeticiones = s.nombre === 'Break/Corte' ? 1 : (s.repeticiones || 1);
   // v1.22.1: FIX — `duracion` sale del tiempo real (Desde/Hasta), que ya
@@ -2034,6 +2421,18 @@ function htmlAcordesSeccion(s, i){
   // grilla vieja (acordesPorCompas), no aplica a Break/Corte (que ya
   // resuelve el tiempo con patrón rítmico/golpe).
   const acordesTiempo = resizeArrayAcordes(s.acordesTiempo, basePase);
+  // v1.74: (a pedido) 2 campos nuevos, específicos de la guía de
+  // percusión (generarEstructuraPDFPercusion, pdf-estructura.js) — NO se
+  // muestran en el PDF de acordes, distinto de acordesTiempo (que sí
+  // comparten los dos). Mismo índice/tamaño (basePase) que el resto.
+  //  - notasPercusionPorCompas: texto libre, específico de percusión
+  //    ("sube a campana", "cambio de patrón") — separado a propósito de
+  //    notasPorCompas (que si aparece en el PDF de acordes) para no
+  //    mezclar anotaciones que no le sirven al resto de la banda.
+  //  - acentosPorCompas: posición del acento dentro del compás con
+  //    resolución de semicorchea (16), notación 1/e/&/a por tiempo.
+  const notasPercusion = resizeArrayAcordes(s.notasPercusionPorCompas, basePase);
+  const acentosPercusion = resizeArrayAcordes(s.acentosPorCompas, basePase);
   const finalN = Math.min(basePase, s.finalDistintoN || 1);
   const acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, finalN);
   const letraFinal2 = resizeArrayAcordes(s.letraFinal2, finalN);
@@ -2042,6 +2441,11 @@ function htmlAcordesSeccion(s, i){
   // también en la 2da vez — campo paralelo propio (acordesTiempoFinal2),
   // mismo índice/tamaño que acordesFinal2 (finalN).
   const acordesTiempoFinal2 = resizeArrayAcordes(s.acordesTiempoFinal2, finalN);
+  // v1.75: (a pedido) mismos 2 campos exclusivos de percusión, ahora
+  // también en la 2da vez — array paralelo propio, mismo índice/tamaño
+  // que acordesFinal2 (finalN).
+  const notasPercusionFinal2 = resizeArrayAcordes(s.notasPercusionFinal2, finalN);
+  const acentosFinal2 = resizeArrayAcordes(s.acentosFinal2, finalN);
   // v1.34: (a pedido) Break/Corte no ofrece "Repeticiones" — es un golpe
   // puntual, no un pasaje que se repite con variante en la 2da vez.
   // repeticiones queda forzado a 1 arriba, así que este bloque completo
@@ -2070,6 +2474,8 @@ function htmlAcordesSeccion(s, i){
             <select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempoFinal2(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempoFinal2[j])}</select>
             <input type="text" class="letra-input" placeholder="letra" value="${(letraFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraFinal2(${i}, ${j}, this.value)">
             ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notasFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaFinal2(${i}, ${j}, this.value)">` : ''}
+            ${s._notasAbiertas ? `<select class="tiempo-select" title="Acento de percusión dentro del compás (guía de percusión)" onchange="actualizarAcentoPercusionFinal2(${i}, ${j}, this.value)">${htmlOpcionesAcentoPercusion(acentosFinal2[j])}</select>
+            <input type="text" class="nota-input" placeholder="percu" title="Nota exclusiva de la guía de percusión (ej: sube a campana)" value="${(notasPercusionFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPercusionFinal2(${i}, ${j}, this.value)">` : ''}
           </div>`).join('')}
         </div>` : ''}
       </div>`;
@@ -2101,6 +2507,8 @@ function htmlAcordesSeccion(s, i){
           ${!esBreak ? `<select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempo(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempo[j])}</select>` : ''}
           <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraPorCompas(${i}, ${j}, this.value)">
           ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notas[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPorCompas(${i}, ${j}, this.value)">` : ''}
+          ${!esBreak && s._notasAbiertas ? `<select class="tiempo-select" title="Acento de percusión dentro del compás (guía de percusión)" onchange="actualizarAcentoPercusion(${i}, ${j}, this.value)">${htmlOpcionesAcentoPercusion(acentosPercusion[j])}</select>
+          <input type="text" class="nota-input" placeholder="percu" title="Nota exclusiva de la guía de percusión (ej: sube a campana)" value="${(notasPercusion[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPercusion(${i}, ${j}, this.value)">` : ''}
         </div>`).join('')}
       </div>
       ${bloqueRepeticiones}
@@ -2120,6 +2528,9 @@ function actualizarCicloCompases(i, valor){
   seccionesEnEdicion[i].notasCiclo = resizeArrayAcordes(seccionesEnEdicion[i].notasCiclo, n);
   // v1.72: mismo resize para acordesTiempoCiclo (tiempo/anticipación).
   seccionesEnEdicion[i].acordesTiempoCiclo = resizeArrayAcordes(seccionesEnEdicion[i].acordesTiempoCiclo, n);
+  // v1.76: mismo resize para los 2 campos exclusivos de percusión del ciclo.
+  seccionesEnEdicion[i].notasPercusionCiclo = resizeArrayAcordes(seccionesEnEdicion[i].notasPercusionCiclo, n);
+  seccionesEnEdicion[i].acentosCiclo = resizeArrayAcordes(seccionesEnEdicion[i].acentosCiclo, n);
   pintarSecciones();
 }
 function actualizarAcordeCiclo(i, j, valor){
@@ -2138,6 +2549,16 @@ function actualizarAcordeTiempo(i, j, valor){
   if(!Array.isArray(seccionesEnEdicion[i].acordesTiempo)) seccionesEnEdicion[i].acordesTiempo = [];
   seccionesEnEdicion[i].acordesTiempo[j] = valor;
 }
+// v1.74: mismo patrón, para los 2 campos exclusivos de percusión
+// (grilla principal solamente, ver nota más arriba).
+function actualizarNotaPercusion(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].notasPercusionPorCompas)) seccionesEnEdicion[i].notasPercusionPorCompas = [];
+  seccionesEnEdicion[i].notasPercusionPorCompas[j] = valor;
+}
+function actualizarAcentoPercusion(i, j, valor){
+  if(!Array.isArray(seccionesEnEdicion[i].acentosPorCompas)) seccionesEnEdicion[i].acentosPorCompas = [];
+  seccionesEnEdicion[i].acentosPorCompas[j] = valor;
+}
 // v1.72: mismo patrón, para el ciclo de Vamp y la 2da vez de fija-bloque.
 function actualizarAcordeTiempoCiclo(i, j, valor){
   if(!Array.isArray(seccionesEnEdicion[i].acordesTiempoCiclo)) seccionesEnEdicion[i].acordesTiempoCiclo = [];
@@ -2151,6 +2572,16 @@ function actualizarAcordeTiempoFinal2(i, j, valor){
 // el mismo <option> 9 veces en cada celda de la grilla.
 function htmlOpcionesTiempoAcorde(valorActual){
   const opciones = ['', '1', 'a1', '2', 'a2', '3', 'a3', '4', 'a4'];
+  return opciones.map(o => `<option value="${o}"${(valorActual || '') === o ? ' selected' : ''}>${o || '—'}</option>`).join('');
+}
+// v1.74: (a pedido) mismo criterio que htmlOpcionesTiempoAcorde, pero con
+// resolución de semicorchea (16 posiciones) y notación 1/e/&/a por
+// tiempo — es la que ya usa cualquier percusionista para contar
+// corcheas/semicorcheas, en vez de inventar una nomenclatura nueva.
+// Exclusivo de la guía de percusión (acentosPorCompas).
+function htmlOpcionesAcentoPercusion(valorActual){
+  const opciones = [''];
+  ['1', '2', '3', '4'].forEach(n => opciones.push(n, n + 'e', n + '&', n + 'a'));
   return opciones.map(o => `<option value="${o}"${(valorActual || '') === o ? ' selected' : ''}>${o || '—'}</option>`).join('');
 }
 // v1.54: (a pedido) nota corta por compás — mismo patrón que
@@ -2230,7 +2661,11 @@ function parsearPatronRitmico(patron){
         motivo: !cerrado ? `"{${inner}" sin cerrar (falta "}")` : (numero === null ? `"{${inner}}" tiene ${n} nota(s) — un grupo debe tener 3 (tresillo) o 6 (sextillo)` : null)
       });
       i = cerrado ? fin + 1 : str.length;
-    } else if(c === 'x' || c === 'X' || c === '.' || c === '-'){
+    } else if(c === 'x' || c === 'X' || c === '.' || c === '-' || c === ',' || c === 'n' || c === 'N'){
+      // v1.96: "," = silencio de negra (pesa 2 corcheas, ver
+      // pesoTotalPatron/aplanarColumnasPatron). v1.98: "n"/"N" = golpe de
+      // negra (normal/acentuado), mismo peso 2. Ninguno de los 3 se
+      // agrega dentro de grupos {} (esos siguen siendo puros de corchea).
       items.push({ tipo: 'simple', valor: c });
       i++;
     } else {
@@ -2243,7 +2678,11 @@ function aplanarColumnasPatron(items){
   const cols = [];
   items.forEach(it => {
     if(it.tipo === 'simple'){
-      cols.push({ caracter: it.valor, peso: 1, grupo: null });
+      // v1.96/v1.98: "," (silencio de negra) y "n"/"N" (golpe de negra)
+      // pesan 2 corcheas; el resto de símbolos simples (x/X/./-) sigue
+      // pesando 1, como siempre.
+      const pesaNegra = it.valor === ',' || it.valor === 'n' || it.valor === 'N';
+      cols.push({ caracter: it.valor, peso: pesaNegra ? 2 : 1, grupo: null });
     } else {
       const pesoCada = it.valido ? (2 / it.valores.length) : 1;
       it.valores.forEach((v, idx) => {
@@ -2258,7 +2697,7 @@ function aplanarColumnasPatron(items){
 }
 function pesoTotalPatron(items){
   let total = 0;
-  items.forEach(it => { total += (it.tipo === 'simple') ? 1 : (it.valido ? 2 : it.valores.length); });
+  items.forEach(it => { total += (it.tipo === 'simple') ? ((it.valor === ',' || it.valor === 'n' || it.valor === 'N') ? 2 : 1) : (it.valido ? 2 : it.valores.length); });
   return total;
 }
 // v1.55: (a pedido) cuenta cuántas notas REALES tiene un patrón rítmico
@@ -2271,7 +2710,9 @@ function contarNotasPatron(patron){
   const items = parsearPatronRitmico(patron);
   if(!items.length) return 0;
   const cols = aplanarColumnasPatron(items);
-  return cols.filter(c => c.caracter === 'x' || c.caracter === 'X' || c.caracter === '-').length;
+  // v1.98: "n"/"N" (golpe de negra) también son golpes reales — cuentan
+  // igual que "x"/"X" para efectos de acordes-por-golpe.
+  return cols.filter(c => c.caracter === 'x' || c.caracter === 'X' || c.caracter === '-' || c.caracter === 'n' || c.caracter === 'N').length;
 }
 // v1.62: (a pedido, "qué pasa si el break dura 2 compases") con más de 1
 // compás, el patrón sigue siendo UN string continuo (mismo criterio que
@@ -2299,9 +2740,15 @@ function indicesDivisorPatron(patron, compases){
   }
   return divisores;
 }
-function patronRitmicoSVG(patron, compases){
+// v1.95: (a pedido) 3er parámetro opcional `escala` — solo cambia el
+// tamaño VISUAL del render (width/height en px), no el viewBox ni el
+// dibujo interno. Default 1.35 = mismo tamaño de siempre (Break/Corte
+// sigue igual, sin pasar este parámetro). Se agrega para poder achicar
+// SOLO el preview de la clave de sección (informativo, no es donde se
+// edita) sin tocar esta función para los demás usos.
+function patronRitmicoSVG(patron, compases, escala){
   const items = parsearPatronRitmico(patron);
-  if(!items.length) return '<span style="color:#888;font-size:11px;">Sin patrón — escribí "x" (golpe), "X" (golpe acentuado), "." (silencio); agrupá con {xxx} para tresillo o {xxxxxx} para sextillo</span>';
+  if(!items.length) return '<span style="color:#888;font-size:11px;">Sin patrón — escribí "x" (golpe), "X" (golpe acentuado), "n"/"N" (golpe de negra, normal/acentuado), "." (silencio de corchea), "," (silencio de negra); agrupá con {xxx} para tresillo o {xxxxxx} para sextillo</span>';
   const cols = aplanarColumnasPatron(items);
   const pesoTotal = pesoTotalPatron(items);
   const n = cols.length;
@@ -2317,7 +2764,11 @@ function patronRitmicoSVG(patron, compases){
   // se beameaba en la pasada 3. Ahora esGolpe también es true para "-",
   // y como no lleva acento (solo el chequeo de 'X' dispara el acento),
   // se dibuja igual que un golpe normal sin acentuar.
-  const esGolpe = (c) => c === 'x' || c === 'X' || c === '-';
+  // v1.98: "n"/"N" (golpe de negra, normal/acentuado) también entran a
+  // esGolpe — se dibujan con cabeza+plica igual que cualquier golpe —
+  // pero NO a esBeamable, así nunca les sale corchete ni bandera de
+  // corchea (una negra real no lleva gancho), quedan con plica limpia.
+  const esGolpe = (c) => c === 'x' || c === 'X' || c === '-' || c === 'n' || c === 'N';
   // v1.52: esBeamable es más estricto que esGolpe — se usa solo para
   // decidir qué se agrupa con un corchete/barra (pasada de beams). La
   // ligadura "-" cuenta como golpe para dibujarse (cabeza+plica), pero
@@ -2337,7 +2788,7 @@ function patronRitmicoSVG(patron, compases){
     const x0 = xPlica - 0.85, y0 = yBase - altoPlica - 1;
     return `<path d="M ${x0} ${y0 - 2.2} L ${x0 + 1.7} ${y0 - 1.1} L ${x0} ${y0}" stroke="#1a1a1a" stroke-width="0.9" fill="none"/>`;
   };
-  let svg = `<svg width="${anchoTotal}" height="${alto}" viewBox="0 0 ${anchoTotal} ${alto}" style="width:${Math.round(anchoTotal * 1.35)}px;height:${Math.round(alto * 1.35)}px;" xmlns="http://www.w3.org/2000/svg">`;
+  let svg = `<svg width="${anchoTotal}" height="${alto}" viewBox="0 0 ${anchoTotal} ${alto}" style="width:${Math.round(anchoTotal * (escala || 1.35))}px;height:${Math.round(alto * (escala || 1.35))}px;" xmlns="http://www.w3.org/2000/svg">`;
   svg += `<line x1="0" y1="${yBase}" x2="${anchoTotal}" y2="${yBase}" stroke="#999" stroke-width="1"/>`;
   const totalCompases = Math.max(1, compases || 1);
   for(let k = 0; k <= totalCompases; k++){
@@ -2358,6 +2809,17 @@ function patronRitmicoSVG(patron, compases){
       const yc = yBase + 4.5;
       svg += `<line x1="${xj - 1.6}" y1="${yc - 2.4}" x2="${xj + 1.3}" y2="${yc + 0.7}" stroke="#999" stroke-width="1.1"/>`;
       svg += `<line x1="${xj + 1.3}" y1="${yc + 0.7}" x2="${xj - 0.4}" y2="${yc + 2.7}" stroke="#999" stroke-width="1.1"/>`;
+    } else if(col.caracter === ','){
+      // v1.96: silencio de NEGRA — símbolo distinto al de corchea (arriba),
+      // mismo criterio visual (debajo de la línea base, gris tenue) para
+      // no confundirse con acento/nota. Centrado en la columna, que ya es
+      // el doble de ancha por pesar 2.
+      // v1.98: (a pedido) trazo mejorado — un solo path continuo en
+      // zigzag suave (en vez de las 2 curvas rígidas de v1.96), más
+      // parecido al símbolo real de silencio de negra.
+      const xj = xInfo[j].xCentro;
+      const yc = yBase + 3.2;
+      svg += `<path d="M ${xj - 0.9} ${yc - 4.3} Q ${xj + 2.3} ${yc - 3.1} ${xj - 0.4} ${yc - 0.6} Q ${xj - 2.5} ${yc + 0.6} ${xj + 0.5} ${yc + 1.4} Q ${xj + 2.7} ${yc + 2.3} ${xj - 1.2} ${yc + 5.1}" stroke="#8a8a8a" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
     } else if(col.caracter === '-' && j > 0){
       // v1.51: (a pedido) ligadura más profunda (de 3 a 4.5) — se veía
       // corta/chata. Sigue siendo una curva suave (quadratic), solo más
@@ -2381,7 +2843,7 @@ function patronRitmicoSVG(patron, compases){
     const xPlica = xj + r;
     svg += `<circle cx="${xj}" cy="${yBase}" r="${r}" fill="#1a1a1a"/>`;
     svg += `<line x1="${xPlica}" y1="${yBase}" x2="${xPlica}" y2="${yBase - altoPlica}" stroke="#1a1a1a" stroke-width="0.9"/>`;
-    if(col.caracter === 'X') svg += acentoSVG(xPlica);
+    if(col.caracter === 'X' || col.caracter === 'N') svg += acentoSVG(xPlica);
   }
   // beams: grupos válidos llevan un solo corchete abarcando todo el grupo
   // + el número (3/6) centrado arriba; fuera de grupo sigue el agrupado
@@ -2479,6 +2941,89 @@ function patronRitmicoSVG(patron, compases){
 function actualizarNotaSeccion(i, valor){
   seccionesEnEdicion[i].notaSeccion = valor.slice(0, 70);
 }
+// v1.78: (a pedido) "Instrumento (guía de percusión)" pasa de select de
+// valor único a checkboxes de selección múltiple — una sección puede
+// tener varios instrumentos a la vez (ej. Conga+Bongó+Güiro), cosa que
+// el select viejo no podía representar. s.instrumentoPercusion pasa de
+// string a array de strings. Migración sin pérdida de datos: si viene
+// el string viejo (secciones cargadas antes de v1.78), esta función lo
+// envuelve en un array de 1 elemento al leerlo, en vivo, sin tocar lo
+// que hay guardado — recién se sobreescribe como array real la próxima
+// vez que el usuario togglee algún checkbox de esa sección. Se usa
+// tanto acá (checkboxes) como en el botón de la tarjeta (badge ✓).
+function instrumentosPercusionArray(s){
+  const v = s.instrumentoPercusion;
+  if(Array.isArray(v)) return v;
+  if(v) return [v];
+  return [];
+}
+const INSTRUMENTOS_PERCUSION_FIJOS_EDITOR = ['Congas','Bongó','Campana','Timbal','Güiro','Maracas','Clave','Kick/Drum','Todos/Tutti'];
+// Toggle de un instrumento de la lista fija (o del marcador '__otro__').
+// Reconstruye el array a partir del estado actual (ya migrado por
+// instrumentosPercusionArray) + agrega/saca el valor tocado.
+function toggleInstrumentoPercusion(i, valor, checked){
+  const actual = instrumentosPercusionArray(seccionesEnEdicion[i]).filter(v => v !== valor);
+  seccionesEnEdicion[i].instrumentoPercusion = checked ? actual.concat([valor]) : actual;
+  pintarModalPercusion();
+  pintarSecciones();
+}
+// Toggle específico de "Otro…" — además limpia instrumentoPercusionOtro
+// al destildar, mismo criterio que ya usaba el select viejo.
+function toggleInstrumentoPercusionOtro(i, checked){
+  const actual = instrumentosPercusionArray(seccionesEnEdicion[i]).filter(v => v !== '__otro__');
+  seccionesEnEdicion[i].instrumentoPercusion = checked ? actual.concat(['__otro__']) : actual;
+  if(!checked) seccionesEnEdicion[i].instrumentoPercusionOtro = '';
+  pintarModalPercusion();
+  pintarSecciones();
+}
+// v1.78: (a pedido) modal "🥁 Percusión" — junta esCampana + instrumento(s)
+// en un panel aparte, fuera de la tarjeta, para aliviar visualmente la
+// grilla principal (que ya tiene bastante campo). El modal vive en su
+// propio <div id="modalPercusion"> fuera de #listaSecciones a propósito:
+// pintarSecciones() reescribe el innerHTML de #listaSecciones en cada
+// cambio, y si el modal estuviera adentro se cerraría/perdería foco cada
+// vez que se toca un checkbox. modalPercusionIndex guarda qué sección se
+// está editando; null = modal cerrado. NO se tocó nada de
+// notasPercusionPorCompas/acentosPorCompas (siguen donde estaban, tejidos
+// en la grilla de acordes por compás — ver notas de la v1.78 en el
+// historial de arriba).
+let modalPercusionIndex = null;
+function abrirModalPercusion(i){
+  modalPercusionIndex = i;
+  document.getElementById('modalPercusion').style.display = 'flex';
+  pintarModalPercusion();
+}
+function cerrarModalPercusion(){
+  document.getElementById('modalPercusion').style.display = 'none';
+  modalPercusionIndex = null;
+  pintarSecciones();
+}
+function pintarModalPercusion(){
+  const i = modalPercusionIndex;
+  if(i == null || !seccionesEnEdicion[i]) return;
+  const s = seccionesEnEdicion[i];
+  const seleccionados = instrumentosPercusionArray(s);
+  const tieneOtro = seleccionados.includes('__otro__') || seleccionados.some(v => v && !INSTRUMENTOS_PERCUSION_FIJOS_EDITOR.includes(v));
+  document.getElementById('modalPercusionTitulo').textContent = '🥁 Percusión — ' + (s.nombre || 'Sin nombre');
+  document.getElementById('modalPercusionBody').innerHTML = `
+    <label style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
+      <input type="checkbox" ${s.esCampana ? 'checked' : ''} onchange="seccionesEnEdicion[${i}].esCampana = this.checked; pintarModalPercusion(); pintarSecciones();" style="width:auto;margin:0;">
+      🔔 Sección de campana
+    </label>
+    <label style="display:block;margin-bottom:6px;">Instrumento(s) que tocan esta sección</label>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+      ${INSTRUMENTOS_PERCUSION_FIJOS_EDITOR.map(op => `<label style="display:flex;align-items:center;gap:4px;">
+        <input type="checkbox" ${seleccionados.includes(op) ? 'checked' : ''} onchange="toggleInstrumentoPercusion(${i}, '${op}', this.checked)" style="width:auto;margin:0;">
+        ${op}
+      </label>`).join('')}
+      <label style="display:flex;align-items:center;gap:4px;">
+        <input type="checkbox" ${tieneOtro ? 'checked' : ''} onchange="toggleInstrumentoPercusionOtro(${i}, this.checked)" style="width:auto;margin:0;">
+        Otro…
+      </label>
+    </div>
+    ${tieneOtro ? `<input type="text" placeholder="Especificar instrumento" value="${(s.instrumentoPercusionOtro || '').replace(/"/g,'&quot;')}" oninput="seccionesEnEdicion[${i}].instrumentoPercusionOtro = this.value">` : ''}
+  `;
+}
 // v1.31: (a pedido) patrón rítmico del Break/Corte — texto libre ("x"
 // golpe, "." silencio), no dispara pintarSecciones() (no afecta duración
 // ni grilla, mismo patrón que notaTiempoCorte). Se dibuja en el PDF con
@@ -2495,6 +3040,33 @@ function actualizarNotaSeccion(i, valor){
 // actualizarPatronRitmico() de siempre (que ya repinta preview + aviso) —
 // esto es 100% aditivo sobre el input existente, reversible sin dejar
 // rastro si no se quiere más.
+// v1.93: (a pedido) clave por sección — wiring propio, gemelo liviano de
+// insertarSimboloPatron/actualizarPatronRitmico de abajo, pero SIN la
+// parte de resizeArrayAcordes/acordesPorGolpe (eso es exclusivo del
+// patrón de Break/Corte, no aplica a un ciclo de clave). Reusa el mismo
+// motor puro (patronRitmicoSVG/avisoPatronVsCompas), con "2" fijo de
+// compases en vez de duracionCompasesSeccion(s) — el ciclo de clave
+// siempre son 2 compases, no la duración total de la sección.
+function insertarSimboloClave(i, simbolo){
+  const input = document.getElementById('claveSeccionInput-' + i);
+  if(!input) return;
+  const inicio = input.selectionStart != null ? input.selectionStart : input.value.length;
+  const fin = input.selectionEnd != null ? input.selectionEnd : input.value.length;
+  const nuevoValor = input.value.slice(0, inicio) + simbolo + input.value.slice(fin);
+  input.value = nuevoValor;
+  actualizarClaveSeccion(i, nuevoValor);
+  input.focus();
+  const nuevaPos = inicio + simbolo.length;
+  input.setSelectionRange(nuevaPos, nuevaPos);
+}
+function actualizarClaveSeccion(i, valor){
+  seccionesEnEdicion[i].claveSeccion = valor;
+  const s = seccionesEnEdicion[i];
+  const prev = document.getElementById('claveSeccionPreview-' + i);
+  if(prev) prev.innerHTML = patronRitmicoSVG(valor, 2, 0.68);
+  const aviso = document.getElementById('claveSeccionAviso-' + i);
+  if(aviso) aviso.innerHTML = avisoPatronVsCompas(valor, 2, s);
+}
 function insertarSimboloPatron(i, simbolo){
   const input = document.getElementById('patronRitmicoInput-' + i);
   if(!input) return;
@@ -2517,7 +3089,7 @@ function actualizarPatronRitmico(i, valor){
   // usando la misma duración (en compases) ya calculada para esta sección.
   const aviso = document.getElementById('patronRitmicoAviso-' + i);
   if(aviso){
-    aviso.innerHTML = avisoPatronVsCompas(valor, dur);
+    aviso.innerHTML = avisoPatronVsCompas(valor, dur, s);
   }
   // v1.55: (a pedido) al cambiar el patrón, la cantidad de notas reales
   // puede cambiar — se reajusta acordesPorGolpe al nuevo tamaño (mismo
@@ -2587,7 +3159,13 @@ function actualizarNotaPorGolpe(i, j, valor){
 // tenga adentro (ver pesoTotalPatron), así que la fórmula de "esperados"
 // (beatsPorBarra*2*duracionCompases) no cambia — sigue comparando
 // corcheas-equivalentes contra corcheas-equivalentes.
-function avisoPatronVsCompas(patron, duracionCompases){
+// v1.82: (a pedido) recibe la sección (parámetro opcional `s`, tercer
+// arg) para usar SU compás propio (beatsPorBarraDeSeccion) en vez de
+// siempre el general — si un Break/Corte tiene compasOverride, el
+// patrón ahora se valida contra el compás real de esa sección. Sin `s`
+// (o sin override), cae al compás general de siempre — cero cambio de
+// comportamiento para los llamados que no pasen `s`.
+function avisoPatronVsCompas(patron, duracionCompases, s){
   const items = parsearPatronRitmico(patron);
   if(!items.length || duracionCompases == null) return '';
   const invalidos = items.filter(it => it.tipo === 'grupo' && !it.valido);
@@ -2595,7 +3173,7 @@ function avisoPatronVsCompas(patron, duracionCompases){
     const detalle = invalidos.map(it => it.motivo).join('; ');
     return `<span style="color:#d9534f;">⚠ patrón inválido — ${detalle}</span>`;
   }
-  const beatsPorBarra = previewBeatsPerBar();
+  const beatsPorBarra = s ? beatsPorBarraDeSeccion(s) : previewBeatsPerBar();
   const esperados = beatsPorBarra * 2 * duracionCompases;
   const pesoTotal = pesoTotalPatron(items);
   const fmt = (v) => (Math.round(v * 100) / 100).toString();
@@ -2641,6 +3219,9 @@ function actualizarRepeticiones(i, valor){
   s.notasPorCompas = resizeArrayAcordes(s.notasPorCompas, basePase);
   // v1.71: mismo resize para acordesTiempo (tiempo/anticipación).
   s.acordesTiempo = resizeArrayAcordes(s.acordesTiempo, basePase);
+  // v1.74: mismo resize para los 2 campos exclusivos de percusión.
+  s.notasPercusionPorCompas = resizeArrayAcordes(s.notasPercusionPorCompas, basePase);
+  s.acentosPorCompas = resizeArrayAcordes(s.acentosPorCompas, basePase);
   if(n > 1){
     s.finalDistintoN = Math.min(basePase, s.finalDistintoN || 1);
     s.acordesFinal2 = resizeArrayAcordes(s.acordesFinal2, s.finalDistintoN);
@@ -2648,6 +3229,9 @@ function actualizarRepeticiones(i, valor){
     s.notasFinal2 = resizeArrayAcordes(s.notasFinal2, s.finalDistintoN);
     // v1.72: mismo resize para acordesTiempoFinal2 (tiempo/anticipación).
     s.acordesTiempoFinal2 = resizeArrayAcordes(s.acordesTiempoFinal2, s.finalDistintoN);
+    // v1.76: mismo resize para los 2 campos exclusivos de percusión de la 2da vez.
+    s.notasPercusionFinal2 = resizeArrayAcordes(s.notasPercusionFinal2, s.finalDistintoN);
+    s.acentosFinal2 = resizeArrayAcordes(s.acentosFinal2, s.finalDistintoN);
   }
   pintarSecciones();
 }
@@ -2663,6 +3247,9 @@ function actualizarFinalDistintoN(i, valor){
   s.notasFinal2 = resizeArrayAcordes(s.notasFinal2, n);
   // v1.72: mismo resize para acordesTiempoFinal2 (tiempo/anticipación).
   s.acordesTiempoFinal2 = resizeArrayAcordes(s.acordesTiempoFinal2, n);
+  // v1.76: mismo resize para los 2 campos exclusivos de percusión de la 2da vez.
+  s.notasPercusionFinal2 = resizeArrayAcordes(s.notasPercusionFinal2, n);
+  s.acentosFinal2 = resizeArrayAcordes(s.acentosFinal2, n);
   pintarSecciones();
 }
 // v1.56: (a pedido) checkbox "casilla en horizontal" — solo guarda la
@@ -2741,15 +3328,74 @@ function textoASegundos(txt){
 // se tocó, mismo criterio que ya usaba el input de tiempo). El campo
 // que NO se está editando muestra la conversión en vivo como
 // placeholder (preview, no pisa lo que el staff ya escribió ahí).
+// v1.83: (a pedido) recorrido secuencial de compases — resuelve
+// segundo<->compás caminando sección por sección EN ORDEN CRONOLÓGICO
+// (por desdeSegundos, no por orden de edición), cada una con su propio
+// compás (compasOverride si tiene, general del tema si no), en vez de
+// asumir un compás único desde el offset para todo el tema. Sin ningún
+// compasOverride cargado da un solo tramo con el compás general desde
+// el offset = exactamente la fórmula vieja, cero cambio para temas sin
+// amalgama. Anclaje de grilla: cada tramo realinea su propio conteo de
+// tiempos en su propio inicio (como una partitura real: la barra de
+// compás cae justo en el cambio de compás) — el NÚMERO de compás sigue
+// siendo secuencial/absoluto (se acumula tramo a tramo, nunca reinicia
+// a 1), solo el "reloj" interno de cada tramo arranca de nuevo en su
+// borde. El último tramo (o cualquiera sin hastaSegundos) queda
+// abierto (finSeg = Infinity) y se extrapola con su propio compás.
+// Usada por segundosDeCompas/compasDeSegundos, snapASegundoDeCompas y
+// el contador en vivo de previewUpdate — un solo lugar con el criterio,
+// sin duplicar la lógica de recorrido en cada uno.
+function recorrerTramos(){
+  const secciones = (seccionesEnEdicion || [])
+    .filter(s => (s.nombre || '').trim())
+    .slice()
+    .sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
+  const offset = previewOffset();
+  const tramos = [];
+  let inicioSeg = offset;
+  let compasAcumulado = 1;
+  const primerInicio = secciones.length ? Math.max(secciones[0].desdeSegundos || 0, offset) : Infinity;
+  if(!secciones.length || primerInicio > offset){
+    const beats = previewBeatsPerBar();
+    const secPerBar = segundosPorCompas(previewBpm(), beats);
+    const finSeg = secciones.length ? primerInicio : Infinity;
+    tramos.push({ inicioSeg, finSeg, beats, secPerBar, compasInicio: compasAcumulado });
+    if(secPerBar && finSeg !== Infinity) compasAcumulado += Math.round((finSeg - inicioSeg) / secPerBar);
+    inicioSeg = finSeg;
+  }
+  secciones.forEach((s, idx) => {
+    const desde = Math.max(s.desdeSegundos || 0, inicioSeg);
+    const siguienteInicio = (idx + 1 < secciones.length) ? secciones[idx + 1].desdeSegundos : null;
+    const finSeg = (siguienteInicio != null) ? siguienteInicio : ((s.hastaSegundos != null) ? s.hastaSegundos : Infinity);
+    const beats = beatsPorBarraDeSeccion(s);
+    const secPerBar = segundosPorCompas(previewBpm(), beats);
+    tramos.push({ inicioSeg: desde, finSeg, beats, secPerBar, compasInicio: compasAcumulado });
+    if(secPerBar && finSeg !== Infinity) compasAcumulado += Math.round((finSeg - desde) / secPerBar);
+    inicioSeg = finSeg;
+  });
+  return tramos;
+}
+function tramoEnSegundo(seg){
+  const tramos = recorrerTramos();
+  let actual = tramos[0];
+  tramos.forEach(t => { if((seg || 0) >= t.inicioSeg) actual = t; });
+  return actual;
+}
+function tramoEnCompas(compasNum){
+  const tramos = recorrerTramos();
+  let actual = tramos[0];
+  tramos.forEach(t => { if(compasNum >= t.compasInicio) actual = t; });
+  return actual;
+}
 function segundosDeCompas(compasNum){
-  const secPerBar = segundosPorCompas(previewBpm(), previewBeatsPerBar());
-  if(!secPerBar) return 0;
-  return Math.max(0, previewOffset() + (compasNum - 1) * secPerBar);
+  const t = tramoEnCompas(compasNum);
+  if(!t || !t.secPerBar) return 0;
+  return Math.max(0, t.inicioSeg + (compasNum - t.compasInicio) * t.secPerBar);
 }
 function compasDeSegundos(seg){
-  const secPerBar = segundosPorCompas(previewBpm(), previewBeatsPerBar());
-  if(!secPerBar) return 1;
-  return Math.max(1, Math.round(((seg || 0) - previewOffset()) / secPerBar) + 1);
+  const t = tramoEnSegundo(seg);
+  if(!t || !t.secPerBar) return 1;
+  return Math.max(1, t.compasInicio + Math.round(((seg || 0) - t.inicioSeg) / t.secPerBar));
 }
 function actualizarSeccionDesdeTiempo(i, txt){
   seccionesEnEdicion[i].desdeSegundos = textoASegundos(txt);
@@ -2815,8 +3461,12 @@ function limpiarSeccionHasta(i){
 // arriba, así que si el staff ajusta BPM después, el preset ya
 // aplicado no se re-ajusta solo (mismo comportamiento que el resto de
 // los campos de esta pantalla: son segundos fijos una vez guardados).
+// v1.82: (a pedido) usa el compás PROPIO de la sección
+// (beatsPorBarraDeSeccion, respeta compasOverride) — antes usaba
+// siempre el general del tema, así que un preset x4 en una sección
+// override a 3/4 calculaba el final como si fueran 4 compases de 4/4.
 function setSeccionHastaPreset(i, n){
-  const secPerBar = segundosPorCompas(previewBpm(), previewBeatsPerBar());
+  const secPerBar = segundosPorCompas(previewBpm(), beatsPorBarraDeSeccion(seccionesEnEdicion[i]));
   if(!secPerBar) return;
   seccionesEnEdicion[i].hastaSegundos = (seccionesEnEdicion[i].desdeSegundos || 0) + n * secPerBar;
   pintarSecciones();
@@ -2824,9 +3474,11 @@ function setSeccionHastaPreset(i, n){
 // Resalta el preset activo (botón "encendido") cuando el hastaSegundos
 // guardado coincide exactamente con ese múltiplo de compases — solo
 // estético, para que el staff vea de un vistazo cuál usó.
+// v1.82: (a pedido) mismo criterio que setSeccionHastaPreset — compás
+// propio de la sección, no el general.
 function esPresetHastaActivo(s, i, n){
   if(s.hastaSegundos == null) return false;
-  const secPerBar = segundosPorCompas(previewBpm(), previewBeatsPerBar());
+  const secPerBar = segundosPorCompas(previewBpm(), beatsPorBarraDeSeccion(s));
   if(!secPerBar) return false;
   const esperado = (s.desdeSegundos || 0) + n * secPerBar;
   return Math.abs(s.hastaSegundos - esperado) < 0.01;
@@ -2863,10 +3515,53 @@ function exportarEstructuraPDF(){
   const secciones = seccionesEnEdicion.slice().sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
   const seccionesParaPDF = secciones.map((s, i) => Object.assign({}, s, {
     duracion: duracionCompasesSeccion(s),
-    color: colorDeSeccionEnLista(secciones, i)
+    color: colorDeSeccionEnLista(secciones, i),
+    // v1.90: (a pedido) si el staff no cargó letra de ensayo a mano, el
+    // PDF ahora usa la misma sugerida (A/B/C...) que ya se ve en el mapa
+    // de tema en pantalla (letraEnsayoSugerida, sin tocar esa función) —
+    // antes el PDF se quedaba sin letra en ese caso. Usa el índice REAL
+    // en seccionesEnEdicion (no el índice `i` de este array ordenado por
+    // tiempo, que puede diferir si el staff reordenó secciones a mano)
+    // porque letraEnsayoSugerida cuenta secciones en el orden original.
+    letraEnsayo: (s.letraEnsayo || '').trim() || letraEnsayoSugerida(seccionesEnEdicion.indexOf(s))
   }));
 
   generarEstructuraPDF({
+    temaNombre: nombreTema,
+    bpm: bpm,
+    compasTexto: compas,
+    claveTxt: claveTxt,
+    secciones: seccionesParaPDF
+  });
+}
+// v1.74: (a pedido) "guía de percusión" — mismo armado de datos que
+// exportarEstructuraPDF de arriba (mismo `secciones`, mismo `duracion`/
+// `color` ya resueltos), pero llama a generarEstructuraPDFPercusion en
+// vez de generarEstructuraPDF (pdf-estructura.js) — es la que dibuja sin
+// acordes/letra, con notasPercusionPorCompas y la regla de semicorchea
+// en vez de la de acordes.
+function exportarEstructuraPDFPercusion(){
+  if(!seccionesEnEdicion.length){ alert('No hay secciones cargadas todavia.'); return; }
+  const bpm = document.getElementById('inputBpm').value || '—';
+  const compas = document.getElementById('inputCompas').value || '4/4';
+  const claveSel = document.getElementById('inputClave');
+  const claveTxt = claveSel && claveSel.value ? claveSel.options[claveSel.selectedIndex].textContent : null;
+  const nombreTema = temaDataActual.nombre || 'Tema sin nombre';
+
+  const secciones = seccionesEnEdicion.slice().sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
+  // v1.79 (pdf-estructura.js): FIX — a esta función le faltaba el mismo
+  // fallback de letra de ensayo que ya tiene exportarEstructuraPDF
+  // (v1.90, línea ~3145): si el staff no cargó letraEnsayo a mano, el
+  // PDF de percusión quedaba sin letra en vez de usar la sugerida
+  // (A/B/C...). Mismo criterio: índice REAL en seccionesEnEdicion (no
+  // el índice `i` de este array ordenado por tiempo).
+  const seccionesParaPDF = secciones.map((s, i) => Object.assign({}, s, {
+    duracion: duracionCompasesSeccion(s),
+    color: colorDeSeccionEnLista(secciones, i),
+    letraEnsayo: (s.letraEnsayo || '').trim() || letraEnsayoSugerida(seccionesEnEdicion.indexOf(s))
+  }));
+
+  generarEstructuraPDFPercusion({
     temaNombre: nombreTema,
     bpm: bpm,
     compasTexto: compas,
@@ -3151,6 +3846,19 @@ function previewBeatsPerBar(){
   const compas = document.getElementById('inputCompas').value || '4/4';
   return parseInt(compas.split('/')[0], 10) || 4;
 }
+// v1.81: (a pedido) amalgama — s.compasOverride (campo "Compás (si
+// cambia acá)", ya existía en el editor pero era solo texto decorativo
+// en el PDF) ahora SÍ se usa para calcular la duración real de ESA
+// sección puntual. Si no hay override válido, cae al compás general
+// del tema (comportamiento de siempre, sin cambios).
+function beatsPorBarraDeSeccion(s){
+  const ov = (s.compasOverride || '').trim();
+  if(ov){
+    const n = parseInt(ov.split('/')[0], 10);
+    if(n > 0) return n;
+  }
+  return previewBeatsPerBar();
+}
 function previewBpm(){
   return parseFloat(document.getElementById('inputBpm').value) || 96;
 }
@@ -3187,12 +3895,16 @@ async function previewTogglePlay(){
   }
 }
 
+// v1.83: (a pedido) el contador de compás en vivo pasa a usar el
+// recorrido por tramos (compasDeSegundos, que ahora resuelve vía
+// recorrerTramos) en vez de la fórmula plana de un solo compás — así
+// el número que ve el staff durante el preview es correcto también
+// después de un cambio de compás. Sin compasOverride, mismo resultado
+// que antes, cero cambio para temas sin amalgama.
 function previewUpdate(){
   if(!previewPlaying) return;
   const elapsed = Tone.now() - previewStart;
-  const secPerBeat = 60 / previewBpm();
-  const secPerBar = secPerBeat * previewBeatsPerBar();
-  const barIndex = Math.max(1, Math.floor((elapsed - previewOffset()) / secPerBar) + 1);
+  const barIndex = compasDeSegundos(elapsed);
   document.getElementById('previewBar').textContent = barIndex;
   document.getElementById('previewSeccion').textContent = previewSeccionEn(elapsed);
   requestAnimationFrame(previewUpdate);
@@ -3231,6 +3943,55 @@ if(estaModoOfflineActivo()){
     }
   });
 }
+
+// v1.9x: (a pedido) 4 bloques principales colapsables (Datos del tema,
+// Secciones, Maquetas, Previsualizar contador) — estado persistido en
+// localStorage por bloque, INDEPENDIENTE entre bloques (no es acordeón,
+// eso solo aplica a las tarjetas de sección de abajo). Por defecto
+// (primera vez, sin nada guardado) arrancan CERRADOS.
+const CARDS_PRINCIPALES = ['datosTema', 'secciones', 'maquetas', 'previsualizador'];
+function toggleCardPrincipal(nombre){
+  const body = document.getElementById('body-' + nombre);
+  const flecha = document.getElementById('flecha-' + nombre);
+  if(!body) return;
+  const colapsado = body.classList.toggle('colapsado');
+  if(flecha) flecha.textContent = colapsado ? '▸' : '▾';
+  try{ localStorage.setItem('guiaCardColapsada:' + nombre, colapsado ? '1' : '0'); }catch(e){}
+}
+function iniciarEstadoCardsPrincipales(){
+  CARDS_PRINCIPALES.forEach(nombre => {
+    const body = document.getElementById('body-' + nombre);
+    const flecha = document.getElementById('flecha-' + nombre);
+    if(!body) return;
+    let colapsado = true; // cerrado por defecto la primera vez
+    try{
+      const guardado = localStorage.getItem('guiaCardColapsada:' + nombre);
+      if(guardado !== null) colapsado = guardado === '1';
+    }catch(e){}
+    body.classList.toggle('colapsado', colapsado);
+    if(flecha) flecha.textContent = colapsado ? '▸' : '▾';
+  });
+}
+iniciarEstadoCardsPrincipales();
+
+// v1.9x: (a pedido) click fuera de cualquier tarjeta de sección cierra
+// la que esté abierta — mismo criterio de acordeón que
+// toggleColapsoSeccion/irASeccionYAbrir, disparado desde afuera. Se
+// ignora si el click fue dentro de una .seccion-card (ahí ya lo maneja
+// el propio header/los controles internos) o dentro de un modal
+// abierto (percusión), para no cerrar la tarjeta mientras se edita algo
+// suyo en un overlay.
+document.addEventListener('click', (ev) => {
+  if(typeof seccionesEnEdicion === 'undefined' || !seccionesEnEdicion.length) return;
+  if(ev.target.closest('.seccion-card')) return;
+  if(ev.target.closest('.modal-overlay')) return;
+  const hayAbierta = seccionesEnEdicion.some(s => s._colapsada === false);
+  if(!hayAbierta) return;
+  seccionesEnEdicion.forEach(s => { s._colapsada = true; });
+  pintarSecciones();
+});
+
+
 </script>
 
 <img id="hdrDiffuser" src="img/DIFFUSER.jpg" style="display:none">

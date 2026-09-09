@@ -1,4 +1,253 @@
-// AUDIOLINK · pdf-estructura.js · v1.72
+// AUDIOLINK · pdf-estructura.js · v1.92
+// v1.92: (a pedido) ahora se ven las 2 notas por compás a la vez en el
+// PDF de percusión, con jerarquía clara:
+//  - Nota de PERCUSIÓN (notasPercusionPorCompas/Ciclo/Final2) — vuelve a
+//    vivir ADENTRO de la caja, negro/negrita (info principal: "repique
+//    de bongó", "solo kick").
+//  - Nota de ARMONÍA (notasPorCompas/notasCiclo/notasFinal2, la misma
+//    que ya se ve en el PDF de acordes) — pasa a su propia tira ARRIBA
+//    de la caja, itálica/naranja (contexto general del tema, secundario).
+// dibujarCajasPercusion ahora recibe `opciones.notasArmonia` además del
+// parámetro `notas` (que sigue siendo la de percusión, dibujada adentro
+// como siempre fue hasta v1.89). hayNotas (si se reserva la tira de
+// arriba) se decide por notasArmonia — calcularAltoSeccionPercusion
+// también pasa a mirar notasPorCompas/notasCiclo/notasFinal2 (no las de
+// percusión) para reservar ese alto. Los 3 llamados a dibujarCajasPercusion
+// (grilla principal, 2da vez horizontal, 2da vez apilada) le pasan su
+// notasArmonia correspondiente. Corchetes "1."/"2." sin cambios (ya
+// anclaban por encima de toda la tira). Cero cambios en generarEstructuraPDF,
+// dibujarCajas, dibujarCajaBreak ni dibujarCorcheteCasilla (PDF de acordes).
+// v1.91: (a pedido, FIX urgente) v1.90 rompía el botón "🥁 PDF
+// Percusión" por completo — `let ultimaHayNotasPercusion` había quedado
+// declarada DENTRO del bloque que arma la grilla (Vamp/fija-bloque), pero
+// se usaba también en el avance final de cada sección, que vive FUERA de
+// ese bloque → "ReferenceError: ultimaHayNotasPercusion is not defined"
+// no capturado, que frenaba toda la función (y por lo tanto el botón).
+// Fix: la declaración se mueve al principio del `forEach` de cada
+// sección (antes de cualquier if/else), donde queda visible para todo el
+// resto del procesamiento de esa sección. Cero cambios de lógica/dibujo
+// respecto a v1.90 — mismo comportamiento visual pretendido, ahora sin
+// tirar excepción. Ver v1.90 más abajo para el detalle del cambio de
+// fondo (nota por compás con tira propia arriba de la caja).
+// v1.90: (a pedido) la nota por compás de la guía de percusión
+// (notasPercusionPorCompas/Ciclo/Final2, dibujarCajasPercusion) pasa a
+// dibujarse tal cual como en armonías: tira propia ARRIBA de cada caja
+// (notaFilaAlto, 5mm), itálica, color naranja/marrón (180,120,40),
+// truncada a 22 caracteres — mismo criterio visual y de posición que
+// dibujarCajas en generarEstructuraPDF. Antes se dibujaba ADENTRO de la
+// caja, negro/negrita, compitiendo por espacio con "c.N"/"#N"/la reglita
+// de acento. hayNotas se calcula una sola vez por grilla (si cualquier
+// compás trae nota, TODAS las filas de esa grilla reservan la tira, para
+// que las cajas no salten de alto entre sí) — mismo patrón que
+// hayContenido en generarEstructuraPDF. Ajustes derivados, para que nada
+// más se corra o se pise:
+//  - calcularAltoSeccionPercusion ahora reserva notaFilaAlto por fila
+//    (grilla principal y 2da vez) cuando corresponde — si no, con notas
+//    cargadas el dibujo real (más alto) pisaba la barra de título de la
+//    sección siguiente.
+//  - Nuevo flag por sección `ultimaHayNotasPercusion`: guarda si la
+//    última grilla dibujada (la que sí avanza `y`, es decir sin
+//    sinAvanzarY) reservó tira de notas. Lo usan la lista de "próximas
+//    repeticiones" del Vamp (yBaseVamp), el marco de repetición
+//    (dibujarBarraRepeticionPercusion arranca DESPUÉS de la tira, no
+//    encima), el texto "se repite..." y el avance final de la sección —
+//    los 4 puntos donde antes se asumía cajaAlto a secas.
+//  - La 2da vez horizontal (pegada a la 1ra vez) hereda hayNotasForzado
+//    de la grilla principal (mismo patrón que hayNotasForzado en
+//    dibujarCajas/generarEstructuraPDF), para que ambas cajas queden
+//    alineadas en la misma fila aunque la 2da vez no tenga notas propias.
+// Los corchetes "1."/"2." (dibujarCorcheteCasillaPercusion) NO se tocan:
+// ya anclaban en yGridVamp/yBloque2 (arranque real de la fila, ANTES de
+// sumar la tira de notas), mismo criterio que dibujarCorcheteCasilla en
+// generarEstructuraPDF — por eso ya quedaban arriba de la tira de notas
+// sin pisarla, sin necesidad de ajuste. Cero cambios en generarEstructuraPDF,
+// dibujarCajas, dibujarCajaBreak ni dibujarCorcheteCasilla (PDF de acordes).
+// v1.89: (a pedido) 2 FIX sobre generarEstructuraPDFPercusion v1.88:
+//  (a) margen excesivo después de "se repite..." — el incremento final
+//      fijo (cajaAlto+4) de cada sección asumía que lo último dibujado
+//      siempre era una FILA de cajas (cierto antes de v1.88, cuando "se
+//      repite..." se dibujaba ANTES de la grilla). Ahora que se dibuja
+//      DESPUÉS, en las secciones que terminan en esa línea de texto (o
+//      en la 2da vez horizontal, que tampoco agrega una fila nueva) ese
+//      cajaAlto+4 quedaba sumado ENCIMA del aire que la línea de texto
+//      ya trae. Nuevo flag `ultimoElementoEsTexto` (por sección) decide
+//      entre 4mm (texto) y cajaAlto+4 (fila de cajas).
+//  (b) el marco de repetición (dibujarBarraRepeticionPercusion) pisaba/
+//      se solapaba con la caja de la 2da vez horizontal (v1.88) porque
+//      su trazo derecho cerraba en el borde de la 1ra vez, justo donde
+//      arranca la 2da — mismo FIX que ya tiene generarEstructuraPDF
+//      (v1.48): el ancho del marco se extiende para cerrar DESPUÉS de la
+//      2da vez cuando es horizontal.
+// Cero cambios en generarEstructuraPDF, dibujarCajas ni dibujarCajaBreak.
+// v1.88: (a pedido) 4 ajustes en generarEstructuraPDFPercusion para
+// emparejar el comportamiento de la guía de percusión con
+// generarEstructuraPDF (acordes), ninguno toca generarEstructuraPDF,
+// dibujarCajas ni dibujarCajaBreak:
+//  (a) "se repite xN..." pasa de dibujarse ANTES de la grilla principal
+//      a dibujarse DESPUÉS (debajo), mismo orden que acordes.
+//  (b) FIX del contador "#N" en la 2da vez: antes reusaba el
+//      compasGlobalInicio de la sección tal cual, mostrando el mismo
+//      número que la 1ra pasada en vez del compás real de la ÚLTIMA
+//      vuelta (ver dibujarCajasPercusion, ahora acepta
+//      opciones.compasGlobalInicioOverride — mismo cálculo que ya usa
+//      acordes: compasGlobalInicio + (repeticiones-1)*totalCajas).
+//  (c) 2da vez ahora puede dibujarse en HORIZONTAL (pegada a la derecha
+//      de la 1ra vez, en la misma fila) cuando entra — mismo criterio
+//      "alineable"/"cabeHorizontal" que ya usa acordes — con los mismos
+//      corchetes "1."/"2." (dibujarCorcheteCasillaPercusion, duplicado
+//      tal cual de dibujarCorcheteCasilla). Antes la 2da vez SIEMPRE caía
+//      apilada debajo, sin corchetes.
+//  (d) dibujarCajasPercusion pasa de (notas,acentos,total,numInicio) a
+//      (notas,acentos,total,colInicio,labelInicio,opciones) — mismo
+//      patrón que dibujarCajas de acordes (colInicio para la posición en
+//      la grilla, labelInicio para el "c.N" real, opciones.yBase/
+//      sinAvanzarY para dibujar en la misma fila sin tocar el y
+//      corrido). Los 2 llamados existentes (pase principal y 2da vez
+//      apilada) se migraron sin cambiar su resultado visual.
+// v1.87: (a pedido, FIX) la lista de "próximas repeticiones" en Vamp
+// (v1.85) se corrige de posición — iba debajo del borde de la caja
+// (yGridVamp+cajaAlto+2, afuera), ahora va DENTRO de la caja, pegada
+// justo debajo del label "#N" (yGridVamp+6.5), igual que en acordes.
+// v1.86: (a pedido, FIX) el marco doble con puntos en percusión pasa a
+// dibujarse SOLO en fija-bloque con repeticiones>1 (dibujarBarraRepeticionPercusion,
+// izq.+der., duplicado tal cual de dibujarBarraRepeticion de acordes) —
+// antes (v1.79/v1.81, dibujarBarraCierreSeccion) se dibujaba en TODA
+// sección, solo del lado derecho, lo que hacía que en Vamp (ej. "Solo")
+// chocara visualmente con la lista de próximas repeticiones (v1.85). Con
+// este cambio Vamp ya no dibuja ningún marco (igual que en acordes, que
+// solo muestra el iconito "║:" ahí), así que el choque desaparece. El
+// bloque de 2da vez tampoco lleva marco propio (mismo criterio que
+// acordes: el marco envuelve solo la fila principal).
+// v1.85: (a pedido) generarEstructuraPDFPercusion hereda la lista de
+// "próximas repeticiones" en Vamp (#N chico bajo cada caja del ciclo,
+// hasta 3 líneas) de generarEstructuraPDF — mismo cálculo y estilo.
+// casillaHorizontal queda pendiente (evaluado como más riesgoso de lo
+// estimado, a la espera de definir si vale la pena portarlo).
+// v1.84: (a pedido) generarEstructuraPDFPercusion hereda el patrón
+// rítmico de Break/Corte (dibujarPatronRitmico + helpers de parseo,
+// duplicados tal cual de generarEstructuraPDF) y notaTiempoCorte — la
+// sección Break/Corte ya no usa la grilla genérica, dibuja el patrón real
+// igual que el PDF de acordes (sin fila de acordes, esta guía no los
+// muestra). calcularAltoSeccionPercusion también actualizado para
+// reservar el alto correcto en este caso.
+// v1.83: (a pedido) generarEstructuraPDFPercusion hereda Coda/D.C./D.S.
+// (nombresYaImpresos, esCoda, etiquetaDC, dibujarIconoCoda duplicado) y
+// compasOverride — mismo criterio y estilo que generarEstructuraPDF,
+// nada más tocado. notaTiempoCorte queda para el parche del patrón
+// rítmico de Break/Corte (siguiente paso, todavía no aplica acá).
+// v1.82: (a pedido) generarEstructuraPDFPercusion hereda el contador
+// global de compás "#N" por caja (esquina sup. derecha, 6pt gris claro)
+// que ya tenía generarEstructuraPDF — mismo criterio y estilo, sin tocar
+// nada más de la función.
+// v1.81: (a pedido) 2 ajustes más sobre generarEstructuraPDFPercusion:
+//  (a) la barra de cierre de sección (v1.79) cambia de "doble barra
+//      simple" a puntos + trazo fino + trazo grueso/fino — mismo
+//      criterio visual que ya usa dibujarBarraRepeticion en
+//      generarEstructuraPDF para el lado de cierre (║:). Puramente
+//      estético, mismo esFinal (fina+gruesa en la última sección del
+//      tema) de antes.
+//  (b) se agrega el resumen "c.#X-c.#Y" en la barra de título de cada
+//      sección — mismo dato/cálculo/estilo que ya usa
+//      generarEstructuraPDF (v1.45/v1.70: contador global de compás,
+//      blanco/itálica/opacidad reducida), duplicado acá porque son
+//      variables locales allá. Se ubica a la izquierda del texto de
+//      instrumento (v1.78) para no pisarlo cuando ambos están
+//      presentes — si no hay instrumento cargado, el resumen ocupa todo
+//      el espacio de la derecha.
+// Cero cambios en generarEstructuraPDF, dibujarCajas ni dibujarCajaBreak.
+// v1.80: (a pedido) 2 ajustes en generarEstructuraPDFPercusion pensando
+// en que el percusionista vea la estructura más rápido, sin leer texto:
+//  (a) "se repite xN..." ahora lleva el mismo ícono gráfico ║: que ya
+//      usa generarEstructuraPDF para lo mismo (dibujarIconoRepeticion,
+//      v1.29.2) — duplicado acá como dibujarIconoRepeticionPercusion
+//      porque es función local allá, no accesible desde acá. Antes solo
+//      era texto itálico sin símbolo. Mismo texto/criterio de siempre.
+//  (b) nueva barra doble de cierre de sección (dibujarBarraCierreSeccion)
+//      — hasta ahora el corte entre secciones solo se notaba por el
+//      cambio de color de la barra de título, sin ningún símbolo de
+//      notación. Se dibuja pegada al borde derecho de la ÚLTIMA fila de
+//      cajas de cada sección (o del bloque de 2da vez, si lo hay — ese
+//      es el contenido real que cierra la sección): doble barra fina
+//      para secciones intermedias, fina+gruesa (barra final real) solo
+//      en la última sección del tema.
+// Cero cambios en generarEstructuraPDF, dibujarCajas ni dibujarCajaBreak
+// (PDF de acordes normal intacto). Pendiente aparte (no en este paso):
+// franja horizontal de compases grandes como "mapa" opcional del tema.
+// v1.79: (a pedido) ajuste quirúrgico en textoInstrumentoPercusion,
+// alineado a guia-practica.html v1.78 — el select de instrumento (valor
+// único) pasó a checkboxes de selección múltiple, así que
+// s.instrumentoPercusion ahora puede ser un array (varios instrumentos
+// por sección, ej. Conga+Bongó+Güiro) en vez de un string. La función se
+// hizo robusta a AMBOS formatos (array nuevo o string viejo sin migrar),
+// para que el PDF salga bien aunque la sección nunca se haya vuelto a
+// abrir en el editor desde v1.78. Con varios instrumentos, se listan
+// juntos separados por coma en la misma línea de siempre (a la derecha
+// de la barra de título) — cero cambios de layout/posición/estilo, cero
+// cambios en el resto del dibujo de percusión ni en generarEstructuraPDF.
+// v1.78: (a pedido) 2 ajustes dentro de generarEstructuraPDFPercusion,
+// leyendo 2 campos nuevos de guia-practica.html v1.77 — cero cambios en
+// generarEstructuraPDF, dibujarCajas ni dibujarCajaBreak (PDF de acordes
+// normal intacto):
+//  (a) s.esCampana (checkbox "🔔 Sección de campana") — dibuja un marco
+//      dorado alrededor de la barra de título de esa sección + un badge
+//      de texto "CAMPANA" (nada de emoji, mismo criterio que
+//      dibujarIconoRepeticion/dibujarIconoCoda) pegado después del
+//      nombre. Puramente visual, no cambia ningún cálculo de alto/ancho.
+//  (b) s.instrumentoPercusion / instrumentoPercusionOtro (select con
+//      lista fija + "Otro…") — texto itálico alineado a la derecha de la
+//      barra de título con el instrumento de esa sección (Congas, Bongó,
+//      Campana, Timbal, Güiro, Maracas, Clave, Kick/Drum, Todos/Tutti, u
+//      "Otro" con el texto libre cargado). El PDF de percusión no dibuja
+//      el resumen "c.#X-c.#Y" en la barra de título (eso es exclusivo de
+//      generarEstructuraPDF), así que ese espacio a la derecha estaba
+//      libre — no hay colisión.
+// v1.77: (a pedido) 3 ajustes en generarEstructuraPDFPercusion, ninguno
+// toca generarEstructuraPDF/dibujarCajas/dibujarCajaBreak (PDF de
+// acordes normal):
+//  (a) "c.N" (número de compás en cada caja) pasa de 7pt gris150 a 9pt
+//      negrita gris70 — antes era casi invisible en la hoja impresa.
+//  (b) Nueva línea "se repite xN (ciclo de M comp.)" / "se repite xN
+//      (M comp. reales)" — mismo texto/criterio que ya usa
+//      generarEstructuraPDF — para Vamp y fija-bloque con
+//      repeticiones>1. Antes el PDF de percusión no mostraba esta info
+//      aunque ya estuviera cargada para el PDF general.
+//  (c) hay2daSeccionPercusion ahora también dispara el bloque de "2da
+//      vez" si hay datos en acordesFinal2/letraFinal2 (PDF general),
+//      no solo si se habían cargado los campos exclusivos de percusión
+//      (notasPercusionFinal2/acentosFinal2). Antes, si el usuario ya
+//      tenía una 2da vez distinta armada para acordes pero no había
+//      tocado nada de percusión, el PDF de percusión la ignoraba por
+//      completo.
+// v1.76: (a pedido) generarEstructuraPDFPercusion ahora soporta Vamp y
+// 2da vez, mismo patrón que generarEstructuraPDF/dibujarCajas pero
+// leyendo los arrays exclusivos de percusión (notasPercusionCiclo/
+// acentosCiclo y notasPercusionFinal2/acentosFinal2). Antes ignoraba
+// s.tipo==='vamp' (dibujaba s.duracion cajas leyendo por error los
+// arrays de la grilla principal) y no dibujaba la 2da vez. Se extrajo
+// el dibujo de cada caja a un helper local (dibujarCajasPercusion,
+// mismo dibujo de siempre) para reutilizarlo en los 3 casos sin
+// duplicar código. Cero cambios en generarEstructuraPDF, dibujarCajas
+// ni dibujarCajaBreak.
+// v1.74: (a pedido) header de generarEstructuraPDFPercusion pasa de
+// "simplificado" (20mm, franja+logo) a COMPLETO — igual al de
+// generarEstructuraPDF (38mm, franja + diffuser con recorte "cover" +
+// logo con todas sus opciones de header-config.js + línea dorada). Los 3
+// helpers de imagen (dibujarDiffuserCover/imagenComoDataURL/
+// detectarFormatoImagen) son funciones locales dentro de
+// generarEstructuraPDF; se duplicaron tal cual (sufijo "Percusion" en el
+// nombre para no chocar) porque esta función vive aparte y no puede
+// llamarlas directamente. Único texto distinto respecto al header de
+// acordes: "GUÍA DE PERCUSIÓN" en vez de "GUÍA DE PRÁCTICA". Cero
+// cambios en generarEstructuraPDF, dibujarCajas ni dibujarCajaBreak — y
+// el resto de generarEstructuraPDFPercusion (cajas, texto de percusión,
+// regla de 16avos) queda exactamente igual a v1.73.
+//
+// v1.73: (a pedido) "guía de percusión" — generarEstructuraPDFPercusion,
+// función NUEVA y separada (ver su propio comentario más abajo, junto a
+// la función) — cero cambios en generarEstructuraPDF, dibujarCajas ni
+// dibujarCajaBreak. Llamada desde guia-practica.html v1.74
+// (exportarEstructuraPDFPercusion, botón "🥁 PDF Percusión").
+//
 // v1.72: (a pedido) 2 cambios sobre la regla de tiempo/anticipación
 // (v1.71):
 //  (a) FIX visual — la letra (yCaja+13) y el punto de la regla se pisaban
@@ -2327,3 +2576,1069 @@ function generarEstructuraPDF(datos){
     doc.save(nombreArchivo);
   }
 }
+
+// v1.73: (a pedido) "guía de percusión" — función NUEVA y separada,
+// cero líneas compartidas con generarEstructuraPDF/dibujarCajas/
+// dibujarCajaBreak de arriba (cero riesgo de romper el PDF de acordes
+// existente). Mismo `datos` de entrada (temaNombre/bpm/compasTexto/
+// claveTxt/secciones), mismos colores por sección ya resueltos por
+// quien llama (exportarEstructuraPDFPercusion, guia-practica.html
+// v1.74). Diferencias a propósito respecto al PDF de acordes:
+//  - Header COMPLETO, igual al de generarEstructuraPDF (headerH=38mm,
+//    franja + diffuser con recorte "cover" + logo con
+//    LOGO_SIZE/ALIGN/OFFSET_Y/SIN_LOGO + línea dorada), a pedido — antes
+//    era simplificado (solo franja+logo, 20mm), ya no. Los 3 helpers
+//    (dibujarDiffuserCover/imagenComoDataURL/detectarFormatoImagen) son
+//    funciones locales dentro de generarEstructuraPDF, así que se
+//    duplican acá tal cual (mismo código, cero cambio de lógica) porque
+//    esta función vive aparte y no puede llamarlas directamente. Único
+//    texto distinto: "GUÍA DE PERCUSIÓN" en vez de "GUÍA DE PRÁCTICA".
+//  - Cada celda de compás: número + (si hay) notasPercusionPorCompas de
+//    ESE compás — nada de acorde ni letra (a pedido explícito: "esta
+//    guía no tiene acordes").
+//  - Mini-regla de 16 marcas (semicorchea) en vez de las 8 de acordes,
+//    notación 1/e/&/a por tiempo (misma que ya usa cualquier
+//    percusionista) — lee acentosPorCompas, campo propio, no
+//    acordesTiempo.
+// Alcance de esta primera versión (a propósito, para no arriesgar todo
+// de una): dibuja UNA pasada por sección (basePase, igual criterio que
+// la grilla principal de acordes) — no expande 2da vez (acordesFinal2)
+// ni el ciclo completo de Vamp, y las secciones Break/Corte se dibujan
+// igual que cualquier otra (sin su patrón rítmico propio). Si hace
+// falta alguna de esas 3 cosas, se agrega después con el mismo criterio
+// ya usado en todo este archivo (avisando antes de tocar).
+function generarEstructuraPDFPercusion(datos){
+  const { temaNombre, bpm, compasTexto, claveTxt, secciones: seccionesEntrada } = datos;
+  if(!window.jspdf){ alert('No se pudo cargar el generador de PDF. Revisá tu conexión e intentá de nuevo.'); return; }
+  if(!seccionesEntrada || !seccionesEntrada.length){ alert('No hay secciones cargadas todavía.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margen = 12;
+  const anchoUtil = pageW - margen * 2;
+
+  const goldRGB = [201, 162, 75];
+  const headerH = 38;
+  const imgDiffuserHdr = document.getElementById('hdrDiffuser');
+  const imgLogoHdr = document.getElementById('hdrLogo');
+  const diffuserOkHdr = imgDiffuserHdr && imgDiffuserHdr.complete && imgDiffuserHdr.naturalWidth > 0;
+  const logoOkHdr = imgLogoHdr && imgLogoHdr.complete && imgLogoHdr.naturalWidth > 0;
+  const headerSinFondo = typeof HEADER_SIN_FONDO !== 'undefined' ? HEADER_SIN_FONDO : false;
+  const headerColorRGB = typeof HEADER_COLOR_RGB !== 'undefined' ? HEADER_COLOR_RGB : [11, 11, 13];
+  const headerDiffuserOpacity = typeof HEADER_DIFFUSER_OPACITY !== 'undefined' ? HEADER_DIFFUSER_OPACITY : 1.0;
+  const headerColorOpacity = typeof HEADER_COLOR_OPACITY !== 'undefined' ? HEADER_COLOR_OPACITY : 0.62;
+
+  // Helpers duplicados tal cual desde generarEstructuraPDF (son funciones
+  // locales allá, no accesibles acá) — cero cambio de lógica, ver esa
+  // función para el detalle de cada uno.
+  function dibujarDiffuserCoverPercusion(img, targetWmm, targetHmm, opacity, formato){
+    const targetRatio = targetWmm / targetHmm;
+    const srcRatio = img.naturalWidth / img.naturalHeight;
+    let drawW, drawH;
+    if(srcRatio > targetRatio){
+      drawH = targetHmm;
+      drawW = targetHmm * srcRatio;
+    } else {
+      drawW = targetWmm;
+      drawH = targetWmm / srcRatio;
+    }
+    const drawX = (targetWmm - drawW) / 2;
+    const drawY = (targetHmm - drawH) / 2;
+    doc.saveGraphicsState();
+    doc.rect(0, 0, targetWmm, targetHmm, null);
+    doc.clip();
+    doc.discardPath();
+    doc.setGState(new doc.GState({ opacity }));
+    doc.addImage(img, formato, drawX, drawY, drawW, drawH);
+    doc.restoreGraphicsState();
+  }
+  function imagenComoDataURLPercusion(img, calidad){
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    return canvas.toDataURL('image/jpeg', calidad != null ? calidad : 0.95);
+  }
+  function detectarFormatoImagenPercusion(src){
+    const limpio = (src || '').split('?')[0].split('#')[0].toLowerCase();
+    if(limpio.endsWith('.png')) return 'PNG';
+    if(limpio.endsWith('.webp')) return 'WEBP';
+    return 'JPEG';
+  }
+
+  if(!headerSinFondo){
+    if(diffuserOkHdr){
+      dibujarDiffuserCoverPercusion(imgDiffuserHdr, pageW, headerH, headerDiffuserOpacity, detectarFormatoImagenPercusion(imgDiffuserHdr.src));
+      doc.saveGraphicsState();
+      doc.setGState(new doc.GState({ opacity: headerColorOpacity }));
+      doc.setFillColor(...headerColorRGB);
+      doc.rect(0, 0, pageW, headerH, 'F');
+      doc.restoreGraphicsState();
+    } else {
+      doc.setFillColor(...headerColorRGB);
+      doc.rect(0, 0, pageW, headerH, 'F');
+    }
+  }
+  doc.setDrawColor(...goldRGB);
+  doc.setLineWidth(0.5);
+  doc.line(0, headerH, pageW, headerH);
+  if(logoOkHdr && !(typeof LOGO_SIN_LOGO !== 'undefined' && LOGO_SIN_LOGO)){
+    const logoH = Math.min(typeof LOGO_SIZE !== 'undefined' ? LOGO_SIZE : 16, headerH - 4);
+    const logoW = logoH * (imgLogoHdr.naturalWidth / imgLogoHdr.naturalHeight);
+    const offsetY = typeof LOGO_OFFSET_Y !== 'undefined' ? LOGO_OFFSET_Y : 0;
+    const logoY = (headerH - logoH) / 2 + offsetY;
+    const align = typeof LOGO_ALIGN !== 'undefined' ? LOGO_ALIGN : 'izquierda';
+    let logoX;
+    if(align === 'centro') logoX = (pageW - logoW) / 2;
+    else if(align === 'derecha') logoX = pageW - margen - logoW;
+    else logoX = margen;
+    let logoParaPintar = imgLogoHdr;
+    let logoFormato = 'JPEG';
+    try {
+      logoParaPintar = imagenComoDataURLPercusion(imgLogoHdr);
+    } catch(e){
+      logoParaPintar = imgLogoHdr;
+      logoFormato = detectarFormatoImagenPercusion(imgLogoHdr.src);
+    }
+    try {
+      doc.addImage(logoParaPintar, logoFormato, logoX, logoY, logoW, logoH);
+    } catch(e){ /* logo omitido puntualmente, mismo criterio que generarEstructuraPDF */ }
+  }
+  doc.saveGraphicsState();
+  doc.setGState(new doc.GState({ opacity: 1 }));
+  doc.setTextColor(25, 22, 18);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('GUÍA DE PERCUSIÓN', pageW - margen, headerH - 12, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - margen, headerH - 5, { align: 'right' });
+  doc.restoreGraphicsState();
+
+  let y = headerH + 9;
+  const nombreTema = temaNombre || 'Tema sin nombre';
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+  doc.setTextColor(20, 20, 20);
+  doc.text(nombreTema, margen, y); y += 7;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  doc.text(`BPM ${bpm || '—'} · Compás ${compasTexto || '4/4'}${claveTxt ? ' · Clave: ' + claveTxt : ''}`, margen, y);
+  y += 8;
+
+  const asegurarEspacio = (alto) => {
+    if(y + alto > pageH - margen){ doc.addPage(); y = margen; }
+  };
+
+  const POR_FILA = 6;
+  const cajaAncho = anchoUtil / POR_FILA;
+  const cajaAlto = 14;
+  const TIEMPOS_PERCUSION = ['1','1e','1&','1a','2','2e','2&','2a','3','3e','3&','3a','4','4e','4&','4a'];
+  // v1.90: (a pedido) notaFilaAlto/hayContenido — duplicados tal cual de
+  // generarEstructuraPDF (línea ~1157/1170, funciones locales allá, no
+  // accesibles desde acá) para que la nota por compás de percusión
+  // (notasPercusionPorCompas/Ciclo/Final2) tenga su propia tira arriba de
+  // la caja, mismo criterio visual que ya usa el PDF de acordes.
+  const notaFilaAlto = 5;
+  const hayContenido = (arr) => Array.isArray(arr) && arr.some(x => (x || '').trim());
+
+  const secciones = seccionesEntrada.filter(s => (s.nombre || '').trim());
+
+  // v1.76: (a pedido) Vamp y 2da vez en la guía de percusión — mismo
+  // patrón que ya usa generarEstructuraPDF con dibujarCajas/acordesCiclo/
+  // acordesFinal2, pero leyendo los arrays exclusivos de percusión
+  // (notasPercusionCiclo/acentosCiclo y notasPercusionFinal2/acentosFinal2).
+  // Antes, esta función ignoraba s.tipo==='vamp' por completo: dibujaba
+  // s.duracion cajas leyendo notasPercusionPorCompas/acentosPorCompas (los
+  // arrays de la grilla principal, que en una sección Vamp ni siquiera se
+  // cargan) — quedaba mal. También faltaba el bloque de 2da vez entero.
+  const totalCajasSeccionPercusion = (s) => {
+    const esVamp = s.tipo === 'vamp';
+    const esBreak = s.nombre === 'Break/Corte';
+    if(esVamp) return s.cicloCompases || (s.notasPercusionCiclo && s.notasPercusionCiclo.length) || 0;
+    const repeticiones = esBreak ? 1 : (s.repeticiones || 1);
+    const duracion = s.duracion || 1;
+    return repeticiones > 1 ? Math.max(1, Math.round(duracion / repeticiones)) : duracion;
+  };
+  const hay2daSeccionPercusion = (s, totalCajas) => {
+    if(s.tipo === 'vamp' || s.nombre === 'Break/Corte') return false;
+    const repeticiones = s.repeticiones || 1;
+    if(repeticiones <= 1) return false;
+    // v1.77: (a pedido) antes SOLO miraba los arrays exclusivos de
+    // percusión (notasPercusionFinal2/acentosFinal2) — si el usuario ya
+    // había cargado una 2da vez distinta en el PDF general (acordesFinal2/
+    // letraFinal2) pero no había tocado nada de percusión, este PDF no
+    // mostraba el bloque de 2da vez. Ahora también hereda esa info.
+    return (s.notasPercusionFinal2 && s.notasPercusionFinal2.some(t => (t||'').trim())) ||
+           (s.acentosFinal2 && s.acentosFinal2.some(a => (a||'').trim())) ||
+           (s.acordesFinal2 && s.acordesFinal2.some(a => (a||'').trim())) ||
+           (s.letraFinal2 && s.letraFinal2.some(l => (l||'').trim()));
+  };
+  // v1.77: (a pedido) criterio compartido — ¿esta sección debe mostrar
+  // la línea "se repite xN..." heredada del PDF general? (Vamp con ciclo
+  // definido, o fija-bloque con repeticiones>1; Break/Corte nunca).
+  const mostrarRepeticionPercusion = (s, totalCajas) => {
+    const esVamp = s.tipo === 'vamp';
+    const esBreak = s.nombre === 'Break/Corte';
+    if(esVamp) return totalCajas > 0;
+    return !esBreak && (s.repeticiones || 1) > 1;
+  };
+  const calcularAltoSeccionPercusion = (s) => {
+    const esBreak = s.nombre === 'Break/Corte';
+    if(esBreak){
+      // v1.84: (a pedido) alto para el patrón rítmico en vez de la
+      // grilla — mismo criterio que dibujarCajaBreak en generarEstructuraPDF
+      // (header 10mm + nota de tiempo 6mm + patrón si hay: 4mm de
+      // separación + altoPlica(6)+7 de dibujarPatronRitmico).
+      const hayPatron = (s.patronRitmico || '').trim();
+      return 7 + 3 + 6 + (hayPatron ? 4 + 13 : 0) + 4;
+    }
+    const totalCajas = totalCajasSeccionPercusion(s);
+    const filas = Math.max(1, Math.ceil((totalCajas || 1) / POR_FILA));
+    // v1.92: (a pedido) la tira de arriba ahora la ocupa la nota de
+    // ARMONÍA (notasPorCompas/notasCiclo), no la de percusión — la de
+    // percusión vuelve a vivir ADENTRO de la caja (ver dibujarCajasPercusion).
+    // Por eso acá se mira notasPorCompas/notasCiclo para decidir si
+    // reservar notaFilaAlto, igual que hace calcularAltoSeccion en
+    // generarEstructuraPDF para la grilla de acordes.
+    const notasArmoniaPrincipal = s.tipo === 'vamp' ? s.notasCiclo : s.notasPorCompas;
+    const notaAltoPrincipal = hayContenido(notasArmoniaPrincipal) ? notaFilaAlto : 0;
+    let alto = 7 + 3 + filas * (cajaAlto + notaAltoPrincipal + 2) + 4;
+    if(mostrarRepeticionPercusion(s, totalCajas)) alto += 5;
+    if(hay2daSeccionPercusion(s, totalCajas)){
+      const finalN = Math.min(totalCajas || 1, s.finalDistintoN || 1);
+      const filasF2 = Math.max(1, Math.ceil(finalN / POR_FILA));
+      const notaAltoF2 = hayContenido(s.notasFinal2) ? notaFilaAlto : 0;
+      alto += cajaAlto + 4 + 4 + filasF2 * (cajaAlto + notaAltoF2 + 2);
+    }
+    return alto;
+  };
+
+  // v1.79: (a pedido) mismo ícono gráfico de repetición (║:) que ya usa
+  // generarEstructuraPDF (dibujarIconoRepeticion, v1.29.2) — duplicado
+  // tal cual acá porque es función local allá, no accesible desde este
+  // archivo/función. Antes "se repite xN" en el PDF de percusión era
+  // solo texto itálico, sin el símbolo gráfico que sí tiene el PDF de
+  // acordes para lo mismo. Cero cambio en generarEstructuraPDF.
+  const dibujarIconoRepeticionPercusion = (x, yBase) => {
+    doc.setFillColor(120, 120, 120);
+    doc.rect(x, yBase - 3, 0.8, 3.2, 'F');
+    doc.rect(x + 1.4, yBase - 3, 0.3, 3.2, 'F');
+    doc.circle(x + 2.6, yBase - 2.2, 0.35, 'F');
+    doc.circle(x + 2.6, yBase - 0.8, 0.35, 'F');
+    return 4.2;
+  };
+  // v1.86: (a pedido) marco completo izq.+der. con puntos, idéntico a
+  // dibujarBarraRepeticion de generarEstructuraPDF (línea ~1265-1288) —
+  // duplicado tal cual, mismo motivo que dibujarIconoCoda/dibujarPatronRitmico
+  // arriba. Reemplaza a dibujarBarraCierreSeccion (v1.79/v1.81, solo lado
+  // derecho, se dibujaba en TODA sección): ahora, mismo criterio que
+  // acordes, el marco completo solo se dibuja en fija-bloque con
+  // repeticiones>1 — Vamp y secciones sin repetición no llevan marco
+  // (en acordes, Vamp solo tiene el iconito "║:" antes del texto "se
+  // repite...", sin marco a los costados de las cajas).
+  const dibujarBarraRepeticionPercusion = (yBloqueInicio, alto, anchoBloque) => {
+    const ancho = anchoBloque != null ? anchoBloque : anchoUtil;
+    const grosor = 1.2;
+    doc.setFillColor(20, 20, 20);
+    doc.rect(margen - 4.4, yBloqueInicio, grosor, alto, 'F');
+    doc.rect(margen - 2.4, yBloqueInicio, 0.4, alto, 'F');
+    doc.rect(margen + ancho + 3.2, yBloqueInicio, grosor, alto, 'F');
+    doc.rect(margen + ancho + 2.0, yBloqueInicio, 0.4, alto, 'F');
+    const yc = yBloqueInicio + alto / 2;
+    doc.circle(margen - 0.85, yc - 1.2, 0.35, 'F');
+    doc.circle(margen - 0.85, yc + 1.2, 0.35, 'F');
+    doc.circle(margen + ancho + 0.85, yc - 1.2, 0.35, 'F');
+    doc.circle(margen + ancho + 0.85, yc + 1.2, 0.35, 'F');
+  };
+  // v1.88: (a pedido) corchete "1."/"2." de casilla, duplicado tal cual
+  // de dibujarCorcheteCasilla (generarEstructuraPDF, línea ~1310) — mismo
+  // motivo que el resto de los helpers ya duplicados acá. Se usa cuando
+  // la 2da vez de percusión entra en horizontal (pegada a la 1ra vez) o
+  // alineada verticalmente bajo la columna que reemplaza.
+  const dibujarCorcheteCasillaPercusion = (yBloqueInicio, numero, xInicio, ancho) => {
+    xInicio = xInicio != null ? xInicio : margen;
+    ancho = ancho != null ? ancho : anchoUtil;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20);
+    doc.text(numero + '.', xInicio + 1.5, yBloqueInicio - 3.3);
+    doc.setDrawColor(20); doc.setLineWidth(0.3);
+    doc.line(xInicio, yBloqueInicio, xInicio, yBloqueInicio - 1.5);
+    doc.line(xInicio, yBloqueInicio - 1.5, xInicio + ancho, yBloqueInicio - 1.5);
+  };
+  // Ancho real ocupado por la última fila de `total` cajas — mismo
+  // cálculo que usa dibujarCajasPercusion para decidir cuándo saltar de
+  // fila, pero acá solo para saber dónde termina la última fila.
+  const anchoUltimaFilaPercusion = (total) => (((total - 1) % POR_FILA) + 1) * cajaAncho;
+
+
+  // (select "Instrumento") — si un valor no está en esta lista, se
+  // asume que viene de "Otro…"/'__otro__' y se muestra
+  // s.instrumentoPercusionOtro en su lugar.
+  const INSTRUMENTOS_PERCUSION_FIJOS = ['Congas','Bongó','Campana','Timbal','Güiro','Maracas','Clave','Kick/Drum','Todos/Tutti'];
+  // v1.79: (a pedido) guia-practica.html v1.78 cambió el select de
+  // instrumento (valor único) a checkboxes de selección múltiple —
+  // s.instrumentoPercusion ahora es un array de strings (varios
+  // instrumentos por sección, ej. Conga+Bongó+Güiro). Esta función
+  // soporta AMBOS formatos a propósito, sin depender de que el editor
+  // ya haya "migrado" el dato: si el PDF se genera sobre una sección
+  // vieja que nunca se volvió a abrir en el editor (sigue con el string
+  // suelto de antes de v1.78), igual se muestra bien. Varios
+  // instrumentos se listan juntos separados por coma, en una sola
+  // línea — mismo criterio de "lo primero que ve el percusionista" que
+  // ya se usa para "se repite xN".
+  const textoInstrumentoPercusion = (s) => {
+    const lista = Array.isArray(s.instrumentoPercusion) ? s.instrumentoPercusion : (s.instrumentoPercusion ? [s.instrumentoPercusion] : []);
+    const nombres = lista.map(v => {
+      if(INSTRUMENTOS_PERCUSION_FIJOS.includes(v)) return v;
+      if(v === '__otro__' || v) return (s.instrumentoPercusionOtro || '').trim();
+      return '';
+    }).filter(Boolean);
+    // Object.fromEntries + Object.keys evita duplicar "Otro" si por
+    // algún motivo quedaran 2 marcas de __otro__/valor-libre juntas.
+    return Array.from(new Set(nombres)).join(', ');
+  };
+
+  // v1.81: (a pedido) contador global de compás + resumen "c.#X-c.#Y" en
+  // la barra de título — mismo criterio/cálculo que ya usa
+  // generarEstructuraPDF (v1.45/v1.70), duplicado acá porque son
+  // variables locales allá. compasGlobal arranca en 1 y avanza sumando
+  // s.duracion de cada sección en orden; si una sección no tiene fin de
+  // tiempo definido (duracion null), el conteo deja de ser confiable de
+  // ahí en adelante (contadorGlobalValido=false) y las siguientes no
+  // muestran resumen hasta que se complete esa sección y se reexporte.
+  let compasGlobal = 1;
+  let contadorGlobalValido = true;
+
+  // v1.83: (a pedido) Coda/D.C./D.S. heredado de generarEstructuraPDF —
+  // nombresYaImpresos trackea qué secciones ya se dibujaron completas
+  // (por id o nombre) para saber si una repetición posterior puede
+  // imprimirse como referencia corta en vez de repetir todo el cuadro.
+  const nombresYaImpresos = new Set();
+  // Ícono círculo+cruz de coda, duplicado tal cual de generarEstructuraPDF
+  // (dibujarIconoCoda) porque esta función vive aparte y no puede
+  // llamarla directamente — mismo criterio que el resto de los helpers
+  // ya duplicados acá (ver comentario de cabecera del archivo).
+  const dibujarIconoCoda = (x, yBase, colorRGB) => {
+    const [r,g,b] = colorRGB || [120,120,120];
+    doc.setDrawColor(r, g, b); doc.setLineWidth(0.3);
+    doc.circle(x + 1.6, yBase - 1.6, 1.6, 'S');
+    doc.line(x + 1.6, yBase - 3.4, x + 1.6, yBase + 0.2);
+    doc.line(x - 0.2, yBase - 1.6, x + 3.4, yBase - 1.6);
+    return 4.4;
+  };
+
+  // v1.84: (a pedido) patrón rítmico de Break/Corte, heredado tal cual de
+  // generarEstructuraPDF (dibujarIconoAcentoBreak, parsearPatronRitmico,
+  // aplanarColumnasPatron, pesoTotalPatron, calcularColsYXInfo,
+  // dibujarPatronRitmico — líneas ~1352-1667 de esa función). Duplicado
+  // acá completo, sin cambiar una sola línea de la lógica de dibujo, por
+  // el mismo motivo que dibujarIconoCoda arriba: son funciones locales de
+  // generarEstructuraPDF, esta función no puede llamarlas directamente.
+  const dibujarIconoAcentoBreak = (x, yBase) => {
+    doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.5);
+    doc.line(x, yBase - 2.2, x + 1.7, yBase - 1.1);
+    doc.line(x + 1.7, yBase - 1.1, x, yBase - 0.0);
+    return 2.6;
+  };
+  const parsearPatronRitmico = (patron) => {
+    const str = (patron || '').replace(/\s+/g, '');
+    const items = [];
+    let i = 0;
+    while(i < str.length){
+      const c = str[i];
+      if(c === '{'){
+        const fin = str.indexOf('}', i + 1);
+        const cerrado = fin !== -1;
+        const inner = cerrado ? str.slice(i + 1, fin) : str.slice(i + 1);
+        const valores = inner.split('').filter(ch => ch === 'x' || ch === 'X' || ch === '.' || ch === '-');
+        const n = valores.length;
+        const numero = (n === 3) ? 3 : (n === 6 ? 6 : null);
+        items.push({ tipo: 'grupo', valores, numero, valido: cerrado && numero !== null });
+        i = cerrado ? fin + 1 : str.length;
+      } else if(c === 'x' || c === 'X' || c === '.' || c === '-'){
+        items.push({ tipo: 'simple', valor: c });
+        i++;
+      } else {
+        i++;
+      }
+    }
+    return items;
+  };
+  const aplanarColumnasPatron = (items) => {
+    const cols = [];
+    items.forEach(it => {
+      if(it.tipo === 'simple'){
+        cols.push({ caracter: it.valor, peso: 1, grupo: null });
+      } else {
+        const pesoCada = it.valido ? (2 / it.valores.length) : 1;
+        it.valores.forEach((v, idx) => {
+          cols.push({ caracter: v, peso: pesoCada, grupo: it.valido ? { numero: it.numero, idx, size: it.valores.length } : null });
+        });
+      }
+    });
+    return cols;
+  };
+  const pesoTotalPatron = (items) => {
+    let total = 0;
+    items.forEach(it => { total += (it.tipo === 'simple') ? 1 : (it.valido ? 2 : it.valores.length); });
+    return total;
+  };
+  const calcularColsYXInfo = (patron, xStart, ancho) => {
+    const items = parsearPatronRitmico(patron);
+    if(!items.length) return { cols: [], xInfo: [] };
+    const cols = aplanarColumnasPatron(items);
+    const pesoTotal = pesoTotalPatron(items);
+    let acumPeso = 0;
+    const xInfo = cols.map(col => {
+      const x0 = xStart + (acumPeso / pesoTotal) * ancho;
+      const w = (col.peso / pesoTotal) * ancho;
+      acumPeso += col.peso;
+      return { xCentro: x0 + w / 2, x0, x1: x0 + w };
+    });
+    return { cols, xInfo };
+  };
+  const dibujarPatronRitmico = (patron, xStart, ancho, yBase, compases) => {
+    const { cols, xInfo } = calcularColsYXInfo(patron, xStart, ancho);
+    if(!cols.length) return 0;
+    const n = cols.length;
+    const altoPlica = 6;
+    const esNota = (t) => t === 'x' || t === 'X' || t === '-';
+    const esBeamable = (t) => t === 'x' || t === 'X';
+    doc.setDrawColor(20); doc.setLineWidth(0.25);
+    doc.line(xStart, yBase, xStart + ancho, yBase);
+    const totalCompases = Math.max(1, compases || 1);
+    doc.setDrawColor(20); doc.setLineWidth(0.3);
+    doc.line(xStart, yBase - altoPlica, xStart, yBase);
+    doc.line(xStart + ancho, yBase - altoPlica, xStart + ancho, yBase);
+    if(totalCompases >= 2){
+      for(let c = 1; c < totalCompases; c++){
+        const xDiv = xStart + (ancho / totalCompases) * c;
+        doc.line(xDiv, yBase - altoPlica, xDiv, yBase);
+      }
+    }
+    doc.setFillColor(20, 20, 20);
+    const dibujarSilencio = (x) => {
+      doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.45);
+      const yc = yBase + 2;
+      doc.line(x - 1.1, yc - 1.6, x + 0.9, yc + 0.5);
+      doc.line(x + 0.9, yc + 0.5, x - 0.3, yc + 1.8);
+      doc.setDrawColor(20);
+    };
+    const dibujarLigado = (xDesde, xHasta) => {
+      doc.setDrawColor(20); doc.setLineWidth(0.35);
+      const yTie = yBase + 2;
+      const profundidad = 1.7;
+      const dx = xHasta - xDesde;
+      doc.lines(
+        [[dx / 3, (2 / 3) * profundidad, (dx * 2) / 3, (2 / 3) * profundidad, dx, 0]],
+        xDesde, yTie, [1, 1], 'S', false
+      );
+    };
+    for(let j = 0; j < n; j++){
+      const col = cols[j];
+      if(col.caracter === '.') dibujarSilencio(xInfo[j].xCentro);
+      else if(col.caracter === '-' && j > 0) dibujarLigado(xInfo[j - 1].xCentro, xInfo[j].xCentro);
+    }
+    for(let j = 0; j < n; j++){
+      const col = cols[j];
+      if(!esNota(col.caracter)) continue;
+      const xj = xInfo[j].xCentro;
+      const r = col.grupo ? 0.55 : 0.9;
+      const xPlica = xj + r;
+      doc.circle(xj, yBase, r, 'F');
+      doc.setLineWidth(0.28);
+      doc.line(xPlica, yBase, xPlica, yBase - altoPlica);
+      if(col.caracter === 'X'){
+        const ax = xPlica - 0.32, ay = yBase - altoPlica - 1.4;
+        doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.34);
+        doc.line(ax, ay - 0.83, ax + 0.64, ay - 0.42);
+        doc.line(ax + 0.64, ay - 0.42, ax, ay - 0.0);
+      }
+    }
+    let j = 0;
+    while(j < n){
+      const col = cols[j];
+      if(col.grupo){
+        const size = col.grupo.size;
+        let jFin = j;
+        while(jFin < n && cols[jFin].grupo && cols[jFin].grupo.idx < size) jFin++;
+        const idxGolpes = [];
+        for(let k = j; k < jFin; k++) if(esBeamable(cols[k].caracter)) idxGolpes.push(k);
+        if(idxGolpes.length >= 2){
+          const rIni = cols[idxGolpes[0]].grupo ? 0.55 : 0.9;
+          const rFin = cols[idxGolpes[idxGolpes.length - 1]].grupo ? 0.55 : 0.9;
+          const xIni = xInfo[idxGolpes[0]].xCentro + rIni;
+          const xFin = xInfo[idxGolpes[idxGolpes.length - 1]].xCentro + rFin;
+          doc.setLineWidth(0.75);
+          doc.line(xIni, yBase - altoPlica, xFin, yBase - altoPlica);
+          if(size === 6){
+            doc.line(xIni, yBase - altoPlica + 1.3, xFin, yBase - altoPlica + 1.3);
+          }
+          const xMedio = (xIni + xFin) / 2;
+          doc.setFontSize(5);
+          doc.setTextColor(20);
+          doc.text(String(col.grupo.numero), xMedio, yBase - altoPlica - 2.3, { align: 'center' });
+        } else if(idxGolpes.length === 1){
+          const r = cols[idxGolpes[0]].grupo ? 0.55 : 0.9;
+          const xa = xInfo[idxGolpes[0]].xCentro + r;
+          const yTop = yBase - altoPlica;
+          doc.setFillColor(20, 20, 20);
+          doc.lines(
+            [
+              [1.6, 0.3, 1.75, 1.35, 0.4, 2.45],
+              [0.7, -1.15, 0.45, -1.85, -0.4, -2.45]
+            ],
+            xa, yTop, [1, 1], 'F', true
+          );
+          doc.setFontSize(5);
+          doc.setTextColor(20);
+          doc.text(String(col.grupo.numero), xa, yBase - altoPlica - 2.3, { align: 'center' });
+        }
+        j = jFin;
+      } else if(col.caracter === '-'){
+        const xa = xInfo[j].xCentro + 0.9;
+        const yTop = yBase - altoPlica;
+        doc.setFillColor(20, 20, 20);
+        doc.lines(
+          [
+            [1.6, 0.3, 1.75, 1.35, 0.4, 2.45],
+            [0.7, -1.15, 0.45, -1.85, -0.4, -2.45]
+          ],
+          xa, yTop, [1, 1], 'F', true
+        );
+        j += 1;
+      } else if(esBeamable(col.caracter)){
+        const nextCol = (j + 1 < n && !cols[j + 1].grupo) ? cols[j + 1] : null;
+        const xa = xInfo[j].xCentro + 0.9;
+        if(nextCol && esBeamable(nextCol.caracter)){
+          const xb = xInfo[j + 1].xCentro + 0.9;
+          doc.setLineWidth(0.75);
+          doc.line(xa, yBase - altoPlica, xb, yBase - altoPlica);
+          j += 2;
+        } else {
+          const yTop = yBase - altoPlica;
+          doc.setFillColor(20, 20, 20);
+          doc.lines(
+            [
+              [1.6, 0.3, 1.75, 1.35, 0.4, 2.45],
+              [0.7, -1.15, 0.45, -1.85, -0.4, -2.45]
+            ],
+            xa, yTop, [1, 1], 'F', true
+          );
+          j += 1;
+        }
+      } else {
+        j += 1;
+      }
+    }
+    doc.setTextColor(20);
+    return altoPlica + 7;
+  };
+
+  secciones.forEach((s, idxSeccion) => {
+    const compasGlobalInicio = contadorGlobalValido ? compasGlobal : null;
+    const esCoda = s.origenId && !s.esVariacion && s.modoRepeticionPDF === 'coda' && nombresYaImpresos.has(s.origenId);
+    // v1.90 (FIX): declarada ACÁ, al ppio. del forEach de cada sección —
+    // no adentro del bloque que dibuja la grilla — porque el avance final
+    // de la sección (más abajo, y += ... ultimaHayNotasPercusion ...)
+    // vive FUERA de ese bloque. Declarada adentro quedaba fuera de scope
+    // ahí y tiraba "ultimaHayNotasPercusion is not defined", rompiendo el
+    // botón completo (todo el script deja de ejecutar si una función
+    // tira una excepción sin capturar).
+    let ultimaHayNotasPercusion = false;
+    asegurarEspacio(calcularAltoSeccionPercusion(s));
+    const color = s.color;
+    const rgb = [parseInt(color.slice(1,3),16), parseInt(color.slice(3,5),16), parseInt(color.slice(5,7),16)];
+    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+    doc.rect(margen, y, anchoUtil, 7, 'F');
+    // v1.78: (a pedido) si la sección está marcada "🔔 Sección de
+    // campana" (s.esCampana, guia-practica.html v1.77), se agrega un
+    // marco dorado alrededor de la barra de título para que salte a la
+    // vista sin tener que leer el texto. Puramente visual — no cambia
+    // ningún cálculo de alto/ancho, se dibuja encima del rect ya pintado.
+    if(s.esCampana){
+      doc.setDrawColor(200, 160, 40); doc.setLineWidth(0.6);
+      doc.rect(margen, y, anchoUtil, 7);
+    }
+    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    const letraEns = (s.letraEnsayo || '').trim().slice(0, 2).toUpperCase();
+    let xTexto = margen + 2;
+    if(letraEns){
+      const anchoCaja = letraEns.length > 1 ? 7 : 5;
+      doc.setDrawColor(255); doc.setLineWidth(0.3);
+      doc.rect(margen + 2, y + 1, anchoCaja, 5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.text(letraEns, margen + 2 + anchoCaja / 2, y + 5, { align: 'center' });
+      xTexto = margen + 4 + anchoCaja;
+      doc.setFontSize(10);
+    }
+    const duracionTxt = (s.duracion != null && s.duracion > 0) ? ' · ' + s.duracion + ' comp.' : '';
+    // v1.83: (a pedido) misma etiqueta D.C./D.S. que ya usa
+    // generarEstructuraPDF (línea ~1970-1974) — texto "(D.C.)" simple,
+    // "(D.C. — variación: ...)" si esVariacion, o nada si esCoda (ese caso
+    // usa el ícono + "D.S. al Coda" en vez de texto entre paréntesis).
+    const etiquetaDC = s.origenId
+      ? (s.esVariacion
+          ? ` (D.C. — variación${(s.notaVariacion || '').trim() ? ': ' + s.notaVariacion.trim() : ''})`
+          : (esCoda ? '' : ' (D.C.)'))
+      : '';
+    doc.text(s.nombre + etiquetaDC + duracionTxt, xTexto, y + 5);
+    let xLibre = xTexto + doc.getTextWidth(s.nombre + etiquetaDC + duracionTxt) + 3;
+    if(esCoda){
+      const xIcono = xLibre;
+      dibujarIconoCoda(xIcono, y + 5.5, [255, 255, 255]);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text('D.S. al Coda', xIcono + 5.5, y + 5);
+      xLibre = xIcono + 5.5 + doc.getTextWidth('D.S. al Coda') + 3;
+      doc.setFontSize(10);
+    }
+    // v1.78: (a pedido) badge "CAMPANA" en texto (nada de emoji — mismo
+    // criterio que dibujarIconoRepeticion/dibujarIconoCoda, jsPDF+
+    // helvetica no rinde bien unicode de campana) pegado después del
+    // nombre, mismo dorado que el marco de arriba.
+    if(s.esCampana){
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+      doc.setTextColor(255, 240, 200);
+      doc.text('CAMPANA', xLibre, y + 5);
+      xLibre += doc.getTextWidth('CAMPANA') + 3;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      doc.setTextColor(255);
+    }
+    // v1.83: (a pedido) compás override (s.compasOverride, ej. "· 3/4")
+    // heredado de generarEstructuraPDF (línea ~2015) — se calcula el
+    // texto/ancho ACÁ (antes de dibujarlo) para poder reservarle su
+    // espacio a la nota de sección, igual que en acordes. Dibujo real más
+    // abajo, a la izquierda de instrumento+resumen.
+    const compasTxt = (s.compasOverride || '').trim() ? '· ' + s.compasOverride.trim() : '';
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    const anchoCompas = compasTxt ? doc.getTextWidth(compasTxt) + 4 : 0;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    // Nota de sección inline (mismo criterio de "auto-ajuste + recorte"
+    // que generarEstructuraPDF, versión resumida).
+    if((s.notaSeccion || '').trim()){
+      const nota = s.notaSeccion.trim();
+      const anchoDisponible = (margen + anchoUtil - anchoCompas - 2) - xLibre;
+      if(anchoDisponible > 8){
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.8 }));
+        doc.setFont('helvetica', 'italic');
+        let fontNota = 8;
+        doc.setFontSize(fontNota);
+        while(doc.getTextWidth(nota) > anchoDisponible && fontNota > 6){
+          fontNota -= 0.5;
+          doc.setFontSize(fontNota);
+        }
+        let notaMostrar = nota;
+        if(doc.getTextWidth(notaMostrar) > anchoDisponible){
+          while(notaMostrar.length > 1 && doc.getTextWidth(notaMostrar + '…') > anchoDisponible){
+            notaMostrar = notaMostrar.slice(0, -1);
+          }
+          notaMostrar += '…';
+        }
+        doc.text(notaMostrar, xLibre, y + 5);
+        doc.restoreGraphicsState();
+      }
+    }
+    if(compasTxt){
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(255);
+      doc.text(compasTxt, margen + anchoUtil - 2, y + 5, { align: 'right' });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    }
+    // v1.78: instrumento de la sección (s.instrumentoPercusion/
+    // instrumentoPercusionOtro, guia-practica.html v1.77) — alineado a la
+    // derecha de la barra de título.
+    const instrumentoTxt = textoInstrumentoPercusion(s);
+    let anchoInstrumentoTxt = 0;
+    if(instrumentoTxt){
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
+      doc.setTextColor(255);
+      doc.text(instrumentoTxt, margen + anchoUtil - 2 - anchoCompas, y + 5, { align: 'right' });
+      anchoInstrumentoTxt = doc.getTextWidth(instrumentoTxt) + 4;
+    }
+    // v1.81: (a pedido) resumen "c.#X-c.#Y" — mismo dato/estilo que ya
+    // usa generarEstructuraPDF (v1.70: blanco, itálica, opacidad
+    // reducida), corrido a la izquierda del texto de instrumento para no
+    // pisarlo si ambos están presentes.
+    if(compasGlobalInicio != null && s.duracion != null && s.duracion > 0){
+      const finResumen = compasGlobalInicio + s.duracion - 1;
+      const resumenTxt = 'c.#' + compasGlobalInicio + (finResumen !== compasGlobalInicio ? '-c.#' + finResumen : '');
+      doc.saveGraphicsState();
+      doc.setGState(new doc.GState({ opacity: 0.75 }));
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(255);
+      doc.text(resumenTxt, margen + anchoUtil - 2 - anchoCompas - anchoInstrumentoTxt, y + 5, { align: 'right' });
+      doc.restoreGraphicsState();
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(255);
+    }
+    y += 7 + 3;
+    doc.setTextColor(20);
+    nombresYaImpresos.add(s.id || s.nombre);
+
+    // v1.83: modo coda — no re-dibuja el cuadro completo, solo remite a
+    // la primera aparición (mismo criterio y texto que generarEstructuraPDF
+    // línea ~2087). El contador global de compás sigue avanzando igual al
+    // final del forEach (ya estaba así antes de este cambio), así que las
+    // secciones siguientes no se desfasan.
+    // v1.89: (a pedido) FIX — margen excesivo después de "se repite...".
+    // Este flag trackea si lo ÚLTIMO dibujado en la sección fue una línea
+    // de texto (con su propio aire ya incluido) en vez de una fila de
+    // cajas — al final del forEach se usa para no sumarle ENCIMA otro
+    // "cajaAlto+4" completo (pensado para dejar aire debajo de una FILA
+    // de cajas, no de una línea de texto). Default false = comportamiento
+    // de siempre (último elemento fue una grilla).
+    let ultimoElementoEsTexto = false;
+    if(esCoda){
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
+      doc.text('Ver primera aparición arriba.', margen, y);
+      y += 6; doc.setTextColor(20);
+    } else {
+    const esBreak = s.nombre === 'Break/Corte';
+    if(esBreak){
+      // v1.84: (a pedido) Break/Corte dibuja el patrón rítmico
+      // (dibujarPatronRitmico) en vez de la grilla genérica — mismo
+      // criterio que dibujarCajaBreak en generarEstructuraPDF, versión
+      // sin acordes (esta guía no los muestra): nota de tiempo
+      // (notaTiempoCorte) arriba si está cargada, patrón debajo.
+      const totalCajasBreak = totalCajasSeccionPercusion(s);
+      const notaTxt = (s.notaTiempoCorte || '').trim();
+      if(notaTxt){
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(120);
+        doc.text('(' + notaTxt + ')', margen, y);
+        doc.setTextColor(20);
+      }
+      y += 6;
+      if((s.patronRitmico || '').trim()){
+        y += 4;
+        dibujarPatronRitmico(s.patronRitmico, margen, anchoUtil, y, totalCajasBreak);
+        y += 6;
+      }
+    } else {
+
+    // v1.76: helper local — mismo dibujo de caja que antes (grilla +
+    // nota de percusión + regla de acento), ahora reutilizable para el
+    // pase normal, el ciclo de Vamp y el bloque de 2da vez. No dibuja el
+    // +4 de cierre de bloque — eso lo maneja el llamador entre bloques y
+    // al final de la sección.
+    // v1.88: (a pedido) numInicio (1-based) se reemplaza por colInicio/
+    // labelInicio (0-based, mismo patrón que dibujarCajas de acordes,
+    // línea ~1175) + opciones — necesario para la 2da vez horizontal:
+    //  - colInicio: columna real donde arranca a dibujarse (posición en
+    //    la grilla). Antes siempre arrancaba en columna 0.
+    //  - labelInicio: número real de compás - 1 de la primera caja (para
+    //    que "c.N" muestre el compás real que reemplaza, sea cual sea la
+    //    columna donde se dibuja). Por defecto = colInicio (mismo
+    //    comportamiento que antes: numInicio = colInicio+1).
+    //  - opciones.yBase: y de arranque del bloque (default: y corrido).
+    //  - opciones.sinAvanzarY: si true, dibuja en yBase sin tocar el y
+    //    corrido (para la 2da vez horizontal, que va en la MISMA fila que
+    //    la 1ra vez, ya dibujada).
+    //  - opciones.compasGlobalInicioOverride: para el "#N", usa este
+    //    valor en vez de compasGlobalInicio (2da vez: compasGlobalInicio
+    //    + (repeticiones-1)*totalCajas — mismo cálculo que acordes).
+    // Los 2 llamados que ya existían (pase principal con numInicio=1,
+    // 2da vez apilada con numInicio=totalCajas-finalN+1) quedan
+    // idénticos visualmente: colInicio=0/labelInicio=0 y
+    // colInicio=0/labelInicio=totalCajas-finalN respectivamente.
+    // v1.90: guarda si la última grilla dibujada (no forzada, es decir la
+    // que sí avanza `y`) reservó tira de notas — para que el espaciado
+    // que viene después (barra de repetición, lista de vueltas del Vamp,
+    // texto "se repite...", avance final de la sección) sepa si tiene que
+    // sumar notaFilaAlto o no. La actualiza dibujarCajasPercusion cada vez
+    // que dibuja sin sinAvanzarY (declarada arriba, al ppio. del forEach).
+    const dibujarCajasPercusion = (notas, acentos, total, colInicio, labelInicio, opciones) => {
+      opciones = opciones || {};
+      colInicio = colInicio || 0;
+      labelInicio = labelInicio != null ? labelInicio : colInicio;
+      const yBase = opciones.yBase != null ? opciones.yBase : y;
+      const compasBase = opciones.compasGlobalInicioOverride != null ? opciones.compasGlobalInicioOverride : compasGlobalInicio;
+      // v1.92: (a pedido) 2 fuentes de nota por compás en simultáneo:
+      //  - `notas` (percusión: notasPercusionPorCompas/Ciclo/Final2) vuelve
+      //    a vivir ADENTRO de la caja, negro/negrita — es la info principal
+      //    para el percusionista ("repique de bongó", "solo kick").
+      //  - `opciones.notasArmonia` (la misma notasPorCompas/notasCiclo/
+      //    notasFinal2 que ya se ve en el PDF de acordes) pasa a su propia
+      //    tira ARRIBA de la caja, itálica/naranja — contexto general del
+      //    tema, igual estilo que dibujarCajas en generarEstructuraPDF.
+      // hayNotas (si se reserva la tira de arriba) se decide por
+      // notasArmonia, no por `notas` — la de percusión ya no necesita
+      // alto extra porque va adentro. opciones.hayNotasForzado sigue
+      // permitiendo heredar el valor del bloque principal para la 2da vez
+      // horizontal (mismo patrón que hayNotasForzado en dibujarCajas).
+      const notasArmonia = opciones.notasArmonia || [];
+      const hayNotas = opciones.hayNotasForzado != null ? opciones.hayNotasForzado : hayContenido(notasArmonia);
+      let filaAnterior = -1;
+      let yLocal = yBase;
+      for(let j = 0; j < total; j++){
+        const posGlobal = j + colInicio;
+        const posLabel = j + labelInicio;
+        const fila = Math.floor(posGlobal / POR_FILA);
+        const col = posGlobal % POR_FILA;
+        if(fila !== filaAnterior){
+          if(filaAnterior !== -1) yLocal += cajaAlto + (hayNotas ? notaFilaAlto : 0) + 2;
+          filaAnterior = fila;
+        }
+        const x = margen + col * cajaAncho;
+        const yCaja = yLocal + (hayNotas ? notaFilaAlto : 0);
+        if(!opciones.sinAvanzarY){ y = yLocal; ultimaHayNotasPercusion = hayNotas; }
+        if(hayNotas){
+          const notaArmoniaTxt = (notasArmonia[j] || '').trim();
+          if(notaArmoniaTxt){
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(180, 120, 40);
+            const notaCorta = notaArmoniaTxt.length > 22 ? notaArmoniaTxt.slice(0, 21) + '…' : notaArmoniaTxt;
+            doc.text(notaCorta, x + cajaAncho / 2, yLocal + notaFilaAlto - 1.3, { align: 'center' });
+            doc.setTextColor(20);
+          }
+        }
+        doc.setDrawColor(200); doc.setLineWidth(0.2);
+        doc.rect(x, yCaja, cajaAncho, cajaAlto);
+        // v1.77: (a pedido) "c.N" pasa de 7pt gris150 (casi invisible en
+        // la hoja impresa) a 9pt negrita gris70 — es el dato básico que
+        // el percusionista necesita ver aunque la caja esté vacía.
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+        doc.setTextColor(70);
+        doc.text('c.' + (posLabel + 1), x + 2, yCaja + 5);
+        // v1.82: (a pedido) mismo contador global "#N" que ya usa
+        // generarEstructuraPDF (línea ~1182) — misma fórmula relativa
+        // (compasBase + posLabel, mismo criterio que "opciones.
+        // compasGlobalInicio + posLabel" de dibujarCajas) y mismo estilo
+        // discreto (6pt, gris170).
+        if(compasBase != null){
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
+          doc.text('#' + (compasBase + posLabel), x + cajaAncho - 1.5, yCaja + 4, { align: 'right' });
+          doc.setTextColor(20);
+        }
+        // v1.92: nota de PERCUSIÓN — vuelve adentro de la caja (info
+        // principal), negro/negrita, mismo estilo/límite que tenía antes
+        // de v1.90 (26 caracteres, 7.5pt).
+        const notaPercusionTxt = (notas[j] || '').trim();
+        if(notaPercusionTxt){
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+          doc.setTextColor(20);
+          const notaPercusionCorta = notaPercusionTxt.length > 26 ? notaPercusionTxt.slice(0, 25) + '…' : notaPercusionTxt;
+          doc.text(notaPercusionCorta, x + cajaAncho / 2, yCaja + 8, { align: 'center', maxWidth: cajaAncho - 4 });
+        }
+
+        const tVal = acentos[j] || '';
+        const idxTiempo = TIEMPOS_PERCUSION.indexOf(tVal);
+        if(idxTiempo !== -1){
+          const reglaAncho = cajaAncho * 0.8;
+          const reglaX0 = x + (cajaAncho - reglaAncho) / 2;
+          const pasoTiempo = reglaAncho / (TIEMPOS_PERCUSION.length - 1);
+          const reglaY = yCaja + cajaAlto - 2;
+          doc.setDrawColor(160);
+          TIEMPOS_PERCUSION.forEach((t, ti) => {
+            const tx = reglaX0 + ti * pasoTiempo;
+            const esFuerte = ti % 4 === 0; // tiempos 1-2-3-4 vs. e/&/a
+            doc.setLineWidth(esFuerte ? 0.35 : 0.2);
+            doc.line(tx, reglaY, tx, reglaY - (esFuerte ? 1.4 : 0.7));
+          });
+          doc.setLineWidth(0.2);
+          doc.setFillColor(20, 20, 20);
+          doc.circle(reglaX0 + idxTiempo * pasoTiempo, reglaY - 1.8, 0.6, 'F');
+        }
+      }
+    };
+
+    const esVamp = s.tipo === 'vamp';
+    const esBreak = s.nombre === 'Break/Corte';
+    const totalCajas = totalCajasSeccionPercusion(s);
+    // v1.88: (a pedido) datos de la 2da vez calculados ACÁ arriba (mismo
+    // criterio que generarEstructuraPDF v1.42/v1.43: alineable/
+    // cabeHorizontal se necesitan ANTES de dibujar la grilla principal,
+    // para reservar aire si va a llevar corchete "1." encima).
+    const repeticionesPercusion = s.repeticiones || 1;
+    const finalNPercusion = Math.min(totalCajas || 1, s.finalDistintoN || 1);
+    const hay2da = hay2daSeccionPercusion(s, totalCajas);
+    const alineablePercusion = !esVamp && totalCajas <= POR_FILA;
+    const colLibreDesdePercusion = totalCajas % POR_FILA;
+    const libresPercusion = colLibreDesdePercusion === 0 ? 0 : POR_FILA - colLibreDesdePercusion;
+    const cabeHorizontalPercusion = alineablePercusion && libresPercusion >= finalNPercusion;
+    const colReemplazoPercusion = alineablePercusion ? (totalCajas - finalNPercusion) : 0;
+    const xReemplazoPercusion = margen + colReemplazoPercusion * cajaAncho;
+    const anchoReemplazoPercusion = finalNPercusion * cajaAncho;
+
+    // v1.88: mismo aire reservado que generarEstructuraPDF (v1.42/v1.44)
+    // arriba del bloque cuando la 2da vez va a llevar corchete "1."
+    // encima de la 1ra vez — sin esto, el corchete pisa la franja de
+    // color del título de la sección.
+    if(alineablePercusion && hay2da) y += 5;
+
+    if(esVamp && totalCajas <= 0){
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
+      doc.text('Definí el ciclo de compases arriba para ver las cajas acá.', margen, y);
+      doc.setTextColor(20);
+    } else {
+      const notas = esVamp
+        ? (Array.isArray(s.notasPercusionCiclo) ? s.notasPercusionCiclo : [])
+        : (Array.isArray(s.notasPercusionPorCompas) ? s.notasPercusionPorCompas : []);
+      const acentos = esVamp
+        ? (Array.isArray(s.acentosCiclo) ? s.acentosCiclo : [])
+        : (Array.isArray(s.acentosPorCompas) ? s.acentosPorCompas : []);
+      // v1.92: (a pedido) nota de ARMONÍA (la misma que ya se ve en el PDF
+      // de acordes) para la tira de arriba — en simultáneo con la nota de
+      // percusión (adentro de la caja, ver dibujarCajasPercusion).
+      const notasArmonia = esVamp
+        ? (Array.isArray(s.notasCiclo) ? s.notasCiclo : [])
+        : (Array.isArray(s.notasPorCompas) ? s.notasPorCompas : []);
+      const yGridVamp = y;
+      dibujarCajasPercusion(notas, acentos, totalCajas, 0, 0, { notasArmonia });
+      // v1.85: (a pedido) lista de "próximas repeticiones" en Vamp
+      // (#N chico bajo cada caja del ciclo), heredada de
+      // generarEstructuraPDF (línea ~2130-2152) — mismo cálculo
+      // (compasGlobalInicio + columna + k*ciclo), máximo 3 líneas visibles
+      // por columna, mismo estilo (6pt gris170). Se dibuja bajo la
+      // PRIMERA fila del ciclo (yGridVamp + cajaAlto), mismo límite de
+      // columnas visibles (min(ciclo,POR_FILA)) que acordes.
+      if(esVamp && compasGlobalInicio != null){
+        const vueltasVampLista = Math.max(0, Math.floor((s.duracion || totalCajas) / totalCajas) - 1);
+        if(vueltasVampLista > 0){
+          const maxLineasVamp = 3;
+          // v1.87: (a pedido, FIX) la lista va DENTRO de la caja, pegada
+          // justo abajo del label "#N" (mismo criterio que acordes v1.55:
+          // "pegada JUSTO abajo del label, misma esquina sup. derecha,
+          // ADENTRO") — antes (v1.85) quedaba afuera, debajo del borde de
+          // la caja, descolgada en el margen. El label "#N" de cada caja
+          // se dibuja en yCaja+4 (dibujarCajasPercusion, fila 0 ==
+          // yGridVamp acá); +6.5 dnos deja pegado justo debajo.
+          // v1.90: +notaFilaAlto si la grilla reservó tira de notas (el
+          // label "#N" de la caja se corrió hacia abajo esa misma medida).
+          const yBaseVamp = yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0) + 6.5;
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
+          for(let col = 0; col < Math.min(totalCajas, POR_FILA); col++){
+            const xListaVamp = margen + cajaAncho * col + cajaAncho - 1.5;
+            let yListaVamp = yBaseVamp;
+            for(let k = 1; k <= Math.min(vueltasVampLista, maxLineasVamp); k++){
+              doc.text('#' + (compasGlobalInicio + col + k * totalCajas), xListaVamp, yListaVamp, { align: 'right' });
+              yListaVamp += 2.6;
+            }
+          }
+          doc.setTextColor(20);
+        }
+      }
+      // v1.86: (a pedido) marco completo (izq.+der.) SOLO en fija-bloque
+      // con repeticiones>1 — mismo criterio que dibujarBarraRepeticion en
+      // generarEstructuraPDF, que tampoco lo dibuja para Vamp. Se dibuja
+      // pegado a la fila principal (yGridVamp), antes del bloque de 2da
+      // vez (que no lleva marco propio, igual que en acordes).
+      // v1.89: (a pedido, FIX) el trazo derecho del marco quedaba en el
+      // borde de la 1ra vez y por eso pisaba/se solapaba con la caja de
+      // la 2da vez horizontal recién agregada (v1.88) — mismo FIX que ya
+      // tiene generarEstructuraPDF para esto (v1.48: anchoBarraDerecha se
+      // extiende cabeHorizontal&&hay2da para que el trazo cierre DESPUÉS
+      // de la caja de la 2da vez, no en el borde de la 1ra).
+      if(mostrarRepeticionPercusion(s, totalCajas) && !esVamp){
+        const anchoMarcoPercusion = (cabeHorizontalPercusion && hay2da)
+          ? anchoUltimaFilaPercusion(totalCajas) + finalNPercusion * cajaAncho
+          : anchoUltimaFilaPercusion(totalCajas);
+        // v1.90: el marco arranca DESPUÉS de la tira de notas (si hay),
+        // mismo criterio que dibujarBarraRepeticion en generarEstructuraPDF
+        // (yBloque + offsetNotaPrimeraFila) — así no envuelve el texto
+        // naranja de la nota, solo la caja.
+        dibujarBarraRepeticionPercusion(yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0), cajaAlto, anchoMarcoPercusion);
+      }
+
+      // v1.88: (a pedido) "se repite xN..." pasa a dibujarse DESPUÉS de
+      // la grilla (debajo), mismo orden que generarEstructuraPDF — antes
+      // se dibujaba arriba, antes de las cajas.
+      if(mostrarRepeticionPercusion(s, totalCajas)){
+        // v1.90: +notaFilaAlto si la última fila dibujada reservó tira de
+        // notas, para no pisar ese texto con "se repite...".
+        y += cajaAlto + (ultimaHayNotasPercusion ? notaFilaAlto : 0) + 4;
+        const anchoIconoRep = dibujarIconoRepeticionPercusion(margen, y);
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120);
+        if(esVamp){
+          const vueltasVamp = Math.max(0, Math.floor((s.duracion || totalCajas) / totalCajas) - 1);
+          doc.text('se repite x' + (vueltasVamp + 1) + ' (ciclo de ' + totalCajas + ' comp.)', margen + anchoIconoRep + 1, y);
+        } else {
+          doc.text('se repite x' + repeticionesPercusion + ' (' + (s.duracion || 1) + ' comp. reales)', margen + anchoIconoRep + 1, y);
+        }
+        doc.setTextColor(20);
+        y += 5;
+        ultimoElementoEsTexto = true;
+      }
+
+      // v1.88: (a pedido) corchete "1." arriba de la 1ra vez — mismo
+      // criterio que generarEstructuraPDF (dibujarCorcheteCasilla,
+      // línea ~2371): se dibuja siempre que alineable && hay2da, sea la
+      // 2da vez horizontal o apilada.
+      if(alineablePercusion && hay2da){
+        dibujarCorcheteCasillaPercusion(yGridVamp, 1, xReemplazoPercusion, anchoReemplazoPercusion);
+      }
+
+      // v1.76/v1.88: 2da vez — mismo criterio que generarEstructuraPDF
+      // (solo aplica a fija-bloque con repeticiones>1, no a Vamp ni
+      // Break/Corte). v1.88 agrega el modo HORIZONTAL (pegada a la
+      // derecha de la 1ra vez, en la misma fila, con corchetes "1."/"2."
+      // — mismo criterio "cabeHorizontal" que generarEstructuraPDF,
+      // línea ~2227/2373) además del FIX del contador "#N" (antes
+      // repetía el mismo número que la 1ra pasada).
+      if(hay2da){
+        const compasGlobalInicio2da = compasGlobalInicio != null
+          ? compasGlobalInicio + (repeticionesPercusion - 1) * totalCajas
+          : null;
+        const notasF2 = Array.isArray(s.notasPercusionFinal2) ? s.notasPercusionFinal2 : [];
+        const acentosF2 = Array.isArray(s.acentosFinal2) ? s.acentosFinal2 : [];
+        // v1.92: nota de armonía de la 2da vez (misma que ya usa
+        // generarEstructuraPDF para este bloque).
+        const notasArmoniaF2 = Array.isArray(s.notasFinal2) ? s.notasFinal2 : [];
+        if(cabeHorizontalPercusion){
+          const xHorizontal = margen + totalCajas * cajaAncho;
+          dibujarCorcheteCasillaPercusion(yGridVamp, 2, xHorizontal, anchoReemplazoPercusion);
+          // v1.90: hayNotasForzado hereda el valor de la grilla principal
+          // (ultimaHayNotasPercusion) — mismo motivo que hayNotasForzado en
+          // dibujarCajas/generarEstructuraPDF: si la 2da vez horizontal no
+          // tiene notas propias pero la 1ra sí, igual reserva la tira para
+          // que ambas cajas queden alineadas en la misma fila.
+          dibujarCajasPercusion(notasF2, acentosF2, finalNPercusion, totalCajas, colReemplazoPercusion, {
+            yBase: yGridVamp,
+            sinAvanzarY: true,
+            hayNotasForzado: ultimaHayNotasPercusion,
+            notasArmonia: notasArmoniaF2,
+            compasGlobalInicioOverride: compasGlobalInicio2da
+          });
+        } else {
+          y += 4;
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); doc.setTextColor(120);
+          doc.text('2da vez (últimos ' + finalNPercusion + ' comp.)', margen, y);
+          doc.setTextColor(20);
+          y += 4;
+          if(alineablePercusion){
+            dibujarCorcheteCasillaPercusion(y, 2, xReemplazoPercusion, anchoReemplazoPercusion);
+          }
+          dibujarCajasPercusion(notasF2, acentosF2, finalNPercusion, colReemplazoPercusion, colReemplazoPercusion, {
+            notasArmonia: notasArmoniaF2,
+            compasGlobalInicioOverride: compasGlobalInicio2da
+          });
+          ultimoElementoEsTexto = false;
+        }
+      }
+    }
+    } // cierre del if(esBreak) — v1.84
+    } // cierre del else(esCoda) — v1.83
+    // v1.81: avanza el contador global — mismo criterio que
+    // generarEstructuraPDF (v1.45): si esta sección no tiene duración
+    // definida, se apaga el contador para las secciones siguientes.
+    if(s.duracion != null && s.duracion > 0) compasGlobal += s.duracion;
+    else contadorGlobalValido = false;
+    // v1.89: (a pedido, FIX) antes sumaba cajaAlto+4 siempre (pensado
+    // para dejar aire debajo de la ÚLTIMA FILA de cajas) — con "se
+    // repite..." ahora dibujándose debajo (v1.88), en las secciones que
+    // terminan en esa línea de texto (que ya trae su propio y+=5) esto
+    // sumaba un cajaAlto (14mm) de más antes de la siguiente sección.
+    // Con el texto como último elemento, 4mm de aire alcanza (mismo
+    // criterio que el resto del archivo para "aire después de una línea
+    // de texto").
+    // v1.90: +notaFilaAlto si la última grilla dibujada (principal o 2da
+    // vez apilada) reservó tira de notas — mismo motivo que los demás
+    // ajustes de este cambio: sin esto, la sección siguiente arrancaba
+    // pisando la nota naranja de la última fila.
+    y += ultimoElementoEsTexto ? 4 : cajaAlto + (ultimaHayNotasPercusion ? notaFilaAlto : 0) + 4;
+  });
+
+  const nombreArchivo = 'percusion-' + nombreTema.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '.pdf';
+  doc.setProperties({ title: nombreArchivo });
+  const urlPreview = doc.output('bloburl');
+  const ventana = window.open(urlPreview, '_blank');
+  if(!ventana){
+    doc.save(nombreArchivo);
+  }
+}
+
