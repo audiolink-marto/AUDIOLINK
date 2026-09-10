@@ -4,7 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.98
+<!-- AUDIOLINK · guia-practica.html · v1.99
+     v1.99: (a pedido) anacrusa a nivel tema — checkbox nuevo #inputAnacrusa
+     (junto a Offset/Clave, sección "Datos del tema"), guardado/cargado
+     como temaDataActual.practicaAnacrusa (mismo patrón que practicaClave).
+     exportarEstructuraPDF() y exportarEstructuraPDFPercusion() ahora
+     mandan `anacrusa: !!temaDataActual.practicaAnacrusa` al objeto que ya
+     le pasan a generarEstructuraPDF/generarEstructuraPDFPercusion
+     (pdf-armonias.js/pdf-percusion.js). Solo resuelve el corrimiento de
+     numeración de compás (contador global arranca en 0 y la 1ra caja
+     muestra "Anacrusa") — no calcula beats de la anacrusa ni acorta el
+     último compás de cada vuelta, eso quedó fuera de alcance a propósito
+     (ver conversación). Sin el checkbox activado, cero cambios.
+AUDIOLINK · guia-practica.html · v1.98
      v1.98: (a pedido) GOLPE DE NEGRA (nota tocada, no silencio) — hasta
      v1.97 la negra combinada solo tenía silencio (","). Se agrega "n"
      (golpe de negra normal) y "N" (golpe de negra acentuado), mismo
@@ -1470,6 +1482,17 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
         <input type="number" id="inputOffset" min="0" step="0.1" placeholder="Ej: 2.5">
       </div>
       <div class="field">
+        <!-- v1.83: (a pedido) anacrusa — checkbox simple a nivel tema.
+             Cuando está activo, el contador global de compás (usado por
+             pdf-armonias.js/pdf-percusion.js para el "#N" de cada caja)
+             arranca en 0 en vez de 1, y la 1ra caja de la 1ra sección
+             muestra "Anacrusa" en vez de "c.1". No calcula beats ni
+             acorta el último compás de cada vuelta (eso seguiría siendo
+             una feature aparte, más grande) — resuelve solo el corrimiento
+             de numeración. -->
+        <label><input type="checkbox" id="inputAnacrusa" style="width:auto;margin-right:6px;vertical-align:middle;">El tema arranca con anacrusa (compás incompleto antes del compás 1)</label>
+      </div>
+      <div class="field">
         <label>Clave (opcional — para salsa/música brasileña)</label>
         <select id="inputClave">
           <option value="">Ninguna</option>
@@ -1656,6 +1679,7 @@ async function iniciarGuiaPractica(){
     document.getElementById('inputCompas').value = temaDataActual.practicaCompas || '';
     document.getElementById('inputOffset').value = temaDataActual.practicaOffset || 0;
     document.getElementById('inputClave').value = temaDataActual.practicaClave || '';
+    document.getElementById('inputAnacrusa').checked = !!temaDataActual.practicaAnacrusa;
 
     // v1.1: (a pedido) el instrumento de cada maqueta ya NO se escribe
     // a mano — se elige de los instrumentos que YA están asignados a
@@ -1689,6 +1713,7 @@ async function guardarDatosTema(){
   const compas = document.getElementById('inputCompas').value || null;
   const offset = parseFloat(document.getElementById('inputOffset').value) || 0;
   const clave = document.getElementById('inputClave').value || null;
+  const anacrusa = document.getElementById('inputAnacrusa').checked;
 
   // v1.11: (a pedido) si el offset (o BPM/compás) cambia y ya hay
   // secciones creadas, esas secciones guardan un desdeSegundos crudo
@@ -1734,13 +1759,14 @@ async function guardarDatosTema(){
   }
 
   try{
-    const patch = { practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave };
+    const patch = { practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave, practicaAnacrusa: anacrusa };
     if(seccionesAGuardar) patch.practicaSecciones = seccionesAGuardar;
     await temaRef.update(patch);
     temaDataActual.practicaBpm = bpm;
     temaDataActual.practicaCompas = compas;
     temaDataActual.practicaOffset = offset;
     temaDataActual.practicaClave = clave;
+    temaDataActual.practicaAnacrusa = anacrusa;
     if(seccionesAGuardar) temaDataActual.practicaSecciones = seccionesAGuardar;
     mostrarOk('okDatosTema');
   }catch(e){ console.error(e); alert('No se pudo guardar BPM/compás.'); }
@@ -3531,6 +3557,7 @@ function exportarEstructuraPDF(){
     bpm: bpm,
     compasTexto: compas,
     claveTxt: claveTxt,
+    anacrusa: !!temaDataActual.practicaAnacrusa,
     secciones: seccionesParaPDF
   });
 }
@@ -3566,6 +3593,7 @@ function exportarEstructuraPDFPercusion(){
     bpm: bpm,
     compasTexto: compas,
     claveTxt: claveTxt,
+    anacrusa: !!temaDataActual.practicaAnacrusa,
     secciones: seccionesParaPDF
   });
 }

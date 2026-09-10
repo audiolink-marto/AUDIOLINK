@@ -1,3 +1,49 @@
+// AUDIOLINK · pdf-armonias.js · v1.105
+// v1.105: (a pedido, FIX real, ver captura) v1.104 corrió el ciclo a la
+// columna 1 pero dejó la caja Anacrusa PEGADA a él (0mm de aire) — la
+// barra de apertura del marco se dibuja hacia afuera de esa columna y
+// quedaba invadiendo la Anacrusa, mismo problema que ya se había resuelto
+// para la caja sobrante (v1.102). dibujarCajas gana un 2do gap
+// independiente (opciones.gapDesdeColumna2/gapMm2, ACUMULATIVO con el
+// primero) — con anacrusa, el ciclo entero se corre 6mm extra después de
+// la Anacrusa; la caja sobrante (si la hay) recibe ambos gaps (12mm),
+// porque necesita despegarse tanto del cierre del ciclo como de la
+// apertura ya corrida. offsetX del marco y x de "próximas vueltas" suman
+// ese mismo gap. Sin anacrusa, cero cambio (gapDesdeColumna queda
+// undefined, gapX de esa parte da 0).
+// AUDIOLINK · pdf-armonias.js · v1.104
+// v1.104: (a pedido, FIX real — no cosmético, ver captura) la anacrusa
+// en Vamp (v1.103) ocupaba la columna 0 del CICLO, así que el motor de
+// repetición la trataba como un compás más que se repite (marco, lista
+// de "próximas vueltas" y numerosGlobales, todos calculados sobre
+// `ciclo` columnas contando la anacrusa adentro) — mal, la anacrusa no
+// es parte de lo que se repite. Ahora: la anacrusa se dibuja como caja
+// propia de 1 columna, ANTES y aparte del ciclo (dibujarCajas([],[],1,
+// [],0,0,{esAnacrusa:true,sinAvanzarY:true})); el ciclo real arranca en
+// colInicioCiclo=1 (dibujarCajas recibe colInicio=1, labelInicio=0, así
+// que sus cajas siguen etiquetándose c.1/c.2/... como si la anacrusa no
+// existiera). dibujarBarraRepeticion gana opciones.offsetX para que el
+// marco arranque en la columna del ciclo, no en el margen de página; la
+// lista de "próximas vueltas" usa el mismo offset. compasGlobal vuelve a
+// arrancar siempre en 1 (ya no hacía falta "reservar" el 0 — la anacrusa
+// no consume ningún número de compás real, nunca lo consumió realmente).
+// Fija-bloque (no-Vamp) NO se tocó: ahí la anacrusa en columna 0 (v1.103)
+// no entra en ningún cálculo de repetición/módulo, así que no tenía este
+// bug. Réplica pendiente en pdf-percusion.js.
+// AUDIOLINK · pdf-armonias.js · v1.103
+// v1.103: (a pedido) anacrusa — datos.anacrusa (nuevo campo, ver
+// guia-practica.html v1.99) hace 2 cosas: (1) compasGlobal arranca en 0
+// en vez de 1, así el compás 1 real queda numerado correctamente en todo
+// el PDF; (2) la 1ra caja de la 1ra sección (columna 0) muestra
+// "Anacrusa" en vez de "c.1" y no dibuja su "#0" — dibujarCajas gana
+// opciones.esAnacrusa para esto (solo afecta j===0 de la llamada donde
+// se pasa). Aplicado en los 3 puntos de entrada de la 1ra caja del tema
+// (Vamp con ciclo, fija-bloque con repeticiones>1, fija-bloque simple);
+// Break/Corte como sección 0 no se cubrió (dibujarCajaBreak no usa
+// opciones.esAnacrusa, caso raro/fuera de alcance). Sin datos.anacrusa,
+// cero cambios. No calcula beats de la anacrusa ni acorta el último
+// compás de cada vuelta — alcance acotado a pedido explícito. Réplica en
+// pdf-percusion.js v1.100.
 // AUDIOLINK · pdf-armonias.js · v1.102
 // v1.102: (a pedido, FIX real tras revisión de PDF — reemplaza el
 // intento anterior de esta misma versión, descartado por el usuario) el
@@ -460,7 +506,14 @@ function generarEstructuraPDF(datos){
       // la caja sobrante queda pegada al ciclo, sin espacio para el cierre
       // "‖" del marco de repetición (que se dibuja hacia afuera, asumiendo
       // ese aire). Sin pasar estas opciones (default), x no cambia.
-      const gapX = (opciones.gapDesdeColumna != null && col >= opciones.gapDesdeColumna) ? (opciones.gapMm || 0) : 0;
+      // v1.105: (a pedido, FIX real, ver captura) opciones.gapDesdeColumna2
+      // + opciones.gapMm2 — 2do gap independiente y ACUMULATIVO con el
+      // primero (ambos se suman si una columna cae en los dos). Hace
+      // falta con anacrusa+sobra a la vez: un gap después de la Anacrusa
+      // (antes de que arranque el ciclo) y otro después del ciclo (antes
+      // de la caja sobrante) — 2 aires distintos en la misma grilla.
+      const gapX = ((opciones.gapDesdeColumna != null && col >= opciones.gapDesdeColumna) ? (opciones.gapMm || 0) : 0)
+        + ((opciones.gapDesdeColumna2 != null && col >= opciones.gapDesdeColumna2) ? (opciones.gapMm2 || 0) : 0);
       const x = margen + col * cajaAncho + gapX;
       const yFila = yBase + fila * (cajaAlto + (hayNotas ? notaFilaAlto : 0));
       const yCaja = yFila + (hayNotas ? notaFilaAlto : 0);
@@ -481,7 +534,16 @@ function generarEstructuraPDF(datos){
       // la columna donde se dibuja la caja (posGlobal). Con
       // labelInicio===colInicio (default) posLabel===posGlobal, sin
       // cambios para el resto de los usos.
-      doc.text('c.' + (posLabel + 1), x + 1.5, yCaja + 4);
+      // v1.103: (a pedido) opciones.esAnacrusa — solo aplica a j===0 (la
+      // 1ra caja de la llamada). Muestra "Anacrusa" en vez de "c.1" y
+      // más abajo se salta el "#N" de esa caja (no tiene sentido mostrar
+      // "#0"). Sin esta opción, cero cambio.
+      const esCajaAnacrusa = !!(opciones.esAnacrusa && j === 0);
+      if(esCajaAnacrusa){
+        doc.text('Anacrusa', x + 1.5, yCaja + 4);
+      } else {
+        doc.text('c.' + (posLabel + 1), x + 1.5, yCaja + 4);
+      }
       doc.setTextColor(20);
       // v1.45: (a pedido) contador global de compás — "#N" arriba a la
       // derecha, mismo criterio de posLabel que "c.N" (así en 2da
@@ -489,7 +551,7 @@ function generarEstructuraPDF(datos){
       // columna de dibujo). Más chico y discreto que "c.N" (6pt vs 7pt)
       // a propósito: es la referencia secundaria, el acorde sigue siendo
       // lo dominante al centro.
-      if(opciones.compasGlobalInicio != null){
+      if(opciones.compasGlobalInicio != null && !esCajaAnacrusa){
         doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
         // v1.100: (a pedido, FIX real) "opciones.numerosGlobales[j]", si
         // viene, pisa el cálculo lineal de siempre (compasGlobalInicio +
@@ -561,12 +623,14 @@ function generarEstructuraPDF(datos){
   // cálculo de compases, solo el dibujo encima de lo que ya se pintó.
   // yBloqueInicio/alto vienen de afuera porque el bloque ya se dibujó
   // (dibujarCajas ya movió `y`).
-  const dibujarBarraRepeticion = (yBloqueInicio, alto, anchoBloque) => {
+  const dibujarBarraRepeticion = (yBloqueInicio, alto, anchoBloque, opciones) => {
     // v1.29.3: FIX — usaba `anchoUtil` (ancho de fila completa, 4
     // columnas) para la barra derecha, así que en secciones con menos de
     // 4 compases (ej. "Coda/Final" con 2) la barra quedaba lejos, flotando
     // fuera de las cajas reales. Ahora recibe `anchoBloque` (el ancho real
     // ocupado por las cajas de esa fila) y lo usa en vez de `anchoUtil`.
+    opciones = opciones || {};
+    const ox = opciones.offsetX || 0;
     const ancho = anchoBloque != null ? anchoBloque : anchoUtil;
     const grosor = 1.2;
     doc.setFillColor(20, 20, 20);
@@ -575,15 +639,20 @@ function generarEstructuraPDF(datos){
     // tenía bien. Orden correcto, de afuera hacia adentro: GRUESO-FINO-
     // PUNTOS al abrir (izquierda), y su espejo PUNTOS-FINO-GRUESO al
     // cerrar (derecha). Se mantiene el aire de 0.8mm entre elementos.
-    doc.rect(margen - 4.4, yBloqueInicio, grosor, alto, 'F');
-    doc.rect(margen - 2.4, yBloqueInicio, 0.4, alto, 'F');
-    doc.rect(margen + ancho + 3.2, yBloqueInicio, grosor, alto, 'F');
-    doc.rect(margen + ancho + 2.0, yBloqueInicio, 0.4, alto, 'F');
+    // v1.104: (a pedido) opciones.offsetX (mm) — desplaza TODO el marco
+    // hacia la derecha, sin cambiar `ancho`. Hace falta cuando el ciclo
+    // del Vamp no arranca en la columna 0 real (ej. anacrusa ocupando la
+    // columna 0): el marco tiene que arrancar donde arranca el CICLO, no
+    // en el margen de la página. Sin pasarlo (default 0), cero cambio.
+    doc.rect(margen + ox - 4.4, yBloqueInicio, grosor, alto, 'F');
+    doc.rect(margen + ox - 2.4, yBloqueInicio, 0.4, alto, 'F');
+    doc.rect(margen + ox + ancho + 3.2, yBloqueInicio, grosor, alto, 'F');
+    doc.rect(margen + ox + ancho + 2.0, yBloqueInicio, 0.4, alto, 'F');
     const yc = yBloqueInicio + alto / 2;
-    doc.circle(margen - 0.85, yc - 1.2, 0.35, 'F');
-    doc.circle(margen - 0.85, yc + 1.2, 0.35, 'F');
-    doc.circle(margen + ancho + 0.85, yc - 1.2, 0.35, 'F');
-    doc.circle(margen + ancho + 0.85, yc + 1.2, 0.35, 'F');
+    doc.circle(margen + ox - 0.85, yc - 1.2, 0.35, 'F');
+    doc.circle(margen + ox - 0.85, yc + 1.2, 0.35, 'F');
+    doc.circle(margen + ox + ancho + 0.85, yc - 1.2, 0.35, 'F');
+    doc.circle(margen + ox + ancho + 0.85, yc + 1.2, 0.35, 'F');
   };
   // v1.29: corchete "1." / "2." de casilla, en vez del texto "2ª vez:"
   // suelto — se dibuja pegado a la esquina sup. izq. del bloque.
@@ -1352,12 +1421,22 @@ function generarEstructuraPDF(datos){
   // el conteo deja de ser confiable de ahí en adelante — se apaga
   // (contadorGlobalValido=false) y las secciones siguientes no muestran
   // "#N" hasta que se complete esa sección y se vuelva a exportar.
+  // v1.104: (a pedido, FIX real) la anacrusa ya NO le resta un número al
+  // contador — pasa a ser una caja aparte, sin "#N" (ver bloque Vamp más
+  // abajo), así que el contador vuelve a arrancar siempre en 1.
   let compasGlobal = 1;
   let contadorGlobalValido = true;
 
   secciones.forEach((s, i) => {
     if(!(s.nombre || '').trim()) return;
     const esCoda = s.origenId && !s.esVariacion && s.modoRepeticionPDF === 'coda' && nombresYaImpresos.has(s.origenId);
+    // v1.103: (a pedido) anacrusa — flag para la 1ra caja del PDF (1ra
+    // sección, columna 0): si datos.anacrusa está activo, esa caja
+    // muestra "Anacrusa" en vez de "c.1" y no dibuja su "#0" (ver
+    // dibujarCajas). Limitación conocida y aceptada: si la sección i===0
+    // no tiene nombre (se salta arriba), la anacrusa "se corre" a la
+    // siguiente sección con nombre — caso raro, no se resuelve acá.
+    const esPrimeraSeccionDelTema = i === 0;
     // v1.45: se captura el arranque de ESTA sección antes de dibujar
     // nada — así todas las cajas de la sección (1ra pasada, 2da vez,
     // horizontal) usan el mismo punto de referencia.
@@ -1606,22 +1685,35 @@ function generarEstructuraPDF(datos){
         const notasConSobra = sobra > 0 ? (s.notasCiclo || []).concat((s.notasCiclo || []).slice(0, sobra)) : s.notasCiclo;
         const acordesTiempoConSobra = sobra > 0 ? (s.acordesTiempoCiclo || []).concat((s.acordesTiempoCiclo || []).slice(0, sobra)) : s.acordesTiempoCiclo;
         const yGridVamp = y;
-        // v1.100: (a pedido, FIX real) el compás sobrante (columna
-        // `ciclo`..`ciclo+sobra-1`) NO es la posición j del ciclo — ocurre
-        // recién DESPUÉS de las `vueltasCompletas` vueltas completas. Antes
-        // dibujarCajas calculaba su "#N" como compasGlobalInicio+j (mismo
-        // criterio lineal que las columnas del ciclo), lo que daba un
-        // número de compás real equivocado (ej. ciclo=2, duracion=5:
-        // mostraba #3 en vez de #5 para la caja sobrante). Se arma acá el
-        // array explícito con el número real de cada columna y se lo pasa
-        // a dibujarCajas (opciones.numerosGlobales) — las columnas del
-        // ciclo (0..ciclo-1) no cambian su cálculo, solo la(s) sobrante(s).
+        // v1.104: (a pedido, FIX real — no cosmético) con anacrusa, la
+        // caja "Anacrusa" NO puede ocupar la columna 0 del ciclo (v1.103
+        // hacía eso): el ciclo la trataba como un compás más que se
+        // repite, y el marco/las "próximas vueltas" quedaban mal (ver
+        // captura). Ahora la anacrusa se dibuja COMPLETAMENTE aparte,
+        // antes del ciclo: su propia caja de 1 columna en col.0, sin
+        // "#N", sin entrar en `ciclo`/`sobra`/vueltas para nada. El ciclo
+        // real arranca en la columna 1 (colInicioCiclo), con su propia
+        // numeración de compás sin tocar (compasGlobalInicio no cambia).
+        const conAnacrusaVamp = !!(datos.anacrusa && esPrimeraSeccionDelTema);
+        const colInicioCiclo = conAnacrusaVamp ? 1 : 0;
+        if(conAnacrusaVamp){
+          dibujarCajas([], [], 1, [], 0, 0, { esAnacrusa: true, sinAvanzarY: true });
+        }
         const numerosGlobalesVamp = compasGlobalInicio != null
           ? Array.from({ length: ciclo + sobra }, (_, j) => j < ciclo
               ? compasGlobalInicio + j
               : compasGlobalInicio + vueltasCompletas * ciclo + (j - ciclo))
           : undefined;
-        dibujarCajas(acordesConSobra, letraConSobra, ciclo + sobra, notasConSobra, undefined, undefined, { compasGlobalInicio, acordesTiempo: acordesTiempoConSobra, numerosGlobales: numerosGlobalesVamp, gapDesdeColumna: sobra > 0 ? ciclo : undefined, gapMm: 6 });
+        // v1.105: (a pedido, FIX real, ver captura) faltaba el mismo aire
+        // (6mm) ANTES del ciclo, entre la caja Anacrusa y la 1ra caja real
+        // — la barra de apertura del marco (dibujarBarraRepeticion, lado
+        // izquierdo) se dibuja hacia afuera de la columna 1 y, sin este
+        // gap, invadía la caja Anacrusa pegada ahí (mismo problema que ya
+        // se había resuelto para la caja sobrante). Los 2 gaps son
+        // acumulativos (ver dibujarCajas): la caja sobrante, si la hay,
+        // recibe AMBOS (6+6=12mm), porque le tienen que sobrar los 2 aires.
+        const anacrusaGapMm = conAnacrusaVamp ? 6 : 0;
+        dibujarCajas(acordesConSobra, letraConSobra, ciclo + sobra, notasConSobra, colInicioCiclo, 0, { compasGlobalInicio, acordesTiempo: acordesTiempoConSobra, numerosGlobales: numerosGlobalesVamp, gapDesdeColumna: conAnacrusaVamp ? colInicioCiclo : undefined, gapMm: anacrusaGapMm, gapDesdeColumna2: sobra > 0 ? ciclo + colInicioCiclo : undefined, gapMm2: 6 });
         // v1.101: (a pedido) marco de repetición (‖: ... :‖, el mismo que
         // ya usa fija-bloque con repeticiones>1 vía dibujarBarraRepeticion)
         // ahora también en Vamp, siempre — antes el Vamp solo tenía el
@@ -1632,7 +1724,15 @@ function generarEstructuraPDF(datos){
         // columnas extra a la grilla recién dibujada.
         const anchoMarcoVamp = (((Math.min(ciclo, POR_FILA) - 1) % POR_FILA) + 1) * cajaAncho;
         const hayNotasCicloMarco = hayContenido(s.notasCiclo);
-        dibujarBarraRepeticion(yGridVamp + (hayNotasCicloMarco ? notaFilaAlto : 0), cajaAlto, anchoMarcoVamp);
+        // v1.104: offsetX = colInicioCiclo*cajaAncho — con anacrusa, el
+        // marco tiene que arrancar en la columna del CICLO (después de la
+        // caja de Anacrusa), no en el margen de la página. Sin anacrusa,
+        // colInicioCiclo=0, offsetX=0, cero cambio.
+        // v1.104/v1.105: offsetX = colInicioCiclo*cajaAncho + anacrusaGapMm
+        // — con anacrusa, el marco tiene que arrancar donde arranca la
+        // caja REAL de columna 1 (después del gap de 6mm), no en el borde
+        // de la columna 0 de página ni pegado a la Anacrusa.
+        dibujarBarraRepeticion(yGridVamp + (hayNotasCicloMarco ? notaFilaAlto : 0), cajaAlto, anchoMarcoVamp, { offsetX: colInicioCiclo * cajaAncho + anacrusaGapMm });
         // v1.63: (a pedido) FIX/mejora sobre v1.59 — antes la lista de
         // próximas vueltas solo se pegaba a la 1ra caja del ciclo (columna
         // 0). El pedido es que TODAS las cajas del ciclo muestren sus
@@ -1647,7 +1747,10 @@ function generarEstructuraPDF(datos){
           const yBaseVamp = yGridVamp + (hayNotasCiclo ? notaFilaAlto : 0) + 7;
           doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
           for(let col = 0; col < Math.min(ciclo, POR_FILA); col++){
-            const xListaVamp = margen + cajaAncho * col + cajaAncho - 1.5;
+            // v1.104: +colInicioCiclo*cajaAncho — misma columna real que
+            // usa dibujarCajas para el ciclo (col+colInicioCiclo), no la
+            // columna 0 de la página.
+            const xListaVamp = margen + colInicioCiclo * cajaAncho + anacrusaGapMm + cajaAncho * col + cajaAncho - 1.5;
             let yListaVamp = yBaseVamp;
             for(let k = 1; k <= Math.min(vueltasVamp, maxLineasVamp); k++){
               doc.text('#' + (compasGlobalInicio + col + k * ciclo), xListaVamp, yListaVamp, { align: 'right' });
@@ -1742,7 +1845,7 @@ function generarEstructuraPDF(datos){
           const anchoBloque = Math.min(basePase, POR_FILA) * cajaAncho;
           asegurarEspacio(altoBloque + 2);
           const yBloque = y;
-          dibujarBloqueSeccion(s.acordesPorCompas, s.letraPorCompas, basePase, s.notasPorCompas, undefined, undefined, { compasGlobalInicio, acordesTiempo: s.acordesTiempo });
+          dibujarBloqueSeccion(s.acordesPorCompas, s.letraPorCompas, basePase, s.notasPorCompas, undefined, undefined, { compasGlobalInicio, acordesTiempo: s.acordesTiempo, esAnacrusa: datos.anacrusa && esPrimeraSeccionDelTema });
           // v1.51: (a pedido) "→ #N" — versión final, DEBAJO
           // de la 1ra caja (#14) puntual, centrado bajo esa columna (no
           // bajo todo el bloque, por eso no usa el mismo ancho que el
@@ -1945,7 +2048,7 @@ function generarEstructuraPDF(datos){
             dibujarBloqueSeccion(s.acordesFinal2, s.letraFinal2, finalN, s.notasFinal2, alineable ? colReemplazo : 0, undefined, { compasGlobalInicio: compasGlobalInicio2daV, acordesTiempo: s.acordesTiempoFinal2 });
           }
         } else {
-          dibujarBloqueSeccion(s.acordesPorCompas, s.letraPorCompas, duracion, s.notasPorCompas, undefined, undefined, { compasGlobalInicio, acordesTiempo: s.acordesTiempo });
+          dibujarBloqueSeccion(s.acordesPorCompas, s.letraPorCompas, duracion, s.notasPorCompas, undefined, undefined, { compasGlobalInicio, acordesTiempo: s.acordesTiempo, esAnacrusa: datos.anacrusa && esPrimeraSeccionDelTema });
           // v1.70: el resumen "c.#X-c.#Y" se sacó de acá — ahora vive en
           // la barra de título de la sección (mismo dato, una sola vez;
           // ver dibujarBloqueSeccion.forEach, cerca de compasTxt).

@@ -1,3 +1,28 @@
+// AUDIOLINK · pdf-percusion.js · v1.102
+// v1.102: mismo fix que pdf-armonias.js v1.105, replicado — dibujarCajasPercusion
+// gana 2do gap independiente y acumulativo (opciones.gapDesdeColumna2/
+// gapMm2); con anacrusa, el ciclo real se corre 6mm después de la
+// Anacrusa (antes pegada, 0mm — el marco la invadía). offsetX del marco y
+// x de "próximas vueltas" suman ese mismo gap. Sin anacrusa, cero cambio.
+// AUDIOLINK · pdf-percusion.js · v1.101
+// v1.101: mismo fix que pdf-armonias.js v1.104, replicado — con
+// anacrusa Y Vamp, la caja "Anacrusa" se dibuja aparte (columna propia,
+// dibujarCajasPercusion([],[],1,0,0,{esAnacrusa:true,sinAvanzarY:true})),
+// no adentro del ciclo (v1.100 la metía en columna 0, y el motor de
+// repetición la contaba como parte de lo que se repite). El ciclo real
+// arranca en colInicioCicloPercusion=1; dibujarBarraRepeticionPercusion
+// gana opciones.offsetX para que el marco arranque ahí, no en el margen
+// de página; la lista de "próximas vueltas" usa el mismo offset.
+// compasGlobal vuelve a arrancar siempre en 1. Fija-bloque (no-Vamp) NO
+// se tocó (sigue con el criterio de v1.100, columna 0 — no tenía este
+// bug, ahí no hay cálculo modular sobre esa columna).
+// AUDIOLINK · pdf-percusion.js · v1.100
+// v1.100: mismo fix que pdf-armonias.js v1.103, replicado — datos.anacrusa
+// hace compasGlobal arrancar en 0, y dibujarCajasPercusion gana
+// opciones.esAnacrusa (solo j===0): la 1ra caja del tema muestra
+// "Anacrusa" en vez de "c.1" y no dibuja su "#0". Aplicado en el único
+// punto de entrada de la 1ra caja (dibujarCajasPercusion, línea ~1138,
+// compartido por Vamp y fija-bloque). Sin datos.anacrusa, cero cambios.
 // AUDIOLINK · pdf-percusion.js · v1.99
 // v1.99: mismo fix que pdf-armonias.js v1.102, replicado (reemplaza el
 // intento anterior de esta misma versión) — dibujarCajasPercusion gana
@@ -370,19 +395,21 @@ function generarEstructuraPDFPercusion(datos){
   // repeticiones>1 — Vamp y secciones sin repetición no llevan marco
   // (en acordes, Vamp solo tiene el iconito "║:" antes del texto "se
   // repite...", sin marco a los costados de las cajas).
-  const dibujarBarraRepeticionPercusion = (yBloqueInicio, alto, anchoBloque) => {
+  const dibujarBarraRepeticionPercusion = (yBloqueInicio, alto, anchoBloque, opciones) => {
+    opciones = opciones || {};
+    const ox = opciones.offsetX || 0;
     const ancho = anchoBloque != null ? anchoBloque : anchoUtil;
     const grosor = 1.2;
     doc.setFillColor(20, 20, 20);
-    doc.rect(margen - 4.4, yBloqueInicio, grosor, alto, 'F');
-    doc.rect(margen - 2.4, yBloqueInicio, 0.4, alto, 'F');
-    doc.rect(margen + ancho + 3.2, yBloqueInicio, grosor, alto, 'F');
-    doc.rect(margen + ancho + 2.0, yBloqueInicio, 0.4, alto, 'F');
+    doc.rect(margen + ox - 4.4, yBloqueInicio, grosor, alto, 'F');
+    doc.rect(margen + ox - 2.4, yBloqueInicio, 0.4, alto, 'F');
+    doc.rect(margen + ox + ancho + 3.2, yBloqueInicio, grosor, alto, 'F');
+    doc.rect(margen + ox + ancho + 2.0, yBloqueInicio, 0.4, alto, 'F');
     const yc = yBloqueInicio + alto / 2;
-    doc.circle(margen - 0.85, yc - 1.2, 0.35, 'F');
-    doc.circle(margen - 0.85, yc + 1.2, 0.35, 'F');
-    doc.circle(margen + ancho + 0.85, yc - 1.2, 0.35, 'F');
-    doc.circle(margen + ancho + 0.85, yc + 1.2, 0.35, 'F');
+    doc.circle(margen + ox - 0.85, yc - 1.2, 0.35, 'F');
+    doc.circle(margen + ox - 0.85, yc + 1.2, 0.35, 'F');
+    doc.circle(margen + ox + ancho + 0.85, yc - 1.2, 0.35, 'F');
+    doc.circle(margen + ox + ancho + 0.85, yc + 1.2, 0.35, 'F');
   };
   // v1.88: (a pedido) corchete "1."/"2." de casilla, duplicado tal cual
   // de dibujarCorcheteCasilla (generarEstructuraPDF, línea ~1310) — mismo
@@ -439,6 +466,10 @@ function generarEstructuraPDFPercusion(datos){
   // tiempo definido (duracion null), el conteo deja de ser confiable de
   // ahí en adelante (contadorGlobalValido=false) y las siguientes no
   // muestran resumen hasta que se complete esa sección y se reexporte.
+  // v1.101: (a pedido, FIX real — reemplaza el criterio de v1.100) la
+  // anacrusa ya NO le resta un número al contador — pasa a ser una caja
+  // aparte, sin "#N" (ver bloque Vamp más abajo), así que el contador
+  // vuelve a arrancar siempre en 1.
   let compasGlobal = 1;
   let contadorGlobalValido = true;
 
@@ -996,7 +1027,7 @@ function generarEstructuraPDFPercusion(datos){
           if(filaAnterior !== -1) yLocal += cajaAlto + (hayNotas ? notaFilaAlto : 0) + 2;
           filaAnterior = fila;
         }
-        const x = margen + col * cajaAncho + ((opciones.gapDesdeColumna != null && col >= opciones.gapDesdeColumna) ? (opciones.gapMm || 0) : 0);
+        const x = margen + col * cajaAncho + ((opciones.gapDesdeColumna != null && col >= opciones.gapDesdeColumna) ? (opciones.gapMm || 0) : 0) + ((opciones.gapDesdeColumna2 != null && col >= opciones.gapDesdeColumna2) ? (opciones.gapMm2 || 0) : 0);
         const yCaja = yLocal + (hayNotas ? notaFilaAlto : 0);
         if(!opciones.sinAvanzarY){ y = yLocal; ultimaHayNotasPercusion = hayNotas; }
         if(hayNotas){
@@ -1015,13 +1046,17 @@ function generarEstructuraPDFPercusion(datos){
         // el percusionista necesita ver aunque la caja esté vacía.
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
         doc.setTextColor(70);
-        doc.text('c.' + (posLabel + 1), x + 2, yCaja + 5);
+        // v1.100: (a pedido) mismo fix que pdf-armonias.js v1.103 —
+        // opciones.esAnacrusa (solo j===0) muestra "Anacrusa" en vez de
+        // "c.1" y se salta el "#N" (ver más abajo).
+        const esCajaAnacrusaPercusion = !!(opciones.esAnacrusa && j === 0);
+        doc.text(esCajaAnacrusaPercusion ? 'Anacrusa' : ('c.' + (posLabel + 1)), x + 2, yCaja + 5);
         // v1.82: (a pedido) mismo contador global "#N" que ya usa
         // generarEstructuraPDF (línea ~1182) — misma fórmula relativa
         // (compasBase + posLabel, mismo criterio que "opciones.
         // compasGlobalInicio + posLabel" de dibujarCajas) y mismo estilo
         // discreto (6pt, gris170).
-        if(compasBase != null){
+        if(compasBase != null && !esCajaAnacrusaPercusion){
           // v1.4: (a pedido) mismo fix que pdf-armonias.js v1.100 — si
           // opciones.numerosGlobales[j] viene definido, usa ese valor en
           // vez de "compasBase + posLabel" (lineal). Hace falta para vamp
@@ -1132,7 +1167,20 @@ function generarEstructuraPDFPercusion(datos){
             ? compasGlobalInicio + j
             : compasGlobalInicio + vueltasCompletasPercusion * totalCajas + (j - totalCajas))
         : undefined;
-      dibujarCajasPercusion(notasConSobraPercusion, acentosConSobraPercusion, totalCajas + sobraPercusion, 0, 0, { notasArmonia: notasArmoniaConSobraPercusion, numerosGlobales: numerosGlobalesVampPercusion, gapDesdeColumna: sobraPercusion > 0 ? totalCajas : undefined, gapMm: 6 });
+      // v1.101: (a pedido, FIX real — mismo criterio que pdf-armonias.js
+      // v1.104) con anacrusa Y Vamp, la caja "Anacrusa" pasa a dibujarse
+      // aparte (columna propia, fuera de `totalCajas`/`sobraPercusion`),
+      // en vez de ocupar la columna 0 del ciclo (v1.100, que hacía que el
+      // motor de repetición la tratara como parte del ciclo que se
+      // repite). Fija-bloque (no-Vamp) sigue igual que antes (v1.100):
+      // ahí la anacrusa en columna 0 no entra en ningún cálculo modular.
+      const conAnacrusaVampPercusion = !!(datos.anacrusa && idxSeccion === 0 && esVamp);
+      const colInicioCicloPercusion = conAnacrusaVampPercusion ? 1 : 0;
+      if(conAnacrusaVampPercusion){
+        dibujarCajasPercusion([], [], 1, 0, 0, { esAnacrusa: true, sinAvanzarY: true });
+      }
+      const anacrusaGapMmPercusion = conAnacrusaVampPercusion ? 6 : 0;
+      dibujarCajasPercusion(notasConSobraPercusion, acentosConSobraPercusion, totalCajas + sobraPercusion, colInicioCicloPercusion, 0, { notasArmonia: notasArmoniaConSobraPercusion, numerosGlobales: numerosGlobalesVampPercusion, gapDesdeColumna: conAnacrusaVampPercusion ? colInicioCicloPercusion : undefined, gapMm: anacrusaGapMmPercusion, gapDesdeColumna2: sobraPercusion > 0 ? totalCajas + colInicioCicloPercusion : undefined, gapMm2: 6, esAnacrusa: datos.anacrusa && idxSeccion === 0 && !esVamp });
       // v1.85: (a pedido) lista de "próximas repeticiones" en Vamp
       // (#N chico bajo cada caja del ciclo), heredada de
       // generarEstructuraPDF (línea ~2130-2152) — mismo cálculo
@@ -1156,7 +1204,10 @@ function generarEstructuraPDFPercusion(datos){
           const yBaseVamp = yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0) + 6.5;
           doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
           for(let col = 0; col < Math.min(totalCajas, POR_FILA); col++){
-            const xListaVamp = margen + cajaAncho * col + cajaAncho - 1.5;
+            // v1.101: +colInicioCicloPercusion*cajaAncho — misma columna
+            // real que usa dibujarCajasPercusion para el ciclo, con
+            // anacrusa corrida 1 columna a la derecha.
+            const xListaVamp = margen + colInicioCicloPercusion * cajaAncho + anacrusaGapMmPercusion + cajaAncho * col + cajaAncho - 1.5;
             let yListaVamp = yBaseVamp;
             for(let k = 1; k <= Math.min(vueltasVampLista, maxLineasVamp); k++){
               doc.text('#' + (compasGlobalInicio + col + k * totalCajas), xListaVamp, yListaVamp, { align: 'right' });
@@ -1229,7 +1280,10 @@ function generarEstructuraPDFPercusion(datos){
         // mismo criterio que dibujarBarraRepeticion en generarEstructuraPDF
         // (yBloque + offsetNotaPrimeraFila) — así no envuelve el texto
         // naranja de la nota, solo la caja.
-        dibujarBarraRepeticionPercusion(yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0), cajaAlto, anchoMarcoPercusion);
+        // v1.101: offsetX = colInicioCicloPercusion*cajaAncho — con
+        // anacrusa+Vamp, el marco arranca en la columna del ciclo, no en
+        // el margen de página.
+        dibujarBarraRepeticionPercusion(yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0), cajaAlto, anchoMarcoPercusion, { offsetX: colInicioCicloPercusion * cajaAncho + anacrusaGapMmPercusion });
       }
 
       // v1.88: (a pedido) "se repite xN..." pasa a dibujarse DESPUÉS de
