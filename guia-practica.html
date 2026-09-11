@@ -4,7 +4,137 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.99
+<!-- AUDIOLINK · guia-practica.html · v1.109
+     v1.109: (a pedido) los silencios de corchea "." y de negra "," en el
+     dibujo del patrón rítmico (patronRitmicoSVG — usado por Break/Corte
+     y por 🎵 Clave de sección) se veían en gris tenue (#999/#8a8a8a)
+     desde v1.44/v1.96, para diferenciarlos visualmente del resto.
+     Ahora van en #1a1a1a, el mismo negro que ya usan cabezas, plicas,
+     ligaduras y acentos — quedan como un símbolo más, sin verse
+     "apagados". Solo cambio de color de trazo, cero cambio de forma,
+     tamaño ni posición (la separación de zonas silencio-abajo/acento-
+     arriba de v1.44 sigue intacta).
+AUDIOLINK · guia-practica.html · v1.108
+     v1.108: (a pedido) visualizar la anacrusa del tema en la fila de
+     chips del mapa de tema (pintarMapaTema) — como practicaAnacrusa es
+     un flag de TEMA (checkbox #inputAnacrusa, v1.99), no de sección, se
+     antepone "🎶 " solo al chip de la PRIMERA sección (i===0, la que
+     arranca en 0:00) cuando temaDataActual.practicaAnacrusa está activo.
+     Tooltip del chip pasa a "...· Anacrusa" en ese caso para que el
+     ícono no quede ambiguo. Cero cambio en el bloque de color de arriba
+     (se descartó a propósito, ver v1.107), en el cálculo de duración/
+     numeración de compás (sigue resolviéndolo exportarEstructuraPDF*
+     solo) ni en la navegación (mismo irASeccionYAbrir de siempre).
+AUDIOLINK · guia-practica.html · v1.107
+     v1.107: (a pedido) los bloques de color del mapa de tema
+     (.mapa-tema-bloque, pintarMapaTema) eran puramente visuales — sin
+     onclick, a diferencia del chip de la fila de abajo que ya navegaba
+     a la tarjeta de la sección (irASeccionYAbrir). Ahora el bloque
+     también navega, mismo índice i que ya usan chips/pintarSecciones
+     sobre seccionesEnEdicion. Se agregó "i" al objeto que arma
+     pintarMapaTema por sección (antes solo lo tenían los chips en su
+     propio .map) y un hover sutil (filter:brightness) para que se sienta
+     clickeable. A pedido explícito, SIN íconos de flags (Vamp/xN/etc.) —
+     se evaluó reusar la lógica de flags de pintarSecciones pero se
+     descartó por ahora; el detalle de nombre+duración sigue solo en el
+     tooltip (title) como ya estaba. Cero cambio en cálculo de ancho/
+     color/renglones ni en la fila de chips.
+AUDIOLINK · guia-practica.html · v1.106
+     v1.106: (a pedido, mobile first) punto 7 — bump parejo (+1-2px) de
+     TODO el texto secundario del sitio (labels de campos, ayudas,
+     badges, textos de header de tarjeta/subbloque, avisos, chips del
+     mapa de tema, estado de subida/guardado, textos de maquetas) en 2
+     capas: valor base para desktop + capa extra bajo 600px, más grande,
+     pensada para uso a una mano en celu. Afuera a propósito: .card h3
+     (títulos grandes), #previewBar (contador central del preview) y las
+     3 excepciones de la grilla de acordes por compás ya documentadas
+     (.tiempo-select 11px, .letra-input 0.72rem, .nota-input 0.66rem —
+     celdas de 64px, no entran si se agrandan) ni .seccion-letra-ensayo
+     (ya fijada a 16px en v1.103). Íconos/flechas de colapso tampoco se
+     tocaron (son símbolos de UI, no texto). Punto 8 — fila de botones
+     de símbolos en "🎵 Clave" (.patron-simbolos-row, 8 botones) se veía
+     apretada en mobile pese al flex-wrap existente: bajo 600px sube el
+     gap (6px→10px) y el padding/tamaño de texto de esos .btn-ghost
+     puntuales. Ambos puntos son 100% CSS (reglas nuevas + valores
+     puntuales), no se tocó ninguna función JS, oninput/onchange ni
+     lógica de cálculo/exportación.
+AUDIOLINK · guia-practica.html · v1.105
+     v1.105: (a pedido) botones "📄 Exportar PDF" y "🥁 PDF Percusión" se
+     movieron del fondo del panel "Secciones" (dentro de
+     .card-body-colapsable, requería abrirlo) al header de esa card
+     (siempre visible, colapsado o no) — nuevo div .card-header-acciones
+     con onclick="event.stopPropagation()" para no disparar el colapso
+     de la card al tocarlos. .card-header-toggle pasó de
+     justify-content:space-between a flex:1 en el <h3> (mismo resultado
+     visual en las cards que NO tienen acciones — Datos del tema/
+     Maquetas/Previsualizar — título a la izquierda, flecha a la
+     derecha); en mobile (@media max-width:600px) los botones bajan a su
+     propia línea completa, mismo criterio que .seccion-card-header-
+     flags-wrap de v1.102. Ninguna lógica de exportarEstructuraPDF*
+     tocada (ya leían de seccionesEnEdicion en memoria, no dependen de
+     que el panel esté abierto).
+AUDIOLINK · guia-practica.html · v1.104
+     v1.104: (a pedido, mobile 5 y 6) 5) contenedor principal: div con
+     style inline pasó a .page-container (mismo padding 20px 24px 60px
+     arriba de 400px), con @media(max-width:400px) que lo baja a
+     16px 12px para dejar más ancho útil en celulares chicos (320-360px).
+     6) mapa de tema: overflow:hidden podía recortar en silencio el
+     último bloque si el min-width:24px de .mapa-tema-bloque empujaba la
+     suma de anchos (%) pasado el 100% en temas con muchas secciones
+     cortas — ahora overflow-x:auto (se desliza, no desaparece) +
+     min-width baja a 14px bajo 600px. Cero cambio arriba de esos
+     breakpoints en ambos casos.
+AUDIOLINK · guia-practica.html · v1.103
+     v1.103: (a pedido, mobile 3/3 red) objetivos táctiles chicos —
+     .btn-preset 38x38→44x44 (mínimo recomendado táctil); .mqaudio-btn
+     30x30→min 40x40; .seccion-letra-ensayo 32x22→40x32, y de paso subió
+     su font-size 0.8rem→16px (mismo fix anti-zoom-iOS de v1.102, quedó
+     pendiente ahí por ser un caso de grilla). FIX de regresión propia:
+     al agrandar .btn-preset, la fila de 7 presets (x1..x64, ~344px)
+     podía cortarse en pantallas angostas porque .hasta-presets no
+     wrappeaba — se le agregó flex-wrap:wrap. Sin tocar
+     acorde-input/letra-input/nota-input/tiempo-select (celdas 64px de
+     la grilla de acordes — ver nota de v1.102, decisión aparte).
+AUDIOLINK · guia-practica.html · v1.102
+     v1.102: (a pedido, mobile 1/2) FIX zoom automático iOS — el
+     font-size base de input/select/textarea pasó de 0.9rem (14.4px) a
+     16px (Safari hace zoom in solo si el campo enfocado mide menos de
+     16px). Afecta a todos los campos que NO tienen su propio font-size
+     ya definido (la mayoría: BPM, compás, offset, nombre, desde/hasta,
+     nota de sección, etc.). OJO: quedan afuera a propósito 3 clases con
+     override propio más chico (.tiempo-select 11px, .letra-input
+     0.72rem, .nota-input 0.66rem) y .seccion-letra-ensayo (0.8rem) —
+     son celdas de la grilla compacta de acordes/letra por compás
+     (64px de ancho); subirlas a 16px seguramente no entra en esa
+     grilla y hay que decidir aparte si se ensancha la grilla o se
+     acepta el zoom ahí. FIX header de tarjeta de sección apretado en
+     mobile — bajo 600px, flags+rango de tiempo bajan a su propia línea
+     (@media, ver .seccion-card-header-flags-wrap/-tiempo), liberando
+     espacio para el nombre en la fila principal. Cero cambio arriba de
+     600px en ningún caso.
+AUDIOLINK · guia-practica.html · v1.101
+     v1.101: (a pedido) tarjeta de sección reordenada en 6 sub-bloques
+     colapsables tipo acordeón — 📌 Identidad (Nombre + Nota), ⏱ Tiempo
+     (Desde/Hasta/compás override/presets, antes separados en 2 filas
+     sueltas), 🔁 Origen/Variación (htmlOrigenSeccion), 🎵 Clave, 🥁
+     Percusión, 🎼 Contenido (htmlAcordesSeccion). Todos cerrados por
+     defecto; al abrir uno se cierran los demás de esa misma tarjeta
+     (toggleSubBloqueSeccion/subBloqueHtml, nuevo). Estado 100% de UI
+     (s._subAbierto, mismo patrón que _colapsada) — se descarta en
+     guardarSecciones() antes de ir a Firebase, cero cambio de datos.
+     Ningún campo, oninput/onchange, cálculo ni función existente se
+     tocó — solo se reordenó el HTML dentro del mismo return.
+AUDIOLINK · guia-practica.html · v1.100
+     v1.100: (FIX, a pedido) tarjeta-variación vamp (origenId) con rango
+     Desde/Hasta propio angosto (tarjeta-puntero) imprimía y sumaba al
+     contador global de compás su duración PROPIA (ej. 1 comp.) en vez
+     del ciclo real copiado del origen (ej. 4 comp.), duplicando/pisando
+     la numeración de la sección siguiente en el PDF. duracionCompasesSeccion()
+     ahora, solo para s.tipo === 'vamp' con origenId y cicloCompases
+     definido, devuelve s.cicloCompases en vez de calcular desde
+     Desde/Hasta. Tarjetas fija/bloque con origenId (donde Desde/Hasta sí
+     es el rango real que suena) quedan exactamente igual que antes.
+AUDIOLINK · guia-practica.html · v1.99
      v1.99: (a pedido) anacrusa a nivel tema — checkbox nuevo #inputAnacrusa
      (junto a Offset/Clave, sección "Datos del tema"), guardado/cargado
      como temaDataActual.practicaAnacrusa (mismo patrón que practicaClave).
@@ -1304,16 +1434,29 @@ header, main, .main-wrap{position:relative;z-index:1;}
 .card h3{font-family:var(--T);font-size:1.05rem;color:var(--gold);margin-bottom:12px;font-weight:600;}
 /* v1.9x: (a pedido) bloques principales colapsables — header clickeable
    con flecha, estado persistido en localStorage por bloque. */
-.card-header-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
-.card-header-toggle h3{margin-bottom:0;}
-.card-header-toggle .card-flecha{color:var(--muted);font-size:0.9rem;transition:transform 0.15s;}
+.card-header-toggle{display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none;}
+.card-header-toggle h3{margin-bottom:0;flex:1;min-width:0;}
+.card-header-toggle .card-flecha{color:var(--muted);font-size:0.9rem;transition:transform 0.15s;flex:0 0 auto;}
+/* v1.105: (a pedido) botones de acción en el header de una card
+   colapsable (ej. Exportar PDF en "Secciones") — para poder usarlos sin
+   tener que abrir el panel. cursor:default + flex:0 0 auto para no
+   heredar el cursor:pointer del header (ver stopPropagation en el
+   onclick de cada botón, así no dispara el colapso al tocarlos).
+   flex-wrap acá + flex-basis:100% en mobile (ver @media abajo) para que
+   bajen a su propia línea en pantallas angostas, mismo criterio que
+   .seccion-card-header-flags-wrap de v1.102. */
+.card-header-acciones{display:flex;gap:8px;flex-wrap:wrap;flex:0 0 auto;cursor:default;}
+@media(max-width:600px){
+  .card-header-toggle{flex-wrap:wrap;row-gap:8px;}
+  .card-header-acciones{flex-basis:100%;order:3;}
+}
 .card-body-colapsable.colapsado{display:none;}
 .card-body-colapsable{margin-top:12px;}
 .field{margin-bottom:12px;}
-.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
+.field label{display:block;font-size:0.86rem;color:var(--muted);margin-bottom:6px;}
 input, select, textarea{
   width:100%;padding:10px 12px;background:var(--surf-light);border:1px solid var(--brd);
-  border-radius:8px;color:var(--txt);font-family:var(--S);font-size:0.9rem;
+  border-radius:8px;color:var(--txt);font-family:var(--S);font-size:16px;
 }
 input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);}
 .btn{padding:10px 16px;background:var(--gold);color:#1a1408;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;}
@@ -1331,9 +1474,9 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 
 /* v1.7: presets rápidos de duración para el fin manual de sección
    ("hasta") — botones cuadraditos con solo el número de compases. */
-.hasta-presets{display:flex;gap:6px;flex:0 0 auto !important;min-width:0 !important;}
+.hasta-presets{display:flex;gap:6px;flex:0 0 auto !important;min-width:0 !important;flex-wrap:wrap;}
 .btn-preset{
-  flex:0 0 auto;width:38px;height:38px;padding:0;
+  flex:0 0 auto;width:44px;height:44px;padding:0;
   background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
   color:var(--muted);font-family:var(--S);font-size:0.78rem;font-weight:600;
   cursor:pointer;transition:border-color 0.15s,color 0.15s,background 0.15s;
@@ -1342,17 +1485,17 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .btn-preset.activo{background:var(--gold);border-color:var(--gold);color:#1a1408;}
 .row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:600px){.row-2{grid-template-columns:1fr;}}
-.vacio{color:var(--faint);font-size:0.85rem;padding:10px 0;}
-.guardado-ok{font-size:0.78rem;color:var(--ok);margin-top:6px;display:none;}
+.vacio{color:var(--faint);font-size:0.93rem;padding:10px 0;}
+.guardado-ok{font-size:0.86rem;color:var(--ok);margin-top:6px;display:none;}
 #previewWrap{background:var(--surf-light);border-radius:8px;padding:16px;}
 /* v1.8: botón "Subir audio" (label envolviendo un <input type=file>
    oculto, mismo patrón visual que .btn-ghost) + texto de estado de
    progreso debajo de la fila de la maqueta. */
 .btn-upload-audio{text-align:center;cursor:pointer;white-space:nowrap;}
-.upload-status{font-size:0.78rem;color:var(--muted);margin:-4px 0 10px 4px;display:none;}
+.upload-status{font-size:0.86rem;color:var(--muted);margin:-4px 0 10px 4px;display:none;}
 .mqaudio-bar{display:flex;align-items:center;gap:6px;margin:4px 0 10px 4px;max-width:300px;}
-.mqaudio-btn{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;color:var(--muted);font-size:0.8rem;padding:4px 8px;cursor:pointer;flex-shrink:0;min-width:30px;min-height:30px;}
-.mqaudio-tiempo{font-size:0.68rem;color:var(--muted);font-family:var(--M);flex-shrink:0;white-space:nowrap;}
+.mqaudio-btn{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;color:var(--muted);font-size:0.88rem;padding:4px 8px;cursor:pointer;flex-shrink:0;min-width:40px;min-height:40px;}
+.mqaudio-tiempo{font-size:0.76rem;color:var(--muted);font-family:var(--M);flex-shrink:0;white-space:nowrap;}
 .mqaudio-seek{flex:1;min-width:60px;accent-color:var(--gold);cursor:pointer;height:14px;}
 /* v1.15: (a pedido) cada maqueta pasó de fila suelta a card, con label
    visible arriba de cada campo (antes solo había placeholder, que
@@ -1362,7 +1505,7 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .maqueta-card-fila{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;}
 .maqueta-card-fila:last-of-type{margin-bottom:0;}
 .maqueta-campo{flex:1;min-width:140px;}
-.maqueta-campo label{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
+.maqueta-campo label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
 .maqueta-campo-url{flex:2;min-width:200px;}
 .maqueta-campo-tipo{flex:0 0 140px;}
 .maqueta-card-del{flex:0 0 auto;align-self:center;}
@@ -1385,7 +1528,7 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
    solista) para vamp, y aviso cuando aún no hay duración definida
    para poder generar la grilla. */
 .seccion-fila-acordes{margin-top:10px;padding-top:10px;border-top:1px solid var(--brd);}
-.seccion-fila-acordes label{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
+.seccion-fila-acordes label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
 .acordes-grid{display:flex;flex-wrap:wrap;gap:6px;}
 .acorde-input{width:64px;text-align:center;flex:0 0 auto;}
 .tiempo-select{width:64px;text-align:center;flex:0 0 auto;font-size:11px;color:var(--txt-soft,#777);}
@@ -1394,23 +1537,24 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .nota-input{width:64px;text-align:center;font-size:0.66rem;font-style:italic;color:#b8781f;}
 .seccion-repeticion-campos{margin-top:10px;padding-top:8px;border-top:1px dashed var(--brd);}
 .mapa-tema{display:flex;gap:2px;margin-bottom:8px;border-radius:8px;overflow:hidden;min-height:40px;}
-.mapa-tema-bloque{flex:0 0 auto;min-width:24px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.05rem;font-weight:800;text-align:center;padding:6px 2px;text-shadow:0 1px 2px rgba(0,0,0,0.35);line-height:1.2;}
-.mapa-tema-vacio{font-size:0.8rem;color:var(--muted);margin-bottom:10px;}
+.mapa-tema-bloque{flex:0 0 auto;min-width:24px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.05rem;font-weight:800;text-align:center;padding:6px 2px;text-shadow:0 1px 2px rgba(0,0,0,0.35);line-height:1.2;transition:filter 0.15s;}
+.mapa-tema-bloque:hover{filter:brightness(1.15);}
+.mapa-tema-vacio{font-size:0.88rem;color:var(--muted);margin-bottom:10px;}
 /* v1.29.12: fila de chips debajo del mapa de tema — ancho libre (wrap
    normal), no compite por espacio con la duración real como la barra
    de arriba, así el nombre completo + duración siempre entran. */
 .mapa-tema-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
-.mapa-tema-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border-radius:8px;padding:7px 10px 7px 8px;min-height:32px;font-size:0.78rem;color:var(--muted);cursor:pointer;}
+.mapa-tema-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border-radius:8px;padding:7px 10px 7px 8px;min-height:32px;font-size:0.86rem;color:var(--muted);cursor:pointer;}
 .mapa-tema-chip-color{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
 .mapa-tema-chip-letra{font-weight:800;color:#fff;}
-.seccion-aviso{font-size:0.8rem;color:var(--muted);font-style:italic;}
+.seccion-aviso{font-size:0.88rem;color:var(--muted);font-style:italic;}
 .seccion-ciclo-campo{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .seccion-ciclo-campo input{width:70px;}
 .seccion-contenido-campo{margin-top:10px;}
 .seccion-card-fila{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;}
 .seccion-card-fila:last-of-type{margin-bottom:0;}
 .seccion-campo{flex:1;min-width:120px;}
-.seccion-campo label{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
+.seccion-campo label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
 .seccion-campo-nombre{flex:1.4;min-width:150px;}
 .seccion-campo-presets{flex:2;min-width:190px;}
 .seccion-card-del{flex:0 0 auto;align-self:center;}
@@ -1418,20 +1562,95 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
    antes eran filas sueltas dentro de la tarjeta, ahora quedan
    agrupadas como un sub-bloque reconocible de un vistazo. */
 .seccion-repeticion-box{margin-top:10px;padding:10px 12px;border:1px dashed var(--brd);border-radius:8px;background:rgba(127,127,127,0.06);}
-.seccion-letra-ensayo{width:32px;height:22px;text-align:center;font-weight:700;font-size:0.8rem;padding:0;flex-shrink:0;border:1px solid var(--brd, #666);border-radius:4px;background:rgba(127,127,127,0.15);color:inherit;}
+.seccion-letra-ensayo{width:40px;height:32px;text-align:center;font-weight:700;font-size:16px;padding:0;flex-shrink:0;border:1px solid var(--brd, #666);border-radius:4px;background:rgba(127,127,127,0.15);color:inherit;}
 .seccion-letra-ensayo::placeholder{opacity:0.55;}
-.seccion-repeticion-titulo{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;font-weight:700;margin-bottom:8px;}
-.seccion-ayuda{font-size:0.76rem;color:var(--muted);margin-top:4px;line-height:1.3;}
+.seccion-repeticion-titulo{font-size:0.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;font-weight:700;margin-bottom:8px;}
+.seccion-ayuda{font-size:0.84rem;color:var(--muted);margin-top:4px;line-height:1.3;}
 .seccion-variacion-box{margin-top:8px;padding:8px 10px;border-left:3px solid var(--brd);}
 /* v1.28: (a pedido) header clickeable de la tarjeta colapsable */
 .seccion-card-header{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
 .seccion-card-header-color{width:12px;height:12px;border-radius:50%;flex:0 0 auto;}
 .seccion-card-header-nombre{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.seccion-card-header-tiempo{font-size:0.78rem;color:var(--muted);flex:0 0 auto;}
+.seccion-card-header-tiempo{font-size:0.86rem;color:var(--muted);flex:0 0 auto;}
 .seccion-card-header-flags-wrap{flex:0 0 auto;}
-.seccion-card-header-flags{font-size:0.68rem;color:var(--muted);background:rgba(255,255,255,0.06);border-radius:5px;padding:2px 6px;white-space:nowrap;}
+.seccion-card-header-flags{font-size:0.76rem;color:var(--muted);background:rgba(255,255,255,0.06);border-radius:5px;padding:2px 6px;white-space:nowrap;}
 .seccion-card-header-flecha{font-size:0.9rem;color:var(--muted);flex:0 0 auto;width:14px;text-align:center;}
 .seccion-card-body{margin-top:12px;}
+/* v1.102: (a pedido) mobile — en pantallas angostas el header de la
+   tarjeta (punto de color + letra de ensayo + nombre + flags + rango de
+   tiempo + eliminar + flecha) todo en una sola fila apretaba mucho el
+   nombre. Bajo 600px, flags y tiempo pasan a su propia línea completa
+   (flex-basis:100%, mismo criterio que .row-2), dejando la fila
+   principal (color/letra/nombre/eliminar/flecha) con espacio de sobra.
+   Cero cambio arriba de 600px. */
+@media(max-width:600px){
+  .seccion-card-header{flex-wrap:wrap;row-gap:4px;}
+  .seccion-card-header-flags-wrap,
+  .seccion-card-header-tiempo{flex-basis:100%;order:5;}
+}
+/* v1.101: (a pedido) sub-bloques colapsables (acordeón) dentro del
+   cuerpo de la tarjeta — mismo lenguaje visual que .seccion-card-header
+   pero más chico, para agrupar los campos por tema (Identidad/Tiempo/
+   Origen/Clave/Percusión/Contenido) sin agregar otra tarjeta anidada. */
+.subbloque{border:1px solid var(--brd);border-radius:8px;margin-bottom:10px;overflow:hidden;}
+.subbloque:last-child{margin-bottom:0;}
+.subbloque-header{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:9px 12px;background:rgba(127,127,127,0.06);}
+.subbloque-titulo{font-size:0.84rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;font-weight:700;flex:1;}
+.subbloque-flecha{font-size:0.85rem;color:var(--muted);flex:0 0 auto;width:14px;text-align:center;}
+.subbloque-body{padding:12px;}
+/* v1.104: (a pedido, mobile 5/6) contenedor principal — antes era un
+   div con style inline (padding:20px 24px 60px), pasado a clase para
+   poder achicar el padding lateral en pantallas angostas (320-360px
+   dejaba solo ~270px útiles). Mismo padding que antes arriba de 400px,
+   cero cambio visual ahí. */
+.page-container{padding:20px 24px 60px;max-width:760px;margin:0 auto;}
+@media(max-width:400px){.page-container{padding:16px 12px 60px;}}
+/* v1.104: (a pedido, mobile 6/6) mapa de tema — .mapa-tema-bloque tiene
+   min-width:24px como piso legible para la letra de ensayo (A/B/C…)
+   dentro del bloque; los anchos reales se calculan en % (pintarMapaTema)
+   para sumar ~100% por renglón, pero en un tema con muchas secciones
+   cortas ese min-width puede empujar la suma real por encima del 100%.
+   Antes overflow:hidden recortaba en silencio el bloque sobrante sin
+   avisar. Ahora: overflow-x:auto (se puede deslizar para verlo, no
+   desaparece) + min-width más chico en mobile (14px, ya no entra la
+   letra pero al menos no tapa el bloque). */
+.mapa-tema{overflow-x:auto;overflow-y:hidden;}
+@media(max-width:600px){.mapa-tema-bloque{min-width:14px;}}
+/* v1.106: (a pedido, punto 7 mobile) el bump parejo de texto secundario
+   de arriba (+1-2px) se queda corto para uso a una mano en celu — capa
+   extra SOLO bajo 600px que sube un poco más los mismos selectores
+   (nunca toca .card h3, #previewBar, ni las 3 excepciones de la grilla
+   de acordes: .tiempo-select/.letra-input/.nota-input, documentadas en
+   v1.102/v1.103). Cero cambio en desktop. */
+@media(max-width:600px){
+  .field label,
+  .guardado-ok,
+  .upload-status,
+  .mapa-tema-chip,
+  .seccion-card-header-tiempo{font-size:0.95rem;}
+  .vacio{font-size:1rem;}
+  .mqaudio-btn{font-size:0.96rem;}
+  .mqaudio-tiempo{font-size:0.85rem;}
+  .maqueta-campo label,
+  .seccion-fila-acordes label,
+  .seccion-campo label,
+  .seccion-repeticion-titulo{font-size:0.9rem;}
+  .mapa-tema-vacio,
+  .seccion-aviso{font-size:0.96rem;}
+  .seccion-ayuda{font-size:0.94rem;}
+  .seccion-card-header-flags{font-size:0.85rem;}
+  .subbloque-titulo{font-size:0.94rem;}
+}
+/* v1.106: (a pedido, punto 8) fila de símbolos de "🎵 Clave" (8 botones
+   tipo ➤♩/⁶/³) se sentía apretada en mobile aunque ya tenía
+   flex-wrap:wrap — más aire entre botones y un poco más de padding/
+   tamaño de texto SOLO bajo 600px, mismo criterio de media query que
+   .hasta-presets/.seccion-card-header-flags-wrap (v1.102/v1.103). Cero
+   cambio en desktop ni en insertarSimboloClave. */
+@media(max-width:600px){
+  .patron-simbolos-row{gap:10px;}
+  .patron-simbolos-row .btn-ghost{padding:10px 14px;font-size:0.9rem;}
+}
 </style>
 </head>
 <body>
@@ -1443,12 +1662,12 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
 <script src="nav.js"></script>
 
 <div class="main-wrap" id="mainWrap">
-  <div style="padding:20px 24px 60px; max-width:760px; margin:0 auto;">
+  <div class="page-container">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; flex-wrap:wrap;">
       <h2 style="font-family:var(--T); font-size:1.4rem;">🎧 Guía de práctica</h2>
       <button class="btn-ghost" onclick="history.back()">← Volver</button>
     </div>
-    <p id="contextoTema" style="color:var(--muted); font-size:0.85rem; margin-bottom:20px;">Cargando…</p>
+    <p id="contextoTema" style="color:var(--muted); font-size:0.93rem; margin-bottom:20px;">Cargando…</p>
 
     <div class="card">
       <div class="card-header-toggle" onclick="toggleCardPrincipal('datosTema')">
@@ -1512,6 +1731,10 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
     <div class="card">
       <div class="card-header-toggle" onclick="toggleCardPrincipal('secciones')">
         <h3>Secciones</h3>
+        <div class="card-header-acciones" onclick="event.stopPropagation()">
+          <button type="button" class="btn-ghost" onclick="exportarEstructuraPDF()">📄 Exportar PDF</button>
+          <button type="button" class="btn-ghost" onclick="exportarEstructuraPDFPercusion()">🥁 PDF Percusión</button>
+        </div>
         <span class="card-flecha" id="flecha-secciones">▸</span>
       </div>
       <div class="card-body-colapsable colapsado" id="body-secciones">
@@ -1538,8 +1761,6 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
       <div style="margin-top:12px;">
         <button class="btn" onclick="guardarSecciones()">Guardar secciones</button>
         <div class="guardado-ok" id="okSecciones">✓ Guardado</div>
-        <button class="btn-ghost" onclick="exportarEstructuraPDF()" style="margin-left:8px;">📄 Exportar PDF</button>
-        <button class="btn-ghost" onclick="exportarEstructuraPDFPercusion()" style="margin-left:8px;">🥁 PDF Percusión</button>
       </div>
       </div>
     </div>
@@ -1550,7 +1771,7 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
         <span class="card-flecha" id="flecha-maquetas">▸</span>
       </div>
       <div class="card-body-colapsable colapsado" id="body-maquetas">
-      <p style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">El BPM/compás/secciones de arriba son del tema (compartidos). Acá cada instrumento puede tener su propia pista de referencia.</p>
+      <p style="color:var(--muted); font-size:0.88rem; margin-bottom:12px;">El BPM/compás/secciones de arriba son del tema (compartidos). Acá cada instrumento puede tener su propia pista de referencia.</p>
       <div id="listaMaquetas"></div>
       <button class="btn-ghost" onclick="agregarFilaMaqueta()">+ Agregar maqueta</button>
       <div style="margin-top:12px;">
@@ -1635,6 +1856,13 @@ function compasDeSegundosConBeats(seg, beatsPerBar){
   return Math.max(1, Math.round(((seg || 0) - previewOffset()) / secPerBar) + 1);
 }
 function duracionCompasesSeccion(s){
+  // v1.100: (FIX, a pedido) tarjeta-variación vamp con origen: la
+  // duración real es el ciclo copiado del origen (cicloCompases), no el
+  // rango propio Desde/Hasta — en una tarjeta-puntero ese rango es solo
+  // un marcador de tiempo, no el ciclo que se repite/imprime.
+  if(s.origenId && s.tipo === 'vamp' && s.cicloCompases){
+    return s.cicloCompases;
+  }
   if(s.hastaSegundos == null) return null;
   const beats = beatsPorBarraDeSeccion(s);
   const d = compasDeSegundosConBeats(s.hastaSegundos, beats) - compasDeSegundosConBeats(s.desdeSegundos || 0, beats);
@@ -1906,7 +2134,7 @@ function pintarPropagacionSecciones(){
     <div class="seccion-ayuda" style="margin-bottom:8px;">Al guardar, estas secciones pueden empujar sus acordes/letra actuales a las que son "igual a" ellas. Las marcadas como variación nunca se tocan, aunque el checkbox esté tildado.</div>
     ` + origenes.map(o => {
     const checked = o.propagarCambios !== false;
-    return `<label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:var(--muted);margin-bottom:4px;">
+    return `<label style="display:flex;align-items:center;gap:6px;font-size:0.93rem;color:var(--muted);margin-bottom:4px;">
       <input type="checkbox" ${checked ? 'checked' : ''} onchange="seccionesEnEdicion.find(s=>s.id==='${o.id}').propagarCambios = this.checked">
       Al guardar, actualizar las secciones iguales a "${(o.nombre || 'Sin nombre').replace(/"/g,'&quot;')}"
     </label>`;
@@ -1961,7 +2189,7 @@ function pintarMapaTema(){
     const duracion = duracionCompasesSeccion(s);
     const compasesEquiv = duracion != null ? Math.max(1, duracion) : 3;
     return {
-      s, duracion,
+      s, i, duracion,
       tiempos: compasesEquiv * beatsPorBarraDeSeccion(s),
       letra: (s.letraEnsayo || '').trim() || letraEnsayoSugerida(i),
       color: colorDeSeccionEnLista(seccionesEnEdicion, i),
@@ -1989,19 +2217,37 @@ function pintarMapaTema(){
     const bloques = fila.map(d => {
       const anchoPct = Math.min(100, (d.tiempos / LINEA_TIEMPOS) * 100);
       const titulo = `${(d.s.nombre || '—').replace(/"/g,'&quot;')}${d.duracion != null ? ' · ' + d.duracion + ' comp.' : ' · duración sin definir'}`;
-      return `<div class="mapa-tema-bloque" style="width:${anchoPct}%;background:${d.color};" title="${titulo}">${d.letra}</div>`;
+      // v1.107: (a pedido) bloque de color ahora navega a la tarjeta de
+      // su sección, igual que el chip de abajo (irASeccionYAbrir, mismo
+      // índice i que ya comparten pintarMapaTema/pintarSecciones). Antes
+      // era puramente visual (sin onclick) — el chip hacía identificar
+      // + navegar, el bloque solo mostraba proporción/forma. Ahora hace
+      // las dos cosas. Sin cambios de cálculo de ancho/color ni de
+      // íconos (se decidió a propósito no agregar íconos acá).
+      return `<div class="mapa-tema-bloque" style="width:${anchoPct}%;background:${d.color};cursor:pointer;" title="${titulo}" onclick="irASeccionYAbrir(${d.i})">${d.letra}</div>`;
     }).join('');
     return `<div class="mapa-tema">${bloques}</div>`;
   }).join('');
 
   // Fila de chips (v1.29.12) — sin cambios de criterio, ancho libre.
+  // v1.108: (a pedido) chip de la PRIMERA sección (i===0) ahora antepone
+  // "🎶 " cuando el tema tiene anacrusa activa (temaDataActual.
+  // practicaAnacrusa, mismo checkbox #inputAnacrusa de v1.99) — la
+  // anacrusa es un flag de TEMA, no de sección, así que solo tiene
+  // sentido marcarla en la sección que arranca en 0:00. No se toca el
+  // cálculo de duración/tiempos ni la numeración de compás (eso ya lo
+  // resuelve exportarEstructuraPDF*, sin cambios acá). Tooltip del chip
+  // avisa el motivo del ícono para que no quede ambiguo.
   const chips = datos.map((d, i) => {
     if(!(d.s.nombre || '').trim()) return '';
     const etiqueta = d.duracion != null ? `${d.s.nombre} (${d.duracion})` : d.s.nombre;
+    const esAnacrusa = i === 0 && !!(temaDataActual && temaDataActual.practicaAnacrusa);
+    const prefijoAnacrusa = esAnacrusa ? '🎶 ' : '';
+    const tituloChip = esAnacrusa ? 'Ir a la tarjeta de esta sección · Anacrusa' : 'Ir a la tarjeta de esta sección';
     // v1.33: onclick lleva a la tarjeta correspondiente (mismo índice i
     // que usa pintarSecciones sobre el mismo seccionesEnEdicion ya
     // ordenado, así que no hace falta buscar por id).
-    return `<div class="mapa-tema-chip" onclick="irASeccionYAbrir(${i})" title="Ir a la tarjeta de esta sección"><span class="mapa-tema-chip-color" style="background:${d.color};"></span><span class="mapa-tema-chip-letra">${d.letra}</span> ${etiqueta}</div>`;
+    return `<div class="mapa-tema-chip" onclick="irASeccionYAbrir(${i})" title="${tituloChip}">${prefijoAnacrusa}<span class="mapa-tema-chip-color" style="background:${d.color};"></span><span class="mapa-tema-chip-letra">${d.letra}</span> ${etiqueta}</div>`;
   }).join('');
 
   cont.innerHTML = barras + `<div class="mapa-tema-chips">${chips}</div>`;
@@ -2102,6 +2348,7 @@ function pintarSecciones(){
         <span class="seccion-card-header-flecha">${colapsada ? '▸' : '▾'}</span>
       </div>
       <div class="seccion-card-body" style="${colapsada ? 'display:none;' : ''}">
+      ${subBloqueHtml(i, 'identidad', '📌 Identidad', `
       <div class="seccion-card-fila">
         <div class="seccion-campo seccion-campo-nombre">
           <label>Nombre</label>
@@ -2129,6 +2376,16 @@ function pintarSecciones(){
             return inputNombre + selectTipo;
           })()}
         </div>
+      </div>
+      <div class="seccion-card-fila">
+        <div class="seccion-campo seccion-campo-nota">
+          <label>Nota de sección (opcional) — se imprime en itálica debajo del título en el PDF</label>
+          <input type="text" maxlength="70" value="${(s.notaSeccion || '').replace(/"/g,'&quot;')}" placeholder="ej. Tocar más suave, solo guitarra y voz" oninput="actualizarNotaSeccion(${i}, this.value)">
+        </div>
+      </div>
+      `)}
+      ${subBloqueHtml(i, 'tiempo', '⏱ Tiempo', `
+      <div class="seccion-card-fila">
         <div class="seccion-campo">
           <label>Desde (compás)</label>
           <input type="number" min="1" step="1" id="seccompas-${i}" placeholder="${'compás ' + compasDeSegundos(s.desdeSegundos)}" oninput="actualizarSeccionDesdeCompas(${i}, this.value)" onblur="ordenarYPintarSecciones()">
@@ -2140,60 +2397,6 @@ function pintarSecciones(){
         <div class="seccion-campo" style="max-width:110px;">
           <label>Compás (si cambia acá)</label>
           <input type="text" value="${(s.compasOverride || '').replace(/"/g,'&quot;')}" placeholder="ej. 3/4" title="Dejar vacío = usa el compás general del tema" oninput="seccionesEnEdicion[${i}].compasOverride = this.value">
-        </div>
-      </div>
-      <div class="seccion-card-fila">
-        <div class="seccion-campo seccion-campo-nota">
-          <label>Nota de sección (opcional) — se imprime en itálica debajo del título en el PDF</label>
-          <input type="text" maxlength="70" value="${(s.notaSeccion || '').replace(/"/g,'&quot;')}" placeholder="ej. Tocar más suave, solo guitarra y voz" oninput="actualizarNotaSeccion(${i}, this.value)">
-        </div>
-      </div>
-      <!-- v1.93: (a pedido) clave por sección — mismo lenguaje de patrón
-           libre que ya usa patronRitmico (Break/Corte): "x" golpe, "X"
-           golpe acentuado, "." silencio, "-" ligado, {xxx}/{xxxxxx}
-           tresillo/sextillo. A diferencia de patronRitmico (que cubre
-           TODA la duración de la sección), acá el ciclo es SIEMPRE de 2
-           compases (mismo criterio que la clave general del tema), por
-           eso el preview/aviso reciben "2" fijo, no duracionCompasesSeccion(s).
-           Aplica a CUALQUIER sección (no solo Break/Corte). Vacío = hereda
-           la clave general del tema (inputClave); cargado = rige el ciclo
-           de esa sección en musico.html y se dibuja en el PDF. Reusa el
-           motor ya existente (patronRitmicoSVG/avisoPatronVsCompas/
-           parsearPatronRitmico/pesoTotalPatron, genéricos) con wiring
-           propio (actualizarClaveSeccion/insertarSimboloClave) para NO
-           heredar la lógica de acordesPorGolpe de actualizarPatronRitmico,
-           que es exclusiva de Break/Corte y no aplica acá. -->
-      <div class="seccion-card-fila">
-        <div class="seccion-contenido-campo">
-          <label>Clave (si cambia acá) — opcional, ciclo de 2 compases. "x" golpe, "X" acentuado, "n" golpe de negra, "N" golpe de negra acentuado, "." silencio de corchea, "," silencio de negra, {xxx} tresillo, {xxxxxx} sextillo</label>
-          <div class="patron-simbolos-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
-            <button type="button" class="btn-ghost" title="Insertar golpe" onclick="insertarSimboloClave(${i}, 'x')">♪ Golpe</button>
-            <button type="button" class="btn-ghost" title="Insertar golpe acentuado" onclick="insertarSimboloClave(${i}, 'X')">➤♪ Acento</button>
-            <button type="button" class="btn-ghost" title="Insertar golpe de negra (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, 'n')">♩ Negra</button>
-            <button type="button" class="btn-ghost" title="Insertar golpe de negra acentuado (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, 'N')">➤♩ Acento negra</button>
-            <button type="button" class="btn-ghost" title="Insertar silencio de corchea" onclick="insertarSimboloClave(${i}, '.')">𝄽 Silencio</button>
-            <button type="button" class="btn-ghost" title="Insertar silencio de negra (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, ',')">𝄼 Sil. negra</button>
-            <button type="button" class="btn-ghost" title="Insertar tresillo" onclick="insertarSimboloClave(${i}, '{xxx}')">³ Tresillo</button>
-            <button type="button" class="btn-ghost" title="Insertar sextillo" onclick="insertarSimboloClave(${i}, '{xxxxxx}')">⁶ Sextillo</button>
-          </div>
-          <input type="text" id="claveSeccionInput-${i}" placeholder="Vacío = usa la clave general del tema" title="Dejar vacío = usa la clave general del tema" value="${(s.claveSeccion || '').replace(/"/g,'&quot;')}" oninput="actualizarClaveSeccion(${i}, this.value)">
-          <div id="claveSeccionPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.claveSeccion, 2, 0.68)}</div>
-          <div id="claveSeccionAviso-${i}" style="margin-top:4px;font-size:0.75rem;color:var(--muted);">${avisoPatronVsCompas(s.claveSeccion, 2, s)}</div>
-        </div>
-      </div>
-      <!-- v1.77: (a pedido) 2 campos nuevos, exclusivos de la "guía de
-           percusión" (salsa y afines): (a) checkbox "Sección de campana"
-           (s.esCampana) — resalta la sección en el PDF de percusión, no
-           afecta el PDF de acordes ni ningún cálculo de compases; (b)
-           select "Instrumento" (s.instrumentoPercusion) con lista fija
-           + "Otro…" (texto libre en s.instrumentoPercusionOtro) — quién
-           toca esa sección. Ambos son propiedades de la sección completa
-           (no por compás), así que no necesitan resize como
-           notasPercusionPorCompas/acentosPorCompas. Se imprimen solo en
-           generarEstructuraPDFPercusion; el PDF de acordes los ignora. -->
-      <div class="seccion-card-fila">
-        <div class="seccion-campo">
-          <button type="button" class="btn-ghost" onclick="abrirModalPercusion(${i})">🥁 Percusión${(s.esCampana || instrumentosPercusionArray(s).length) ? ' ✓' : ''}</button>
         </div>
       </div>
       <div class="seccion-card-fila">
@@ -2213,8 +2416,61 @@ function pintarSecciones(){
         </div>
         <button class="btn-del seccion-card-del" onclick="limpiarSeccionHasta(${i})" title="Volver a automático (sin fin manual)">↺</button>
       </div>
-      ${htmlOrigenSeccion(s, i)}
-      ${htmlAcordesSeccion(s, i)}
+      `)}
+      ${subBloqueHtml(i, 'origen', '🔁 Origen / Variación', htmlOrigenSeccion(s, i))}
+      <!-- v1.93: (a pedido) clave por sección — mismo lenguaje de patrón
+           libre que ya usa patronRitmico (Break/Corte): "x" golpe, "X"
+           golpe acentuado, "." silencio, "-" ligado, {xxx}/{xxxxxx}
+           tresillo/sextillo. A diferencia de patronRitmico (que cubre
+           TODA la duración de la sección), acá el ciclo es SIEMPRE de 2
+           compases (mismo criterio que la clave general del tema), por
+           eso el preview/aviso reciben "2" fijo, no duracionCompasesSeccion(s).
+           Aplica a CUALQUIER sección (no solo Break/Corte). Vacío = hereda
+           la clave general del tema (inputClave); cargado = rige el ciclo
+           de esa sección en musico.html y se dibuja en el PDF. Reusa el
+           motor ya existente (patronRitmicoSVG/avisoPatronVsCompas/
+           parsearPatronRitmico/pesoTotalPatron, genéricos) con wiring
+           propio (actualizarClaveSeccion/insertarSimboloClave) para NO
+           heredar la lógica de acordesPorGolpe de actualizarPatronRitmico,
+           que es exclusiva de Break/Corte y no aplica acá. -->
+      ${subBloqueHtml(i, 'clave', '🎵 Clave', `
+      <div class="seccion-card-fila">
+        <div class="seccion-contenido-campo">
+          <label>Clave (si cambia acá) — opcional, ciclo de 2 compases. "x" golpe, "X" acentuado, "n" golpe de negra, "N" golpe de negra acentuado, "." silencio de corchea, "," silencio de negra, {xxx} tresillo, {xxxxxx} sextillo</label>
+          <div class="patron-simbolos-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+            <button type="button" class="btn-ghost" title="Insertar golpe" onclick="insertarSimboloClave(${i}, 'x')">♪ Golpe</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe acentuado" onclick="insertarSimboloClave(${i}, 'X')">➤♪ Acento</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe de negra (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, 'n')">♩ Negra</button>
+            <button type="button" class="btn-ghost" title="Insertar golpe de negra acentuado (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, 'N')">➤♩ Acento negra</button>
+            <button type="button" class="btn-ghost" title="Insertar silencio de corchea" onclick="insertarSimboloClave(${i}, '.')">𝄽 Silencio</button>
+            <button type="button" class="btn-ghost" title="Insertar silencio de negra (pesa 2 corcheas)" onclick="insertarSimboloClave(${i}, ',')">𝄼 Sil. negra</button>
+            <button type="button" class="btn-ghost" title="Insertar tresillo" onclick="insertarSimboloClave(${i}, '{xxx}')">³ Tresillo</button>
+            <button type="button" class="btn-ghost" title="Insertar sextillo" onclick="insertarSimboloClave(${i}, '{xxxxxx}')">⁶ Sextillo</button>
+          </div>
+          <input type="text" id="claveSeccionInput-${i}" placeholder="Vacío = usa la clave general del tema" title="Dejar vacío = usa la clave general del tema" value="${(s.claveSeccion || '').replace(/"/g,'&quot;')}" oninput="actualizarClaveSeccion(${i}, this.value)">
+          <div id="claveSeccionPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.claveSeccion, 2, 0.68)}</div>
+          <div id="claveSeccionAviso-${i}" style="margin-top:4px;font-size:0.83rem;color:var(--muted);">${avisoPatronVsCompas(s.claveSeccion, 2, s)}</div>
+        </div>
+      </div>
+      `)}
+      <!-- v1.77: (a pedido) 2 campos nuevos, exclusivos de la "guía de
+           percusión" (salsa y afines): (a) checkbox "Sección de campana"
+           (s.esCampana) — resalta la sección en el PDF de percusión, no
+           afecta el PDF de acordes ni ningún cálculo de compases; (b)
+           select "Instrumento" (s.instrumentoPercusion) con lista fija
+           + "Otro…" (texto libre en s.instrumentoPercusionOtro) — quién
+           toca esa sección. Ambos son propiedades de la sección completa
+           (no por compás), así que no necesitan resize como
+           notasPercusionPorCompas/acentosPorCompas. Se imprimen solo en
+           generarEstructuraPDFPercusion; el PDF de acordes los ignora. -->
+      ${subBloqueHtml(i, 'percusion', '🥁 Percusión', `
+      <div class="seccion-card-fila">
+        <div class="seccion-campo">
+          <button type="button" class="btn-ghost" onclick="abrirModalPercusion(${i})">🥁 Percusión${(s.esCampana || instrumentosPercusionArray(s).length) ? ' ✓' : ''}</button>
+        </div>
+      </div>
+      `)}
+      ${subBloqueHtml(i, 'contenido', '🎼 Contenido (acordes/letra)', htmlAcordesSeccion(s, i))}
       </div>
     </div>
   `;
@@ -2287,6 +2543,31 @@ function irASeccionYAbrir(i){
   }
 }
 
+// v1.101: (a pedido) sub-bloques colapsables (acordeón) dentro de una
+// tarjeta de sección — mismo patrón de estado-UI-que-no-se-guarda que
+// _colapsada (ver toggleColapsoSeccion), pero acá s._subAbierto guarda
+// un solo string (la key del sub-bloque abierto) en vez de boolean: al
+// abrir uno se cierran los demás de ESA tarjeta, sin afectar el resto.
+function toggleSubBloqueSeccion(i, key){
+  const s = seccionesEnEdicion[i];
+  s._subAbierto = (s._subAbierto === key) ? null : key;
+  pintarSecciones();
+}
+// arma el header+body clickeable de un sub-bloque; si htmlBody viene
+// vacío (ej. sección sin origen posible), no se dibuja nada.
+function subBloqueHtml(i, key, titulo, htmlBody){
+  if(!htmlBody) return '';
+  const abierto = seccionesEnEdicion[i]._subAbierto === key;
+  return `
+    <div class="subbloque">
+      <div class="subbloque-header" onclick="toggleSubBloqueSeccion(${i}, '${key}')">
+        <span class="subbloque-titulo">${titulo}</span>
+        <span class="subbloque-flecha">${abierto ? '▾' : '▸'}</span>
+      </div>
+      <div class="subbloque-body" style="${abierto ? '' : 'display:none;'}">${htmlBody}</div>
+    </div>`;
+}
+
 // v1.24: selector "Es igual a" — copia el contenido de otra sección
 // UNA VEZ al elegirla (no queda linkeado en vivo). Solo lista como
 // opción secciones que a su vez no sean ya dependientes de otra
@@ -2309,12 +2590,12 @@ function htmlOrigenSeccion(s, i){
   // acordarse de memoria qué hace cada checkbox.
   const filaVariacion = s.origenId ? `
     <div class="seccion-variacion-box">
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.93rem;">
         <input type="checkbox" ${s.esVariacion ? 'checked' : ''} onchange="seccionesEnEdicion[${i}].esVariacion = this.checked; pintarSecciones();">
         Es una variación
       </label>
       <div class="seccion-ayuda">Se copió una vez de la sección de arriba, pero esta queda con contenido propio: aunque "actualizar las secciones iguales" esté tildado, esta ya no se vuelve a pisar.</div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.93rem;margin-top:8px;">
         <input type="checkbox" ${s.modoRepeticionPDF === 'coda' ? 'checked' : ''} onchange="seccionesEnEdicion[${i}].modoRepeticionPDF = this.checked ? 'coda' : 'completo'; pintarSecciones();">
         En el PDF, mostrar compacto (⊕ D.S. al Coda) en vez del cuadro completo
       </label>
@@ -2426,7 +2707,7 @@ function htmlAcordesSeccion(s, i){
           </div>
           <input type="text" id="patronRitmicoInput-${i}" placeholder='ej: x.xxn.,x.' value="${(s.patronRitmico || '').replace(/"/g,'&quot;')}" oninput="actualizarPatronRitmico(${i}, this.value)">
           <div id="patronRitmicoPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.patronRitmico, duracion)}</div>
-          <div id="patronRitmicoAviso-${i}" style="margin-top:4px;font-size:0.75rem;color:var(--muted);">${avisoPatronVsCompas(s.patronRitmico, duracion, s)}</div>
+          <div id="patronRitmicoAviso-${i}" style="margin-top:4px;font-size:0.83rem;color:var(--muted);">${avisoPatronVsCompas(s.patronRitmico, duracion, s)}</div>
         </div>` : '';
   const repeticiones = s.nombre === 'Break/Corte' ? 1 : (s.repeticiones || 1);
   // v1.22.1: FIX — `duracion` sale del tiempo real (Desde/Hasta), que ya
@@ -2774,7 +3055,7 @@ function indicesDivisorPatron(patron, compases){
 // edita) sin tocar esta función para los demás usos.
 function patronRitmicoSVG(patron, compases, escala){
   const items = parsearPatronRitmico(patron);
-  if(!items.length) return '<span style="color:#888;font-size:11px;">Sin patrón — escribí "x" (golpe), "X" (golpe acentuado), "n"/"N" (golpe de negra, normal/acentuado), "." (silencio de corchea), "," (silencio de negra); agrupá con {xxx} para tresillo o {xxxxxx} para sextillo</span>';
+  if(!items.length) return '<span style="color:#888;font-size:12px;">Sin patrón — escribí "x" (golpe), "X" (golpe acentuado), "n"/"N" (golpe de negra, normal/acentuado), "." (silencio de corchea), "," (silencio de negra); agrupá con {xxx} para tresillo o {xxxxxx} para sextillo</span>';
   const cols = aplanarColumnasPatron(items);
   const pesoTotal = pesoTotalPatron(items);
   const n = cols.length;
@@ -2824,28 +3105,33 @@ function patronRitmicoSVG(patron, compases, escala){
   // pasada de silencios y ligados (igual criterio visual que siempre)
   // v1.44: (a pedido) FIX visual — la marca de silencio se movió de "arriba
   // cerca de la plica" (donde se confundía con el chevrón de acento a
-  // este tamaño) a "abajo, colgando de la línea base", en gris tenue en
-  // vez de negro. Ahora ocupan zonas distintas del dibujo (silencio
-  // siempre debajo de la línea, acento siempre arriba de la plica) — no
-  // pueden confundirse aunque se achique el preview.
+  // este tamaño) a "abajo, colgando de la línea base". Ahora ocupan zonas
+  // distintas del dibujo (silencio siempre debajo de la línea, acento
+  // siempre arriba de la plica) — no pueden confundirse aunque se
+  // achique el preview.
+  // v1.109: (a pedido) color de los silencios ('.' corchea y ',' negra)
+  // pasó de gris (#999/#8a8a8a) a #1a1a1a — mismo negro que cabezas,
+  // plicas y ligaduras del resto del patrón, para que se vean como un
+  // símbolo más y no como algo "apagado"/secundario. Solo color, cero
+  // cambio de forma, posición ni tamaño de los trazos.
   for(let j = 0; j < n; j++){
     const col = cols[j];
     if(col.caracter === '.'){
       const xj = xInfo[j].xCentro;
       const yc = yBase + 4.5;
-      svg += `<line x1="${xj - 1.6}" y1="${yc - 2.4}" x2="${xj + 1.3}" y2="${yc + 0.7}" stroke="#999" stroke-width="1.1"/>`;
-      svg += `<line x1="${xj + 1.3}" y1="${yc + 0.7}" x2="${xj - 0.4}" y2="${yc + 2.7}" stroke="#999" stroke-width="1.1"/>`;
+      svg += `<line x1="${xj - 1.6}" y1="${yc - 2.4}" x2="${xj + 1.3}" y2="${yc + 0.7}" stroke="#1a1a1a" stroke-width="1.1"/>`;
+      svg += `<line x1="${xj + 1.3}" y1="${yc + 0.7}" x2="${xj - 0.4}" y2="${yc + 2.7}" stroke="#1a1a1a" stroke-width="1.1"/>`;
     } else if(col.caracter === ','){
       // v1.96: silencio de NEGRA — símbolo distinto al de corchea (arriba),
-      // mismo criterio visual (debajo de la línea base, gris tenue) para
-      // no confundirse con acento/nota. Centrado en la columna, que ya es
+      // mismo criterio visual (debajo de la línea base) para no
+      // confundirse con acento/nota. Centrado en la columna, que ya es
       // el doble de ancha por pesar 2.
       // v1.98: (a pedido) trazo mejorado — un solo path continuo en
       // zigzag suave (en vez de las 2 curvas rígidas de v1.96), más
       // parecido al símbolo real de silencio de negra.
       const xj = xInfo[j].xCentro;
       const yc = yBase + 3.2;
-      svg += `<path d="M ${xj - 0.9} ${yc - 4.3} Q ${xj + 2.3} ${yc - 3.1} ${xj - 0.4} ${yc - 0.6} Q ${xj - 2.5} ${yc + 0.6} ${xj + 0.5} ${yc + 1.4} Q ${xj + 2.7} ${yc + 2.3} ${xj - 1.2} ${yc + 5.1}" stroke="#8a8a8a" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+      svg += `<path d="M ${xj - 0.9} ${yc - 4.3} Q ${xj + 2.3} ${yc - 3.1} ${xj - 0.4} ${yc - 0.6} Q ${xj - 2.5} ${yc + 0.6} ${xj + 0.5} ${yc + 1.4} Q ${xj + 2.7} ${yc + 2.3} ${xj - 1.2} ${yc + 5.1}" stroke="#1a1a1a" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
     } else if(col.caracter === '-' && j > 0){
       // v1.51: (a pedido) ligadura más profunda (de 3 a 4.5) — se veía
       // corta/chata. Sigue siendo una curva suave (quadratic), solo más
@@ -3630,7 +3916,7 @@ async function guardarSecciones(){
       // guarda en Firebase.
       // v1.54: _notasAbiertas (toggle de "Notas por compás") es el mismo
       // tipo de campo — solo UI, se descarta igual.
-      const { mostrarNombreLibre, _colapsada, _notasAbiertas, ...resto } = s;
+      const { mostrarNombreLibre, _colapsada, _notasAbiertas, _subAbierto, ...resto } = s;
       return {
         ...resto,
         desdeSegundos: snapASegundoDeCompas(s.desdeSegundos || 0),

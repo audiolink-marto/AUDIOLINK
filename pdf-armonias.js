@@ -1,3 +1,44 @@
+// AUDIOLINK · pdf-armonias.js · v1.112
+// v1.112: (a pedido) silencios de corchea ('.') y negra (',') en el PDF
+// pasaron de gris (150,150,150) a negro (20) — mismo criterio que el
+// resto del dibujo (cabezas/plicas/ligaduras), igual cambio ya aplicado
+// en el preview del editor (patronRitmicoSVG, guia-practica.html
+// v1.109). Solo color de trazo, cero cambio de forma/posición/tamaño.
+// AUDIOLINK · pdf-armonias.js · v1.111
+// v1.111: (a pedido, FIX real, ver captura) el achique del lado
+// izquierdo (Anacrusa) no tenía efecto porque esa caja se dibuja en una
+// llamada A PARTE de dibujarCajas (antes de que existiera deficitMm) —
+// el intento de v1.110 quedó como código muerto. Ahora: aireDisponibleVamp/
+// anacrusaGapMm/deficitMm se calculan ANTES de dibujar la Anacrusa, y se
+// le pasan vía la opción nueva opciones.deficitDerechaMm (angosta la
+// última caja de esa llamada desde su borde derecho). El 2do gap (sobra)
+// no se tocó, sigue igual que en v1.108/v1.110. Cero cambio sin gaps
+// forzados.
+//
+// v1.110: (a pedido, revertido en v1.111 — no tenía efecto real, ver
+// arriba).
+//
+// v1.108: (a pedido, FIX real, ver captura) con fila llena (anacrusa+ciclo+
+// sobra ocupando las 4 columnas), anacrusaGapMm/sobraGapMm caían a 0 (v1.106)
+// y la barra doble del marco quedaba pegada/montada sobre la caja siguiente,
+// tapando su "c.N". Ahora dibujarCajas gana opciones.deficitMm/deficitMm2:
+// garantizan un mínimo de 5mm de aire SIEMPRE, angostando desde adentro (con
+// inset a la izquierda) solo la primera caja después de cada gap cuando no
+// alcanza el aire real de la fila — nunca desplaza esa caja ni ninguna otra,
+// así no se desborda el margen de página. Con aire real >= 5mm (caso normal,
+// sin fila llena), deficit da 0 y el resultado es IDÉNTICO a v1.106/v1.107.
+// AUDIOLINK · pdf-armonias.js · v1.106
+// v1.106: (a pedido, FIX real — "se rompe el margen") con anacrusa+ciclo+
+// sobra llenando las 4 columnas de la fila (POR_FILA=4, ej. anacrusa=1+
+// ciclo=2+sobra=1), no queda aire real para los gaps de v1.105 (6+6mm) —
+// se pedían igual y empujaban cajas fuera del margen derecho de la
+// página. Ahora se calcula el aire realmente disponible (columnas libres
+// * cajaAncho) y AMBOS gaps (anacrusaGapMm, sobraGapMm) se recortan a lo
+// que quepa, en ese orden de prioridad (primero el de la Anacrusa, lo que
+// sobra después para el de la caja sobrante) — con espacio de sobra
+// (caso normal, sin llenar las 4 columnas) siguen siendo 6/6mm como
+// siempre; sin espacio, bajan a 0 (se acepta un roce visual mínimo del
+// marco antes que romper el margen de página).
 // AUDIOLINK · pdf-armonias.js · v1.105
 // v1.105: (a pedido, FIX real, ver captura) v1.104 corrió el ciclo a la
 // columna 1 pero dejó la caja Anacrusa PEGADA a él (0mm de aire) — la
@@ -515,6 +556,40 @@ function generarEstructuraPDF(datos){
       const gapX = ((opciones.gapDesdeColumna != null && col >= opciones.gapDesdeColumna) ? (opciones.gapMm || 0) : 0)
         + ((opciones.gapDesdeColumna2 != null && col >= opciones.gapDesdeColumna2) ? (opciones.gapMm2 || 0) : 0);
       const x = margen + col * cajaAncho + gapX;
+      // v1.108: (a pedido, FIX real, ver captura) opciones.deficitMm/deficitMm2 —
+      // cuando la fila está llena y no queda aire real para el gap (gapMm/gapMm2
+      // caen a 0), la barra doble del marco quedaba pegada a la caja siguiente,
+      // tapando su texto ("c.3" montado). En vez de desplazar esa caja (no hay
+      // lugar sin desbordar el margen de página), se angosta SOLO la primera
+      // caja después de cada gap, desde su borde izquierdo, dejando ahí el aire
+      // mínimo sin mover ninguna otra caja ni el marco. Con aire real disponible
+      // (deficitMm/2 = 0), cero cambio — igual que antes.
+      // v1.109: (a pedido, revertido en v1.110 — quedó peor, ver captura)
+      // intentó mover el achique del 1er gap Y del 2do gap a la caja
+      // ANTERIOR en ambos casos; rompió el 2do gap (sobra), que en v1.108
+      // ya andaba bien.
+      // v1.110: (a pedido, revertido en v1.111 — no tenía efecto) intentó
+      // aplicar el achique del 1er gap en col === gapDesdeColumna - 1
+      // dentro de ESTA misma llamada — pero la caja "Anacrusa" se dibuja
+      // en una llamada A PARTE (ver más abajo, dibujarCajas([],[],1,...)
+      // con esAnacrusa:true), donde las columnas de ESTA llamada (la del
+      // ciclo+sobra) arrancan en colInicioCiclo=1 — esa condición nunca
+      // se cumplía acá, quedó código muerto.
+      // v1.111: (a pedido, FIX real, ver captura) el achique de la
+      // Anacrusa ahora se hace en SU PROPIA llamada vía
+      // opciones.deficitDerechaMm (ver más abajo) — acá el 2do gap
+      // (sobra) queda EXACTAMENTE como en v1.108: col === gapDesdeColumna2,
+      // recortando desde el borde izquierdo con xR desplazado. Sin gaps
+      // forzados, cero cambio.
+      const deficitDespues = (opciones.gapDesdeColumna2 != null && col === opciones.gapDesdeColumna2) ? (opciones.deficitMm2 || 0) : 0;
+      // v1.111: (a pedido) opciones.deficitDerechaMm — angosta SOLO la
+      // última caja de esta llamada, desde su borde DERECHO (xR no se
+      // desplaza). Pensado para la Anacrusa (llamada de 1 sola caja), pero
+      // genérico a cualquier llamada. Sin pasarlo, cero cambio.
+      const esUltimaCajaLlamada = (posGlobal === colInicio + total - 1);
+      const deficitDerecha = (esUltimaCajaLlamada && opciones.deficitDerechaMm) ? opciones.deficitDerechaMm : 0;
+      const xR = x + deficitDespues;
+      const anchoCol = cajaAncho - deficitDespues - deficitDerecha;
       const yFila = yBase + fila * (cajaAlto + (hayNotas ? notaFilaAlto : 0));
       const yCaja = yFila + (hayNotas ? notaFilaAlto : 0);
       if(hayNotas){
@@ -522,11 +597,11 @@ function generarEstructuraPDF(datos){
         if(no){
           doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(180, 120, 40);
           const noCorta = no.length > 22 ? no.slice(0, 21) + '…' : no;
-          doc.text(noCorta, x + cajaAncho / 2, yFila + notaFilaAlto - 1.3, { align: 'center' });
+          doc.text(noCorta, xR + anchoCol / 2, yFila + notaFilaAlto - 1.3, { align: 'center' });
           doc.setTextColor(20);
         }
       }
-      doc.setDrawColor(180); doc.rect(x, yCaja, cajaAncho, cajaAlto);
+      doc.setDrawColor(180); doc.rect(xR, yCaja, anchoCol, cajaAlto);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(140);
       // v1.42: (a pedido) usa posLabel en vez de j — con colInicio>0
       // (2da vez alineada o al lado), la etiqueta ahora muestra el
@@ -540,9 +615,9 @@ function generarEstructuraPDF(datos){
       // "#0"). Sin esta opción, cero cambio.
       const esCajaAnacrusa = !!(opciones.esAnacrusa && j === 0);
       if(esCajaAnacrusa){
-        doc.text('Anacrusa', x + 1.5, yCaja + 4);
+        doc.text('Anacrusa', xR + 1.5, yCaja + 4);
       } else {
-        doc.text('c.' + (posLabel + 1), x + 1.5, yCaja + 4);
+        doc.text('c.' + (posLabel + 1), xR + 1.5, yCaja + 4);
       }
       doc.setTextColor(20);
       // v1.45: (a pedido) contador global de compás — "#N" arriba a la
@@ -563,12 +638,12 @@ function generarEstructuraPDF(datos){
         const numeroGlobal = (opciones.numerosGlobales && opciones.numerosGlobales[j] != null)
           ? opciones.numerosGlobales[j]
           : (opciones.compasGlobalInicio + posLabel);
-        doc.text('#' + numeroGlobal, x + cajaAncho - 1.5, yCaja + 4, { align: 'right' });
+        doc.text('#' + numeroGlobal, xR + anchoCol - 1.5, yCaja + 4, { align: 'right' });
         doc.setTextColor(20);
       }
       doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
       const acorde = (acordes && acordes[j]) || '';
-      doc.text(acorde, x + cajaAncho / 2, yCaja + 8, { align: 'center' });
+      doc.text(acorde, xR + anchoCol / 2, yCaja + 8, { align: 'center' });
       // v1.71/v1.72: (a pedido) mini-regla de tiempo/anticipación del
       // acorde — 8 marcas (1,a1,2,a2,3,a3,4,a4: resolución de corchea
       // completa, 'aN' = corchea débil que sigue al tiempo N; el caso
@@ -592,13 +667,13 @@ function generarEstructuraPDF(datos){
       if(le){
         doc.setFont('helvetica', 'italic'); doc.setFontSize(hayRegla ? 6 : 7);
         const leCorta = le.length > 22 ? le.slice(0, 21) + '…' : le;
-        doc.text(leCorta, x + cajaAncho / 2, yCaja + (hayRegla ? 12 : 13), { align: 'center' });
+        doc.text(leCorta, xR + anchoCol / 2, yCaja + (hayRegla ? 12 : 13), { align: 'center' });
         doc.setTextColor(20);
       }
       if(hayRegla){
         const idxTiempo = TIEMPOS_ORDEN.indexOf(tValCelda);
-        const reglaAncho = cajaAncho * 0.7;
-        const reglaX0 = x + (cajaAncho - reglaAncho) / 2;
+        const reglaAncho = anchoCol * 0.7;
+        const reglaX0 = xR + (anchoCol - reglaAncho) / 2;
         const pasoTiempo = reglaAncho / (TIEMPOS_ORDEN.length - 1);
         const reglaY = yCaja + cajaAlto - 1;
         doc.setDrawColor(160);
@@ -893,24 +968,26 @@ function generarEstructuraPDF(datos){
     doc.setFillColor(20, 20, 20);
 
     // silencio: marca simplificada (dos trazos, no el símbolo estándar de
-    // edición impresa) — v1.18: ahora colgando DEBAJO de la línea base,
-    // en gris tenue, para no confundirse con el acento (que va arriba de
-    // la plica, en negro). Antes iba arriba cerca de la plica y a este
-    // tamaño era casi indistinguible del chevrón de acento.
+    // edición impresa) — v1.18: colgando DEBAJO de la línea base, para no
+    // confundirse con el acento (que va arriba de la plica). v1.109: color
+    // pasó de gris (150,150,150) a negro (20), mismo criterio que el resto
+    // del dibujo (cabezas/plicas/ligaduras), para que no se vea "apagado".
     const dibujarSilencio = (x) => {
-      doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.45 * sc);
+      doc.setDrawColor(20); doc.setLineWidth(0.45 * sc);
       const yc = yBase + 2 * sc;
       doc.line(x - 1.1 * sc, yc - 1.6 * sc, x + 0.9 * sc, yc + 0.5 * sc);
       doc.line(x + 0.9 * sc, yc + 0.5 * sc, x - 0.3 * sc, yc + 1.8 * sc);
       doc.setDrawColor(20);
     };
     // v1.98: (a pedido) silencio de NEGRA — símbolo distinto al de
-    // corchea de arriba, mismo criterio visual (debajo de la línea base,
-    // gris tenue). Trazo en zigzag suave vía curvas bezier (doc.lines con
+    // corchea de arriba, mismo criterio visual (debajo de la línea base).
+    // Trazo en zigzag suave vía curvas bezier (doc.lines con
     // segmentos de 6 valores, mismo mecanismo que dibujarLigado/bandera),
     // aproximando el mismo path que patronRitmicoSVG v1.98 en el editor.
+    // v1.109: color pasó de gris (150,150,150) a negro (20), igual que el
+    // silencio de corchea de arriba.
     const dibujarSilencioNegra = (x) => {
-      doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.6 * sc);
+      doc.setDrawColor(20); doc.setLineWidth(0.6 * sc);
       const yc = yBase + 2.0 * sc;
       doc.lines(
         [
@@ -1696,24 +1773,46 @@ function generarEstructuraPDF(datos){
         // numeración de compás sin tocar (compasGlobalInicio no cambia).
         const conAnacrusaVamp = !!(datos.anacrusa && esPrimeraSeccionDelTema);
         const colInicioCiclo = conAnacrusaVamp ? 1 : 0;
+        // v1.111: (a pedido, FIX real, ver captura) aireDisponibleVamp/
+        // anacrusaGapMm/deficitMm se calculan ACÁ (antes se calculaban
+        // más abajo, después de dibujar la Anacrusa) para poder pasarle
+        // el achique a SU PROPIA caja — ver deficitDerechaMm más abajo.
+        // Mismos valores que antes, solo se adelantó el cálculo.
+        const columnasUsadasVamp = colInicioCiclo + ciclo + sobra;
+        const aireDisponibleVamp = Math.max(0, (POR_FILA - columnasUsadasVamp)) * cajaAncho;
+        const anacrusaGapMm = conAnacrusaVamp ? Math.min(6, aireDisponibleVamp) : 0;
+        const sobraGapMm = sobra > 0 ? Math.min(6, Math.max(0, aireDisponibleVamp - anacrusaGapMm)) : 0;
+        const MIN_GAP_MM = 5;
+        const deficitMm = conAnacrusaVamp ? Math.max(0, MIN_GAP_MM - anacrusaGapMm) : 0;
+        const deficitMm2 = sobra > 0 ? Math.max(0, MIN_GAP_MM - sobraGapMm) : 0;
         if(conAnacrusaVamp){
-          dibujarCajas([], [], 1, [], 0, 0, { esAnacrusa: true, sinAvanzarY: true });
+          // v1.111: (a pedido, FIX real, ver captura) deficitDerechaMm:
+          // deficitMm — angosta la Anacrusa desde su borde derecho lo
+          // mismo que antes se le pedía (sin éxito) a la caja del ciclo.
+          // Sin deficit (aire real disponible), cero cambio.
+          dibujarCajas([], [], 1, [], 0, 0, { esAnacrusa: true, sinAvanzarY: true, deficitDerechaMm: deficitMm });
         }
         const numerosGlobalesVamp = compasGlobalInicio != null
           ? Array.from({ length: ciclo + sobra }, (_, j) => j < ciclo
               ? compasGlobalInicio + j
               : compasGlobalInicio + vueltasCompletas * ciclo + (j - ciclo))
           : undefined;
-        // v1.105: (a pedido, FIX real, ver captura) faltaba el mismo aire
-        // (6mm) ANTES del ciclo, entre la caja Anacrusa y la 1ra caja real
-        // — la barra de apertura del marco (dibujarBarraRepeticion, lado
-        // izquierdo) se dibuja hacia afuera de la columna 1 y, sin este
-        // gap, invadía la caja Anacrusa pegada ahí (mismo problema que ya
-        // se había resuelto para la caja sobrante). Los 2 gaps son
-        // acumulativos (ver dibujarCajas): la caja sobrante, si la hay,
-        // recibe AMBOS (6+6=12mm), porque le tienen que sobrar los 2 aires.
-        const anacrusaGapMm = conAnacrusaVamp ? 6 : 0;
-        dibujarCajas(acordesConSobra, letraConSobra, ciclo + sobra, notasConSobra, colInicioCiclo, 0, { compasGlobalInicio, acordesTiempo: acordesTiempoConSobra, numerosGlobales: numerosGlobalesVamp, gapDesdeColumna: conAnacrusaVamp ? colInicioCiclo : undefined, gapMm: anacrusaGapMm, gapDesdeColumna2: sobra > 0 ? ciclo + colInicioCiclo : undefined, gapMm2: 6 });
+        // v1.106: (a pedido, FIX real — "se rompe el margen") con
+        // anacrusa+ciclo+sobra ocupando las 4 columnas de la fila
+        // (POR_FILA=4) no queda nada de aire real para los gaps de 6mm —
+        // pedirlos igual empujaba cajas fuera del margen derecho de la
+        // página. Se calcula cuánto aire hay REALMENTE disponible
+        // (columnas libres * cajaAncho) y los gaps se recortan a eso —
+        // con espacio de sobra (el caso normal, sin anacrusa) siguen
+        // siendo 6/6mm como siempre; sin espacio, bajan a 0 (se acepta un
+        // roce visual mínimo del marco antes que romper el margen).
+        // v1.108: (a pedido, FIX real, ver captura) MIN_GAP_MM — aire mínimo
+        // garantizado entre la barra doble del marco y la caja siguiente,
+        // aunque la fila esté llena y anacrusaGapMm/sobraGapMm hayan caído a
+        // 0. El faltante (deficitMm/deficitMm2) se cubre angostando esa caja
+        // desde adentro (ver dibujarCajas), no desplazándola. Con aire real
+        // ya >= 5mm, deficit da 0 — cero cambio.
+        dibujarCajas(acordesConSobra, letraConSobra, ciclo + sobra, notasConSobra, colInicioCiclo, 0, { compasGlobalInicio, acordesTiempo: acordesTiempoConSobra, numerosGlobales: numerosGlobalesVamp, gapDesdeColumna: conAnacrusaVamp ? colInicioCiclo : undefined, gapMm: anacrusaGapMm, gapDesdeColumna2: sobra > 0 ? ciclo + colInicioCiclo : undefined, gapMm2: sobraGapMm, deficitMm2 });
         // v1.101: (a pedido) marco de repetición (‖: ... :‖, el mismo que
         // ya usa fija-bloque con repeticiones>1 vía dibujarBarraRepeticion)
         // ahora también en Vamp, siempre — antes el Vamp solo tenía el

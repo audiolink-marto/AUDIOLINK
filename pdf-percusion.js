@@ -1,3 +1,25 @@
+// AUDIOLINK · pdf-percusion.js · v1.105
+// v1.105: (a pedido) silencios de corchea ('.') y negra (',') en el PDF
+// pasaron de gris (150,150,150) a negro (20) — mismo criterio que el
+// resto del dibujo (cabezas/plicas/ligaduras), igual cambio ya aplicado
+// en el preview del editor (patronRitmicoSVG, guia-practica.html
+// v1.109). Solo color de trazo, cero cambio de forma/posición/tamaño.
+// AUDIOLINK · pdf-percusion.js · v1.104
+// v1.104: (a pedido, FIX real, ver captura) mismo fix final que
+// pdf-armonias.js v1.108+v1.111 combinados — aire mínimo garantizado
+// (MIN_GAP_MM=5) junto al marco de repetición cuando la fila queda llena,
+// pero angostando la caja CORRECTA en cada lado: la Anacrusa (su propia
+// llamada aparte) para el 1er gap, vía la opción nueva
+// opciones.deficitDerechaMm; la caja sobrante para el 2do gap, igual que
+// antes. Ver comentarios en dibujarCajasPercusion y en la sección Vamp
+// para el detalle. Sin gaps forzados (fila con aire real, el caso normal
+// con POR_FILA=6), cero cambio.
+//
+// AUDIOLINK · pdf-percusion.js · v1.103
+// v1.103: mismo fix que pdf-armonias.js v1.106, replicado — los gaps se
+// recortan al aire realmente disponible en la fila (columnas libres *
+// cajaAncho, POR_FILA=6 acá). Sin espacio, bajan a 0 en vez de romper el
+// margen de página.
 // AUDIOLINK · pdf-percusion.js · v1.102
 // v1.102: mismo fix que pdf-armonias.js v1.105, replicado — dibujarCajasPercusion
 // gana 2do gap independiente y acumulativo (opciones.gapDesdeColumna2/
@@ -598,20 +620,25 @@ function generarEstructuraPDFPercusion(datos){
       }
     }
     doc.setFillColor(20, 20, 20);
+    // v1.109: (a pedido) color pasó de gris (150,150,150) a negro (20),
+    // mismo criterio que el resto del dibujo (cabezas/plicas/ligaduras),
+    // para que no se vea "apagado". Sin cambio de forma ni posición.
     const dibujarSilencio = (x) => {
-      doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.45 * sc);
+      doc.setDrawColor(20); doc.setLineWidth(0.45 * sc);
       const yc = yBase + 2 * sc;
       doc.line(x - 1.1 * sc, yc - 1.6 * sc, x + 0.9 * sc, yc + 0.5 * sc);
       doc.line(x + 0.9 * sc, yc + 0.5 * sc, x - 0.3 * sc, yc + 1.8 * sc);
       doc.setDrawColor(20);
     };
     // v1.95: (a pedido) silencio de NEGRA — símbolo distinto al de
-    // corchea de arriba, mismo criterio visual (debajo de la línea base,
-    // gris tenue). Trazo en zigzag suave vía curvas bezier (doc.lines con
+    // corchea de arriba, mismo criterio visual (debajo de la línea base).
+    // Trazo en zigzag suave vía curvas bezier (doc.lines con
     // segmentos de 6 valores, mismo mecanismo que dibujarLigado/bandera),
     // aproximando el mismo path que patronRitmicoSVG v1.98 en el editor.
+    // v1.109: color pasó de gris (150,150,150) a negro (20), igual que el
+    // silencio de corchea de arriba.
     const dibujarSilencioNegra = (x) => {
-      doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.6 * sc);
+      doc.setDrawColor(20); doc.setLineWidth(0.6 * sc);
       const yc = yBase + 2.0 * sc;
       doc.lines(
         [
@@ -1028,6 +1055,22 @@ function generarEstructuraPDFPercusion(datos){
           filaAnterior = fila;
         }
         const x = margen + col * cajaAncho + ((opciones.gapDesdeColumna != null && col >= opciones.gapDesdeColumna) ? (opciones.gapMm || 0) : 0) + ((opciones.gapDesdeColumna2 != null && col >= opciones.gapDesdeColumna2) ? (opciones.gapMm2 || 0) : 0);
+        // v1.104: (a pedido, FIX real, ver captura) mismo fix final que
+        // pdf-armonias.js v1.111 — el deficitCol anterior (mismo criterio
+        // que armonias v1.108) angostaba la caja EQUIVOCADA cuando el 1er
+        // gap (Anacrusa) se quedaba sin aire: la primera caja DESPUÉS del
+        // gap, en vez de la Anacrusa (que se dibuja en su PROPIA llamada
+        // aparte, ver más abajo). Ahora: el 2do gap (sobra) sigue igual
+        // (deficitDespues, angosta desde el borde izquierdo con xR
+        // desplazado); el 1er gap se resuelve directo en la llamada de la
+        // Anacrusa vía opciones.deficitDerechaMm (angosta la ÚLTIMA caja
+        // de la llamada desde su borde derecho, sin desplazar xR). Sin
+        // gaps forzados, cero cambio.
+        const deficitDespues = (opciones.gapDesdeColumna2 != null && col === opciones.gapDesdeColumna2) ? (opciones.deficitMm2 || 0) : 0;
+        const esUltimaCajaLlamadaPercusion = (posGlobal === colInicio + total - 1);
+        const deficitDerecha = (esUltimaCajaLlamadaPercusion && opciones.deficitDerechaMm) ? opciones.deficitDerechaMm : 0;
+        const xR = x + deficitDespues;
+        const anchoCol = cajaAncho - deficitDespues - deficitDerecha;
         const yCaja = yLocal + (hayNotas ? notaFilaAlto : 0);
         if(!opciones.sinAvanzarY){ y = yLocal; ultimaHayNotasPercusion = hayNotas; }
         if(hayNotas){
@@ -1035,12 +1078,12 @@ function generarEstructuraPDFPercusion(datos){
           if(notaArmoniaTxt){
             doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(180, 120, 40);
             const notaCorta = notaArmoniaTxt.length > 22 ? notaArmoniaTxt.slice(0, 21) + '…' : notaArmoniaTxt;
-            doc.text(notaCorta, x + cajaAncho / 2, yLocal + notaFilaAlto - 1.3, { align: 'center' });
+            doc.text(notaCorta, xR + anchoCol / 2, yLocal + notaFilaAlto - 1.3, { align: 'center' });
             doc.setTextColor(20);
           }
         }
         doc.setDrawColor(200); doc.setLineWidth(0.2);
-        doc.rect(x, yCaja, cajaAncho, cajaAlto);
+        doc.rect(xR, yCaja, anchoCol, cajaAlto);
         // v1.77: (a pedido) "c.N" pasa de 7pt gris150 (casi invisible en
         // la hoja impresa) a 9pt negrita gris70 — es el dato básico que
         // el percusionista necesita ver aunque la caja esté vacía.
@@ -1050,7 +1093,7 @@ function generarEstructuraPDFPercusion(datos){
         // opciones.esAnacrusa (solo j===0) muestra "Anacrusa" en vez de
         // "c.1" y se salta el "#N" (ver más abajo).
         const esCajaAnacrusaPercusion = !!(opciones.esAnacrusa && j === 0);
-        doc.text(esCajaAnacrusaPercusion ? 'Anacrusa' : ('c.' + (posLabel + 1)), x + 2, yCaja + 5);
+        doc.text(esCajaAnacrusaPercusion ? 'Anacrusa' : ('c.' + (posLabel + 1)), xR + 2, yCaja + 5);
         // v1.82: (a pedido) mismo contador global "#N" que ya usa
         // generarEstructuraPDF (línea ~1182) — misma fórmula relativa
         // (compasBase + posLabel, mismo criterio que "opciones.
@@ -1066,7 +1109,7 @@ function generarEstructuraPDFPercusion(datos){
             ? opciones.numerosGlobales[j]
             : (compasBase + posLabel);
           doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
-          doc.text('#' + numeroGlobalPercusion, x + cajaAncho - 1.5, yCaja + 4, { align: 'right' });
+          doc.text('#' + numeroGlobalPercusion, xR + anchoCol - 1.5, yCaja + 4, { align: 'right' });
           doc.setTextColor(20);
         }
         // v1.92: nota de PERCUSIÓN — vuelve adentro de la caja (info
@@ -1077,14 +1120,14 @@ function generarEstructuraPDFPercusion(datos){
           doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
           doc.setTextColor(20);
           const notaPercusionCorta = notaPercusionTxt.length > 26 ? notaPercusionTxt.slice(0, 25) + '…' : notaPercusionTxt;
-          doc.text(notaPercusionCorta, x + cajaAncho / 2, yCaja + 8, { align: 'center', maxWidth: cajaAncho - 4 });
+          doc.text(notaPercusionCorta, xR + anchoCol / 2, yCaja + 8, { align: 'center', maxWidth: anchoCol - 4 });
         }
 
         const tVal = acentos[j] || '';
         const idxTiempo = TIEMPOS_PERCUSION.indexOf(tVal);
         if(idxTiempo !== -1){
-          const reglaAncho = cajaAncho * 0.8;
-          const reglaX0 = x + (cajaAncho - reglaAncho) / 2;
+          const reglaAncho = anchoCol * 0.8;
+          const reglaX0 = xR + (anchoCol - reglaAncho) / 2;
           const pasoTiempo = reglaAncho / (TIEMPOS_PERCUSION.length - 1);
           const reglaY = yCaja + cajaAlto - 2;
           doc.setDrawColor(160);
@@ -1176,11 +1219,28 @@ function generarEstructuraPDFPercusion(datos){
       // ahí la anacrusa en columna 0 no entra en ningún cálculo modular.
       const conAnacrusaVampPercusion = !!(datos.anacrusa && idxSeccion === 0 && esVamp);
       const colInicioCicloPercusion = conAnacrusaVampPercusion ? 1 : 0;
+      // v1.104: (a pedido, FIX real, ver captura) mismo fix que
+      // pdf-armonias.js v1.111 — aireDisponibleVampPercusion/
+      // anacrusaGapMmPercusion/deficitMm se calculan ACÁ (antes de dibujar
+      // la Anacrusa) para poder pasarle el achique a SU PROPIA caja vía
+      // deficitDerechaMm. Mismos valores/fórmulas que antes (v1.103), solo
+      // se adelantó el cálculo y se sumó MIN_GAP_MM/deficitMm/deficitMm2.
+      const columnasUsadasVampPercusion = colInicioCicloPercusion + totalCajas + sobraPercusion;
+      const aireDisponibleVampPercusion = Math.max(0, (POR_FILA - columnasUsadasVampPercusion)) * cajaAncho;
+      const anacrusaGapMmPercusion = conAnacrusaVampPercusion ? Math.min(6, aireDisponibleVampPercusion) : 0;
+      const sobraGapMmPercusion = sobraPercusion > 0 ? Math.min(6, Math.max(0, aireDisponibleVampPercusion - anacrusaGapMmPercusion)) : 0;
+      const MIN_GAP_MM_PERCUSION = 5;
+      const deficitMmPercusion = conAnacrusaVampPercusion ? Math.max(0, MIN_GAP_MM_PERCUSION - anacrusaGapMmPercusion) : 0;
+      const deficitMm2Percusion = sobraPercusion > 0 ? Math.max(0, MIN_GAP_MM_PERCUSION - sobraGapMmPercusion) : 0;
       if(conAnacrusaVampPercusion){
-        dibujarCajasPercusion([], [], 1, 0, 0, { esAnacrusa: true, sinAvanzarY: true });
+        dibujarCajasPercusion([], [], 1, 0, 0, { esAnacrusa: true, sinAvanzarY: true, deficitDerechaMm: deficitMmPercusion });
       }
-      const anacrusaGapMmPercusion = conAnacrusaVampPercusion ? 6 : 0;
-      dibujarCajasPercusion(notasConSobraPercusion, acentosConSobraPercusion, totalCajas + sobraPercusion, colInicioCicloPercusion, 0, { notasArmonia: notasArmoniaConSobraPercusion, numerosGlobales: numerosGlobalesVampPercusion, gapDesdeColumna: conAnacrusaVampPercusion ? colInicioCicloPercusion : undefined, gapMm: anacrusaGapMmPercusion, gapDesdeColumna2: sobraPercusion > 0 ? totalCajas + colInicioCicloPercusion : undefined, gapMm2: 6, esAnacrusa: datos.anacrusa && idxSeccion === 0 && !esVamp });
+      // v1.103: (a pedido, FIX real, mismo criterio que pdf-armonias.js
+      // v1.106) los gaps se recortan al aire realmente disponible en la
+      // fila (columnas libres * cajaAncho) — con POR_FILA=6 casi siempre
+      // sobra espacio, pero si algún día Anacrusa+ciclo+sobra llenan las
+      // 6 columnas, no rompe el margen: baja a 0 en vez de forzar 6/6mm.
+      dibujarCajasPercusion(notasConSobraPercusion, acentosConSobraPercusion, totalCajas + sobraPercusion, colInicioCicloPercusion, 0, { notasArmonia: notasArmoniaConSobraPercusion, numerosGlobales: numerosGlobalesVampPercusion, gapDesdeColumna: conAnacrusaVampPercusion ? colInicioCicloPercusion : undefined, gapMm: anacrusaGapMmPercusion, gapDesdeColumna2: sobraPercusion > 0 ? totalCajas + colInicioCicloPercusion : undefined, gapMm2: sobraGapMmPercusion, deficitMm2: deficitMm2Percusion, esAnacrusa: datos.anacrusa && idxSeccion === 0 && !esVamp });
       // v1.85: (a pedido) lista de "próximas repeticiones" en Vamp
       // (#N chico bajo cada caja del ciclo), heredada de
       // generarEstructuraPDF (línea ~2130-2152) — mismo cálculo
