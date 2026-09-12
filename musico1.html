@@ -4,7 +4,173 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v3.119
+<!-- AUDIOLINK · musico.html · v3.128
+     v3.128: (a pedido) 2 ajustes más de UI:
+     1) "¿Confirmas asistencia?" (rsvp-row) se muda DENTRO del mismo
+     <details> de consentimiento (antes eran 2 bloques separados) —
+     resumen renombrado a "✅ Asistencia y consentimiento". Sigue
+     condicionado a !pasada, igual que antes (solo cambia dónde vive).
+     2) Las etiquetas de estructura (mapaSeccionesHtml, mapa/chips de
+     secciones) se mudan de arriba de todo (debajo del badge) a
+     inmediatamente encima del waveform — sin tocar la función en sí,
+     solo dónde se llama dentro del template.
+     v3.127: (a pedido) 5 ajustes de UI en el bloque de práctica:
+     1) "Repetir sección actual" pasa de botón suelto a checkbox,
+     dentro de waveform-toolbar junto a "Seguir reproducción" (mismo
+     estilo). toggleLoopSeccionPractica() ahora sincroniza `checked`
+     en vez de textContent/clase.
+     2) "Marcar loop aquí" + "Loop rápido" (x1..x64) se mudan a una
+     fila nueva pegada justo debajo del playerbar (no entran en la
+     misma fila que play/pausa/volumen — se apretaría demasiado en
+     móvil con 7 presets).
+     3) Como consecuencia de 1) y 2), el bloque "Acciones de práctica"
+     que vivía entre el waveform y el contador desaparece — el número
+     grande y la tira de puntos quedan inmediatamente debajo del
+     waveform.
+     4) Nuevo bombillito piloto de la clave (🪔, arriba-izquierda de
+     .practica-compas-wrap): oculto si no hay clave activa
+     (claveActivaEf), parpadea en TODO golpe real de la clave (mismo
+     delay/duración que la ×, DELAY_VISUAL_CLAVE_MS ahora compartida)
+     — a diferencia de la ×, no depende de que exista un marcador
+     notaEl en el DOM, así que no se pierde con la degradación segura
+     de v3.113.
+     5) El bloque "✍️ Firmar consentimiento" pasa a un <details>
+     colapsado por defecto (mismo patrón que "Configuración").
+     No se tocó marcarLoopPractica, loopRapidoCompasesPractica, ni
+     ninguna lógica de audio/timing — solo dónde viven los controles
+     en el HTML y el bombillito nuevo.
+     v3.126: (a pedido) FIX — reporte "no está dibujando la clave de
+     tramo al vuelo" (0 × dinámicas, onsets: [] pese a tener claveSeccion
+     propia con golpes). Causa: alfabeto de patrón desactualizado — hace
+     poco se agregaron a guia-practica.html "n"/"N" (golpe de negra,
+     normal/acentuado, pesa 2 corcheas) y "," (silencio de negra, pesa 2,
+     NO es golpe), pero la copia portada de parsearPatronRitmico/
+     aplanarColumnasPatron/pesoTotalPatron en musico.html se quedó con
+     el alfabeto viejo (solo x/X/./-) — cualquier patrón que usara el
+     alfabeto nuevo (ej. ".nn.nn,") se leía como si solo tuviera 2
+     silencios de corchea, sin ningún golpe real, dando onsets: [].
+     Fix: se portan 1:1 los mismos 3 ajustes ya vigentes en
+     guia-practica.html (mismo criterio, ningún carácter nuevo
+     inventado acá) — "," pesa 2 (silencio), "n"/"N" pesan 2 y SÍ son
+     golpe. También se agrega "n"/"N" al filtro de golpe real dentro de
+     construirOnsetsDesdePatron (propia de musico.html, calcula
+     tiempos en vivo — no existe en guia-practica.html). Los grupos
+     {} siguen siendo puros de corchea (x/X/./-), sin "n"/"N"/",", igual
+     que en guia-practica.html — sin cambio ahí.
+     v3.125: FIX — reporte "el número de compás/tiempo es correcto
+     pero el punto de clave que prende no es el que corresponde"
+     (ej. compás 18 tiempo 1, pero prende el punto "2"). Causa: dos
+     relojes distintos para la clave — el número grande usa el reloj
+     LOCAL del tramo (barIndex/beatEnBarra, correcto), pero el turno
+     de compás de la clave, el flash de la × y el sonido (scheduler)
+     seguían anclados al reloj GLOBAL del tema (tRel) módulo el ciclo
+     de 2 compases — ya documentado como límite conocido ("la clave
+     asume compás constante", ver comentario v3.111 más abajo, ahora
+     resuelto). Si antes del tramo actual hubo otro compás, o el tramo
+     no cae justo en un borde del ciclo global de 2 compases, los dos
+     relojes se corrían entre sí. Fix: cuando el tramo actual declara
+     su PROPIA claveSeccion, el ciclo de la clave (turno de compás,
+     flash de la ×, sonido del scheduler, y puntos "Pulso" con clave)
+     pasa a anclarse al INICIO REAL DEL TRAMO (mismo criterio que ya
+     usa barIndex) en vez del reloj global — arranca limpio en el
+     primer compás de la sección, sin importar qué pasó antes. Sin
+     claveSeccion propia (clave general del tema, caso de siempre),
+     sigue anclada al reloj global — sin cambio ahí. Toca 4 puntos,
+     mismo criterio en los 4 para que sigan sonando/viéndose pegados:
+     resolverClaveDeTramo() (ahora también devuelve tRelAncla),
+     schedulerTickGlobalPractica() (agendamiento del sonido, con su
+     propia ventana de lookahead en el reloj anclado), y 3 usos dentro
+     de actualizarContadorPractica() (turno de compás, flash de la ×,
+     ciclo de puntos) — todos vía la nueva variable tRelClaveAncla. No
+     se tocó construirOnsetsDesdePatron, el dibujo de la tira, ni nada
+     del compás general (secPerBar/tRel "de siempre").
+     v3.124: (a pedido) letra de ensayo (A/B/C…) en las etiquetas del
+     waveform — antes solo mostraban sec.nombre tal cual. Se porta 1:1
+     letraEnsayoSugerida() desde guia-practica.html (misma lógica: letra
+     manual del staff (s.letraEnsayo) tiene prioridad siempre; si no
+     hay, sugiere A/B/C… contando solo secciones con nombre no vacío y
+     sin origenId; una sección con origenId comparte la letra de su
+     origen, +"'" si es esVariacion) — se agregan letraEnsayoSugerida()
+     y letraEnsayoDeSeccion() a musico.html, que no las tenía. Etiqueta
+     ahora "A · Coro 2" en vez de solo "Coro 2"; sin nombre, sigue sin
+     mostrarse nada (sin cambio ahí). IMPORTANTE: se resuelve contra
+     est.secciones en su orden ORIGINAL de guardado (no la copia
+     ordenada por tiempo que ya usa el resto del waveform) — mismo
+     criterio que seccionesEnEdicion en el editor, para que la letra
+     coincida siempre con la del PDF. No se tocó nada de guia-
+     practica.html ni de cómo se guarda/sugiere la letra ahí — pregunta
+     aparte del staff: hoy dejar el campo "Letra de ensayo" en blanco
+     SIEMPRE cae en la sugerida (A/B/C…), no hay forma de decir
+     "esta sección va sin letra" — si lo quieren, es un cambio
+     puntual en guia-practica.html (un valor especial tipo "-" que
+     letraEnsayoSugerida/letraEnsayoDeSeccion respeten como "sin letra"),
+     evaluar aparte, no se tocó acá.
+     v3.123: (a pedido, estética) fondo de la CARD de los puntos
+     (.pcu-strip, distinto de los círculos individuales — ver v3.122):
+     (a) antes solo se ponía dorada en el 2do compás si había clave
+     ACTIVA y era la plantilla home — ahora se pone dorada en el 2do
+     compás SIEMPRE (con o sin clave, en cualquier plantilla), usando un
+     conteo de compás real del tramo aparte (numeroCompasPcu/
+     esSegundoCompasPcu) que no toca el ciclo/timing de los puntos en sí.
+     (b) si el compás real del tramo NO es 4/4, ese destello usa lila
+     (--lila/--lila-bg, mismo tono que colorProgreso en otras partes del
+     panel) en vez de dorado — clase nueva .compas-otro, CSS con mayor
+     especificidad que .compas2 para ganarle cuando ambas coinciden.
+     En 4/4 sigue siendo dorado como siempre.
+     v3.122: (a pedido, estética) los puntos del pulso general ya no
+     cambian de color de fondo según el tipo de compás (PCU_BEATS_COLOR:
+     azul en 2/4, verde en 3/4, naranja en 5/4, violeta en 7/4) — ahora
+     TODAS las plantillas se ven siempre como la principal/4/4 (puntos
+     grises en reposo). Lo único que sigue variando el fondo de un
+     círculo es el flash dorado (golpe normal) / verde (golpe fuerte)
+     al pasar cada tiempo — igual en el 1er compás que en el 2do. Cambio
+     mínimo y reversible: PCU_BEATS_COLOR y su CSS asociado
+     (--pcu-tpl-color) quedan intactos en el código, solo se dejó de
+     aplicar el estilo inline que los activaba.
+     v3.121: FIX de fondo sobre v3.120 — reporte "el dibujo de los
+     círculos se pega y vuelve a arrancar en algunas repeticiones".
+     v3.120 dejó de cerrar el AudioContext propio de cada
+     crearWebAudioPlayer() (correcto, ahora es compartido — cerrarlo
+     hubiera apagado el click de todos), pero se quedó corto en 2
+     lugares donde un player viejo queda dando vueltas sin que nadie lo
+     desconecte del grafo de audio compartido:
+     (1) cerrar() detenía el nodo de audio (buffer source) pero nunca
+     desconectaba el gainNode propio del destino compartido — quedaba
+     como nodo huérfano para siempre. Ahora cerrar() también hace
+     gainNode.disconnect().
+     (2) conectarMaquetaEnPractica() (cambio de versión de maqueta
+     remota, chips "Con bajo"/"Sin bajo"): al mejorar a loop exacto se
+     creaba un crearWebAudioPlayer() nuevo, pero si el motor anterior YA
+     era un player de una versión previa, nunca se cerraba. Con varios
+     cambios de versión en una sesión (y varios instrumentos a la vez)
+     esos nodos huérfanos se iban acumulando en el mismo contexto
+     compartido y sobrecargaban de a poco el hilo de audio — se notaba
+     como un tironcito justo al reiniciar el loop/ciclo. Ahora se
+     guarda el motor anterior antes de reconectar y, si tenía .cerrar()
+     (o sea, era un player Web Audio y no el <audio> nativo del uid,
+     que se reusa siempre y no se cierra), se cierra.
+     El mecanismo de reutilización del cambio de VELOCIDAD
+     (ajustarVelocidadLocalPractica, que alterna entre el <audio> nativo
+     y est.webAudioPlayerLocal manteniendo ambos vivos) no se toca —
+     sigue guardando esa instancia para reusarla, nunca se cierra sola.
+     v3.120: FIX — reporte "el click se siente inestable". Causa: cada
+     crearWebAudioPlayer() (loop exacto de una maqueta local o remota)
+     abría su PROPIO AudioContext nuevo, distinto del audioCtxPractica
+     que usa schedulerTickGlobalPractica() para agendar los beeps de
+     click/clave. Con instrumentos/maquetas activos, había varios
+     AudioContext corriendo en simultáneo: el click se agendaba con el
+     reloj de uno y la posición real de reproducción (est.
+     getTiempoActual) venía del reloj de OTRO — fuente de jitter/drift
+     entre agendado y sonido real, más notorio en móvil. Fix: se agrega
+     obtenerAudioCtxPractica() como único punto de creación/resume del
+     contexto; crearWebAudioPlayer() ahora reusa ESE mismo contexto en
+     vez de crear uno propio, y su cerrar() ya no lo cierra (antes
+     hubiera roto el click/clave y cualquier otro instrumento que lo
+     compartiera). 100% aditivo en interfaz: getTiempoActual/seek/play/
+     pause/volumen/loop de crearWebAudioPlayer no cambian, solo de qué
+     AudioContext salen. Sin secciones/maquetas con loop exacto activo
+     simultáneo, el comportamiento es equivalente a v3.119 salvo que
+     ahora hay un solo AudioContext en vez de varios.
      v3.119: FIX — "la clave va cruzada con el metro": v3.115 cambió el
      ciclo de los PUNTOS para usar siempre el reloj LOCAL de la sección
      (tRelTramo), pero el flash de la × y el sonido siempre usaron el
@@ -1290,6 +1456,12 @@ document.addEventListener('DOMContentLoaded', function(){
   --ok:#4caf7d;
   --warn:#d9a441;
   --err:#d4574a;
+  /* v3.123: (a pedido) lila para el fondo de la card de puntos cuando
+     el compás del tramo NO es 4/4 (ver .pcu-strip.compas-otro) — mismo
+     tono ya usado como acento en otras partes del panel (colorProgreso,
+     '#a78bd6'), para no inventar un color nuevo suelto en la paleta. */
+  --lila:#a78bd6;
+  --lila-bg:rgba(167,139,214,0.14);
   --T:"Playfair Display",Georgia,serif;
   --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
   --M:"JetBrains Mono",monospace;
@@ -1307,6 +1479,8 @@ document.addEventListener('DOMContentLoaded', function(){
   --ok:#3a8f63;
   --warn:#b8842f;
   --err:#b8453a;
+  --lila:#7d5fae;
+  --lila-bg:rgba(125,95,174,0.10);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;}
@@ -1452,7 +1626,15 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-yt{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:var(--surf-light);}
 /* v1.7: rediseño del bloque de metrónomo/contador */
 .practica-metro{display:flex;align-items:center;gap:14px;margin-top:10px;padding:10px 12px;background:var(--surf-light);border-radius:8px;}
-.practica-compas-wrap{flex:1;text-align:center;}
+.practica-compas-wrap{flex:1;text-align:center;position:relative;}
+/* v3.127: (a pedido) bombillito piloto de la clave — arriba-izquierda
+   del número de compás. Oculto por completo (display:none, ver JS)
+   cuando no hay clave activa en el tramo actual; visible pero "apagado"
+   (opacity baja, sin glow) en reposo, y "prendido" (clase .activo) en
+   cada golpe real de la clave — mismo timing/duración que la × de la
+   tira de puntos (ver DELAY_VISUAL_CLAVE_MS en actualizarContadorPractica). */
+.practica-clave-piloto{position:absolute;top:-2px;left:6px;font-size:0.95rem;opacity:0.35;filter:grayscale(1);transition:opacity 0.08s, filter 0.08s;}
+.practica-clave-piloto.activo{opacity:1;filter:none;text-shadow:0 0 6px var(--gold);}
 .practica-semaforo{display:flex;justify-content:space-between;gap:6px;margin-top:8px;padding:10px 12px;background:var(--surf-light);border-radius:8px;}
 .practica-compas-grande{font-size:2rem;font-weight:700;color:var(--gold);font-family:var(--M);line-height:1;transition:color 0.08s, transform 0.08s;display:inline-block;}
 .practica-compas-grande.activo{color:var(--ok);transform:scale(1.12);}
@@ -1463,6 +1645,12 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .beat-dot.fuerte.activo{background:var(--ok);transform:scale(1.25);box-shadow:0 0 18px 4px var(--ok);}
 .pcu-strip{position:relative;margin-top:8px;padding:8px 6px 22px;border-radius:8px;background:var(--surf-light);border:1px solid var(--brd);transition:border-color 0.15s, background 0.15s;}
 .pcu-strip.compas2{border-color:var(--gold);background:var(--gold-bg);}
+/* v3.123: (a pedido) mismo destello de "2do compás" que .compas2, pero
+   en lila en vez de dorado — se aplica cuando el compás real del tramo
+   NO es 4/4 (ver toggle de .compas-otro en actualizarContadorPractica).
+   Va DESPUÉS de .pcu-strip.compas2 y con 3 clases (mayor especificidad)
+   para ganarle siempre que ambas estén presentes juntas. */
+.pcu-strip.compas2.compas-otro{border-color:var(--lila);background:var(--lila-bg);}
 /* v3.114: (a pedido) plantillas de conteo — varias tiras conviven
    ocultas dentro del mismo .pcu-strip (ver pulsoClaveUnificadoHtml),
    solo la .pcu-tira-activa se muestra. El acento de color (inset,
@@ -1593,8 +1781,6 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    después de letras. */
 .practica-pdf-row{margin-top:14px;padding-top:10px;border-top:1px dashed var(--brd);}
 .practica-loopseccion-row{display:flex;flex-direction:column;align-items:stretch;margin-top:6px;}
-.practica-loopseccion-btn{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;border-color:var(--ok);color:var(--ok);transition:background 0.15s,border-color 0.15s,color 0.15s;}
-.practica-loopseccion-btn.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
 .practica-loop-btn{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;}
 .practica-loop-info{font-size:0.75rem;color:var(--muted);text-align:center;}
 .practica-archivolocal-nombre{font-size:0.85rem;color:var(--txt);font-weight:600;}
@@ -1742,7 +1928,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
      escritorio (sin este media query) siguen de lado a lado ocupando
      todo el div, como ya estaban. */
   .practica-loop-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .practica-loopseccion-btn,.practica-loop-btn{width:auto;min-height:56px;font-size:0.74rem;padding:6px 8px;white-space:normal;line-height:1.25;}
+  .practica-loop-btn{width:auto;min-height:56px;font-size:0.74rem;padding:6px 8px;white-space:normal;line-height:1.25;}
   .loop-presets-row{grid-column:1 / -1;}
   .practica-loop-info{grid-column:1 / -1;}
 }
@@ -2010,16 +2196,19 @@ function renderSesiones(sesiones){
           ${s.sala ? `<span class="item">📍 <strong>${escapeHtml(s.sala)}</strong></span>` : ''}
           ${s.miInstrumento ? `<span class="item">🎸 <strong>${escapeHtml(s.miInstrumento)}</strong></span>` : ''}
         </div>
-        ${!pasada ? `
-        <div class="rsvp-row">
-          <span class="rsvp-label">¿Confirmas asistencia?</span>
-          <button class="rsvp-btn confirmar ${rsvp === 'confirmado' ? 'activo' : ''}" onclick="responderRsvp('${s.proyectoId}','${s.id}','confirmado')">✓ Confirmar</button>
-          <button class="rsvp-btn rechazar ${rsvp === 'rechazado' ? 'activo' : ''}" onclick="responderRsvp('${s.proyectoId}','${s.id}','rechazado')">✕ No puedo</button>
-          <span class="rsvp-estado ${rsvp || 'pendiente'}">${rsvp === 'confirmado' ? 'Confirmado' : rsvp === 'rechazado' ? 'No asiste' : 'Pendiente'}</span>
-        </div>` : ''}
-        <div class="consent-row">
-          <button class="btn btn-ghost consent-btn" onclick="abrirConsentimiento('${s.proyectoId}','${s.id}',${s.miTarifa || 'null'})">✍️ Firmar consentimiento</button>
-        </div>
+        <details class="consent-details">
+          <summary>✅ Asistencia y consentimiento</summary>
+          ${!pasada ? `
+          <div class="rsvp-row">
+            <span class="rsvp-label">¿Confirmas asistencia?</span>
+            <button class="rsvp-btn confirmar ${rsvp === 'confirmado' ? 'activo' : ''}" onclick="responderRsvp('${s.proyectoId}','${s.id}','confirmado')">✓ Confirmar</button>
+            <button class="rsvp-btn rechazar ${rsvp === 'rechazado' ? 'activo' : ''}" onclick="responderRsvp('${s.proyectoId}','${s.id}','rechazado')">✕ No puedo</button>
+            <span class="rsvp-estado ${rsvp || 'pendiente'}">${rsvp === 'confirmado' ? 'Confirmado' : rsvp === 'rechazado' ? 'No asiste' : 'Pendiente'}</span>
+          </div>` : ''}
+          <div class="consent-row">
+            <button class="btn btn-ghost consent-btn" onclick="abrirConsentimiento('${s.proyectoId}','${s.id}',${s.miTarifa || 'null'})">✍️ Firmar consentimiento</button>
+          </div>
+        </details>
         ${bloquePracticaHtml(s)}
       </div>`;
   }).join('');
@@ -2134,7 +2323,14 @@ function parsearPatronRitmico(patron){
         motivo: !cerrado ? `"{${inner}" sin cerrar (falta "}")` : (numero === null ? `"{${inner}}" tiene ${n} nota(s) — un grupo debe tener 3 (tresillo) o 6 (sextillo)` : null)
       });
       i = cerrado ? fin + 1 : str.length;
-    } else if(c === 'x' || c === 'X' || c === '.' || c === '-'){
+    } else if(c === 'x' || c === 'X' || c === '.' || c === '-' || c === ',' || c === 'n' || c === 'N'){
+      // v3.126: (a pedido) "," = silencio de negra (pesa 2 corcheas),
+      // "n"/"N" = golpe de negra normal/acentuado (mismo peso 2, SÍ es
+      // golpe real) — portado 1:1 desde guia-practica.html (alfabeto
+      // agregado ahí recientemente), para que musico.html calcule los
+      // mismos onsets/pesos que ya dibuja el editor y el PDF. Ninguno
+      // de los 3 se agrega dentro de grupos {} (esos siguen siendo
+      // puros de corchea, sin cambio ahí).
       items.push({ tipo: 'simple', valor: c });
       i++;
     } else {
@@ -2147,7 +2343,12 @@ function aplanarColumnasPatron(items){
   const cols = [];
   items.forEach(it => {
     if(it.tipo === 'simple'){
-      cols.push({ caracter: it.valor, peso: 1, grupo: null });
+      // v3.126: (a pedido) "," (silencio de negra) y "n"/"N" (golpe de
+      // negra) pesan 2 corcheas; el resto de símbolos simples (x/X/./-)
+      // sigue pesando 1, como siempre — mismo criterio portado desde
+      // guia-practica.html.
+      const pesaNegra = it.valor === ',' || it.valor === 'n' || it.valor === 'N';
+      cols.push({ caracter: it.valor, peso: pesaNegra ? 2 : 1, grupo: null });
     } else {
       const pesoCada = it.valido ? (2 / it.valores.length) : 1;
       it.valores.forEach((v, idx) => {
@@ -2162,7 +2363,9 @@ function aplanarColumnasPatron(items){
 }
 function pesoTotalPatron(items){
   let total = 0;
-  items.forEach(it => { total += (it.tipo === 'simple') ? 1 : (it.valido ? 2 : it.valores.length); });
+  // v3.126: (a pedido) mismo ajuste que aplanarColumnasPatron — "," /
+  // "n" / "N" pesan 2 corcheas en el total, portado desde guia-practica.html.
+  items.forEach(it => { total += (it.tipo === 'simple') ? ((it.valor === ',' || it.valor === 'n' || it.valor === 'N') ? 2 : 1) : (it.valido ? 2 : it.valores.length); });
   return total;
 }
 // v3.112: construye los onsets (en segundos, dentro de UN ciclo) de un
@@ -2185,7 +2388,12 @@ function construirOnsetsDesdePatron(patron, secPerBeatSeccion, secPerBarSeccion)
   const onsets = [];
   let acumPeso = 0;
   cols.forEach(c => {
-    if(c.caracter === 'x' || c.caracter === 'X' || c.caracter === '-'){
+    // v3.126: (a pedido) "n"/"N" (golpe de negra) también son golpes
+    // reales para efectos de onset — mismo criterio que ya usa
+    // contarNotasPatron() en guia-practica.html (esGolpe). "," (silencio
+    // de negra) NO entra acá — no es golpe, solo pesa 2 en el cálculo
+    // de posición del resto (ya resuelto en aplanarColumnasPatron).
+    if(c.caracter === 'x' || c.caracter === 'X' || c.caracter === '-' || c.caracter === 'n' || c.caracter === 'N'){
       onsets.push((acumPeso / pesoTotal) * cicloSec);
     }
     acumPeso += c.peso;
@@ -2199,7 +2407,10 @@ function construirOnsetsDesdePatron(patron, secPerBeatSeccion, secPerBarSeccion)
 // offsetLocalDelta) — acá no se recalculan de nuevo, se reciben ya
 // resueltos, para no duplicar ese criterio en un cuarto lugar.
 function resolverClaveDeTramo(est, offset, tRel){
-  const fallback = { onsets: est.claveOnsetsEfectivo || est.claveOnsets || [], cicloSec: est.claveCicloSecEfectivo || est.claveCicloSec };
+  // v3.125: fallback y tramos SIN claveSeccion propia siguen anclando
+  // el ciclo al reloj GLOBAL del tema (tRelAncla = tRel, sin cambio de
+  // comportamiento) — ver tercer campo devuelto.
+  const fallback = { onsets: est.claveOnsetsEfectivo || est.claveOnsets || [], cicloSec: est.claveCicloSecEfectivo || est.claveCicloSec, tRelAncla: tRel };
   // v3.116: (a pedido) el override de sesión a "Sin clave" (valor
   // null, distinto de undefined=sin override) debe seguir ganando
   // sobre la clave GENERAL, pero YA NO sobre una claveSeccion PROPIA
@@ -2211,9 +2422,20 @@ function resolverClaveDeTramo(est, offset, tRel){
   const tramoActual = tramoMusicoEnSegundo(tramos, offset + tRel);
   if(!tramoActual || !tramoActual.claveSeccion || !tramoActual.secPerBar) return fallback;
   const secPerBeatTramo = tramoActual.secPerBar / tramoActual.beats;
+  // v3.125: (a pedido) FIX raíz — "la clave va cruzada con el metro"
+  // cuando la sección con claveSeccion propia no arranca justo en un
+  // borde del ciclo global de 2 compases (por un cambio de compás
+  // antes, o simplemente porque el tramo no cae ahí). El ciclo de la
+  // clave pasa a anclarse SIEMPRE al INICIO REAL DEL TRAMO
+  // (tramoActual.inicioSeg), igual criterio que ya usa barIndex/
+  // beatEnBarra — así el ciclo de 2 compases arranca limpio en el
+  // primer compás de la sección, sin importar qué pasó antes en el
+  // tema. Diagnóstico completo: ver conversación v3.125.
+  const tRelAncla = Math.max(0, (offset + tRel) - tramoActual.inicioSeg);
   return {
     onsets: construirOnsetsDesdePatron(tramoActual.claveSeccion, secPerBeatTramo, tramoActual.secPerBar),
-    cicloSec: tramoActual.secPerBar * 2
+    cicloSec: tramoActual.secPerBar * 2,
+    tRelAncla
   };
 }
 
@@ -2285,8 +2507,15 @@ function pulsoClaveUnificadoHtml(uid, compasesPorBarra, clave){
         return `<span class="pcu-x" id="clavenota-${uid}-${barIdx}-${posIdx}" data-frac="${frac}"></span>`;
       }).join('')).join('');
     }
-    const color = PCU_BEATS_COLOR[beats];
-    const estiloColor = color ? ` style="--pcu-tpl-color:${color}"` : '';
+    // v3.122: (a pedido) el color de fondo por tipo de compás no
+    // gustaba estéticamente — se deja SIEMPRE el aspecto de la
+    // plantilla principal/4/4 (puntos grises en reposo, igual para
+    // cualquier compás). PCU_BEATS_COLOR queda definido (por si se
+    // quiere reactivar) pero ya no se aplica acá. Lo único que sigue
+    // variando el fondo de un círculo es el flash dorado/verde normal
+    // de .pcu-dot.activo al pasar el golpe (mismo criterio de siempre,
+    // se ve igual en el 1er compás y en el 2do — "segunda vuelta").
+    const estiloColor = '';
     // v3.115: arranca en 1 compás salvo la home con clave GENERAL —
     // mismo estado inicial que antes (home+patrón ya mostraba 2
     // compases desde el primer render).
@@ -2450,6 +2679,54 @@ function colorDeSeccionEnLista(lista, i){
     if(idxOrigen !== -1) return colorSeccionPorIndice(idxOrigen);
   }
   return colorSeccionPorIndice(i);
+}
+// v3.124: (a pedido) portada 1:1 desde guia-practica.html
+// (letraEnsayoSugerida, v1.29/v1.29.5) — misma lógica exacta, sin
+// tocar ningún criterio: A/B/C… contando solo secciones con nombre no
+// vacío y sin origenId; una sección con origenId comparte la letra de
+// su origen (o esa letra + "'" si es esVariacion). Única adaptación:
+// acá no existe un global `seccionesEnEdicion` como en el editor, así
+// que recibe la lista como parámetro. IMPORTANTE: a diferencia de
+// colorDeSeccionEnLista de arriba (que trabaja con la lista YA
+// ordenada por tiempo), esta función necesita la lista en su ORDEN
+// ORIGINAL de guardado (est.secciones, sin el .sort() que se le aplica
+// en dibujarWaveform y otros lados) — es el mismo criterio que usa
+// guia-practica.html (seccionesEnEdicion, sin ordenar) para que la
+// letra coincida siempre con la que ve el staff en el editor y en el
+// PDF, sin importar el orden por desdeSegundos que se use acá para
+// dibujar.
+function letraEnsayoSugerida(seccionesOriginal, i){
+  const s = seccionesOriginal[i];
+  if(s && s.origenId){
+    const origenIdx = seccionesOriginal.findIndex(x => x.id === s.origenId);
+    if(origenIdx >= 0){
+      const base = letraEnsayoSugerida(seccionesOriginal, origenIdx);
+      return s.esVariacion ? base + '\'' : base;
+    }
+  }
+  let n = 0;
+  for(let j = 0; j <= i; j++){
+    const sj = seccionesOriginal[j];
+    if(!sj || !(sj.nombre || '').trim()) continue;
+    if(sj.origenId) continue; // comparte (o deriva con prima) la letra del origen, no cuenta como nueva
+    if(j === i) break;
+    n++;
+  }
+  return String.fromCharCode(65 + (n % 26));
+}
+// v3.124: resuelve la letra FINAL de una sección — manual
+// (sec.letraEnsayo, si el staff cargó una a mano) o, si no hay,
+// la sugerida (letraEnsayoSugerida) — mismo criterio de prioridad
+// que exportarEstructuraPDF() en guia-practica.html
+// ((s.letraEnsayo||'').trim() || letraEnsayoSugerida(...)). Recibe
+// SIEMPRE la lista en orden original (ver comentario de
+// letraEnsayoSugerida) — el llamador es responsable de pasar
+// est.secciones, no la copia ordenada por tiempo.
+function letraEnsayoDeSeccion(seccionesOriginal, sec){
+  const manual = (sec.letraEnsayo || '').trim();
+  if(manual) return manual;
+  const idx = seccionesOriginal.indexOf(sec);
+  return idx >= 0 ? letraEnsayoSugerida(seccionesOriginal, idx) : '';
 }
 // mezcla un color hex (#rrggbb) con blanco, para el flash de "sección
 // actual" — mismo criterio que antes usaba el verde fijo '#c8f5dd'
@@ -2668,8 +2945,6 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
   return `
         <div class="practica-badge" id="badge-${uid}"></div>
 
-        ${mapaSeccionesHtml(uid, secciones, bpm, compasesPorBarra)}
-
         <div class="practica-progreso">
           <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop"><div class="practica-progreso-fill" id="progfill-${uid}"></div></div>
           <div class="practica-progreso-texto" id="progtxt-${uid}"></div>
@@ -2690,26 +2965,7 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
                todos modos a un punto de la pista. -->
           <span class="practica-loop-info practica-seek-fallback-aviso" id="seekfallbackaviso-${uid}" style="display:none;">Vista de onda no disponible — usá la barra para saltar</span>
         </div>
-        <div class="practica-local-row">
-          <button class="btn-ghost practica-local-btn" onclick="document.getElementById('filein-${uid}').click()">♪ Usar canción del dispositivo</button>
-          <input type="file" id="filein-${uid}" accept="audio/*" style="display:none" onchange="onArchivoLocalElegido('${uid}', this.files)">
-          <span class="practica-loop-info practica-archivolocal-nombre" id="archivolocalnombre-${uid}"></span>
-        </div>
-        <div class="practica-waveform-toolbar" id="waveformtoolbar-${uid}" style="display:none;">
-          <button class="practica-waveform-zoombtn" onclick="zoomWaveform('${uid}', -1)" title="Alejar">−</button>
-          <span class="practica-waveform-zoomlabel" id="waveformzoomlabel-${uid}">1×</span>
-          <button class="practica-waveform-zoombtn" onclick="zoomWaveform('${uid}', 1)" title="Acercar">+</button>
-          <label class="practica-waveform-autoscroll">
-            <input type="checkbox" id="waveformautoscroll-${uid}" checked onchange="toggleAutoScrollWaveform('${uid}', this.checked)">
-            Seguir reproducción
-          </label>
-        </div>
-        <div class="practica-waveform-wrap" id="waveformwrap-${uid}" style="display:none;">
-          <canvas class="practica-waveform" id="waveformcanvas-${uid}" width="700" height="90" onclick="seekWaveformClick(event, '${uid}')"></canvas>
-        </div>
-        <span class="practica-fila-label practica-zona-label">Acciones de práctica</span>
-        <div class="practica-loop-row">
-          ${secciones && secciones.length ? `<button class="btn-ghost practica-loopseccion-btn" id="loopseccionbtn-${uid}" onclick="toggleLoopSeccionPractica('${uid}')">🔁 Repetir sección actual</button>` : ''}
+        <div class="practica-loop-row" id="looprow-${uid}">
           <button class="btn-ghost practica-loop-btn" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')">↻ Marcar loop aquí</button>
           <div class="loop-presets-row">
             <span class="loop-presets-label">Loop rápido:</span>
@@ -2719,9 +2975,33 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
           </div>
           <span class="practica-loop-info" id="loopinfo-${uid}"></span>
         </div>
+        <div class="practica-local-row">
+          <button class="btn-ghost practica-local-btn" onclick="document.getElementById('filein-${uid}').click()">♪ Usar canción del dispositivo</button>
+          <input type="file" id="filein-${uid}" accept="audio/*" style="display:none" onchange="onArchivoLocalElegido('${uid}', this.files)">
+          <span class="practica-loop-info practica-archivolocal-nombre" id="archivolocalnombre-${uid}"></span>
+        </div>
+        ${mapaSeccionesHtml(uid, secciones, bpm, compasesPorBarra)}
+
+        <div class="practica-waveform-toolbar" id="waveformtoolbar-${uid}" style="display:none;">
+          <button class="practica-waveform-zoombtn" onclick="zoomWaveform('${uid}', -1)" title="Alejar">−</button>
+          <span class="practica-waveform-zoomlabel" id="waveformzoomlabel-${uid}">1×</span>
+          <button class="practica-waveform-zoombtn" onclick="zoomWaveform('${uid}', 1)" title="Acercar">+</button>
+          <label class="practica-waveform-autoscroll">
+            <input type="checkbox" id="waveformautoscroll-${uid}" checked onchange="toggleAutoScrollWaveform('${uid}', this.checked)">
+            Seguir reproducción
+          </label>
+          ${secciones && secciones.length ? `<label class="practica-waveform-autoscroll practica-loopseccion-check">
+            <input type="checkbox" id="loopseccionbtn-${uid}" onchange="toggleLoopSeccionPractica('${uid}')">
+            🔁 Repetir sección actual
+          </label>` : ''}
+        </div>
+        <div class="practica-waveform-wrap" id="waveformwrap-${uid}" style="display:none;">
+          <canvas class="practica-waveform" id="waveformcanvas-${uid}" width="700" height="90" onclick="seekWaveformClick(event, '${uid}')"></canvas>
+        </div>
 
         <div class="practica-metro">
           <div class="practica-compas-wrap">
+            <span class="practica-clave-piloto" id="clavepiloto-${uid}" style="display:none;" title="Clave">🪔</span>
             <div class="practica-compas-grande" id="compas-${uid}">1</div><span class="practica-beat-chico" id="beat-${uid}">· 1</span>
             ${secciones && secciones.length ? `<div class="practica-seccion-actual" id="seccion-${uid}" style="display:none;">—</div>` : ''}
           </div>
@@ -2919,6 +3199,24 @@ function snapACompasPractica(seg, bpm, compasesPorBarra, offset){
 
 let audioCtxPractica = null;
 
+// v3.120: (a pedido, "el click se siente inestable") único punto de
+// creación/resume del AudioContext compartido. Antes, cada
+// crearWebAudioPlayer() (loop exacto de una maqueta) abría SU PROPIO
+// AudioContext nuevo, distinto del audioCtxPractica que usa el
+// scheduler para agendar los beeps — el click se agendaba con el
+// reloj de un contexto y la posición real de reproducción venía del
+// reloj de OTRO contexto. Con varios instrumentos/maquetas activos
+// (uno por uid) eso significaba varios AudioContext corriendo a la
+// vez, cada uno con su propio hilo de audio — fuente típica de
+// jitter/drift entre agendado y reproducción real, sobre todo en
+// móvil. Ahora todo (scheduler + cada player de loop exacto) pide el
+// contexto por acá, así siempre es el mismo.
+function obtenerAudioCtxPractica(){
+  if(!audioCtxPractica) audioCtxPractica = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtxPractica.state === 'suspended') audioCtxPractica.resume();
+  return audioCtxPractica;
+}
+
 // v3.97: (a pedido, "el metrónomo en móvil no es constante") scheduler
 // de audio independiente del rAF visual. Antes, cada beep se disparaba
 // EN EL MISMO INSTANTE en que actualizarContadorPractica() (llamada
@@ -2953,8 +3251,7 @@ function schedulerTickGlobalPractica(){
     const libreOn = !!est.metroLibreActivo;
     if(!clickOn && !claveOn && !libreOn) continue;
 
-    if(!audioCtxPractica) audioCtxPractica = new (window.AudioContext || window.webkitAudioContext)();
-    if(audioCtxPractica.state === 'suspended') audioCtxPractica.resume();
+    obtenerAudioCtxPractica();
 
     const bpmEf = est.bpmEfectivo || est.bpm;
     if(!bpmEf) continue;
@@ -3008,7 +3305,7 @@ function schedulerTickGlobalPractica(){
       // para TODOS los tramos (sin cambio de comportamiento); si no,
       // el tramo con claveSeccion propia usa su patrón, y el que no
       // tiene cae al efectivo general — exactamente como hasta ahora.
-      const { onsets: claveOnsetsEf, cicloSec: claveCicloSecEf } = resolverClaveDeTramo(est, offset, tRel);
+      const { onsets: claveOnsetsEf, cicloSec: claveCicloSecEf, tRelAncla: tRelAnclaClave } = resolverClaveDeTramo(est, offset, tRel);
       if(claveOnsetsEf && claveOnsetsEf.length && claveCicloSecEf){
         const n = claveOnsetsEf.length;
         const tiempoDeEvento = (g) => {
@@ -3016,19 +3313,30 @@ function schedulerTickGlobalPractica(){
           const idxLocal = ((g % n) + n) % n;
           return ciclo * claveCicloSecEf + claveOnsetsEf[idxLocal];
         };
+        // v3.125: (a pedido) FIX raíz — todo el timing de la clave
+        // (resync y agendamiento) pasa a razonar sobre tRelAnclaClave
+        // (reloj anclado al inicio del TRAMO cuando hay claveSeccion
+        // propia, global si no — ver resolverClaveDeTramo) en vez de
+        // tRel (siempre global). "ahoraCtx" sigue siendo el reloj real
+        // de Web Audio para el "when" final. "ventanaHasta" (arriba,
+        // línea ~3155) SIGUE en tRel global — se usa tal cual para el
+        // click normal (sin cambio ahí) pero NO sirve para comparar
+        // contra tiempoDeEvento (que ahora puede estar en otro reloj);
+        // se define una ventana propia en el mismo reloj de la clave.
+        const ventanaHastaClave = tRelAnclaClave + SCHED_LOOKAHEAD_SEC;
         if(est.schedNextClaveIdx == null ||
-           Math.abs(tiempoDeEvento(est.schedNextClaveIdx) - tRel) > claveCicloSecEf * 1.5){
-          // resync: primer evento con tiempo > tRel
-          const cicloIndex = Math.floor(tRel / claveCicloSecEf);
-          const tCiclo = tRel - cicloIndex * claveCicloSecEf;
+           Math.abs(tiempoDeEvento(est.schedNextClaveIdx) - tRelAnclaClave) > claveCicloSecEf * 1.5){
+          // resync: primer evento con tiempo > tRelAnclaClave
+          const cicloIndex = Math.floor(tRelAnclaClave / claveCicloSecEf);
+          const tCiclo = tRelAnclaClave - cicloIndex * claveCicloSecEf;
           let nextLocal = claveOnsetsEf.findIndex(o => o > tCiclo);
           est.schedNextClaveIdx = nextLocal === -1 ? (cicloIndex + 1) * n : cicloIndex * n + nextLocal;
         }
-        while(tiempoDeEvento(est.schedNextClaveIdx) < ventanaHasta){
+        while(tiempoDeEvento(est.schedNextClaveIdx) < ventanaHastaClave){
           const idxLocal = ((est.schedNextClaveIdx % n) + n) % n;
           const acentoClave = (est.acentosClave && est.acentosClave[idxLocal]) || 'normal';
           if(acentoClave !== 'mudo'){
-            const when = ahoraCtx + (tiempoDeEvento(est.schedNextClaveIdx) - tRel);
+            const when = ahoraCtx + (tiempoDeEvento(est.schedNextClaveIdx) - tRelAnclaClave);
             beepPractica(acentoClave === 'fuerte', (est.sonidoClave || 'clasico'), acentoClave === 'fuerte' ? est.volFuerte : est.volNormal, false, when);
           }
           est.schedNextClaveIdx++;
@@ -3066,8 +3374,7 @@ const SONIDOS_CLICK = {
   claveorganica: { tipo: 'noise', fFuerte: 2800, fNormal: 2100 }
 };
 function beepPractica(fuerte, sonido, volumen, precuenta, when){
-  if(!audioCtxPractica) audioCtxPractica = new (window.AudioContext || window.webkitAudioContext)();
-  if(audioCtxPractica.state === 'suspended') audioCtxPractica.resume();
+  obtenerAudioCtxPractica();
   const cfg = SONIDOS_CLICK[sonido] || SONIDOS_CLICK.clasico;
   const vol = Math.max(0, Math.min(1, volumen == null ? 1 : volumen));
   if(vol <= 0) return;
@@ -3170,11 +3477,13 @@ function toggleLoopSeccionPractica(uid){
   if(!est) return;
   if(!est.loopSeccionActivo && est.loopActivo) marcarLoopPractica(uid);
   est.loopSeccionActivo = !est.loopSeccionActivo;
-  const btn = document.getElementById('loopseccionbtn-' + uid);
-  if(btn){
-    btn.classList.toggle('activo', est.loopSeccionActivo);
-    btn.textContent = est.loopSeccionActivo ? '✕ Cancelar repetición' : '🔁 Repetir sección actual';
-  }
+  // v3.127: (a pedido) "Repetir sección actual" pasa de botón a
+  // checkbox (dentro de waveform-toolbar, junto a "Seguir
+  // reproducción") — ya no hay textContent/clase "activo" que
+  // alternar, solo el estado "checked" del input, que representa
+  // prendido/apagado por sí mismo.
+  const chk = document.getElementById('loopseccionbtn-' + uid);
+  if(chk) chk.checked = est.loopSeccionActivo;
   // v3.29: al apagar, borra la franja del waveform que este loop venía
   // dibujando (loopInicio/loopFin se van seteando solo mientras está
   // activo, ver actualizarContadorPractica). Al encender no hace falta
@@ -4264,12 +4573,30 @@ function actualizarContadorPractica(uid, tiempoActual){
   const claveCicloSecEf = (!claveTieneOverride && tramoActualContador.claveSeccion && tramoActualContador.secPerBar)
     ? tramoActualContador.secPerBar * 2
     : (est.claveCicloSecEfectivo || est.claveCicloSec);
+  // v3.125: (a pedido) FIX raíz — mismo criterio que resolverClaveDeTramo
+  // (scheduler): cuando el tramo actual declara su PROPIA claveSeccion,
+  // el ciclo de la clave (turno de compás, flash de la ×, y puntos
+  // "Pulso" con clave) se ancla al INICIO REAL DEL TRAMO (tRelTramo,
+  // igual que ya usa barIndex/beatEnBarra) en vez del reloj global del
+  // tema (tRel) — así arranca limpio en el primer compás de la sección,
+  // sin importar qué pasó antes. Sin claveSeccion propia (clave general
+  // del tema, fallback), sigue anclado a tRel — sin cambio ahí.
+  const tRelClaveAncla = (!claveTieneOverride && tramoActualContador.claveSeccion && tramoActualContador.secPerBar)
+    ? tRelTramo
+    : tRel;
   // v3.113: (a pedido) gate visual — antes "hayClave"/el flash del ×
   // dependían solo de claveEf (clave GENERAL del tema). Un tema sin
   // clave general pero con claveSeccion en el tramo actual ahora
   // también cuenta como "hay clave" para la tira pcu y el intento de
   // flash — mismo criterio que el claveOn del scheduler (v3.113).
   const claveActivaEf = !!claveEf || !!tramoActualContador.claveSeccion;
+  // v3.127: (a pedido) bombillito piloto de la clave — visible solo
+  // mientras hay clave activa (mismo criterio que el resto de la UI de
+  // clave, claveActivaEf), oculto por completo si no. El parpadeo en
+  // cada golpe se hace más abajo, junto al flash de la × (mismo evento,
+  // mismo timing).
+  const clavePilotoEl = document.getElementById('clavepiloto-' + uid);
+  if(clavePilotoEl) clavePilotoEl.style.display = claveActivaEf ? '' : 'none';
   const beatsEnTramo = secPerBarTramo ? Math.floor(tRelTramo / secPerBarTramo) : 0;
   const barIndex = tramoActualContador.compasInicio + beatsEnTramo;
   const beatEnBarra = secPerBeat ? Math.floor((tRelTramo - beatsEnTramo * secPerBarTramo) / secPerBeat) : 0;
@@ -4557,7 +4884,7 @@ function actualizarContadorPractica(uid, tiempoActual){
   // usa claveEf/claveCicloSecEf (con override), y el div ahora siempre
   // existe en el DOM (se muestra/oculta desde cambiarClavePractica()).
   if(claveActivaEf && claveCicloSecEf){
-    const tCiclo = tRel % claveCicloSecEf;
+    const tCiclo = tRelClaveAncla % claveCicloSecEf;
     const compasClave = Math.floor(tCiclo / secPerBar); // 0 o 1
     if(compasClave !== est.ultimoCompasClave){
       const anterior = document.getElementById('clavebar-' + uid + '-' + est.ultimoCompasClave);
@@ -4589,8 +4916,8 @@ function actualizarContadorPractica(uid, tiempoActual){
   // el seguimiento visual funcione aunque el click esté mudo.
   if(claveActivaEf && claveOnsetsEf && claveOnsetsEf.length && claveCicloSecEf){
     const n = claveOnsetsEf.length;
-    const cicloIndex = Math.floor(tRel / claveCicloSecEf);
-    const tCiclo = tRel - cicloIndex * claveCicloSecEf;
+    const cicloIndex = Math.floor(tRelClaveAncla / claveCicloSecEf);
+    const tCiclo = tRelClaveAncla - cicloIndex * claveCicloSecEf;
     let idxLocal = -1;
     for(let i = 0; i < n; i++){ if(tCiclo >= claveOnsetsEf[i]) idxLocal = i; }
     const eventoGlobal = idxLocal === -1 ? (cicloIndex * n - 1) : (cicloIndex * n + idxLocal);
@@ -4611,6 +4938,33 @@ function actualizarContadorPractica(uid, tiempoActual){
       clearTimeout(est.claveNotaFlashTimeoutId);
       clearTimeout(est.claveNotaVisualOnTimeoutId);
       if(idxLocal >= 0){
+        // v3.71: (a pedido, "se ve adelantada la clave") el sonido
+        // (beepPractica, arriba) sigue disparándose YA MISMO — el oído
+        // es sensible a latencia de audio. Solo el flash VISUAL se
+        // retrasa unos ms: es un ajuste perceptual (el ojo suele pedir
+        // el evento visual un poco después del sonido para sentirlos
+        // "juntos"), no una corrección de cálculo. Valor de partida
+        // conservador (25ms) — si se sigue sintiendo desfasado (para
+        // cualquier lado), este es el número a subir o bajar. Se movió
+        // arriba del bloque (antes vivía solo dentro de "if(notaEl)")
+        // porque ahora el bombillito piloto (v3.127) también la usa,
+        // independiente de si hay un marcador notaEl en el DOM.
+        const DELAY_VISUAL_CLAVE_MS = 25;
+        // v3.127: (a pedido) bombillito piloto — parpadea en TODO golpe
+        // real de la clave, exista o no un marcador notaEl para él (a
+        // diferencia de la ×, que se omite en la degradación segura de
+        // v3.113 cuando no hay marcador correspondiente). Mismo delay y
+        // duración que la ×, para que se sientan "juntos".
+        if(clavePilotoEl){
+          clearTimeout(est.clavePilotoFlashTimeoutId);
+          clearTimeout(est.clavePilotoVisualOnTimeoutId);
+          est.clavePilotoVisualOnTimeoutId = setTimeout(() => {
+            clavePilotoEl.classList.add('activo');
+            est.clavePilotoFlashTimeoutId = setTimeout(() => {
+              clavePilotoEl.classList.remove('activo');
+            }, Math.max(60, (secPerBeat * 1000) / 2));
+          }, DELAY_VISUAL_CLAVE_MS);
+        }
         const patronEf = CLAVE_PATRONES[claveEf];
         const lado0Len = patronEf ? patronEf[0].length : 0;
         const lado1Len = patronEf ? patronEf[1].length : 0;
@@ -4638,16 +4992,6 @@ function actualizarContadorPractica(uid, tiempoActual){
           ? document.getElementById('clavenota-' + uid + '-t-' + idxLocal)
           : (patronCoincide ? document.getElementById('clavenota-' + uid + '-' + barIdx + '-' + posIdx) : null);
         if(notaEl){
-          // v3.71: (a pedido, "se ve adelantada la clave") el sonido
-          // (beepPractica, arriba) sigue disparándose YA MISMO — el
-          // oído es sensible a latencia de audio. Solo el flash VISUAL
-          // se retrasa unos ms: es un ajuste perceptual (el ojo suele
-          // pedir el evento visual un poco después del sonido para
-          // sentirlos "juntos"), no una corrección de cálculo. Valor
-          // de partida conservador (25ms) — si se sigue sintiendo
-          // desfasado (para cualquier lado), este es el número a subir
-          // o bajar.
-          const DELAY_VISUAL_CLAVE_MS = 25;
           est.claveNotaVisualOnTimeoutId = setTimeout(() => {
             notaEl.classList.add('activo');
             // v3.14: (a pedido) el golpe de clave ahora es un flash corto
@@ -4698,20 +5042,32 @@ function actualizarContadorPractica(uid, tiempoActual){
     // activa, se quedaba en la duración GENERAL, que no coincidía con
     // el tramo si este no declaraba su propia claveSeccion.
     // v3.119: (a pedido) FIX — "la clave va cruzada con el metro": el
-    // flash de la × (y el sonido) SIEMPRE se calculan contra tRel (el
-    // reloj GLOBAL del tema, línea ~4585 más abajo). v3.115 cambió el
-    // ciclo de los PUNTOS para usar siempre tRelTramo (reloj LOCAL de
-    // la sección) — eso desfasa los dos relojes en cuanto hay clave
-    // activa (los puntos reinician en el borde de la sección, la
-    // clave sigue la fase del tema completo). Con clave activa, el
-    // ciclo de los puntos vuelve a anclarse a tRel/claveCicloSecEf
-    // (mismo reloj que el flash), para que ambos giren pegados. Sin
-    // clave, sigue en tRelTramo/secPerBarTramo — ahí no había este
-    // problema de fase (no hay nada más con quien desincronizarse).
+    // flash de la × (y el sonido) y el ciclo de los PUNTOS deben usar
+    // SIEMPRE el mismo reloj entre sí, o quedan desfasados. Con clave
+    // activa, el ciclo de los puntos se ancla a tRelClaveAncla (mismo
+    // reloj que usan el flash de la × y el scheduler — ver v3.125 más
+    // abajo). Sin clave, sigue en tRelTramo/secPerBarTramo — ahí no
+    // hay nada más con quien desincronizarse.
+    // v3.125: (a pedido) FIX raíz — tRelClaveAncla (calculado arriba,
+    // junto a claveCicloSecEf) ya NO es siempre el reloj global tRel:
+    // cuando el tramo declara su PROPIA claveSeccion, es tRelTramo (el
+    // ciclo arranca limpio en el compás inicial de la sección) — antes
+    // este bloque usaba tRel a secas, que asumía compás constante
+    // desde el inicio del tema (ver diagnóstico completo v3.125).
     const cicloDurPcu = hayClave ? claveCicloSecEf : secPerBarTramo;
     const totalTiempos = hayClave ? beatsTramoPcu * 2 : beatsTramoPcu;
-    const tCicloPcu = hayClave ? (tRel % cicloDurPcu) : (tRelTramo % cicloDurPcu);
+    const tCicloPcu = hayClave ? (tRelClaveAncla % cicloDurPcu) : (tRelTramo % cicloDurPcu);
     const tiempoGlobal = Math.min(totalTiempos - 1, Math.floor(tCicloPcu / secPerBeat));
+    // v3.123: (a pedido) número de compás REAL del tramo (par/impar),
+    // independiente de si hay clave activa — antes, el fondo dorado de
+    // la card (.compas2) solo alternaba cuando había clave (porque solo
+    // ahí el ciclo de puntos cubre 2 compases). Este cálculo aparte usa
+    // siempre secPerBarTramo/tRelTramo (el compás real del tramo, haya
+    // o no clave) SOLO para decidir el fondo de la card — no toca en
+    // nada el ciclo/timing de los puntos en sí (tCicloPcu/tiempoGlobal
+    // arriba, sin cambios).
+    const numeroCompasPcu = secPerBarTramo > 0 ? Math.floor(tRelTramo / secPerBarTramo) : 0;
+    const esSegundoCompasPcu = (numeroCompasPcu % 2) === 1;
     // v3.114: si cambió el compás del tramo, activa la plantilla
     // correspondiente (pcu-tira-uid-N) — si esa plantilla no existe en
     // el DOM (compás fuera del vocabulario básico y distinto del
@@ -4761,7 +5117,17 @@ function actualizarContadorPractica(uid, tiempoActual){
       est.ultimoTiempoPcu = tiempoGlobal;
       const stripEl = document.getElementById('pcu-strip-' + uid);
       if(stripEl){
-        stripEl.classList.toggle('compas2', hayClave && esHomeTramoPcu && tiempoGlobal >= beatsTramoPcu);
+        // v3.123: (a pedido) antes esto solo se prendía con clave
+        // activa Y en la plantilla home (hayClave && esHomeTramoPcu) —
+        // ahora se prende SIEMPRE que el tramo esté en su 2do compás
+        // (esSegundoCompasPcu, ver cálculo arriba), tenga o no clave, y
+        // sea o no la plantilla home. Además, si el compás real del
+        // tramo NO es 4/4 (beatsTramoPcu !== 4), se usa .compas-otro
+        // (lila) en vez del dorado de siempre — mismo criterio de "4/4
+        // es el caso por defecto" que ya se dejó en v3.122 para los
+        // puntos, acá aplicado al fondo de la card.
+        stripEl.classList.toggle('compas2', esSegundoCompasPcu);
+        stripEl.classList.toggle('compas-otro', beatsTramoPcu !== 4);
       }
     }
   }
@@ -4838,7 +5204,11 @@ function apagarMetronomoLibreSiActivo(uid){
 // cada play()/seek()/setLoop() internamente para el nodo viejo (si
 // había) y crea uno nuevo desde la posición correspondiente.
 function crearWebAudioPlayer(){
-  const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+  // v3.120: antes creaba su propio AudioContext acá — ver comentario
+  // largo junto a obtenerAudioCtxPractica() más arriba. Ahora reusa el
+  // mismo contexto que agenda el click/clave, así el reloj de
+  // reproducción y el reloj de agendado son siempre el mismo.
+  const ctxAudio = obtenerAudioCtxPractica();
   const gainNode = ctxAudio.createGain();
   gainNode.connect(ctxAudio.destination);
   const p = {
@@ -4942,8 +5312,22 @@ function crearWebAudioPlayer(){
       if(p.playing) p._seekTo(p.currentTime);
     },
     cerrar(){
+      // v3.120: ctxAudio ahora es el AudioContext COMPARTIDO
+      // (obtenerAudioCtxPractica) — cerrarlo acá rompería el click/clave
+      // y cualquier otro instrumento que lo esté usando. Solo se detiene
+      // el nodo propio de este player.
+      // v3.121: FIX — v3.120 dejaba el gainNode de este player conectado
+      // PARA SIEMPRE al destino del contexto compartido (antes esto no
+      // importaba: cerrar() mataba el contexto entero, gainNode incluido,
+      // de un solo saque). Cada cambio de versión de maqueta o recarga de
+      // archivo local creaba un player nuevo y dejaba el gainNode viejo
+      // como nodo huérfano enganchado al grafo — con varios instrumentos
+      // y varios cambios en la sesión, esos nodos se iban acumulando y
+      // sobrecargaban de a poco el hilo de audio compartido, notándose
+      // como un tironcito justo al reiniciar el loop. Ahora se
+      // desconecta también el gainNode al cerrar.
       if(p.node){ try{ p.node.onended = null; p.node.stop(); }catch(e){} p.node = null; }
-      try{ ctxAudio.close(); }catch(e){}
+      try{ gainNode.disconnect(); }catch(e){}
     }
   };
   return p;
@@ -5368,7 +5752,18 @@ function dibujarWaveform(uid, tiempoActual){
     if(tSec <= 0 || tSec >= dur) return;
     const sx = (tSec / dur) * W;
     const color = colorDeSeccionEnLista(secciones, i);
-    const nombreSec = String(sec.nombre || '');
+    const nombreCrudo = String(sec.nombre || '');
+    // v3.124: (a pedido) antepone la letra de ensayo (A/B/C…) al nombre
+    // en la etiqueta del waveform — mismo dato que ya se ve en el PDF
+    // (exportarEstructuraPDF de guia-practica.html), calculado con la
+    // función portada arriba. Se resuelve contra est.secciones (orden
+    // ORIGINAL, no `secciones` que es la copia de acá ordenada por
+    // tiempo — ver comentario largo junto a letraEnsayoSugerida). Si el
+    // nombre está vacío, se sigue sin dibujar nada (mismo criterio de
+    // siempre, más abajo) — una sección sin nombre no muestra ni letra
+    // ni etiqueta.
+    const letraSec = nombreCrudo ? letraEnsayoDeSeccion(est.secciones || [], sec) : '';
+    const nombreSec = nombreCrudo ? (letraSec ? `${letraSec} · ${nombreCrudo}` : nombreCrudo) : '';
     const anchoNombreSolo = nombreSec ? ctxDraw.measureText(nombreSec).width : 0;
     // v3.105: (a pedido) la nota de sección va PEGADA al lado del
     // nombre, mismo renglón (como en el PDF) — se dejó de usar un
@@ -6418,8 +6813,21 @@ function conectarMaquetaEnPractica(uid, maqueta){
       conectarListenersMotorLocalPractica(uid, player);
       const tActual = estAhora.getTiempoActual();
       const estabaSonando = estAhora.audioActivo && !estAhora.audioActivo.paused;
+      // v3.121: FIX — se guarda el motor anterior ANTES de reconectar
+      // (cambio de versión de maqueta, chips "Con bajo"/"Sin bajo"). Si
+      // ese motor anterior ya era un crearWebAudioPlayer() (venía de una
+      // versión previa ya "mejorada" a loop exacto), había quedado sin
+      // cerrar — antes eso perdía un AudioContext entero por cada
+      // cambio de versión; con el contexto compartido (v3.120) dejaba
+      // el nodo colgado para siempre en el grafo. El <audio> nativo (uid
+      // fijo, se reusa siempre) no tiene .cerrar, así que este cierre
+      // nunca lo afecta a él.
+      const motorAnteriorRemoto = estAhora.audioActivo;
       if(estabaSonando) estAhora.pause();
       conectarMotorLocalPractica(uid, player);
+      if(motorAnteriorRemoto && motorAnteriorRemoto !== player && typeof motorAnteriorRemoto.cerrar === 'function'){
+        motorAnteriorRemoto.cerrar();
+      }
       estAhora.seek(tActual);
       aplicarLoopNativoPractica(uid);
       if(estabaSonando) estAhora.play();

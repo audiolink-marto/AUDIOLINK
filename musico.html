@@ -4,7 +4,47 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Panel del Músico</title>
-<!-- AUDIOLINK · musico.html · v3.128
+<!-- AUDIOLINK · musico.html · v3.130
+     v3.130: (a pedido) FIX — las etiquetas de estructura ("Solo 5 c.",
+     "Coro 4 c.", etc. en seccionesChipsHtml/mapaSeccionesHtml) calculaban
+     la duración en compases con el compás GENERAL fijo del tema
+     (secPerBar único, afuera del loop), ignorando si la sección tenía su
+     propio compasOverride (ej. un Coro en 3/4 dentro de un tema en 4/4)
+     — por eso mostraban menos compases de los reales (el contador en
+     vivo sí era correcto porque ya usa recorrerTramosMusico). Fix:
+     secPerBar ahora se calcula POR SECCIÓN con beatsPorBarraDeSeccionMusico
+     (misma función que ya usa exportarEstructuraPracticaPDF desde v1.81),
+     dentro del .map() de ambas funciones. También se agrandó el texto:
+     .practica-seccion-chip 0.8rem→0.9rem (activo 0.86→0.96rem),
+     .practica-mapa-bloque 0.72→0.82rem, .practica-mapa-comp (badge
+     "X c.") 0.62→0.72rem. Cero cambio en el contador en vivo, el PDF ni
+     la lógica de audio/timing — solo el cálculo de estas 2 funciones de
+     etiquetas y su tamaño de texto.
+     v3.129: (a pedido, mobile first) 4 ajustes inspirados en el pase
+     mobile-first ya hecho en guia-practica.html (v1.101-v1.110), acá
+     adaptados al uso EN VIVO del músico (no de configuración):
+     1) FIX zoom automático iOS — .practica-ajuste-select (0.9rem) y
+     .practica-offsetlocal-input (0.85rem) suben a 16px (mismo criterio
+     que guia-practica v1.102: Safari hace zoom si el campo enfocado
+     mide menos de 16px). El resto de inputs/selects del panel ya
+     estaba en 16px o tiene tamaño fijo por motivo de grilla — no se
+     tocaron.
+     2) Objetivo táctil — .btn-preset (loop rápido x1..x64) 38x38→44x44
+     (mínimo recomendado, igual que guia v1.103). FIX de regresión
+     propia: .loop-presets suma flex-wrap:wrap para que los 7 presets
+     no se corten en pantallas angostas al agrandarse (misma lógica que
+     .hasta-presets en guia v1.103).
+     3) Bump de texto secundario bajo 600px (nuevo @media) — labels,
+     meta de sesión, badges, textos de toolbar/offset/loop — pensado
+     para lectura rápida con el instrumento en la mano. Afuera a
+     propósito: título de marca, número grande del contador, título de
+     canción, y lo que ya bumpeaba el @media(480px) existente (evita
+     doble bump).
+     4) @media(max-width:400px) nuevo para <main> (padding 14px 12px),
+     mismo criterio que .page-container en guia v1.104, para telas muy
+     chicas (320-360px).
+     Ningún cambio de JS, oninput/onchange ni lógica de audio/cálculo —
+     100% CSS.
      v3.128: (a pedido) 2 ajustes más de UI:
      1) "¿Confirmas asistencia?" (rsvp-row) se muda DENTRO del mismo
      <details> de consentimiento (antes eran 2 bloques separados) —
@@ -1577,9 +1617,9 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    activa. Aplica a las dos filas (chip chico y bloque grande), a
    pedido explícito después de ver cómo quedaba el relleno permanente
    de v3.93/v3.94. */
-.practica-mapa-bloque{flex:0 0 auto;position:relative;background:var(--surf-light);border:1px solid var(--sec-color, var(--brd));color:var(--sec-color, var(--txt));font-size:0.72rem;font-weight:700;text-align:center;padding:8px 6px;cursor:pointer;line-height:1.3;border-radius:8px;transition:background-color 0.2s, color 0.2s, box-shadow 0.2s;}
+.practica-mapa-bloque{flex:0 0 auto;position:relative;background:var(--surf-light);border:1px solid var(--sec-color, var(--brd));color:var(--sec-color, var(--txt));font-size:0.82rem;font-weight:700;text-align:center;padding:8px 6px;cursor:pointer;line-height:1.3;border-radius:8px;transition:background-color 0.2s, color 0.2s, box-shadow 0.2s;}
 .practica-mapa-bloque.activo{background:var(--sec-color, var(--gold));color:var(--sec-text, #fff);box-shadow:0 0 10px 1px var(--sec-color, var(--gold)) inset, 0 0 8px 1px var(--sec-color, var(--gold));}
-.practica-mapa-comp{display:block;font-size:0.62rem;font-weight:600;opacity:0.85;}
+.practica-mapa-comp{display:block;font-size:0.72rem;font-weight:600;opacity:0.85;}
 /* v3.94: badge de variación como elemento propio — antes iba como
    prefijo de texto plano, se perdía entre el nombre.
    - En el bloque grande (dos líneas: nombre + "X c.") va flotante en
@@ -1594,7 +1634,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    sección (opacity 0.72 en reposo, 1 + glow cuando está activa), en
    vez del estilo "outline" que tenía antes. Se mantiene la forma
    propia del chip (píldora, padding, min-height táctil). */
-.practica-seccion-chip{flex:0 0 auto;position:relative;white-space:nowrap;min-height:44px;padding:0 16px;border-radius:20px;border:1px solid var(--sec-color, var(--brd));background:var(--surf-light);color:var(--sec-color, var(--txt));font-size:0.8rem;font-weight:700;cursor:pointer;transition:background-color 0.2s, color 0.2s, box-shadow 0.2s, font-size 0.15s;}
+.practica-seccion-chip{flex:0 0 auto;position:relative;white-space:nowrap;min-height:44px;padding:0 16px;border-radius:20px;border:1px solid var(--sec-color, var(--brd));background:var(--surf-light);color:var(--sec-color, var(--txt));font-size:0.9rem;font-weight:700;cursor:pointer;transition:background-color 0.2s, color 0.2s, box-shadow 0.2s, font-size 0.15s;}
 /* v3.58: (a pedido) "bandeja" propia para el grupo de chips de
    versión — fondo + borde distinto al panel, para que se lean como
    grupo aparte de los chips de sección (que van sueltos sobre el
@@ -1622,7 +1662,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    font-weight súbe para que se note incluso en pantallas chicas. */
 /* v3.94: leve aumento de tamaño en la chip activa — ayuda a ubicarla
    por visión periférica mientras se está tocando, sin mirar directo. */
-.practica-seccion-chip.activo{background:var(--sec-color, var(--gold));color:var(--sec-text, #fff);box-shadow:0 0 10px 1px var(--sec-color, var(--gold)) inset, 0 0 8px 1px var(--sec-color, var(--gold));font-size:0.86rem;}
+.practica-seccion-chip.activo{background:var(--sec-color, var(--gold));color:var(--sec-text, #fff);box-shadow:0 0 10px 1px var(--sec-color, var(--gold)) inset, 0 0 8px 1px var(--sec-color, var(--gold));font-size:0.96rem;}
 .practica-yt{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:var(--surf-light);}
 /* v1.7: rediseño del bloque de metrónomo/contador */
 .practica-metro{display:flex;align-items:center;gap:14px;margin-top:10px;padding:10px 12px;background:var(--surf-light);border-radius:8px;}
@@ -1706,7 +1746,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:var(--gold);border:3px solid var(--surf-light);box-shadow:0 1px 4px rgba(0,0,0,0.4);cursor:pointer;}
 .practica-slider::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--gold);border:3px solid var(--surf-light);box-shadow:0 1px 4px rgba(0,0,0,0.4);cursor:pointer;}
 .practica-slider::-moz-range-track{height:6px;border-radius:3px;background:var(--brd);}
-.practica-ajuste-select{min-height:44px;padding:0 10px;border-radius:10px;border:1px solid var(--brd);background:var(--surf);color:var(--txt);font-size:0.9rem;width:100%;}
+.practica-ajuste-select{min-height:44px;padding:0 10px;border-radius:10px;border:1px solid var(--brd);background:var(--surf);color:var(--txt);font-size:16px;width:100%;}
 .practica-sonido-row{display:flex;gap:8px;flex-wrap:wrap;}
 .practica-sonido-chip{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--brd);background:var(--surf);color:var(--muted);font-size:0.82rem;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:background 0.15s,border-color 0.15s;}
 .practica-sonido-chip.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);box-shadow:0 1px 4px rgba(201,162,75,0.25);}
@@ -1790,9 +1830,9 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    sección, en vez de un botón largo por cada N. */
 .loop-presets-row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;}
 .loop-presets-label{font-size:0.75rem;color:var(--muted);white-space:nowrap;}
-.loop-presets{display:flex;gap:6px;}
+.loop-presets{display:flex;gap:6px;flex-wrap:wrap;}
 .btn-preset{
-  flex:0 0 auto;width:38px;height:38px;padding:0;
+  flex:0 0 auto;width:44px;height:44px;padding:0;
   background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
   color:var(--muted);font-family:var(--S);font-size:0.78rem;font-weight:600;
   cursor:pointer;transition:border-color 0.15s,color 0.15s,background 0.15s;
@@ -1823,7 +1863,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-offsetlocal{margin-top:10px;padding:14px;background:var(--surf-light);border-radius:10px;display:flex;flex-direction:column;gap:10px;}
 .practica-offsetlocal-marcar{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;}
 .practica-offsetlocal-info{font-size:0.75rem;color:var(--muted);text-align:center;line-height:1.4;}
-.practica-offsetlocal-input{flex:1;min-width:0;min-height:44px;background:var(--surf);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:var(--M);font-size:0.85rem;padding:8px 10px;}
+.practica-offsetlocal-input{flex:1;min-width:0;min-height:44px;background:var(--surf);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:var(--M);font-size:16px;padding:8px 10px;}
 /* v: bloque de acción simple (un botón full-width, o 2 en fila pareja) */
 .practica-calib-accion{display:flex;flex-direction:column;gap:8px;}
 .practica-calib-accion .btn-ghost{width:100%;}
@@ -1931,6 +1971,27 @@ main{padding:28px;max-width:760px;margin:0 auto;}
   .practica-loop-btn{width:auto;min-height:56px;font-size:0.74rem;padding:6px 8px;white-space:normal;line-height:1.25;}
   .loop-presets-row{grid-column:1 / -1;}
   .practica-loop-info{grid-column:1 / -1;}
+}
+@media (max-width:400px){
+  main{padding:14px 12px;}
+}
+/* v3.129: (a pedido, mobile first, inspirado en guia-practica.html
+   v1.106) bump parejo (+1-2px) de texto secundario bajo 600px, para
+   uso a una mano con el instrumento — labels, meta de sesión, badges,
+   textos de toolbar/offset. Afuera a propósito: .brand h1,
+   .practica-compas-grande (número grande del contador), .practica-
+   titulo-cancion, y los tamaños ya bumpeados en el @media(480px)
+   existente (.practica-seccion-actual/-detalle/-compas-rango,
+   .practica-cifrado-linea). 100% CSS, cero cambio de cálculo/JS. */
+@media (max-width:600px){
+  .sesion-card .proyecto,.rol-tag,.rsvp-label,.rsvp-estado,
+  .practica-titulo,.practica-titulo-instrumento,.practica-archivo-nombre-top,
+  .practica-waveform-toolbar,.practica-offsetlocal-info,.practica-fino-guardado,
+  .practica-player-tiempo,.practica-player-cargando,.loop-presets-label,
+  .practica-loop-info,.practica-archivolocal-nombre,.clave-bar{
+    font-size:calc(1em + 1px);
+  }
+  .practica-badge,.practica-seccion-compas-badge{font-size:calc(1em + 1.5px);}
 }
 </style>
 </head>
@@ -2750,13 +2811,19 @@ function colorTextoContraste(hex){
 
 function seccionesChipsHtml(uid, secciones, bpm, compasesPorBarra){
   if(!secciones || !secciones.length) return '';
-  const secPerBar = bpm ? (60 / bpm) * compasesPorBarra : 0;
   const ordenadas = secciones.slice().sort((a,b) => (a.desdeSegundos||0) - (b.desdeSegundos||0));
   const chips = ordenadas
     .map((sec, i) => {
       const color = colorDeSeccionEnLista(ordenadas, i);
       const siguiente = ordenadas[i+1] || null;
       const finSec = (sec.hastaSegundos != null) ? sec.hastaSegundos : (siguiente ? siguiente.desdeSegundos : null);
+      // v3.130: (a pedido) FIX — secPerBar pasa a calcularse POR SECCIÓN
+      // (beatsPorBarraDeSeccionMusico, respeta compasOverride) en vez del
+      // compás general fijo del tema. Mismo criterio que ya usa el
+      // contador en vivo (recorrerTramosMusico) y el PDF
+      // (exportarEstructuraPracticaPDF, v1.81) — antes el chip mostraba
+      // "4 c." en una sección de 3/4 que en realidad dura 5 compases.
+      const secPerBar = bpm ? (60 / bpm) * beatsPorBarraDeSeccionMusico(sec, compasesPorBarra) : 0;
       const duracion = (secPerBar > 0 && finSec != null) ? Math.max(1, Math.round((finSec - (sec.desdeSegundos||0)) / secPerBar)) : null;
       // v3.94: badge de variación como elemento propio (no prefijo de
       // texto) + duración en compases, mismo dato que ya mostraba el
@@ -2777,11 +2844,13 @@ function seccionesChipsHtml(uid, secciones, bpm, compasesPorBarra){
 // usa el chip) — acá solo se arma el HTML estático una vez.
 function mapaSeccionesHtml(uid, secciones, bpm, compasesPorBarra, offset){
   if(!secciones || !secciones.length) return '';
-  const secPerBar = bpm ? (60 / bpm) * compasesPorBarra : 0;
   const ordenadas = secciones.slice().sort((a,b) => (a.desdeSegundos||0) - (b.desdeSegundos||0));
   const bloques = ordenadas.map((sec, i) => {
     const siguiente = ordenadas[i+1] || null;
     const finSec = (sec.hastaSegundos != null) ? sec.hastaSegundos : (siguiente ? siguiente.desdeSegundos : null);
+    // v3.130: (a pedido) mismo FIX que seccionesChipsHtml — secPerBar
+    // por sección (respeta compasOverride) en vez del compás general.
+    const secPerBar = bpm ? (60 / bpm) * beatsPorBarraDeSeccionMusico(sec, compasesPorBarra) : 0;
     const duracion = (secPerBar > 0 && finSec != null) ? Math.max(1, Math.round((finSec - (sec.desdeSegundos||0)) / secPerBar)) : null;
     // v3.98: (a pedido) ancho proporcional a TIEMPOS reales (compases ×
     // pulsos por compás), no a compases crudos — mismo criterio que

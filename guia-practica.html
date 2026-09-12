@@ -4,7 +4,55 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.109
+<!-- AUDIOLINK · guia-practica.html · v1.112
+     v1.112: (FIX, a pedido) el indicador de duración (v1.111) mostraba
+     para vamp SIN origen el cicloCompases como si fuera la duración
+     total de la sección — mal: el Desde/Hasta de esa tarjeta sí define
+     la duración REAL (ej. 5 compases), y el ciclo es apenas la unidad
+     que se repite adentro (ej. un ciclo de 2 sonando dentro de esos 5).
+     Ahora usa duracionCompasesSeccion(s) igual que fija/bloque —
+     "→ 5 compases (ciclo de 2, editable en 🎼 Contenido)" — y si todavía
+     no hay Hasta cargado, el aviso ámbar también menciona el ciclo.
+     Nada de esto toca duracionCompasesSeccion ni ningún otro cálculo:
+     el bug era solo de qué dato mostraba este indicador nuevo.
+AUDIOLINK · guia-practica.html · v1.111
+     v1.111: (a pedido) el sub-bloque ⏱ Tiempo no mostraba ningún
+     resultado de duración mientras se editaba Desde/Hasta/compasOverride
+     — el staff solo veía los inputs, sin saber cuántos compases daba
+     eso. El cálculo YA era distinto según el tipo de sección (por
+     diseño): esto solo lo hace visible, sin tocar duracionCompasesSeccion
+     ni ningún cálculo existente. Nuevo indicador ".seccion-duracion-
+     indicador" (id secduracion-N) debajo de la fila Hasta/presets:
+     fija/bloque con Hasta cargado → "→ N compases"; fija/bloque sin
+     Hasta → "⚠ Sin duración — definí el Hasta" (mismo texto/color ámbar
+     --warn que ya usa el aviso del header, v1.110); vamp SIN origen →
+     lee directo s.cicloCompases (mismo dato/default de 2 que ya usa
+     htmlAcordesSeccion) y muestra "→ N compases (ciclo, editable en 🎼
+     Contenido)" — se refresca solo porque actualizarCicloCompases ya
+     repinta la tarjeta entera; vamp CON origen → "→ N compases (ciclo copiado de "X")", aclarando que Desde/Hasta de esa tarjeta es
+     solo un marcador de tiempo, no el ciclo real. Se actualiza en vivo
+     (sin repintar la tarjeta ni mover el foco) desde los oninput de
+     Desde/Hasta/compasOverride, mismo patrón que ya usan esos handlers
+     para refrescar los placeholders en espejo.
+AUDIOLINK · guia-practica.html · v1.110
+     v1.110: (a pedido) 3 ajustes de jerarquía pensados en quien
+     CONFIGURA el tema (no el músico en vivo): (1) pill nueva
+     ".seccion-card-header-aviso" en el header colapsado de cada sección
+     — "⚠ Sin duración" cuando duracionCompasesSeccion(s) devuelve null
+     (fija/bloque sin "hasta", o vamp sin ciclo), mismo dato que ya usan
+     pintarMapaTema/exportarEstructuraPDF*, sin cálculo nuevo; antes había
+     que abrir la tarjeta para descubrirlo. (2) ".seccion-aviso" (mensaje
+     "Definí el fin de la sección arriba...") pasó de gris itálico neutro
+     a ámbar (#d99a3d) semibold — mismo criterio de color que ya usa
+     avisoPatronVsCompas() para "faltan/sobran corcheas", para que TODA
+     alerta de "esto está incompleto" se vea igual en la app. (3) los
+     inputs reales de patrón (claveSeccionInput-N/patronRitmicoInput-N —
+     lo que se guarda) suman clase ".patron-input-real" (borde dorado +
+     monoespaciado) para distinguirse de los botones ♪♩𝄽𝄼 de arriba, que
+     son solo herramienta auxiliar para escribirlo. Ningún cambio de
+     cálculo, oninput/onchange ni lógica — 100% CSS + una condición de
+     lectura (sinDuracion) ya resuelta por una función existente.
+AUDIOLINK · guia-practica.html · v1.109
      v1.109: (a pedido) los silencios de corchea "." y de negra "," en el
      dibujo del patrón rítmico (patronRitmicoSVG — usado por Break/Corte
      y por 🎵 Clave de sección) se veían en gris tenue (#999/#8a8a8a)
@@ -1462,6 +1510,15 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .btn{padding:10px 16px;background:var(--gold);color:#1a1408;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;}
 .btn-ghost{padding:9px 15px;background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;cursor:pointer;font-size:0.85rem;}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+/* v1.110: (a pedido, jerarquía para configurar) el input de patrón real
+   de Clave/Break-Corte (lo que efectivamente se guarda) tenía el mismo
+   peso visual que los botones ♪♩𝄽𝄼 de arriba (herramienta auxiliar para
+   escribirlo, no el dato en sí). Borde dorado + fuente monoespaciada
+   (más fácil de leer una secuencia de símbolos) para que se note cuál
+   es el campo que importa. Sin cambio de tamaño de fuente base (sigue
+   en 16px, hereda de la regla general input/select/textarea — el fix
+   anti-zoom-iOS de v1.102 sigue intacto). */
+.patron-input-real{border-color:var(--gold);font-family:var(--M, monospace);}
 /* v1.78: modal "🥁 Percusión" — overlay simple, mismas variables de
    tema que el resto de la página (funciona igual en modo claro/oscuro,
    ver :root[data-tema="light"] arriba). z-index alto para quedar por
@@ -1547,7 +1604,13 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .mapa-tema-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border-radius:8px;padding:7px 10px 7px 8px;min-height:32px;font-size:0.86rem;color:var(--muted);cursor:pointer;}
 .mapa-tema-chip-color{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
 .mapa-tema-chip-letra{font-weight:800;color:#fff;}
-.seccion-aviso{font-size:0.88rem;color:var(--muted);font-style:italic;}
+/* v1.110: color pasó de gris neutro (var(--muted)) a ámbar de
+   advertencia (#d99a3d) — mismo criterio que avisoPatronVsCompas() y la
+   pill nueva .seccion-card-header-aviso. Es un mensaje de "falta algo
+   para poder continuar", no una ayuda decorativa, así que ahora se ve
+   como tal. Deja de ser itálico (la itálica queda reservada para ayuda
+   neutral, .seccion-ayuda) y suma peso semibold para que se note más. */
+.seccion-aviso{font-size:0.88rem;color:#d99a3d;font-weight:600;}
 .seccion-ciclo-campo{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .seccion-ciclo-campo input{width:70px;}
 .seccion-contenido-campo{margin-top:10px;}
@@ -1566,6 +1629,8 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .seccion-letra-ensayo::placeholder{opacity:0.55;}
 .seccion-repeticion-titulo{font-size:0.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;font-weight:700;margin-bottom:8px;}
 .seccion-ayuda{font-size:0.84rem;color:var(--muted);margin-top:4px;line-height:1.3;}
+.seccion-duracion-indicador{font-size:0.86rem;font-weight:600;color:var(--muted);margin-top:2px;}
+.seccion-duracion-indicador.aviso{color:var(--warn);}
 .seccion-variacion-box{margin-top:8px;padding:8px 10px;border-left:3px solid var(--brd);}
 /* v1.28: (a pedido) header clickeable de la tarjeta colapsable */
 .seccion-card-header{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
@@ -1574,6 +1639,12 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .seccion-card-header-tiempo{font-size:0.86rem;color:var(--muted);flex:0 0 auto;}
 .seccion-card-header-flags-wrap{flex:0 0 auto;}
 .seccion-card-header-flags{font-size:0.76rem;color:var(--muted);background:rgba(255,255,255,0.06);border-radius:5px;padding:2px 6px;white-space:nowrap;}
+/* v1.110: pill de advertencia (sección incompleta) — mismo ámbar
+   (#d99a3d) que ya usa avisoPatronVsCompas() para "faltan/sobran
+   corcheas", para que el criterio de color de alerta sea consistente
+   en toda la app. Va ANTES de las flags informativas en el mismo wrap
+   (margin-right las separa), nunca reemplaza a .seccion-card-header-flags. */
+.seccion-card-header-aviso{font-size:0.76rem;color:#d99a3d;background:rgba(217,154,61,0.14);border-radius:5px;padding:2px 6px;white-space:nowrap;margin-right:4px;font-weight:600;}
 .seccion-card-header-flecha{font-size:0.9rem;color:var(--muted);flex:0 0 auto;width:14px;text-align:center;}
 .seccion-card-body{margin-top:12px;}
 /* v1.102: (a pedido) mobile — en pantallas angostas el header de la
@@ -1638,7 +1709,8 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
   .mapa-tema-vacio,
   .seccion-aviso{font-size:0.96rem;}
   .seccion-ayuda{font-size:0.94rem;}
-  .seccion-card-header-flags{font-size:0.85rem;}
+  .seccion-card-header-flags,
+  .seccion-card-header-aviso{font-size:0.85rem;}
   .subbloque-titulo{font-size:0.94rem;}
 }
 /* v1.106: (a pedido, punto 8) fila de símbolos de "🎵 Clave" (8 botones
@@ -1867,6 +1939,61 @@ function duracionCompasesSeccion(s){
   const beats = beatsPorBarraDeSeccion(s);
   const d = compasDeSegundosConBeats(s.hastaSegundos, beats) - compasDeSegundosConBeats(s.desdeSegundos || 0, beats);
   return d > 0 ? d : null;
+}
+// v1.111: (a pedido) el sub-bloque ⏱ Tiempo no mostraba ningún
+// resultado de duración mientras se editaba — el staff solo veía los
+// inputs de Desde/Hasta/compasOverride, sin saber cuántos compases
+// terminaba dando eso. El cálculo YA era distinto según el tipo de
+// sección (por diseño, ver duracionCompasesSeccion arriba): acá solo
+// se hace visible ese resultado, sin tocar ningún cálculo existente.
+// - vamp CON origen: la duración es el ciclo COPIADO del origen —
+//   Desde/Hasta de esta tarjeta es solo un marcador de tiempo, así que
+//   se aclara de dónde sale el número para que no se confunda con un
+//   Desde/Hasta propio.
+// - vamp SIN origen: la duración no sale de Desde/Hasta en absoluto —
+//   sale del campo "Ciclo (compases)" en 🎼 Contenido. Se avisa dónde
+//   editarla en vez de mostrar un número que este bloque no calcula.
+// - fija/bloque: duración real de duracionCompasesSeccion(s) (Desde/Hasta
+//   + compás propio si hay override) — mismo aviso "⚠ Sin duración" que
+//   ya usa el header colapsado (v1.110) si todavía no hay Hasta cargado.
+function textoIndicadorDuracionSeccion(s){
+  if(s.tipo === 'vamp' && s.origenId){
+    const origen = seccionesEnEdicion.find(x => x.id === s.origenId);
+    const dur = duracionCompasesSeccion(s);
+    return dur != null
+      ? { texto: `→ ${dur} comp\u00e1s${dur === 1 ? '' : 'es'} (ciclo copiado de "${(origen && origen.nombre) || '—'}")`, aviso: false }
+      : { texto: '⚠ La sección origen todavía no tiene ciclo definido', aviso: true };
+  }
+  if(s.tipo === 'vamp'){
+    // v1.112: (FIX, a pedido) el Desde/Hasta de un vamp SIN origen sí
+    // define la duración REAL de la sección (ej. 5 compases) —
+    // duracionCompasesSeccion(s) ya lo resuelve bien acá porque el
+    // atajo a cicloCompases solo aplica con origenId (tarjeta-puntero).
+    // cicloCompases es apenas la unidad que se repite ADENTRO de ese
+    // rango (ej. un ciclo de 2 que suena 2 veces y monte en 5). v1.111
+    // mostraba el ciclo como si fuera la duración total — mal.
+    const dur = duracionCompasesSeccion(s);
+    const ciclo = s.cicloCompases || 2;
+    if(dur != null){
+      return { texto: `→ ${dur} comp\u00e1s${dur === 1 ? '' : 'es'} (ciclo de ${ciclo}, editable en 🎼 Contenido)`, aviso: false };
+    }
+    return { texto: `⚠ Sin duración — definí el Hasta (ciclo de ${ciclo} compases, editable en 🎼 Contenido)`, aviso: true };
+  }
+  const dur = duracionCompasesSeccion(s);
+  return dur != null
+    ? { texto: `→ ${dur} comp\u00e1s${dur === 1 ? '' : 'es'}`, aviso: false }
+    : { texto: '⚠ Sin duración — definí el Hasta', aviso: true };
+}
+// llamado desde los oninput de Desde/Hasta/compasOverride (mismo patrón
+// que ya usan para refrescar los placeholders en espejo) — actualiza
+// solo el texto/clase del indicador, sin repintar la tarjeta ni mover
+// el foco.
+function actualizarIndicadorDuracionSeccion(i){
+  const el = document.getElementById('secduracion-' + i);
+  if(!el) return;
+  const { texto, aviso } = textoIndicadorDuracionSeccion(seccionesEnEdicion[i]);
+  el.textContent = texto;
+  el.classList.toggle('aviso', aviso);
 }
 // ajusta un array de strings a longitud n, preservando lo ya escrito
 function resizeArrayAcordes(arr, n){
@@ -2336,13 +2463,24 @@ function pintarSecciones(){
     // que las demás marquitas — no cambia ningún cálculo.
     if(s.esCampana) flags.push('🔔 Campana');
     const flagsHtml = flags.length ? `<span class="seccion-card-header-flags" title="${flags.join(' · ')}">${flags.join(' · ')}</span>` : '';
+    // v1.110: (a pedido, jerarquía para configurar) indicador de sección
+    // incompleta en el header colapsado — hoy había que ABRIR la tarjeta
+    // para descubrir que a una sección le falta la duración (fija/bloque
+    // sin "hasta" definido, o vamp sin ciclo de compases). Reusa
+    // duracionCompasesSeccion() ya existente (mismo dato que usa
+    // pintarMapaTema/exportarEstructuraPDF*), sin cálculo nuevo. Va en
+    // span aparte de las demás flags (que son informativas, no de
+    // alerta) con color propio de advertencia — mismo criterio de color
+    // ámbar que ya usa avisoPatronVsCompas() para "faltan/sobran".
+    const sinDuracion = duracionCompasesSeccion(s) == null;
+    const avisoHtml = sinDuracion ? `<span class="seccion-card-header-aviso" title="Falta definir la duración de esta sección">⚠ Sin duración</span>` : '';
     return `
     <div class="seccion-card">
       <div class="seccion-card-header" onclick="toggleColapsoSeccion(${i})">
         <span class="seccion-card-header-color" style="background:${colorDeSeccionEnLista(seccionesEnEdicion, i)}"></span>
         <input class="seccion-letra-ensayo" maxlength="2" value="${(s.letraEnsayo || '').replace(/"/g,'&quot;')}" placeholder="${letraEnsayoSugerida(i)}" title="Letra de ensayo (A/B/C… o A' para variación) para el PDF" onclick="event.stopPropagation()" oninput="seccionesEnEdicion[${i}].letraEnsayo = this.value.slice(0,2).toUpperCase(); this.value = seccionesEnEdicion[${i}].letraEnsayo;">
         <span class="seccion-card-header-nombre">${badge}${nombreResumen}</span>
-        <span class="seccion-card-header-flags-wrap">${flagsHtml}</span>
+        <span class="seccion-card-header-flags-wrap">${avisoHtml}${flagsHtml}</span>
         <span class="seccion-card-header-tiempo">${rangoTxt}</span>
         <button class="btn-del" onclick="event.stopPropagation(); eliminarSeccion(${i})" title="Eliminar sección">🗑️</button>
         <span class="seccion-card-header-flecha">${colapsada ? '▸' : '▾'}</span>
@@ -2396,7 +2534,7 @@ function pintarSecciones(){
         </div>
         <div class="seccion-campo" style="max-width:110px;">
           <label>Compás (si cambia acá)</label>
-          <input type="text" value="${(s.compasOverride || '').replace(/"/g,'&quot;')}" placeholder="ej. 3/4" title="Dejar vacío = usa el compás general del tema" oninput="seccionesEnEdicion[${i}].compasOverride = this.value">
+          <input type="text" value="${(s.compasOverride || '').replace(/"/g,'&quot;')}" placeholder="ej. 3/4" title="Dejar vacío = usa el compás general del tema" oninput="seccionesEnEdicion[${i}].compasOverride = this.value; actualizarIndicadorDuracionSeccion(${i})">
         </div>
       </div>
       <div class="seccion-card-fila">
@@ -2416,6 +2554,7 @@ function pintarSecciones(){
         </div>
         <button class="btn-del seccion-card-del" onclick="limpiarSeccionHasta(${i})" title="Volver a automático (sin fin manual)">↺</button>
       </div>
+      ${(() => { const r = textoIndicadorDuracionSeccion(s); return `<div class="seccion-duracion-indicador${r.aviso ? ' aviso' : ''}" id="secduracion-${i}">${r.texto}</div>`; })()}
       `)}
       ${subBloqueHtml(i, 'origen', '🔁 Origen / Variación', htmlOrigenSeccion(s, i))}
       <!-- v1.93: (a pedido) clave por sección — mismo lenguaje de patrón
@@ -2447,7 +2586,7 @@ function pintarSecciones(){
             <button type="button" class="btn-ghost" title="Insertar tresillo" onclick="insertarSimboloClave(${i}, '{xxx}')">³ Tresillo</button>
             <button type="button" class="btn-ghost" title="Insertar sextillo" onclick="insertarSimboloClave(${i}, '{xxxxxx}')">⁶ Sextillo</button>
           </div>
-          <input type="text" id="claveSeccionInput-${i}" placeholder="Vacío = usa la clave general del tema" title="Dejar vacío = usa la clave general del tema" value="${(s.claveSeccion || '').replace(/"/g,'&quot;')}" oninput="actualizarClaveSeccion(${i}, this.value)">
+          <input type="text" class="patron-input-real" id="claveSeccionInput-${i}" placeholder="Vacío = usa la clave general del tema" title="Dejar vacío = usa la clave general del tema" value="${(s.claveSeccion || '').replace(/"/g,'&quot;')}" oninput="actualizarClaveSeccion(${i}, this.value)">
           <div id="claveSeccionPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.claveSeccion, 2, 0.68)}</div>
           <div id="claveSeccionAviso-${i}" style="margin-top:4px;font-size:0.83rem;color:var(--muted);">${avisoPatronVsCompas(s.claveSeccion, 2, s)}</div>
         </div>
@@ -2680,7 +2819,7 @@ function htmlAcordesSeccion(s, i){
     return `
       <div class="seccion-fila-acordes">
         ${introLibre}
-        <div class="seccion-aviso">Definí el fin de la sección arriba (o un preset x4/x8/etc) para cargar los acordes por compás.</div>
+        <div class="seccion-aviso">⚠ Definí el fin de la sección arriba (o un preset x4/x8/etc) para cargar los acordes por compás.</div>
       </div>`;
   }
   // v1.29.11: (a pedido) nota de tiempo del corte, solo para
@@ -2705,7 +2844,7 @@ function htmlAcordesSeccion(s, i){
             <button type="button" class="btn-ghost" title="Insertar tresillo (3 notas en el espacio de 2 corcheas)" onclick="insertarSimboloPatron(${i}, '{xxx}')">³ Tresillo</button>
             <button type="button" class="btn-ghost" title="Insertar sextillo (6 notas en el espacio de 2 corcheas)" onclick="insertarSimboloPatron(${i}, '{xxxxxx}')">⁶ Sextillo</button>
           </div>
-          <input type="text" id="patronRitmicoInput-${i}" placeholder='ej: x.xxn.,x.' value="${(s.patronRitmico || '').replace(/"/g,'&quot;')}" oninput="actualizarPatronRitmico(${i}, this.value)">
+          <input type="text" class="patron-input-real" id="patronRitmicoInput-${i}" placeholder='ej: x.xxn.,x.' value="${(s.patronRitmico || '').replace(/"/g,'&quot;')}" oninput="actualizarPatronRitmico(${i}, this.value)">
           <div id="patronRitmicoPreview-${i}" style="margin-top:6px;padding:4px 8px;background:#fff;border:1px solid #ccc;border-radius:4px;display:inline-block;">${patronRitmicoSVG(s.patronRitmico, duracion)}</div>
           <div id="patronRitmicoAviso-${i}" style="margin-top:4px;font-size:0.83rem;color:var(--muted);">${avisoPatronVsCompas(s.patronRitmico, duracion, s)}</div>
         </div>` : '';
@@ -3713,6 +3852,7 @@ function actualizarSeccionDesdeTiempo(i, txt){
   seccionesEnEdicion[i].desdeSegundos = textoASegundos(txt);
   const inputCompasEl = document.getElementById('seccompas-' + i);
   if(inputCompasEl) inputCompasEl.placeholder = 'compás ' + compasDeSegundos(seccionesEnEdicion[i].desdeSegundos);
+  actualizarIndicadorDuracionSeccion(i);
 }
 function actualizarSeccionDesdeCompas(i, valor){
   const n = parseInt(valor, 10);
@@ -3724,6 +3864,7 @@ function actualizarSeccionDesdeCompas(i, valor){
   seccionesEnEdicion[i].desdeSegundos = segundosDeCompas(n);
   const inputTiempoEl = document.getElementById('sectiempo-' + i);
   if(inputTiempoEl) inputTiempoEl.placeholder = segundosATexto(seccionesEnEdicion[i].desdeSegundos);
+  actualizarIndicadorDuracionSeccion(i);
 }
 
 // v1.6: (a pedido) fin de sección editable a mano — mismo patrón de
@@ -3751,6 +3892,7 @@ function actualizarSeccionHastaCompas(i, valor){
   // hastaSegundos igual que siempre.
   seccionesEnEdicion[i].hastaSegundos = segundosDeCompas(n + 1);
   if(inputTiempoEl) inputTiempoEl.value = segundosATexto(seccionesEnEdicion[i].hastaSegundos);
+  actualizarIndicadorDuracionSeccion(i);
 }
 function actualizarSeccionHastaTiempo(i, txt){
   if(!(txt || '').trim()) return; // igual que arriba: vaciar no borra el valor guardado
@@ -3759,6 +3901,7 @@ function actualizarSeccionHastaTiempo(i, txt){
   // v1.29.10: mismo criterio que el placeholder de arriba — muestra el
   // último compás de esta sección (-1), no el de la próxima.
   if(inputCompasEl) inputCompasEl.placeholder = 'compás ' + (compasDeSegundos(seccionesEnEdicion[i].hastaSegundos) - 1);
+  actualizarIndicadorDuracionSeccion(i);
 }
 function limpiarSeccionHasta(i){
   seccionesEnEdicion[i].hastaSegundos = null;

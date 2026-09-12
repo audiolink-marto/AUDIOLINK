@@ -1,3 +1,14 @@
+// AUDIOLINK · pdf-armonias.js · v1.113
+// v1.113: (a pedido) jerarquía de navegación del header de sección —
+// badge de letra de ensayo (A/B/C) sube de 8pt a 10pt bold (caja de
+// 5/7mm a 6/8mm), y el nombre de sección de 10pt a 11pt bold (mismo
+// peso que el acorde). Antes el badge, que debería ser el landmark más
+// rápido al pasar páginas, era el elemento más chico del header. La
+// barra de color sigue fija en 7mm — la caja de 6mm queda justa al ras
+// del borde inferior, sin desbordar. Efecto secundario esperado: en
+// secciones con nombre largo + nota + compás override simultáneos, la
+// nota de sección (que ya se autoachica/trunca, v1.55) puede recortarse
+// un poco antes que antes por el pixel extra que ahora ocupa el nombre.
 // AUDIOLINK · pdf-armonias.js · v1.112
 // v1.112: (a pedido) silencios de corchea ('.') y negra (',') en el PDF
 // pasaron de gris (150,150,150) a negro (20) — mismo criterio que el
@@ -1523,7 +1534,11 @@ function generarEstructuraPDF(datos){
     const rgb = [parseInt(color.slice(1,3),16), parseInt(color.slice(3,5),16), parseInt(color.slice(5,7),16)];
     doc.setFillColor(rgb[0], rgb[1], rgb[2]);
     doc.rect(margen, y, anchoUtil, 7, 'F');
-    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+    // v1.113: (a pedido) nombre de sección sube de 10pt a 11pt — mismo
+    // peso que el acorde dentro de la caja, deja de ser "encabezado más
+    // chico que el contenido". Se setea acá (caso sin badge) y de nuevo
+    // más abajo tras dibujar el badge (caso con badge).
+    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
     // v1.26: si es una variación, la etiqueta avisa que el cuadro NO es
     // igual al original (no alcanza con "ya lo vi arriba") — incluye la
     // nota corta si el staff cargó una.
@@ -1542,13 +1557,20 @@ function generarEstructuraPDF(datos){
     const letraEns = (s.letraEnsayo || '').trim().slice(0, 2).toUpperCase();
     let xTexto = margen + 2;
     if(letraEns){
-      const anchoCaja = letraEns.length > 1 ? 7 : 5;
+      // v1.113: (a pedido) badge de letra de ensayo — es el landmark de
+      // navegación más rápido al pasar páginas, y hoy quedaba más chico
+      // que el propio acorde (8pt vs 11pt). Sube a 10pt bold; la caja
+      // crece de 5/7mm a 6/8mm para que el texto no quede pegado al
+      // borde. La barra de color sigue siendo de 7mm fijos (línea 1525)
+      // — la caja de 6mm (y+1 a y+7) queda justa al ras del borde
+      // inferior, sin desbordar.
+      const anchoCaja = letraEns.length > 1 ? 8 : 6;
       doc.setDrawColor(255); doc.setLineWidth(0.3);
-      doc.rect(margen + 2, y + 1, anchoCaja, 5);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-      doc.text(letraEns, margen + 2 + anchoCaja / 2, y + 5, { align: 'center' });
+      doc.rect(margen + 2, y + 1, anchoCaja, 6);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      doc.text(letraEns, margen + 2 + anchoCaja / 2, y + 5.3, { align: 'center' });
       xTexto = margen + 4 + anchoCaja;
-      doc.setFontSize(10);
+      doc.setFontSize(11);
     }
     // v1.53: (a pedido) duración de la sección al lado del título — mismo
     // dato y mismo formato que ya usa guia-practica.html en sus propias
