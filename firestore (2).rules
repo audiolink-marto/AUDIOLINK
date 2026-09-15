@@ -8,7 +8,7 @@ rules_version = '2';
 // eventos, eventos/{id}/canales, catalogoIconos,
 // vacas, vacas/{id}/participantes, vacas/{id}/participantes/{id}/abonos,
 // vacas/{id}/actividad, vacas/{id}/integrantes, avataresIconos,
-// cocinaPedidos.
+// cocinaPedidos, historialCompras.
 //
 // IMPORTANTE — léelo antes de publicar:
 // 1. El PRIMER correo de equipoInterno hay que crearlo manualmente desde la
@@ -461,6 +461,34 @@ rules_version = '2';
 // solo equipo interno lee y escribe, sin componente público. No se
 // tocó ninguna otra regla, función, condición, match ni colección
 // existente.
+//
+// v2.35 (esta entrega — cocina.html v1.99.23, historial de compras +
+// facturas): se agrega el bloque /historialCompras/{historialId} — un
+// doc por cada lista de compras cerrada desde "🗄️ Cerrar y archivar"
+// (items, total, fecha de cierre, array `facturas` con URLs de
+// Cloudinary). MISMO PATRÓN EXACTO que cocinaPedidos: solo equipo
+// interno lee y escribe, SIN componente público — compras.html (portal
+// sin login) no toca esta colección a propósito, el historial y las
+// facturas quedan exclusivos del staff en cocina.html. No se tocó
+// ninguna otra regla, función, condición, match ni colección existente.
+//
+// v2.36 (ensayo.html v1 — módulo standalone de práctica): se agrega el
+// bloque /GUIAS2/{temaId} — colección nueva, SIN relación con
+// proyectos/sesiones/staff. Cada tema pertenece a un correo (dueño),
+// que es quien lo lee/crea/edita/borra — comparado directo contra
+// request.auth.token.email, sin pasar por esStaff() ni ninguna otra
+// función existente. No se tocó ninguna otra regla, función, condición,
+// match ni colección existente.
+//
+// v2.37 (ensayo.html v3.185 — categorías cerradas de práctica): se
+// agrega el bloque /CATEGORIAS2/{categoriaId} — colección nueva, MISMO
+// PATRÓN EXACTO de dueño que GUIAS2 (v2.36). Reportado por el usuario:
+// faltaba esta regla desde que se agregó el selector de categorías en
+// ensayo.html v3.185; sin ella, cargarMisCategorias()/
+// crearCategoriaDesdeSheet() habrían fallado con "Missing or
+// insufficient permissions" en cuanto se publicara. No se tocó ninguna
+// otra regla, función, condición, match ni colección existente — ni
+// siquiera GUIAS2, justo arriba.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -1012,6 +1040,28 @@ service cloud.firestore {
     match /cocinaPedidos/{pedidoId} {
       allow read, write: if esStaff();
     }
+    // ---------- COCINA — HISTORIAL DE COMPRAS (v2.35 — cocina.html v1.99.23) ----------
+    // Colección nueva, raíz, plana: un doc por cada lista de compras
+    // cerrada/archivada desde el botón "🗄️ Cerrar y archivar" del tab
+    // Compras (items tal cual estaban, total, fecha de cierre, y un
+    // array `facturas` con URLs de Cloudinary agregadas después con
+    // arrayUnion). Sin este bloque, tanto archivarYVaciarListaCompras()
+    // como abrirWidgetFactura() habrían fallado con "Missing or
+    // insufficient permissions" para cualquier usuario, incluido staff
+    // logueado — mismo motivo que cocinaPedidos en v2.34.
+    // A PROPÓSITO: compras.html (el portal público sin login) NO lee ni
+    // escribe esta colección — el historial y las facturas quedan
+    // exclusivos de cocina.html, con login de staff. Si en el futuro se
+    // quiere exponer el historial en el portal, sería una regla de
+    // lectura pública aparte, angosta, como la de menuPublico o
+    // categoriasCocina — no automática. MISMO PATRÓN EXACTO que
+    // cocinaProductos/cocinaInsumos/cocinaRecetas/ventasCocina/
+    // cocinaPedidos: solo equipo interno lee y escribe. No se tocó
+    // ninguna otra regla, función, condición, match ni colección
+    // existente.
+    match /historialCompras/{historialId} {
+      allow read, write: if esStaff();
+    }
     // ---------- CONFIG (esta entrega — fondo del portal público, cocina.html v1.99.21 / menu.html v1.11) ----------
     // Doc único config/menuPublico (campo iconoFondoEmoji), escrito desde
     // cocina.html (tab Compras → "🎨 Fondo del portal público") y leído
@@ -1275,6 +1325,44 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avatarUrl']) &&
           (request.resource.data.avatarUrl is string || request.resource.data.avatarUrl == null);
       }
+    }
+
+    // ---------- GUIAS2 (v1 — ensayo.html, módulo standalone de práctica) ----------
+    // Cada tema (nombre, audioUrl de Cloudinary, bpm/compas/tonalidad/clave,
+    // offset, secciones marcadas) pertenece a UN músico, identificado por su
+    // propio correo (Firebase Auth, no equipoInterno/musicosPortal — este
+    // módulo es aparte, no depende de asignación a proyectos). Mismo patrón
+    // de "dueño" que ya usa portal.html con clienteEmail, pero acá el dueño
+    // se guarda en el propio doc del tema en vez de en el proyecto padre.
+    match /GUIAS2/{temaId} {
+      // Nadie más puede leer, listar, crear, editar ni borrar temas de otro
+      // correo — ni siquiera esStaff() tiene acceso especial acá, porque
+      // este módulo es de uso personal, no del sistema de staff/clientes.
+      // v1.1: FIX — 'dueño' con notación de punto (resource.data.dueño) no
+      // es válido en el lenguaje de Firestore Rules por la 'ñ'; hay que
+      // usar notación de corchetes. Esto probablemente impedía publicar
+      // estas reglas (o las dejaba caer a las anteriores sin este bloque),
+      // de ahí el "Missing or insufficient permissions" al guardar un tema.
+      allow read: if request.auth != null && request.auth.token.email == resource.data['dueño'];
+      allow create: if request.auth != null && request.auth.token.email == request.resource.data['dueño'];
+      allow update, delete: if request.auth != null && request.auth.token.email == resource.data['dueño'];
+    }
+
+    // ---------- CATEGORIAS2 (v3.185 — ensayo.html, categorías de práctica) ----------
+    // Lista cerrada y reutilizable de categorías por usuario (campo nombre),
+    // que alimenta el bottom sheet "Elegir categoría" al clasificar un tema
+    // de GUIAS2 — objetivo: evitar que la misma categoría se fragmente en
+    // variantes por errores de tipeo (antes era texto libre). MISMO PATRÓN
+    // EXACTO de dueño que GUIAS2: el correo del propio Firebase Auth, sin
+    // pasar por equipoInterno/esStaff() — este módulo es de uso personal,
+    // no del sistema de staff/clientes. cargarMisCategorias() hace un
+    // where('dueño','==',correo).get() (query, no get() puntual), por eso
+    // se necesita `read` (cubre get+list) y no solo `get`. No se tocó
+    // ninguna otra regla, colección, match ni condición existente.
+    match /CATEGORIAS2/{categoriaId} {
+      allow read: if request.auth != null && request.auth.token.email == resource.data['dueño'];
+      allow create: if request.auth != null && request.auth.token.email == request.resource.data['dueño'];
+      allow update, delete: if request.auth != null && request.auth.token.email == resource.data['dueño'];
     }
   }
 }

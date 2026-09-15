@@ -4,7 +4,49 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.112
+<!-- AUDIOLINK · guia-practica.html · v1.117
+     v1.117: (a pedido) el campo BPM ("Datos del tema") ahora admite
+     decimales: input step="0.01" (antes step="1") y guardarDatosTema
+     usa parseFloat en vez de parseInt (antes truncaba, ej. "150.12"
+     quedaba guardado como 150 en Firestore). Sin cambios en el resto
+     del guardado/validación.
+     v1.116: (a pedido) el campo "Armadura (automática)" mostraba texto
+     ("1 sostenido", "3 bemoles") — ahora muestra el símbolo entre
+     paréntesis, como se ve en un pentagrama: "(♯)", "(♭♭♭)". Nueva
+     simbolosDeArmadura(tonalidad), que solo reformatea lo que ya
+     devuelve armaduraDeTonalidad (mismo círculo de quintas, sin
+     cambios). "Ninguna" y "tonalidad no reconocida" siguen en texto —
+     no hay símbolo que dibujar en esos casos.
+AUDIOLINK · guia-practica.html · v1.115
+     v1.115: (a pedido) 2 features nuevas:
+     1) Tonalidad + Armadura en "Datos del tema": Tonalidad es texto
+     libre (ej. "Cm"), se guarda como practicaTonalidad. Armadura NO se
+     tipea — se calcula sola por círculo de quintas (tabla
+     ARMADURA_POR_TONALIDAD) y se muestra de solo lectura al lado, para
+     que nunca quede desincronizada de la tonalidad.
+     2) Lector liviano de tags ID3v2 (leerTagsAudioID3) — NO analiza el
+     audio, solo lee metadata que YA viene en el archivo (frames
+     TBPM/TKEY o TXXX "BPM"/"Key", que Virtual DJ/Rekordbox/Serato
+     escriben al analizar una pista). Traduce notación Camelot (ej. "8A")
+     a tonalidad aproximada. Se dispara al elegir un archivo de maqueta
+     (mostrarTagsDetectadosMaqueta, en paralelo a la subida a Cloudinary,
+     nunca la bloquea): muestra "🏷️ Detectado: 96 BPM · Cm" junto a esa
+     maqueta, y si BPM/Tonalidad en "Datos del tema" están VACÍOS ofrece
+     un botón "Usar estos valores" que los completa (nunca pisa un valor
+     ya cargado, y no autoguarda — sigue haciendo falta "Guardar BPM y
+     compás"). Try/catch total: un archivo sin ID3 o con formato raro
+     simplemente no muestra nada, no rompe la subida real.
+AUDIOLINK · guia-practica.html · v1.113
+     v1.113: (FIX, a pedido) el aviso de "vamp con origen sin ciclo" en
+     el indicador de duración (v1.111) decía "la sección origen todavía
+     no tiene ciclo definido" — mal atribuido: como "Es igual a" copia
+     una sola vez (Object.assign, no linkeado en vivo — ver ayuda del
+     bloque), lo que realmente falta es el cicloCompases COPIADO en esta
+     misma tarjeta, no en el origen (que puede tener ciclo perfecto).
+     Nuevo texto: "⚠ Esta tarjeta quedó sin ciclo copiado — volvé a
+     elegir el origen arriba", que además indica cómo resolverlo. Solo
+     wording, ningún cálculo cambia.
+AUDIOLINK · guia-practica.html · v1.112
      v1.112: (FIX, a pedido) el indicador de duración (v1.111) mostraba
      para vamp SIN origen el cicloCompases como si fuera la duración
      total de la sección — mal: el Desde/Hasta de esa tarjeta sí define
@@ -1550,6 +1592,8 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
    progreso debajo de la fila de la maqueta. */
 .btn-upload-audio{text-align:center;cursor:pointer;white-space:nowrap;}
 .upload-status{font-size:0.86rem;color:var(--muted);margin:-4px 0 10px 4px;display:none;}
+.maqueta-tags-info{font-size:0.86rem;color:var(--muted);margin:-4px 0 10px 4px;display:none;align-items:center;gap:10px;flex-wrap:wrap;}
+.maqueta-tags-info .btn-usar-tags{font-size:0.8rem;padding:4px 10px;border-radius:8px;border:1px solid var(--brd);background:var(--surf-light);color:var(--gold);cursor:pointer;}
 .mqaudio-bar{display:flex;align-items:center;gap:6px;margin:4px 0 10px 4px;max-width:300px;}
 .mqaudio-btn{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;color:var(--muted);font-size:0.88rem;padding:4px 8px;cursor:pointer;flex-shrink:0;min-width:40px;min-height:40px;}
 .mqaudio-tiempo{font-size:0.76rem;color:var(--muted);font-family:var(--M);flex-shrink:0;white-space:nowrap;}
@@ -1750,7 +1794,7 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
       <div class="row-2">
         <div class="field">
           <label>BPM</label>
-          <input type="number" id="inputBpm" min="20" max="300" step="1" placeholder="Ej: 96">
+          <input type="number" id="inputBpm" min="20" max="300" step="0.01" placeholder="Ej: 96">
         </div>
         <div class="field">
           <label>Compás</label>
@@ -1794,6 +1838,20 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
           <option value="bossa23">Bossa 2-3</option>
           <option value="bossa32">Bossa 3-2</option>
         </select>
+      </div>
+      <!-- v1.114: (a pedido) Tonalidad (texto libre, ej. "Cm") + Armadura.
+           La armadura NO se tipea a mano (se podía desincronizar de la
+           tonalidad) — se calcula sola por círculo de quintas apenas se
+           escribe la tonalidad, y se muestra de solo lectura al lado. -->
+      <div class="row-2">
+        <div class="field">
+          <label>Tonalidad (opcional, ej: Cm, F#, Bb)</label>
+          <input type="text" id="inputTonalidad" placeholder="ej: Cm" oninput="actualizarArmaduraMostrada()">
+        </div>
+        <div class="field">
+          <label>Armadura (automática)</label>
+          <input type="text" id="mostrarArmadura" readonly tabindex="-1" style="opacity:0.75;cursor:default;">
+        </div>
       </div>
       <button class="btn" onclick="guardarDatosTema()">Guardar BPM y compás</button>
       <div class="guardado-ok" id="okDatosTema">✓ Guardado</div>
@@ -1927,6 +1985,140 @@ function compasDeSegundosConBeats(seg, beatsPerBar){
   if(!secPerBar) return 1;
   return Math.max(1, Math.round(((seg || 0) - previewOffset()) / secPerBar) + 1);
 }
+// v1.114: (a pedido) círculo de quintas — de tonalidad a armadura, para
+// no depender de que alguien la tipee bien a mano. Cubre las 15
+// tonalidades usuales (mayores y sus relativas menores); nombres
+// enarmónicos comunes (F#/Gb, C#/Db, D#/Eb) se aceptan como alias.
+const ARMADURA_POR_TONALIDAD = {
+  'c':'Ninguna (0 alteraciones)','am':'Ninguna (0 alteraciones)',
+  'g':'1 sostenido','em':'1 sostenido',
+  'd':'2 sostenidos','bm':'2 sostenidos',
+  'a':'3 sostenidos','f#m':'3 sostenidos','gbm':'3 sostenidos',
+  'e':'4 sostenidos','c#m':'4 sostenidos','dbm':'4 sostenidos',
+  'b':'5 sostenidos','cb':'5 sostenidos','g#m':'5 sostenidos','abm':'5 sostenidos',
+  'f#':'6 sostenidos','gb':'6 sostenidos','d#m':'6 sostenidos','ebm':'6 sostenidos',
+  'c#':'7 sostenidos','db':'5 bemoles','a#m':'7 sostenidos','bbm':'5 bemoles',
+  'f':'1 bemol','dm':'1 bemol',
+  'bb':'2 bemoles','a#':'2 bemoles','gm':'2 bemoles',
+  'eb':'3 bemoles','d#':'3 bemoles','cm':'3 bemoles',
+  'ab':'4 bemoles','g#':'4 bemoles','fm':'4 bemoles',
+};
+function armaduraDeTonalidad(tonalidad){
+  const t = (tonalidad || '').trim().toLowerCase().replace(/\s+/g, '');
+  if(!t) return '';
+  return ARMADURA_POR_TONALIDAD[t] || '¿? (tonalidad no reconocida)';
+}
+// v1.116: (a pedido) de "6 sostenidos"/"3 bemoles"/"Ninguna (0
+// alteraciones)" a "♯♯♯♯♯♯"/"♭♭♭"/"" — como se ven las alteraciones
+// dibujadas en la armadura de un pentagrama. Si la tonalidad no se
+// reconoce, no hay símbolos que dibujar (queda vacío).
+function simbolosDeArmadura(tonalidad){
+  const texto = armaduraDeTonalidad(tonalidad);
+  const m = texto.match(/^(\d+)\s+(sostenido|bemol)/);
+  if(!m) return '';
+  return (m[2] === 'sostenido' ? '♯' : '♭').repeat(parseInt(m[1], 10));
+}
+function actualizarArmaduraMostrada(){
+  const el = document.getElementById('mostrarArmadura');
+  if(!el) return;
+  const tonalidad = document.getElementById('inputTonalidad').value;
+  const texto = armaduraDeTonalidad(tonalidad);
+  const simbolos = simbolosDeArmadura(tonalidad);
+  // v1.116: en vez del texto "N sostenido(s)"/"N bemol(es)", se muestra
+  // el símbolo entre paréntesis: "(♯♯♯)". "Ninguna" y "no reconocida"
+  // siguen en texto (no hay símbolo que dibujar en esos casos).
+  el.value = simbolos ? `(${simbolos})` : texto;
+}
+
+// v1.115: (a pedido) lector liviano de tags ID3v2 — NO analiza el
+// audio, solo lee la metadata que software de DJ (Virtual DJ,
+// Rekordbox, Serato) ya escribe en el archivo al analizarlo (frames
+// TBPM/TKEY, o TXXX con descripción "BPM"/"Initial Key"/"Key"). Soporta
+// ID3v2.2 (ids/tamaños de 3 bytes) y v2.3/2.4 (ids de 4 bytes; tamaño
+// synchsafe solo en v2.4). Si algo no calza (archivo sin ID3, formato
+// raro, etc.) devuelve {bpm:null, key:null} sin romper nada — nunca
+// tira, para no afectar la subida/selección del archivo real.
+// Traduce notación Camelot (ej. "8A") a tonalidad musical aproximada
+// cuando el tag viene en ese formato (común en Rekordbox/Serato).
+const CAMELOT_A_TONALIDAD = {
+  '1a':'Abm','2a':'Ebm','3a':'Bbm','4a':'Fm','5a':'Cm','6a':'Gm','7a':'Dm',
+  '8a':'Am','9a':'Em','10a':'Bm','11a':'F#m','12a':'Dbm',
+  '1b':'B','2b':'F#','3b':'Db','4b':'Ab','5b':'Eb','6b':'Bb','7b':'F',
+  '8b':'C','9b':'G','10b':'D','11b':'A','12b':'E',
+};
+async function leerTagsAudioID3(file){
+  const resultado = { bpm: null, key: null };
+  try{
+    if(!file || !file.slice) return resultado;
+    // Cabecera + margen generoso para tags TXXX largos (portada aparte
+    // suele ir al final o ser un frame grande que igual saltamos).
+    const buf = await file.slice(0, 512 * 1024).arrayBuffer();
+    const dv = new DataView(buf);
+    const bytes = new Uint8Array(buf);
+    if(bytes.length < 10 || String.fromCharCode(bytes[0],bytes[1],bytes[2]) !== 'ID3') return resultado;
+    const version = bytes[3]; // 2, 3 o 4
+    const sizeSynchsafe = (bytes[6]<<21) | (bytes[7]<<14) | (bytes[8]<<7) | bytes[9];
+    const tagEnd = Math.min(10 + sizeSynchsafe, bytes.length);
+    const idLen = version === 2 ? 3 : 4;
+    const sizeLen = version === 2 ? 3 : 4;
+    let pos = 10;
+    const leerTexto = (start, len) => {
+      if(len <= 0) return '';
+      const enc = bytes[start];
+      const body = bytes.subarray(start + 1, start + len);
+      try{
+        if(enc === 1 || enc === 2) return new TextDecoder('utf-16' + (enc===2?'be':'')).decode(body).replace(/\u0000/g,'').trim();
+        return new TextDecoder(enc === 3 ? 'utf-8' : 'iso-8859-1').decode(body).replace(/\u0000/g,'').trim();
+      }catch(e){ return ''; }
+    };
+    while(pos + idLen + sizeLen < tagEnd){
+      const id = String.fromCharCode(...bytes.subarray(pos, pos + idLen));
+      if(!/^[A-Z0-9]+$/.test(id)) break; // basura / padding — cortar
+      let frameSize;
+      if(version === 4){
+        frameSize = (bytes[pos+idLen]<<21)|(bytes[pos+idLen+1]<<14)|(bytes[pos+idLen+2]<<7)|bytes[pos+idLen+3];
+      }else{
+        frameSize = dv.getUint32(pos + idLen, false);
+      }
+      const headerLen = idLen + sizeLen + (version === 2 ? 0 : 2); // +2 flags en v2.3/2.4
+      const frameStart = pos + headerLen;
+      if(frameSize <= 0 || frameStart + frameSize > tagEnd) break;
+      if(id === 'TBPM' || id === 'TBP'){
+        const v = leerTexto(frameStart, frameSize);
+        if(v && !resultado.bpm) resultado.bpm = v.replace(/[^\d.]/g,'') || null;
+      }else if(id === 'TKEY' || id === 'TKE'){
+        const v = leerTexto(frameStart, frameSize);
+        if(v && !resultado.key) resultado.key = v;
+      }else if(id === 'TXXX' || id === 'TXX'){
+        const enc = bytes[frameStart];
+        // descripción y valor separados por \0 (o \0\0 en UTF-16)
+        const dobleNull = (enc === 1 || enc === 2);
+        const body = bytes.subarray(frameStart + 1, frameStart + frameSize);
+        let sepIdx = -1;
+        for(let k=0; k<body.length-(dobleNull?1:0); k++){
+          if(body[k] === 0 && (!dobleNull || body[k+1] === 0)){ sepIdx = k; break; }
+        }
+        if(sepIdx >= 0){
+          const descBytes = body.subarray(0, sepIdx);
+          const valBytes = body.subarray(sepIdx + (dobleNull?2:1));
+          const decode = b => { try{ return new TextDecoder(enc>=1&&enc<=2?('utf-16'+(enc===2?'be':'')):(enc===3?'utf-8':'iso-8859-1')).decode(b).replace(/\u0000/g,'').trim(); }catch(e){ return ''; } };
+          const desc = decode(descBytes).toLowerCase();
+          const val = decode(valBytes);
+          if(val && /bpm/.test(desc) && !resultado.bpm) resultado.bpm = val.replace(/[^\d.]/g,'') || null;
+          if(val && /key|tono|tonalidad/.test(desc) && !resultado.key) resultado.key = val;
+        }
+      }
+      pos = frameStart + frameSize;
+    }
+    // Camelot ("8A", "5B") → tonalidad musical aproximada, si aplica.
+    if(resultado.key){
+      const camelot = CAMELOT_A_TONALIDAD[resultado.key.trim().toLowerCase()];
+      if(camelot) resultado.key = `${camelot} (Camelot ${resultado.key.trim().toUpperCase()})`;
+    }
+  }catch(e){ console.error('No se pudieron leer tags ID3:', e); }
+  return resultado;
+}
+
 function duracionCompasesSeccion(s){
   // v1.100: (FIX, a pedido) tarjeta-variación vamp con origen: la
   // duración real es el ciclo copiado del origen (cicloCompases), no el
@@ -1962,7 +2154,7 @@ function textoIndicadorDuracionSeccion(s){
     const dur = duracionCompasesSeccion(s);
     return dur != null
       ? { texto: `→ ${dur} comp\u00e1s${dur === 1 ? '' : 'es'} (ciclo copiado de "${(origen && origen.nombre) || '—'}")`, aviso: false }
-      : { texto: '⚠ La sección origen todavía no tiene ciclo definido', aviso: true };
+      : { texto: '⚠ Esta tarjeta quedó sin ciclo copiado — volvé a elegir el origen arriba', aviso: true };
   }
   if(s.tipo === 'vamp'){
     // v1.112: (FIX, a pedido) el Desde/Hasta de un vamp SIN origen sí
@@ -2035,6 +2227,8 @@ async function iniciarGuiaPractica(){
     document.getElementById('inputOffset').value = temaDataActual.practicaOffset || 0;
     document.getElementById('inputClave').value = temaDataActual.practicaClave || '';
     document.getElementById('inputAnacrusa').checked = !!temaDataActual.practicaAnacrusa;
+    document.getElementById('inputTonalidad').value = temaDataActual.practicaTonalidad || '';
+    actualizarArmaduraMostrada();
 
     // v1.1: (a pedido) el instrumento de cada maqueta ya NO se escribe
     // a mano — se elige de los instrumentos que YA están asignados a
@@ -2064,11 +2258,12 @@ function mostrarOk(id){
 }
 
 async function guardarDatosTema(){
-  const bpm = parseInt(document.getElementById('inputBpm').value, 10) || null;
+  const bpm = parseFloat(document.getElementById('inputBpm').value) || null;
   const compas = document.getElementById('inputCompas').value || null;
   const offset = parseFloat(document.getElementById('inputOffset').value) || 0;
   const clave = document.getElementById('inputClave').value || null;
   const anacrusa = document.getElementById('inputAnacrusa').checked;
+  const tonalidad = document.getElementById('inputTonalidad').value.trim() || null;
 
   // v1.11: (a pedido) si el offset (o BPM/compás) cambia y ya hay
   // secciones creadas, esas secciones guardan un desdeSegundos crudo
@@ -2114,7 +2309,7 @@ async function guardarDatosTema(){
   }
 
   try{
-    const patch = { practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave, practicaAnacrusa: anacrusa };
+    const patch = { practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave, practicaAnacrusa: anacrusa, practicaTonalidad: tonalidad };
     if(seccionesAGuardar) patch.practicaSecciones = seccionesAGuardar;
     await temaRef.update(patch);
     temaDataActual.practicaBpm = bpm;
@@ -2122,6 +2317,7 @@ async function guardarDatosTema(){
     temaDataActual.practicaOffset = offset;
     temaDataActual.practicaClave = clave;
     temaDataActual.practicaAnacrusa = anacrusa;
+    temaDataActual.practicaTonalidad = tonalidad;
     if(seccionesAGuardar) temaDataActual.practicaSecciones = seccionesAGuardar;
     mostrarOk('okDatosTema');
   }catch(e){ console.error(e); alert('No se pudo guardar BPM/compás.'); }
@@ -4204,6 +4400,7 @@ function pintarMaquetas(){
         <button type="button" class="mqaudio-btn" id="mqaudiovolbtn-${i}" onclick="toggleMuteMaquetaAudio(${i})" title="Silenciar">🔊</button>
       </div>` : ''}
       <div class="upload-status" id="maquetaUploadStatus-${i}"></div>
+      <div class="maqueta-tags-info" id="maquetaTagsInfo-${i}"></div>
     </div>
   `).join('');
 }
@@ -4267,6 +4464,9 @@ async function subirAudioMaqueta(i, file){
   if(!file) return;
   const estado = document.getElementById('maquetaUploadStatus-' + i);
   if(estado){ estado.style.display = 'block'; estado.style.color = 'var(--muted)'; estado.textContent = 'Subiendo 0%…'; }
+  // v1.115: (a pedido) lectura de tags ID3 en paralelo a la subida —
+  // es local al archivo elegido, no depende de que termine de subir.
+  mostrarTagsDetectadosMaqueta(i, file);
   try{
     const url = await subirArchivoACloudinary(file, pct => {
       if(estado) estado.textContent = `Subiendo ${pct}%…`;
@@ -4282,6 +4482,37 @@ async function subirAudioMaqueta(i, file){
     console.error('Error subiendo audio a Cloudinary:', e);
     if(estado){ estado.style.color = 'var(--err)'; estado.textContent = 'No se pudo subir el audio. Probá de nuevo.'; }
   }
+}
+// v1.115: (a pedido) muestra BPM/Tonalidad detectados por tags ID3 del
+// archivo de maqueta elegido (no del audio ya subido) y, si "Datos del
+// tema" todavía tiene esos campos vacíos, ofrece un botón para
+// completarlos — nunca pisa un valor que el staff ya haya cargado, y
+// nunca guarda solo: sigue haciendo falta apretar "Guardar BPM y
+// compás" para persistir.
+async function mostrarTagsDetectadosMaqueta(i, file){
+  const cont = document.getElementById('maquetaTagsInfo-' + i);
+  if(!cont) return;
+  const tags = await leerTagsAudioID3(file);
+  if(!tags.bpm && !tags.key){ cont.style.display = 'none'; cont.innerHTML = ''; return; }
+  const partes = [];
+  if(tags.bpm) partes.push(`${tags.bpm} BPM`);
+  if(tags.key) partes.push(tags.key);
+  const bpmVacio = !document.getElementById('inputBpm').value;
+  const tonoVacio = !document.getElementById('inputTonalidad').value;
+  const puedeCompletar = (tags.bpm && bpmVacio) || (tags.key && tonoVacio);
+  cont.style.display = 'flex';
+  cont.innerHTML = `<span>🏷️ Detectado: ${partes.join(' · ')}</span>` +
+    (puedeCompletar ? `<button type="button" class="btn-usar-tags" onclick="usarTagsDetectadosEnDatosTema('${(tags.bpm||'').replace(/'/g,"\\'")}', '${(tags.key||'').replace(/'/g,"\\'")}')">Usar estos valores en Datos del tema</button>` : '');
+}
+function usarTagsDetectadosEnDatosTema(bpm, key){
+  if(bpm && !document.getElementById('inputBpm').value) document.getElementById('inputBpm').value = bpm;
+  if(key && !document.getElementById('inputTonalidad').value){
+    // si viene "Am (Camelot 8A)" nos quedamos solo con la tonalidad
+    document.getElementById('inputTonalidad').value = key.split(' (')[0];
+    actualizarArmaduraMostrada();
+  }
+  const body = document.getElementById('body-datosTema');
+  if(body && body.classList.contains('colapsado')) toggleCardPrincipal('datosTema');
 }
 
 async function guardarMaquetas(){

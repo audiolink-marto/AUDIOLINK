@@ -1,4 +1,11 @@
-/* AUDIOLINK · nav.js · v1.19
+/* AUDIOLINK · nav.js · v1.20
+   V1.20: se agrega el ítem "Ensayo" (ensayo.html) a ITEMS, en el grupo
+   'Operación' — módulo standalone de práctica (login propio, "Mis
+   temas", metrónomo/waveform) que hasta ahora vivía fuera del sidebar
+   compartido, con su propio header. Se suma también a
+   idsFueraBottomnav (mismo criterio que Vacas/Eventos/Cocina) para no
+   saturar la barra inferior móvil. No se tocó ninguna otra función,
+   ítem existente ni la lógica de inyección/colapsar/tema.
    V1.19: _navForzarSincronizacion() ahora también avisa cuando
    sincronizarColaOffline() devuelve `no_reconocidos > 0` (offline-mock.js
    v1.10) — antes, un cambio de una colección no soportada offline (ej.
@@ -224,6 +231,7 @@
     { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador',  grupo:'Finanzas' },
     { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas',     grupo:'Operación' },
     { id:'cocina',    href:'cocina.html',    icon:'🍱', label:'Cocina',    grupo:'Operación' },
+    { id:'ensayo',    href:'ensayo.html',    icon:'🎼', label:'Ensayo',    grupo:'Operación' },
     { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono', grupo:'Ajustes' },
     { id:'header-config', href:'header-config.html', icon:'🖼️', label:'Header PDF', grupo:'Ajustes' }
   ];
@@ -233,7 +241,7 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'cocina', 'avatares', 'cotizador', 'header-config'];
+  const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'cocina', 'ensayo', 'avatares', 'cotizador', 'header-config'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
   // v1.13: mismo ícono, clase extra para poder cambiarle el color según

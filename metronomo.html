@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Metrónomo</title>
+<!-- AUDIOLINK · metronomo.html · v1.0
+     v1.0: (a pedido) hoja independiente, nace a partir de "llevarme el
+     metrónomo standalone" de musico.html — reusa la infraestructura ya
+     existente del ecosistema (firebase-config.js/utils.js, mismo login
+     por correo, mismas variables de tema dark/light, mismos botones
+     cuadrados .practica-click-btn) en vez de reinventarla, siguiendo lo
+     que se charló: "más fácil usar todo lo que ya tenemos acá".
+     Motor de audio: mismo criterio sample-accurate de
+     schedulerTickGlobalPractica/beepPractica de musico.html (Web Audio
+     con lookahead de 100ms sobre un setInterval de 25ms, en vez de
+     setTimeout/rAF puro) — portado y simplificado, sin la parte de
+     sincronía con pista/tema/clave/tramos, que acá no aplica (esto es
+     SOLO el metrónomo libre, sin pista).
+     Memoria: se guarda en Firestore (colección metronomoPersonal,
+     documento = correo del usuario logueado, mismo criterio de
+     identificación por correo que equipoInterno/musicosPortal) — BPM,
+     compás, acentos por pulso, subdivisión, sonido de click,
+     volúmenes, pre-conteo. Se guarda con debounce apenas cambia algo,
+     y se recupera solo al cargar la página. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<style>
+:root{
+  --bg:#0b0b0d;--surf:#151517;--surf-light:#1d1d20;--brd:#2a2a2e;
+  --gold:#c9a24b;--gold-bg:rgba(201,162,75,0.12);--txt:#f0ede6;
+  --muted:#9a978f;--faint:#5c5a55;--ok:#4caf7d;--warn:#d9a441;--err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;--surf:#ffffff;--surf-light:#f3f0e8;--brd:#e2ddd0;
+  --gold:#a8823a;--gold-bg:rgba(168,130,58,0.10);--txt:#2a2620;
+  --muted:#7a756a;--faint:#a39d8f;--ok:#3a8f63;--warn:#b8842f;--err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;}
+header{padding:16px 20px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;background:var(--surf);flex-wrap:wrap;gap:12px;}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+.btn-icon{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;background:var(--surf);border:1px solid var(--brd);color:var(--muted);border-radius:6px;cursor:pointer;}
+.btn-icon:hover{border-color:var(--gold);color:var(--gold);}
+main{padding:24px;max-width:520px;margin:0 auto;}
+.msg-panel{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:40px 24px;text-align:center;color:var(--muted);}
+.metro-box{background:var(--surf);border:1px solid var(--brd);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:18px;box-shadow:0 2px 10px rgba(0,0,0,0.15);}
+.metro-titulo{font-family:var(--T);font-size:1.1rem;color:var(--gold);text-align:center;}
+.metro-guardado{font-size:0.72rem;color:var(--muted);text-align:center;min-height:1em;}
+.metro-bpm-grande{font-family:var(--M);font-size:3rem;font-weight:700;color:var(--gold);text-align:center;line-height:1;}
+.metro-bpm-fila{display:flex;align-items:center;justify-content:center;gap:10px;}
+.practica-click-btn{background:var(--surf);border:1px solid var(--brd);border-radius:8px;color:var(--muted);font-size:1.1rem;padding:8px 10px;cursor:pointer;flex:0;min-width:44px;min-height:44px;box-shadow:0 1px 3px rgba(0,0,0,0.15);transition:background 0.15s,border-color 0.15s;}
+.practica-click-btn:hover{border-color:var(--gold);color:var(--gold);}
+.practica-click-btn.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+.metro-slider{width:100%;accent-color:var(--gold);}
+.metro-tap{width:100%;min-height:52px;font-size:0.95rem;font-weight:600;}
+.metro-play{width:100%;min-height:72px;font-size:1.8rem;border-radius:12px;}
+.metro-fila-label{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;}
+.metro-compas-row{display:flex;align-items:center;gap:10px;}
+.metro-compas-row select{flex:1;min-height:44px;background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:var(--M);font-size:16px;padding:8px 10px;}
+.metro-acentos-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+.metro-acento-dot{width:44px;height:44px;border-radius:50%;border:2px solid var(--brd);background:var(--surf-light);color:var(--muted);font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:var(--M);transition:all 0.1s;}
+.metro-acento-dot[data-acento="fuerte"]{border-color:var(--gold);background:var(--gold-bg);color:var(--gold);}
+.metro-acento-dot[data-acento="mudo"]{opacity:0.35;}
+.metro-acento-dot.sonando{transform:scale(1.15);}
+.metro-select-row{display:flex;align-items:center;gap:10px;}
+.metro-select-row select{flex:1;min-height:44px;background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:var(--S);font-size:0.9rem;padding:8px 10px;}
+.metro-vol-row{display:flex;align-items:center;gap:10px;}
+.metro-vol-row label{font-size:0.78rem;color:var(--muted);flex:0 0 90px;}
+.metro-precont-row{display:flex;align-items:center;gap:10px;}
+.metro-precont-row input[type="number"]{width:60px;min-height:44px;background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:var(--M);font-size:16px;padding:8px 10px;text-align:center;}
+@media (max-width:480px){
+  .metro-bpm-grande{font-size:2.4rem;}
+  main{padding:16px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+    <h1>AUDIOLINK</h1>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
+    <button class="btn-icon" onclick="cerrarSesion()" title="Salir">⏻</button>
+  </div>
+</header>
+
+<main>
+  <div id="metroApp" style="display:none;">
+    <div class="metro-box">
+      <div class="metro-titulo">🎵 Metrónomo</div>
+      <div class="metro-guardado" id="metroGuardado"></div>
+
+      <div class="metro-bpm-grande" id="metroBpmGrande">120</div>
+      <div class="metro-bpm-fila">
+        <button class="practica-click-btn" onclick="ajustarBpm(-5)" title="−5 BPM">−5</button>
+        <button class="practica-click-btn" onclick="ajustarBpm(-1)" title="−1 BPM">−1</button>
+        <input type="range" class="metro-slider" id="metroSlider" min="30" max="300" step="1" value="120" oninput="setBpm(parseFloat(this.value))">
+        <button class="practica-click-btn" onclick="ajustarBpm(1)" title="+1 BPM">+1</button>
+        <button class="practica-click-btn" onclick="ajustarBpm(5)" title="+5 BPM">+5</button>
+      </div>
+      <button class="practica-click-btn metro-tap" onclick="tapTempo()">👆 Tap tempo</button>
+
+      <div>
+        <div class="metro-fila-label">Compás</div>
+        <div class="metro-compas-row">
+          <select id="metroCompas" onchange="setCompas(parseInt(this.value,10))">
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="metro-fila-label">Acentos (tocar para alternar fuerte / normal / mudo)</div>
+        <div class="metro-acentos-row" id="metroAcentosRow"></div>
+      </div>
+
+      <div class="metro-select-row">
+        <span class="metro-fila-label" style="flex:0 0 auto;">Subdivisión</span>
+        <select id="metroSubdivision" onchange="setSubdivision(parseInt(this.value,10))">
+          <option value="1">Sin subdivisión</option>
+          <option value="2">Corcheas (2)</option>
+          <option value="4">Semicorcheas (4)</option>
+        </select>
+      </div>
+
+      <div class="metro-select-row">
+        <span class="metro-fila-label" style="flex:0 0 auto;">Sonido</span>
+        <select id="metroSonido" onchange="setSonido(this.value)">
+          <option value="clasico">Clásico</option>
+          <option value="grave">Grave</option>
+          <option value="woodblock">Woodblock</option>
+          <option value="claveorganica">Clave orgánica</option>
+        </select>
+      </div>
+
+      <div class="metro-vol-row">
+        <label>Vol. fuerte</label>
+        <input type="range" class="metro-slider" min="0" max="1" step="0.05" id="metroVolFuerte" oninput="setVolFuerte(parseFloat(this.value))">
+      </div>
+      <div class="metro-vol-row">
+        <label>Vol. normal</label>
+        <input type="range" class="metro-slider" min="0" max="1" step="0.05" id="metroVolNormal" oninput="setVolNormal(parseFloat(this.value))">
+      </div>
+
+      <div class="metro-precont-row">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--muted);">
+          <input type="checkbox" id="metroPrecontChk" onchange="setPrecontActivo(this.checked)">
+          Pre-conteo
+        </label>
+        <input type="number" id="metroPrecontCompases" min="1" max="4" step="1" value="1" onchange="setPrecontCompases(parseInt(this.value,10))" title="Compases de pre-conteo">
+      </div>
+
+      <button class="practica-click-btn metro-play" id="metroPlayBtn" onclick="toggleMetronomo()" title="Tocar para arrancar">▶</button>
+    </div>
+  </div>
+  <div id="metroCargando" class="msg-panel">Cargando…</div>
+</main>
+
+<script>
+// ============ Tema (idéntico criterio a musico.html) ============
+function toggleTema(){
+  const actual = document.documentElement.getAttribute('data-tema') || 'dark';
+  const nuevo = actual === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  localStorage.setItem('audiolink_tema', nuevo);
+  document.getElementById('btnTema').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+}
+(function(){
+  const t = localStorage.getItem('audiolink_tema') || 'dark';
+  document.getElementById('btnTema').textContent = t === 'dark' ? '🌙' : '☀️';
+})();
+function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  auth.signOut().then(() => window.location.href = 'login.html');
+}
+
+// ============ Firebase (mismo patrón que musico.html) ============
+let auth;
+try{
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+}catch(e){
+  console.error('AUDIOLINK: no se pudo inicializar Firebase.', e);
+  auth = { signOut: () => Promise.resolve(), onAuthStateChanged: () => {} };
+}
+const db = crearDB();
+let correoActual = null;
+
+// ============ Estado del metrónomo (todo lo que se guarda en Firestore) ============
+const SONIDOS_CLICK = {
+  clasico:   { tipo: 'sine',     fFuerte: 1300, fNormal: 900  },
+  grave:     { tipo: 'triangle', fFuerte: 700,  fNormal: 500  },
+  woodblock: { tipo: 'square',   fFuerte: 1800, fNormal: 1200 },
+  claveorganica: { tipo: 'noise', fFuerte: 2800, fNormal: 2100 }
+};
+const est = {
+  bpm: 120,
+  compas: 4,
+  acentos: ['fuerte','normal','normal','normal'],
+  subdivision: 1,
+  sonidoClick: 'clasico',
+  volFuerte: 1,
+  volNormal: 0.65,
+  precontActivo: false,
+  precontCompases: 1,
+  activo: false,
+  precontEnCurso: false,
+  precontTimeouts: [],
+  inicio: 0,
+  schedNextBeatIdx: null,
+  schedNextSubIdx: null
+};
+
+// ============ Motor de audio (Web Audio, sample-accurate) ============
+// Mismo criterio que beepPractica/schedulerTickGlobalPractica de
+// musico.html (v3.97) — portado tal cual para el pulso "libre" (sin
+// pista), simplificado sin clave/tramos/sincronía con tema, que acá no
+// aplican.
+let audioCtx;
+function obtenerAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function beep(fuerte, sonido, volumen, precuenta, when){
+  obtenerAudioCtx();
+  const cfg = SONIDOS_CLICK[sonido] || SONIDOS_CLICK.clasico;
+  const vol = Math.max(0, Math.min(1, volumen == null ? 1 : volumen));
+  if(vol <= 0) return;
+  const ctx = audioCtx;
+  const t0 = when != null ? when : ctx.currentTime;
+  if(cfg.tipo === 'noise'){
+    const dur = 0.045;
+    const bufferSize = Math.max(1, Math.round(ctx.sampleRate * dur));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i = 0; i < bufferSize; i++){
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2.2);
+    }
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = buffer;
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = (fuerte ? cfg.fFuerte : cfg.fNormal) * (precuenta ? 1.3 : 1);
+    bandpass.Q.value = 7;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.6 * vol, t0);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    noiseSource.connect(bandpass).connect(gain).connect(ctx.destination);
+    noiseSource.start(t0);
+    noiseSource.stop(t0 + dur);
+    return;
+  }
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = cfg.tipo;
+  osc.frequency.value = (fuerte ? cfg.fFuerte : cfg.fNormal) * (precuenta ? 1.5 : 1);
+  gain.gain.setValueAtTime(0.22 * vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + 0.08);
+}
+const SCHED_LOOKAHEAD_SEC = 0.1;
+const SCHED_INTERVAL_MS = 25;
+function schedulerTick(){
+  if(!est.activo) return;
+  obtenerAudioCtx();
+  const secPerBeat = 60 / est.bpm;
+  const tRel = (performance.now() - est.inicio) / 1000;
+  const ahoraCtx = audioCtx.currentTime;
+  const ventanaHasta = tRel + SCHED_LOOKAHEAD_SEC;
+
+  if(est.schedNextBeatIdx == null ||
+     Math.abs(est.schedNextBeatIdx * secPerBeat - tRel) > secPerBeat * 1.5){
+    est.schedNextBeatIdx = Math.ceil(tRel / secPerBeat);
+  }
+  while(est.schedNextBeatIdx * secPerBeat < ventanaHasta){
+    const beatTime = est.schedNextBeatIdx * secPerBeat;
+    const when = ahoraCtx + (beatTime - tRel);
+    const beatEnBarra = ((est.schedNextBeatIdx % est.compas) + est.compas) % est.compas;
+    const acento = est.acentos[beatEnBarra] || 'normal';
+    if(acento !== 'mudo') beep(acento === 'fuerte', est.sonidoClick, acento === 'fuerte' ? est.volFuerte : est.volNormal, false, when);
+    marcarBeatVisual(beatEnBarra, when);
+    est.schedNextBeatIdx++;
+  }
+
+  if(est.subdivision > 1){
+    const secPerSub = secPerBeat / est.subdivision;
+    if(est.schedNextSubIdx == null ||
+       Math.abs(est.schedNextSubIdx * secPerSub - tRel) > secPerSub * 1.5){
+      est.schedNextSubIdx = Math.ceil(tRel / secPerSub);
+    }
+    while(est.schedNextSubIdx * secPerSub < ventanaHasta){
+      const subTime = est.schedNextSubIdx * secPerSub;
+      if(((est.schedNextSubIdx % est.subdivision) + est.subdivision) % est.subdivision !== 0){
+        const whenSub = ahoraCtx + (subTime - tRel);
+        beep(false, est.sonidoClick, (est.volNormal || 0.55) * 0.6, false, whenSub);
+      }
+      est.schedNextSubIdx++;
+    }
+  }
+}
+setInterval(schedulerTick, SCHED_INTERVAL_MS);
+// Resalta visualmente el pulso que está a punto de sonar (mismo delay
+// que audio, vía setTimeout hasta "when") — puramente cosmético.
+function marcarBeatVisual(beatEnBarra, when){
+  const delayMs = Math.max(0, (when - audioCtx.currentTime) * 1000);
+  setTimeout(() => {
+    document.querySelectorAll('.metro-acento-dot').forEach(d => d.classList.remove('sonando'));
+    const dot = document.getElementById('acentodot-' + beatEnBarra);
+    if(dot){ dot.classList.add('sonando'); setTimeout(() => dot.classList.remove('sonando'), 100); }
+  }, delayMs);
+}
+
+// ============ Pre-conteo (mismo criterio que programarPreconteoPractica) ============
+function programarPreconteo(alTerminar){
+  const secPerBeat = 60 / est.bpm;
+  const totalBeats = est.compas * (est.precontCompases || 1);
+  est.precontEnCurso = true;
+  est.precontTimeouts = [];
+  for(let i = 0; i < totalBeats; i++){
+    const beatEnBarra = i % est.compas;
+    const t = setTimeout(() => {
+      const acento = est.acentos[beatEnBarra] || 'normal';
+      if(acento !== 'mudo') beep(acento === 'fuerte', est.sonidoClick, acento === 'fuerte' ? est.volFuerte : est.volNormal, true);
+    }, i * secPerBeat * 1000);
+    est.precontTimeouts.push(t);
+  }
+  est.precontTimeouts.push(setTimeout(() => {
+    est.precontEnCurso = false;
+    alTerminar();
+  }, totalBeats * secPerBeat * 1000));
+}
+function cancelarPreconteo(){
+  est.precontEnCurso = false;
+  est.precontTimeouts.forEach(t => clearTimeout(t));
+  est.precontTimeouts = [];
+}
+
+// ============ Play/pause ============
+function toggleMetronomo(){
+  const btn = document.getElementById('metroPlayBtn');
+  if(est.activo || est.precontEnCurso){
+    est.activo = false;
+    cancelarPreconteo();
+    btn.textContent = '▶';
+    btn.title = 'Tocar para arrancar';
+    btn.classList.remove('activo');
+    return;
+  }
+  const arrancar = () => {
+    est.activo = true;
+    est.inicio = performance.now();
+    est.schedNextBeatIdx = null;
+    est.schedNextSubIdx = null;
+    btn.textContent = '⏸';
+    btn.title = 'Sonando — tocar para detener';
+    btn.classList.add('activo');
+  };
+  if(est.precontActivo){
+    btn.textContent = '⏳';
+    btn.title = 'Pre-conteo…';
+    btn.classList.add('activo');
+    programarPreconteo(arrancar);
+  } else {
+    arrancar();
+  }
+}
+
+// ============ Tap tempo ============
+let tapTimes = [];
+function tapTempo(){
+  const ahora = performance.now();
+  tapTimes.push(ahora);
+  tapTimes = tapTimes.filter(t => ahora - t < 3000);
+  if(tapTimes.length < 2) return;
+  const intervalos = [];
+  for(let i = 1; i < tapTimes.length; i++) intervalos.push(tapTimes[i] - tapTimes[i-1]);
+  const promedio = intervalos.reduce((a,b) => a+b, 0) / intervalos.length;
+  setBpm(Math.round(60000 / promedio));
+}
+
+// ============ Setters (actualizan UI + estado + disparan guardado) ============
+function actualizarUI(){
+  document.getElementById('metroBpmGrande').textContent = Math.round(est.bpm);
+  document.getElementById('metroSlider').value = est.bpm;
+  document.getElementById('metroSubdivision').value = est.subdivision;
+  document.getElementById('metroSonido').value = est.sonidoClick;
+  document.getElementById('metroVolFuerte').value = est.volFuerte;
+  document.getElementById('metroVolNormal').value = est.volNormal;
+  document.getElementById('metroPrecontChk').checked = est.precontActivo;
+  document.getElementById('metroPrecontCompases').value = est.precontCompases;
+  const sel = document.getElementById('metroCompas');
+  if(sel.options.length === 0){
+    for(let n = 1; n <= 12; n++){
+      const opt = document.createElement('option');
+      opt.value = n; opt.textContent = n + '/4';
+      sel.appendChild(opt);
+    }
+  }
+  sel.value = est.compas;
+  const row = document.getElementById('metroAcentosRow');
+  row.innerHTML = '';
+  for(let i = 0; i < est.compas; i++){
+    const acento = est.acentos[i] || 'normal';
+    const dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = 'metro-acento-dot';
+    dot.id = 'acentodot-' + i;
+    dot.setAttribute('data-acento', acento);
+    dot.textContent = i + 1;
+    dot.title = 'Tiempo ' + (i+1) + ' — ' + acento + ' (tocar para cambiar)';
+    dot.onclick = () => ciclarAcento(i);
+    row.appendChild(dot);
+  }
+}
+function ciclarAcento(i){
+  const orden = ['fuerte','normal','mudo'];
+  const actual = est.acentos[i] || 'normal';
+  est.acentos[i] = orden[(orden.indexOf(actual) + 1) % orden.length];
+  actualizarUI();
+  guardarDebounced();
+}
+function setBpm(v){ est.bpm = Math.max(30, Math.min(300, v)); actualizarUI(); guardarDebounced(); }
+function ajustarBpm(d){ setBpm(est.bpm + d); }
+function setCompas(n){
+  est.compas = Math.max(1, Math.min(12, n));
+  // conserva los acentos que ya había, agrega "normal" si el compás
+  // creció, corta si se achicó — el tiempo 1 sigue siendo "fuerte" por
+  // defecto solo si el array quedó vacío.
+  const nuevos = [];
+  for(let i = 0; i < est.compas; i++) nuevos.push(est.acentos[i] || (i === 0 ? 'fuerte' : 'normal'));
+  est.acentos = nuevos;
+  actualizarUI();
+  guardarDebounced();
+}
+function setSubdivision(n){ est.subdivision = n; guardarDebounced(); }
+function setSonido(s){ est.sonidoClick = s; guardarDebounced(); }
+function setVolFuerte(v){ est.volFuerte = v; guardarDebounced(); }
+function setVolNormal(v){ est.volNormal = v; guardarDebounced(); }
+function setPrecontActivo(b){ est.precontActivo = b; guardarDebounced(); }
+function setPrecontCompases(n){ est.precontCompases = Math.max(1, Math.min(4, n)); guardarDebounced(); }
+
+// ============ Persistencia en Firestore ============
+let guardarTimeout = null;
+function guardarDebounced(){
+  clearTimeout(guardarTimeout);
+  guardarTimeout = setTimeout(guardarEnFirestore, 600);
+}
+async function guardarEnFirestore(){
+  if(!correoActual) return;
+  const el = document.getElementById('metroGuardado');
+  try{
+    await db.collection('metronomoPersonal').doc(correoActual).set({
+      bpm: est.bpm,
+      compas: est.compas,
+      acentos: est.acentos,
+      subdivision: est.subdivision,
+      sonidoClick: est.sonidoClick,
+      volFuerte: est.volFuerte,
+      volNormal: est.volNormal,
+      precontActivo: est.precontActivo,
+      precontCompases: est.precontCompases,
+      actualizadoEn: new Date().toISOString()
+    }, { merge: true });
+    if(el){ el.textContent = 'Guardado ✓'; setTimeout(() => { if(el.textContent === 'Guardado ✓') el.textContent = ''; }, 1500); }
+  }catch(e){
+    console.error('No se pudo guardar el metrónomo en Firestore:', e);
+    if(el) el.textContent = 'No se pudo guardar (¿sin conexión?)';
+  }
+}
+async function cargarDeFirestore(){
+  if(!correoActual) return;
+  try{
+    const doc = await db.collection('metronomoPersonal').doc(correoActual).get();
+    if(doc.exists){
+      const d = doc.data();
+      if(d.bpm) est.bpm = d.bpm;
+      if(d.compas) est.compas = d.compas;
+      if(Array.isArray(d.acentos) && d.acentos.length) est.acentos = d.acentos;
+      if(d.subdivision) est.subdivision = d.subdivision;
+      if(d.sonidoClick) est.sonidoClick = d.sonidoClick;
+      if(d.volFuerte != null) est.volFuerte = d.volFuerte;
+      if(d.volNormal != null) est.volNormal = d.volNormal;
+      if(d.precontActivo != null) est.precontActivo = d.precontActivo;
+      if(d.precontCompases) est.precontCompases = d.precontCompases;
+    }
+  }catch(e){
+    console.error('No se pudo leer el metrónomo guardado:', e);
+  }
+  actualizarUI();
+  document.getElementById('metroCargando').style.display = 'none';
+  document.getElementById('metroApp').style.display = 'block';
+}
+
+// ============ Guard de sesión (mismo patrón que musico.html, sin las
+// ramas de staff/preview/offline que acá no aplican — esto es de uso
+// personal, solo necesita saber "quién sos" para guardar/leer) ============
+auth.onAuthStateChanged(async (user) => {
+  if(!user){
+    location.href = 'login.html?next=' + encodeURIComponent(location.href);
+    return;
+  }
+  correoActual = user.email.toLowerCase();
+  await cargarDeFirestore();
+});
+</script>
+</body>
+</html>
