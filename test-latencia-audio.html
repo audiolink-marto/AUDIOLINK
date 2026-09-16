@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test de latencia de audio</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:24px;text-align:center}
+  button{font-size:1.2rem;padding:14px 28px;border-radius:10px;border:none;background:#e8b923;color:#111;font-weight:bold;margin-top:20px}
+  .dato{font-size:1.4rem;margin:14px 0;padding:14px;background:#222;border-radius:10px}
+  .label{color:#999;font-size:0.9rem}
+  .num{font-size:1.8rem;color:#e8b923}
+</style>
+</head>
+<body>
+  <h2>Test de latencia de audio</h2>
+  <p>Tocá el botón, esperá el click, y mirá los valores que reporta tu navegador.</p>
+  <button onclick="medir()">▶ Reproducir click y medir</button>
+  <div id="resultados"></div>
+
+<script>
+let ctx = null;
+function medir(){
+  if(!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if(ctx.state === 'suspended') ctx.resume();
+
+  // beep simple, igual de corto que un click de metrónomo
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = 1000;
+  gain.gain.value = 0.3;
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  const when = ctx.currentTime + 0.05;
+  osc.start(when);
+  osc.stop(when + 0.08);
+
+  const outputLatency = ctx.outputLatency !== undefined ? ctx.outputLatency : null;
+  const baseLatency = ctx.baseLatency !== undefined ? ctx.baseLatency : null;
+  const sampleRate = ctx.sampleRate;
+
+  document.getElementById('resultados').innerHTML = `
+    <div class="dato">
+      <div class="label">outputLatency (lo que buscamos)</div>
+      <div class="num">${outputLatency !== null ? (outputLatency*1000).toFixed(1) + ' ms' : 'no soportado por este navegador'}</div>
+    </div>
+    <div class="dato">
+      <div class="label">baseLatency (respaldo si no hay outputLatency)</div>
+      <div class="num">${baseLatency !== null ? (baseLatency*1000).toFixed(1) + ' ms' : 'no soportado'}</div>
+    </div>
+    <div class="dato">
+      <div class="label">sampleRate del contexto</div>
+      <div class="num">${sampleRate} Hz</div>
+    </div>
+    <p style="color:#999;font-size:0.85rem">Tocá el botón varias veces — el valor debería ser estable. Contame los números que ves.</p>
+  `;
+}
+</script>
+</body>
+</html>

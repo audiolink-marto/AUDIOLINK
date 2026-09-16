@@ -3,8 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.213</title>
-<!-- AUDIOLINK · ensayo.html · v3.213
+<title>Audiolink — Ensayo v3.214</title>
+<!-- AUDIOLINK · ensayo.html · v3.214
+     v3.214: (a pedido, "en mobile el audio se siente atrasado") FIX de
+     desfase visual/audio en mobile. Diagnóstico confirmado con test
+     aparte: el click y el audio del tema YA estaban perfectamente
+     sincronizados entre sí (ambos se agendan con el mismo reloj de
+     Web Audio, audioCtxPractica.currentTime — ver v3.120/v3.97). El
+     desfase real era entre el punto visual (rAF, se enciende en el
+     instante en que el código agenda el sonido) y el audio realmente
+     audible: en mobile el hardware tarda bastante más en sacar el
+     sonido por el parlante que en desktop (outputLatency medido con
+     Opera/Android: 112ms — imperceptible en desktop, muy notorio en
+     mobile). Se agrega latenciaSalidaAudioPractica() (lee
+     AudioContext.outputLatency, con fallback a .baseLatency, y 0 si
+     ninguno existe — no rompe navegadores viejos) y se resta ese valor
+     al tiempo que el tick() de rAF le pasa a actualizarContadorPractica/
+     dibujarWaveform, así el punto y el waveform "esperan" lo mismo que
+     tarda el sonido en llegar al oído. No se tocó el scheduler de
+     audio (schedulerTickGlobalPractica) ni el motor de reproducción
+     (crearWebAudioPlayer): click/clave/tema siguen agendándose exacto
+     igual que antes, solo cambia CUÁNDO se refleja visualmente.
+     ============================================================
      v3.213: (a pedido) 3 ajustes visuales en el panel de práctica:
      1) Puntos de PULSO más grandes: 18px normal / 28px acento (antes
         10px/18px) — más notorios en mobile mientras se toca.
@@ -3089,6 +3109,27 @@ function obtenerAudioCtxPractica(){
   return audioCtxPractica;
 }
 
+// v3.214: (a pedido, "en mobile el audio se siente atrasado") tiempo
+// real que tarda el hardware en sacar el sonido por el parlante desde
+// que Web Audio lo agenda. En desktop suele ser bajo (10-20ms,
+// imperceptible); en mobile puede ser 80-150ms (medido 112ms en
+// Opera/Android) — suficiente para que el punto visual (que se
+// enciende en el instante en que se AGENDA el sonido, no en el que
+// suena) se sienta adelantado respecto a lo que se oye. outputLatency
+// es la propiedad estándar para esto; baseLatency es el respaldo en
+// navegadores que no la soportan; 0 es el último respaldo (mismo
+// comportamiento que antes de este fix, no rompe nada). Se consulta en
+// vivo (no se cachea): el valor puede cambiar si el sistema operativo
+// reenruta el audio (ej. conectar/desconectar Bluetooth a mitad de
+// sesión).
+function latenciaSalidaAudioPractica(){
+  const ctx = audioCtxPractica;
+  if(!ctx) return 0;
+  if(typeof ctx.outputLatency === 'number' && ctx.outputLatency > 0) return ctx.outputLatency;
+  if(typeof ctx.baseLatency === 'number' && ctx.baseLatency > 0) return ctx.baseLatency;
+  return 0;
+}
+
 // v3.97: (a pedido, "el metrónomo en móvil no es constante") scheduler
 // de audio independiente del rAF visual. Antes, cada beep se disparaba
 // EN EL MISMO INSTANTE en que actualizarContadorPractica() (llamada
@@ -6079,8 +6120,13 @@ function conectarListenersMotorLocalPractica(uid, motor){
   const tick = () => {
     const e = estadoPractica[uid];
     if(!e || !e.audioActivo || e.audioActivo.paused) return;
-    actualizarContadorPractica(uid, e.getTiempoActual());
-    dibujarWaveform(uid, e.getTiempoActual());
+    // v3.214: se resta la latencia de salida real del dispositivo antes
+    // de dibujar — el sonido y el click (scheduler) NO se tocan, solo
+    // se retrasa lo visual para que calce con el instante en que el
+    // sonido realmente llega al oído.
+    const tVisual = Math.max(0, e.getTiempoActual() - latenciaSalidaAudioPractica());
+    actualizarContadorPractica(uid, tVisual);
+    dibujarWaveform(uid, tVisual);
     requestAnimationFrame(tick);
   };
   motor.addEventListener('play', () => { marcarReproduccionActiva(uid); actualizarIconoPlayPractica(uid); requestAnimationFrame(tick); });
