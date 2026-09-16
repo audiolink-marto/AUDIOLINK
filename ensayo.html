@@ -3,8 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.214</title>
-<!-- AUDIOLINK · ensayo.html · v3.214
+<title>Audiolink — Ensayo v3.217</title>
+<!-- AUDIOLINK · ensayo.html · v3.217
+     v3.217: (a pedido, "el loop scrollea solo") FIX — al terminar cada
+     vuelta del loop, el chequeo de fin de sección (finSecChequeo) pone
+     actual=null un frame antes de que el loop realmente vuelva al
+     inicio; ese apagón de un frame borra est.ultimaSeccionChip, así
+     que al reiniciar el loop la MISMA sección se detectaba como
+     "recién activada" y disparaba bloqueActual.scrollIntoView(),
+     scrolleando la pantalla sola en cada vuelta aunque nunca hubo
+     cambio real de sección. Se saca el scrollIntoView; se deja intacto
+     todo lo demás (el chip/bloque se sigue resaltando con .activo,
+     badge y contador sin cambios).
+     ============================================================
+     v3.216: (a pedido) el badge (BPM/compás/clave, badge2-${uid}) y la
+     fila de reproductor+preconteo (metrobtn/precontbtn, antes
+     .practica-libre-row suelta más abajo) pasan a vivir DENTRO de la
+     misma card del contador (.practica-metro), en vez de sueltos más
+     abajo con panelAjustesHtml en el medio. Se creó .practica-contador-card
+     como wrapper con el fondo/padding/radio que antes tenía solo
+     .practica-metro (que ahora los pierde, para no quedar una card
+     dentro de otra) y se le da separación propia a badge-fila/
+     libre-row cuando están dentro de este wrapper. Ningún id ni función
+     cambia — mismos elementos, mismo panelAjustesHtml donde estaba,
+     solo cambia el contenedor visual de estas 2 filas.
+     ============================================================
+     v3.215: (a pedido) 2 ajustes visuales en el panel de práctica:
+     1) El bloque "Pulso" (label + pulsoClaveUnificadoHtml) se movió de
+        su lugar original (después del contador, junto a "Configuración")
+        a justo después del waveform, antes de .practica-metro — ahora
+        aparece ARRIBA del contador grande. Puro reordenamiento de HTML:
+        ningún id ni función cambia, no se tocó pulsoClaveUnificadoHtml
+        ni su lógica de actualización (línea ~4122 la sigue reemplazando
+        vía outerHTML con el mismo id).
+     2) Card de sección actual (#seccion-${uid}) deja de aparecer/
+        desaparecer (antes display:none/''): ahora queda siempre visible,
+        ocupando el mismo espacio. Se sacó el style="display:none" inicial
+        del HTML y, en los 3 lugares donde antes se ocultaba
+        (desactivarSeccionResaltada, "sin sección activa en el progreso"
+        y "tema sin secciones"), ahora se le pone innerHTML='—' (placeholder
+        neutro, sin valores) en vez de ocultarla. El caso en que SÍ hay
+        sección activa sigue llenando el mismo innerHTML de siempre, sin
+        cambios.
+     ============================================================
      v3.214: (a pedido, "en mobile el audio se siente atrasado") FIX de
      desfase visual/audio en mobile. Diagnóstico confirmado con test
      aparte: el click y el audio del tema YA estaban perfectamente
@@ -925,6 +966,10 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-seccion-chip.activo{background:var(--sec-color, var(--gold));color:var(--sec-text, #fff);box-shadow:0 0 10px 1px var(--sec-color, var(--gold)) inset, 0 0 8px 1px var(--sec-color, var(--gold));font-size:0.96rem;}
 .practica-yt{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:var(--surf-light);}
 /* v1.7: rediseño del bloque de metrónomo/contador */
+.practica-contador-card{background:var(--surf-light);border-radius:8px;padding:10px 12px;margin-top:10px;}
+.practica-contador-card .practica-metro{margin-top:0;padding:0;background:none;border-radius:0;}
+.practica-contador-card .practica-badge-fila{margin-top:10px;margin-bottom:0;}
+.practica-contador-card .practica-libre-row{margin-top:10px;}
 .practica-metro{display:flex;align-items:center;gap:14px;margin-top:10px;padding:10px 12px;background:var(--surf-light);border-radius:8px;}
 .practica-compas-wrap{flex:1;text-align:center;position:relative;}
 /* v3.127: (a pedido) bombillito piloto de la clave — arriba-izquierda
@@ -2892,17 +2937,26 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
           <canvas class="practica-waveform" id="waveformcanvas-${uid}" width="700" height="90" onclick="seekWaveformClick(event, '${uid}')"></canvas>
         </div>
 
-        <div class="practica-metro">
-          <div class="practica-compas-wrap">
-            <span class="practica-clave-piloto" id="clavepiloto-${uid}" style="display:none;" title="Clave">🌶</span>
-            <div class="practica-compas-grande" id="compas-${uid}">1</div><span class="practica-beat-chico" id="beat-${uid}">· 1</span>
-            <div class="practica-seccion-actual" id="seccion-${uid}" style="display:none;">—</div>
+        <span class="practica-fila-label" id="pulsolabel-${uid}">Pulso${clave ? ' · Clave (' + escapeHtml(CLAVE_ETIQUETAS[clave] || '') + ')' : ''}</span>
+        ${pulsoClaveUnificadoHtml(uid, compasesPorBarra, clave)}
+        <div class="practica-contador-card">
+          <div class="practica-metro">
+            <div class="practica-compas-wrap">
+              <span class="practica-clave-piloto" id="clavepiloto-${uid}" style="display:none;" title="Clave">🌶</span>
+              <div class="practica-compas-grande" id="compas-${uid}">1</div><span class="practica-beat-chico" id="beat-${uid}">· 1</span>
+              <div class="practica-seccion-actual" id="seccion-${uid}">—</div>
+            </div>
+            <button class="practica-click-btn" id="clickbtn-${uid}" onclick="toggleClickPractica('${uid}')" title="Click de metrónomo">${ICONO_METRONOMO_SVG}</button>
+            <button class="practica-click-btn" id="clavebtn-${uid}" onclick="toggleClavePractica('${uid}')" title="Sonido de clave" style="display:none;">🌶</button>
+            <button class="practica-click-btn practica-vol-btn" id="volbtn-${uid}" onclick="toggleVolumenRapidoPractica('${uid}')" title="Volumen rápido">Vol</button>
+            <button class="practica-click-btn" id="ajustesbtn-${uid}" onclick="toggleAjustesPractica('${uid}')" title="Ajustes de metrónomo">≡</button>
+            <button class="practica-local-pad" id="localpadmetro-${uid}" onclick="document.getElementById('filein-${uid}').click()" title="Cambiar canción del dispositivo" style="display:none;">⬆</button>
           </div>
-          <button class="practica-click-btn" id="clickbtn-${uid}" onclick="toggleClickPractica('${uid}')" title="Click de metrónomo">${ICONO_METRONOMO_SVG}</button>
-          <button class="practica-click-btn" id="clavebtn-${uid}" onclick="toggleClavePractica('${uid}')" title="Sonido de clave" style="display:none;">🌶</button>
-          <button class="practica-click-btn practica-vol-btn" id="volbtn-${uid}" onclick="toggleVolumenRapidoPractica('${uid}')" title="Volumen rápido">Vol</button>
-          <button class="practica-click-btn" id="ajustesbtn-${uid}" onclick="toggleAjustesPractica('${uid}')" title="Ajustes de metrónomo">≡</button>
-          <button class="practica-local-pad" id="localpadmetro-${uid}" onclick="document.getElementById('filein-${uid}').click()" title="Cambiar canción del dispositivo" style="display:none;">⬆</button>
+          <div class="practica-badge-fila" id="badge2-${uid}"></div>
+          <div class="practica-libre-row">
+            <button class="btn practica-metro-btn" id="metrobtn-${uid}" onclick="toggleMetronomoLibre('${uid}')" title="Metrónomo libre (sin pista) — tocar para arrancar">▶</button>
+            <button class="practica-click-btn practica-precont-btn activo" id="precontbtn-${uid}" onclick="togglePreconteoPractica('${uid}')" title="Pre-conteo antes de arrancar">🥁</button>
+          </div>
         </div>
         <div class="practica-local-row">
           <input type="file" id="filein-${uid}" accept="audio/*" style="display:none" onchange="onArchivoLocalElegido('${uid}', this.files)">
@@ -2929,14 +2983,7 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
           </div>
         </details>
         ${volumenRapidoHtml(uid)}
-        <span class="practica-fila-label" id="pulsolabel-${uid}">Pulso${clave ? ' · Clave (' + escapeHtml(CLAVE_ETIQUETAS[clave] || '') + ')' : ''}</span>
-        ${pulsoClaveUnificadoHtml(uid, compasesPorBarra, clave)}
-        <div class="practica-badge-fila" id="badge2-${uid}"></div>
         ${panelAjustesHtml(uid, compasesPorBarra, clave)}
-        <div class="practica-libre-row">
-          <button class="btn practica-metro-btn" id="metrobtn-${uid}" onclick="toggleMetronomoLibre('${uid}')" title="Metrónomo libre (sin pista) — tocar para arrancar">▶</button>
-          <button class="practica-click-btn practica-precont-btn activo" id="precontbtn-${uid}" onclick="togglePreconteoPractica('${uid}')" title="Pre-conteo antes de arrancar">🥁</button>
-        </div>
 
         <div class="practica-pdf-row" id="pdfrow-${uid}" style="display:none;"><button class="btn-ghost" onclick="exportarEstructuraPracticaPDF('${uid}')">📄 Exportar PDF</button><button class="btn-ghost" onclick="exportarEstructuraPracticaPDFPercusion('${uid}')" style="margin-left:8px;">🥁 PDF Percusión</button></div>
 
@@ -3426,7 +3473,7 @@ function desactivarSeccionResaltada(uid, segundos){
   const chip = document.getElementById('chip-' + uid + '-' + segundos);
   if(chip) chip.classList.remove('activo');
   const elSeccion = document.getElementById('seccion-' + uid);
-  if(elSeccion) elSeccion.style.display = 'none';
+  if(elSeccion) elSeccion.innerHTML = '—';
   est.seccionDesactivadaSegundos = segundos;
   if(est.getTiempoActual) dibujarWaveform(uid, est.getTiempoActual());
 }
@@ -4947,7 +4994,6 @@ function actualizarContadorPractica(uid, tiempoActual){
       const bloqueActual = document.getElementById('mapabloque-' + uid + '-' + actual.desdeSegundos);
       if(bloqueActual){
         bloqueActual.classList.add('activo');
-        bloqueActual.scrollIntoView({block: 'nearest', inline: 'center', behavior: 'smooth'});
       }
     }
     est.ultimaSeccionChip = nuevoChipKey;
@@ -5140,7 +5186,7 @@ function actualizarContadorPractica(uid, tiempoActual){
     elFill.style.width = '0%';
     elFill.style.background = ''; // v3.35: sin sección activa, vuelve al dorado por defecto (CSS)
     if(elTxt) elTxt.textContent = '';
-    if(elSeccion) elSeccion.style.display = 'none';
+    if(elSeccion) elSeccion.innerHTML = '—';
   }
 
   // v2.0/v2.4: turno del ciclo de clave (compás 1 o 2 de la célula) —
