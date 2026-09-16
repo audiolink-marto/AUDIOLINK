@@ -3,8 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.217</title>
-<!-- AUDIOLINK · ensayo.html · v3.217
+<title>Audiolink — Ensayo v3.219</title>
+<!-- AUDIOLINK · ensayo.html · v3.219
+     v3.219: (a pedido, revisión de jerarquía visual) 4 ajustes, 100%
+     CSS, ningún id ni función tocada:
+     1) .practica-compas-grande: 2.8rem → 3.6rem — el número de compás
+        es el dato más consultado en vivo, ahora pesa más que la card
+        de sección al lado.
+     2) .loop-presets-row ("Loop rápido") suma fondo/padding (mismo
+        var(--surf-light) que las demás cards) — antes quedaba
+        flotando solo entre el player y el chip de sección.
+     3) .practica-mapa-tema (el chip de sección activa arriba del
+        waveform, .practica-mapa-bloque.activo) y .practica-waveform-
+        toolbar (fila de zoom) acercan su margen — quedan como un
+        grupo visual más compacto en vez de tres franjas sueltas.
+     4) Player: .practica-player-playbtn (▶) pasa a fondo dorado
+        sólido, letra más grande — se distingue del resto. Los
+        secundarios (.practica-cue-pad: CUE/✕/📍/↻) bajan de borde
+        2px a 1px y de fondo 14%→8% de opacidad, quedan más tenues sin
+        perder legibilidad.
+     Nota aparte (no tocado, para la lista de optimización de código):
+     seccionesChipsHtml() está definida pero no se llama en ningún
+     lado — código muerto.
+     ============================================================
+     v3.218: (a pedido, revisión de UI) se sacan 2 duplicaciones
+     visuales detectadas en pantalla:
+     1) Badge de arriba (badge-${uid}, antes de "Loop rápido") — mismo
+        contenido que badge2-${uid}, que desde v3.216 vive bien visible
+        dentro de la card del contador. actualizarBadgePractica ya no
+        busca "badge-"+uid (ni lo exige para actualizar badge2); el
+        div del HTML se sacó.
+     2) Nombre de archivo + tags ID3 de arriba (archivonombretop-${uid}
+        / archivolocaltagstop-${uid}, junto al título/notas) — mismo
+        contenido que archivolocalnombre-${uid}/archivolocaltags-${uid}
+        de practica-local-row, que desde v3.216 queda justo debajo de
+        la card del contador. Se sacaron los 2 spans del HTML; el JS
+        que los llenaba (mostrarTagsDetectadosLocal, onArchivoLocalElegido)
+        ya tenía guard tolerante a que no existan (elTop/nombreSpanTop
+        en null), así que no se tocó esa parte — simplemente dejan de
+        encontrar el elemento y no hacen nada, sin romper el resto.
+     Se conservó "practicaCargandoAudio" (aviso de "Cargando audio de
+     la nube…") que vivía en la misma línea — no era parte de la
+     duplicación, cuidado señalado y corregido antes de publicar.
+     ============================================================
      v3.217: (a pedido, "el loop scrollea solo") FIX — al terminar cada
      vuelta del loop, el chequeo de fin de sección (finSecChequeo) pone
      actual=null un frame antes de que el loop realmente vuelva al
@@ -911,7 +952,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .clave-nota{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);font-size:1rem;font-weight:700;color:var(--faint);transition:color 0.12s,transform 0.12s,text-shadow 0.12s;}
 .clave-nota.activo{color:var(--gold);transform:translate(-50%,-50%) scale(1.4);text-shadow:0 0 8px var(--gold),0 0 14px var(--gold);}
 .practica-secciones-chips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;margin-top:10px;margin-bottom:8px;scrollbar-width:thin;}
-.practica-mapa-tema{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;border-radius:8px;scrollbar-width:thin;}
+.practica-mapa-tema{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;margin-bottom:0;border-radius:8px;scrollbar-width:thin;}
 /* v3.96: (a pedido) vuelta al estilo "outline" — igual criterio que
    .practica-version-chip: borde + texto con el color de la sección,
    fondo neutro en reposo; relleno completo + glow SOLO cuando está
@@ -981,7 +1022,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-clave-piloto{position:absolute;top:-2px;left:6px;font-size:0.95rem;opacity:0.35;filter:grayscale(1);transition:opacity 0.08s, filter 0.08s;}
 .practica-clave-piloto.activo{opacity:1;filter:none;text-shadow:0 0 6px var(--gold);}
 .practica-semaforo{display:flex;justify-content:space-between;gap:6px;margin-top:8px;padding:10px 12px;background:var(--surf-light);border-radius:8px;}
-.practica-compas-grande{font-size:2.8rem;font-weight:700;color:var(--gold);font-family:var(--M);line-height:1;transition:color 0.08s, transform 0.08s;display:inline-block;}
+.practica-compas-grande{font-size:3.6rem;font-weight:700;color:var(--gold);font-family:var(--M);line-height:1;transition:color 0.08s, transform 0.08s;display:inline-block;}
 .practica-compas-grande.activo{color:var(--ok);transform:scale(1.12);}
 .practica-beat-chico{font-size:0.9rem;font-weight:600;color:var(--muted);font-family:var(--M);margin-left:4px;}
 .beat-dot{width:14px;height:14px;border-radius:50%;background:var(--muted);opacity:0.4;transition:background 0.08s, transform 0.08s, opacity 0.08s, box-shadow 0.08s;}
@@ -1124,7 +1165,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    orden de los demás controles antes de ella no importa para el
    layout en dos filas. */
 .practica-playerbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;}
-.practica-player-playbtn{flex-shrink:0;}
+.practica-player-playbtn{flex-shrink:0;background:var(--gold);border-color:var(--gold);color:var(--bg);font-size:1.3rem;}
 .practica-player-restartbtn{flex-shrink:0;}
 .practica-player-volbtn{flex-shrink:0;}
 .practica-player-tiempo{font-size:0.78rem;color:var(--muted);font-family:var(--M);flex-shrink:0;white-space:nowrap;}
@@ -1154,7 +1195,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 /* v3.30: (a pedido) selector de loop rápido — mismos botones cuadrados
    "xN" que guia-practica.html v1.7 usa para los presets de fin de
    sección, en vez de un botón largo por cada N. */
-.loop-presets-row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;}
+.loop-presets-row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;background:var(--surf-light);border-radius:8px;padding:10px 12px;}
 .loop-presets-label{font-size:0.75rem;color:var(--muted);white-space:nowrap;}
 .loop-presets{display:flex;gap:6px;flex-wrap:wrap;}
 .btn-preset{
@@ -1191,7 +1232,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    puede scrollear horizontalmente cuando el canvas es más ancho que
    la pantalla (zoom > 1x). La barra de arriba (zoom +/- y el check
    de autoscroll) queda fuera del wrap para no scrollear con él. */
-.practica-waveform-toolbar{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:0.78rem;color:var(--faint);}
+.practica-waveform-toolbar{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:0.78rem;color:var(--faint);}
 .practica-waveform-zoombtn{width:28px;height:28px;border-radius:6px;border:1px solid var(--brd);background:var(--surf-light);color:var(--txt);font-size:1rem;line-height:1;cursor:pointer;}
 .practica-waveform-zoombtn:active{background:var(--gold-bg);border-color:var(--gold);}
 .practica-waveform-zoomlabel{min-width:28px;text-align:center;font-variant-numeric:tabular-nums;}
@@ -1245,7 +1286,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-cue-row{display:flex;flex-direction:row;align-items:center;gap:8px;}
 .practica-cue-btn{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;}
 .practica-cue-btn.activo{border-color:#ff5da2;color:#ff5da2;background:rgba(255,93,162,0.12);}
-.practica-cue-pad{width:44px;height:44px;min-width:44px;flex-shrink:0;border-radius:8px;border:2px solid #ff5da2;background:rgba(255,93,162,0.14);color:#ff5da2;font-weight:bold;font-size:0.72rem;letter-spacing:0.02em;cursor:pointer;}
+.practica-cue-pad{width:44px;height:44px;min-width:44px;flex-shrink:0;border-radius:8px;border:1px solid rgba(255,93,162,0.55);background:rgba(255,93,162,0.08);color:#ff5da2;font-weight:bold;font-size:0.72rem;letter-spacing:0.02em;cursor:pointer;}
 .practica-cue-pad:active{background:#ff5da2;color:#1a1a1a;}
 /* v3.165: estado armado del pad "📍 CUE con click en la onda" —
    mismo relleno que :active pero sostenido (toggleArmarCueWaveform). */
@@ -2881,8 +2922,6 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
   return `
         <button class="practica-local-pad prominente" id="localpadcta-${uid}" onclick="document.getElementById('filein-${uid}').click()" title="Usar canción del dispositivo"><span class="practica-local-pad-icono">⬆</span> Cargar canción del dispositivo</button>
 
-        <div class="practica-badge-fila" id="badge-${uid}"></div>
-
         <div class="practica-progreso">
           <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop"><div class="practica-progreso-fill" id="progfill-${uid}"></div></div>
           <div class="practica-progreso-texto" id="progtxt-${uid}"></div>
@@ -4031,8 +4070,7 @@ function firmaAjustesPractica(est){
 }
 function actualizarBadgePractica(uid, compas){
   const est = estadoPractica[uid];
-  const el = document.getElementById('badge-' + uid);
-  if(!est || !el) return;
+  if(!est) return;
   const claveLabel = est.claveEfectiva ? CLAVE_ETIQUETAS[est.claveEfectiva] : '';
   // v3.144: (a pedido) tonalidad/armadura mostradas ahora respetan
   // tonalidadOverride (sesión, del tag detectado del archivo local) si
@@ -4119,11 +4157,11 @@ function actualizarBadgePractica(uid, compas){
   if(tonalidadLabel) partes.push(`<span class="practica-badge practica-badge-sec">${escapeHtml(tonalidadLabel)}</span>`);
   if(ajustado) partes.push('<span class="practica-badge-ajustado">(ajustado)</span>');
   const html = partes.join('');
-  el.innerHTML = html;
-  // v3.169: (a pedido) mismo contenido también debajito de la tira de
-  // puntos (Pulso·Clave) — badge2-${uid}, agregado al HTML pero sin
-  // conectar todavía. Se arma una sola vez arriba y se copia acá, así
-  // los dos quedan siempre sincronizados sin duplicar la lógica.
+  // v3.218: (a pedido) se sacó el badge de arriba (badge-${uid}) por
+  // quedar duplicado con este — badge2 vive dentro de la card del
+  // contador desde v3.216, que es el lugar donde el músico mira en
+  // vivo. Único innerHTML que queda, sin el "el.innerHTML = html;" de
+  // antes.
   const el2 = document.getElementById('badge2-' + uid);
   if(el2) el2.innerHTML = html;
 }
@@ -5806,10 +5844,11 @@ async function leerTagsAudioID3(file){
 // (BPM del contador, clave, etc.), sin ningún botón de "usar valores".
 async function mostrarTagsDetectadosLocal(uid, file){
   const el = document.getElementById('archivolocaltags-' + uid);
-  // v3.141: (a pedido) la misma línea de tags ahora también se
-  // duplica arriba, junto al nombre del archivo (archivonombretop) —
-  // ver bloquePracticaHtml. Si ese span no existe (páginas viejas en
-  // caché), simplemente no se actualiza y todo sigue igual que antes.
+  // v3.218: (a pedido) se sacó el span de arriba (archivolocaltagstop) —
+  // quedaba duplicado con este mismo texto, ahora bien visible dentro
+  // de la card del contador (practica-local-row, debajo de esa card
+  // desde v3.216). elTop queda en null y setHtml lo salta sin romper
+  // nada (mismo guard tolerante de v3.141).
   const elTop = document.getElementById('archivolocaltagstop-' + uid);
   if(!el && !elTop) return;
   const setHtml = (html) => { if(el) el.innerHTML = html; if(elTop) elTop.innerHTML = html; };
@@ -5979,9 +6018,9 @@ function onArchivoLocalElegido(uid, files){
   const nombreSpan = document.getElementById('archivolocalnombre-' + uid);
   if(nombreSpan) nombreSpan.textContent = '🎵 ' + est.archivoLocalFile.name;
   // v3.53: (a pedido) el mismo nombre también arriba, junto al título
-  // (nuevo span archivonombretop-${uid}, ver bloquePracticaHtml) — para
-  // que se vea de entrada cuál está sonando, sin tener que bajar hasta
-  // el botón de "Usar canción del dispositivo".
+  // (nuevo span archivonombretop-${uid} — quitado en v3.218 por
+  // quedar duplicado; nombreSpanTop queda en null abajo y se salta
+  // sin romper nada.)
   const nombreSpanTop = document.getElementById('archivonombretop-' + uid);
   if(nombreSpanTop) nombreSpanTop.textContent = '🎵 ' + est.archivoLocalFile.name;
   // v3.131: (a pedido) info de tags ID3 del archivo elegido — puramente
@@ -9869,7 +9908,7 @@ function bloquePracticaHtml(tema){
     <div class="practica-box">
       ${tituloCancion}
       ${notasHtml}
-      <div class="practica-archivo-nombre-top" id="archivonombretop-${uid}"></div><span class="practica-loop-info practica-archivolocal-tags" id="archivolocaltagstop-${uid}"></span> <span id="practicaCargandoAudio" style="display:none;color:var(--muted)">Cargando audio de la nube…</span>
+      <span id="practicaCargandoAudio" style="display:none;color:var(--muted)">Cargando audio de la nube…</span>
       ${controlesPracticaHtml(uid, compasesPorBarra, tema.bpm, tema.compas, tema.secciones || [], tema.clave)}
     </div>`;
 }
