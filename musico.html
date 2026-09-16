@@ -3,7 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Panel del Músico v3.196</title>
+<title>Audiolink — Panel del Músico v3.198</title>
+<!-- AUDIOLINK · musico.html · v3.198
+     v3.198: (a pedido, "dejar los scores de a 1 pág, con sig. y atrás")
+     el visor de Score PDF (ver v3.197) ahora muestra las páginas de a
+     una, con navegación Atrás/Siguiente e indicador "Página X de N",
+     en vez de listar todas las miniaturas seguidas. Cambios acotados a
+     onToggleScorePractica + nuevas funciones cambiarPaginaScore/
+     renderPaginaScore + estilos .practica-score-nav en el CSS. Cero
+     cambios en Cloudinary (sigue usando pg_N vía transformación,
+     nada se sube ni se recorta acá), en obtenerScoreParaSesion, en
+     scoreBloqueHtml, ni en el resto del motor de BPM/waveform/
+     metrónomo.
+-->
+<!-- AUDIOLINK · musico.html · v3.197
+     v3.197: (a pedido, "cómo veo los scores en músico") pantalla de
+     práctica del músico ahora muestra el Score PDF (subido por
+     instrumento desde guia-practica.html v1.118, practicaScores del
+     tema) que matchee su instrumento asignado en la sesión
+     (miInstrumento) — mismo criterio de match que ya usa
+     obtenerMaquetaParaSesion (normalizarTxtPractica). Nuevo bloque
+     colapsable "📄 Score (N pág.)" en bloquePracticaHtml (las 3 ramas:
+     sin maqueta, YouTube, audio-file), pinta las miniaturas de todas
+     las páginas recién al abrirse (pg_1..pg_N vía Cloudinary, lazy) +
+     botón para el PDF completo. A propósito NO se reutilizó la clase
+     .practica-offsetlocal para el <details> — ese bloque es un <div>
+     que panelOffset muestra/oculta a mano solo para calibración de
+     archivos LOCALES; se creó .practica-score-panel aparte (mismo
+     look visual, cero JS de por medio) para no acoplar el Score a esa
+     lógica. Cero cambios en obtenerMaquetaParaSesion/
+     obtenerMaquetasParaSesion, chipsVersiones ni el resto del motor de
+     BPM/waveform/metrónomo.
+-->
 <!-- AUDIOLINK · musico.html · v3.196
      v3.196: (a pedido, portado de ensayo.html v3.219) 4 ajustes de
      jerarquía visual, 100% CSS — los 6 selectores tocados eran
@@ -2809,6 +2840,22 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    píxeles exactos (mismo valor que canvas.height), así el dibujo
    nunca queda estirado ni aplastado por el CSS. */
 .practica-offsetlocal{margin-top:10px;padding:14px;background:var(--surf-light);border-radius:10px;display:flex;flex-direction:column;gap:10px;}
+/* v3.197: (a pedido, "cómo veo los scores en músico") panel colapsable
+   para el Score PDF del instrumento asignado. Mismo look visual que
+   .practica-offsetlocal de arriba, pero clase propia a propósito: ese
+   bloque es un <div> que panelOffset (ver bloquePracticaHtml/
+   tapCalibracionPractica) muestra/oculta a mano solo para archivos
+   LOCALES — reusarlo acá lo hubiera dejado enganchado sin querer a esa
+   lógica. Este es un <details> nativo genérico, sin JS de por medio
+   para abrir/cerrar. */
+.practica-score-panel{margin-top:10px;padding:14px;background:var(--surf-light);border-radius:10px;}
+.practica-score-panel summary{cursor:pointer;font-weight:600;color:var(--txt);}
+.practica-score-panel[open] summary{margin-bottom:10px;}
+/* v3.198: barra de navegación de páginas del score (Atrás/Siguiente) */
+.practica-score-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;margin-bottom:8px;}
+.practica-score-nav button{flex:0 0 auto;}
+.practica-score-nav button:disabled{opacity:.4;cursor:not-allowed;}
+.practica-score-nav .practica-score-pagina{flex:1 1 auto;text-align:center;font-size:.9rem;color:var(--txt-dim,var(--txt));}
 .practica-offsetlocal-marcar{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;}
 .practica-offsetlocal-marcar.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
 /* v3.174: (a pedido) "secciones locales propias" — lista editable de
@@ -3429,6 +3476,83 @@ function obtenerMaquetasParaSesion(s){
   if(!temaData || !temaData.practicaBpm || !temaData.practicaCompas) return [];
   const maquetas = temaData.practicaMaquetas || [];
   return maquetas.filter(m => normalizarTxtPractica(m.instrumento) === normalizarTxtPractica(s.miInstrumento));
+}
+
+// v3.197: (a pedido) mismo criterio de match que las maquetas de
+// arriba (normalizarTxtPractica sobre s.miInstrumento), pero contra
+// practicaScores (cargado desde guia-practica.html, ver v1.118 de esa
+// hoja) — un PDF completo por instrumento, no una pista de audio. Solo
+// lectura acá: musico.html nunca sube nada a Cloudinary, solo arma la
+// URL de la transformación pg_N (misma cuenta que ya usa
+// guia-practica.html/ensayo.html para esto).
+const CLOUDINARY_CLOUD_NAME_AUDIO = 'mqwgjh3u';
+function obtenerScoreParaSesion(s){
+  const temaData = s.temaId ? temaCache[s.temaId] : null;
+  if(!temaData) return null;
+  const scores = temaData.practicaScores || [];
+  return scores.find(sc => sc.publicId && normalizarTxtPractica(sc.instrumento) === normalizarTxtPractica(s.miInstrumento)) || null;
+}
+// Panel colapsable (ver .practica-score-panel más arriba) — recién al
+// abrirlo por primera vez pinta TODAS las páginas del PDF (miniaturas
+// pg_1..pg_N vía Cloudinary, gratis, sin recortar/subir nada aparte) +
+// botón para el PDF completo. cont.dataset.cargado evita recargar las
+// imágenes si se cierra y se vuelve a abrir.
+function scoreBloqueHtml(uid, score){
+  if(!score || !score.publicId) return '';
+  const total = score.paginas || 1;
+  return `
+    <details class="practica-score-panel" id="scoredetails-${uid}" data-publicid="${score.publicId}" data-paginas="${total}" ontoggle="onToggleScorePractica('${uid}')">
+      <summary>📄 Score (${total} pág.)</summary>
+      <div id="scorepaginas-${uid}"></div>
+    </details>`;
+}
+// v3.198: (a pedido, "dejar los scores de a 1 pág, con sig. y atrás")
+// antes pintaba pg_1..pg_N todas seguidas; ahora arma el contenedor UNA
+// vez (con la barra de navegación) y renderPaginaScore() se encarga de
+// pintar/actualizar solo la imagen + el indicador según cont.dataset.pagina.
+function onToggleScorePractica(uid){
+  const details = document.getElementById('scoredetails-' + uid);
+  const cont = document.getElementById('scorepaginas-' + uid);
+  if(!details || !cont || !details.open || cont.dataset.cargado) return;
+  cont.dataset.cargado = '1';
+  cont.dataset.pagina = '1';
+  const total = parseInt(details.dataset.paginas, 10) || 1;
+  const pdfUrl = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/${details.dataset.publicid}.pdf`;
+  cont.innerHTML = `
+    <img id="scoreimg-${uid}" loading="lazy" style="max-width:100%;border-radius:8px;border:1px solid var(--brd);display:block;" alt="Página del score">
+    <div class="practica-score-nav">
+      <button type="button" class="btn-ghost" id="scoreprev-${uid}" onclick="cambiarPaginaScore('${uid}', -1)">⬅ Atrás</button>
+      <span class="practica-score-pagina" id="scorelabel-${uid}">Página 1 de ${total}</span>
+      <button type="button" class="btn-ghost" id="scorenext-${uid}" onclick="cambiarPaginaScore('${uid}', 1)">Siguiente ➡</button>
+    </div>
+    <button type="button" class="btn-ghost" style="width:100%;" onclick="window.open('${pdfUrl}', '_blank')">Ver PDF completo</button>`;
+  renderPaginaScore(uid);
+}
+function cambiarPaginaScore(uid, delta){
+  const details = document.getElementById('scoredetails-' + uid);
+  const cont = document.getElementById('scorepaginas-' + uid);
+  if(!details || !cont) return;
+  const total = parseInt(details.dataset.paginas, 10) || 1;
+  let pagina = (parseInt(cont.dataset.pagina, 10) || 1) + delta;
+  pagina = Math.min(Math.max(pagina, 1), total);
+  cont.dataset.pagina = String(pagina);
+  renderPaginaScore(uid);
+}
+function renderPaginaScore(uid){
+  const details = document.getElementById('scoredetails-' + uid);
+  const cont = document.getElementById('scorepaginas-' + uid);
+  if(!details || !cont) return;
+  const publicId = details.dataset.publicid;
+  const total = parseInt(details.dataset.paginas, 10) || 1;
+  const pagina = parseInt(cont.dataset.pagina, 10) || 1;
+  const img = document.getElementById(`scoreimg-${uid}`);
+  const label = document.getElementById(`scorelabel-${uid}`);
+  const prev = document.getElementById(`scoreprev-${uid}`);
+  const next = document.getElementById(`scorenext-${uid}`);
+  if(img) img.src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/pg_${pagina}/${publicId}.jpg`;
+  if(label) label.textContent = `Página ${pagina} de ${total}`;
+  if(prev) prev.disabled = pagina <= 1;
+  if(next) next.disabled = pagina >= total;
 }
 
 function extraerIdYoutube(url){
@@ -4405,6 +4529,7 @@ function bloquePracticaHtml(s){
   if(!temaData || !temaData.practicaBpm || !temaData.practicaCompas) return '';
   const versiones = obtenerMaquetasParaSesion(s);
   const maqueta = versiones[0] || null;
+  const score = obtenerScoreParaSesion(s);
   const uid = 'practica-' + s.id;
   const compasesPorBarra = parseInt((temaData.practicaCompas || '4/4').split('/')[0], 10) || 4;
   // v3.93: (a pedido) organización del flujo — 1) nombre de canción,
@@ -4418,6 +4543,7 @@ function bloquePracticaHtml(s){
     return `
       <div class="practica-box">
         ${tituloCancion}
+        ${scoreBloqueHtml(uid, score)}
         ${controlesPracticaHtml(uid, compasesPorBarra, temaData.practicaBpm, temaData.practicaCompas, temaData.practicaSecciones, temaData.practicaClave)}
       </div>`;
   }
@@ -4438,6 +4564,7 @@ function bloquePracticaHtml(s){
         ${chipsVersiones}
         <div class="practica-yt" id="yt-${uid}"></div>
         <audio id="audio-${uid}" style="display:none;"></audio>
+        ${scoreBloqueHtml(uid, score)}
         ${controlesPracticaHtml(uid, compasesPorBarra, temaData.practicaBpm, temaData.practicaCompas, temaData.practicaSecciones, temaData.practicaClave)}
       </div>`;
   }
@@ -4447,6 +4574,7 @@ function bloquePracticaHtml(s){
       ${chipsVersiones}
       <audio id="audio-${uid}" style="display:none;" src="${escapeHtml(maqueta.url)}"></audio>
       <div class="practica-yt" id="yt-${uid}" style="display:none;"></div>
+      ${scoreBloqueHtml(uid, score)}
       ${controlesPracticaHtml(uid, compasesPorBarra, temaData.practicaBpm, temaData.practicaCompas, temaData.practicaSecciones, temaData.practicaClave)}
     </div>`;
 }

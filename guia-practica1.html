@@ -4,24 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.118
-     v1.118: (a pedido) nueva card "Scores por instrumento" — mismo
-     patrón exacto que "Maquetas por instrumento" (arriba): array
-     practicaScores ({instrumento, publicId, paginas}) en el doc del
-     tema, instrumento elegido del mismo catálogo
-     instrumentosDelProyecto (campoInstrumentoScoreHtml, gemela de
-     campoInstrumentoHtml). Diferencia real: la subida a Cloudinary
-     (subirPdfScoreACloudinary) va a /image/upload con preset propio
-     GUIAS2PDF (ya existente en la cuenta) en vez de /video/upload —
-     así Cloudinary habilita la transformación pg_N para sacar
-     cualquier página del PDF como JPG on-the-fly, sin recortar ni
-     subir nada aparte. "👁️ Ver páginas" por fila carga las miniaturas
-     recién al abrirla (lazy, pg_1 a pg_N), con botón para el PDF
-     completo. Nueva entrada 'scores' en CARDS_PRINCIPALES + llamada a
-     renderScores() en iniciarGuiaPractica(), junto a renderMaquetas().
-     Cero cambios en maquetasEnEdicion, subirAudioMaqueta ni el resto
-     del motor de BPM/compás/secciones/preview.
--->
 <!-- AUDIOLINK · guia-practica.html · v1.117
      v1.117: (a pedido) el campo BPM ("Datos del tema") ahora admite
      decimales: input step="0.01" (antes step="1") y guardarDatosTema
@@ -1930,22 +1912,6 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
     </div>
 
     <div class="card">
-      <div class="card-header-toggle" onclick="toggleCardPrincipal('scores')">
-        <h3>Scores por instrumento</h3>
-        <span class="card-flecha" id="flecha-scores">▸</span>
-      </div>
-      <div class="card-body-colapsable colapsado" id="body-scores">
-      <p style="color:var(--muted); font-size:0.88rem; margin-bottom:12px;">Un PDF completo por instrumento (ej. Trompeta, Bajo, Trombón) — cada músico abre el suyo desde acá.</p>
-      <div id="listaScores"></div>
-      <button class="btn-ghost" onclick="agregarFilaScore()">+ Agregar score</button>
-      <div style="margin-top:12px;">
-        <button class="btn" onclick="guardarScores()">Guardar scores</button>
-        <div class="guardado-ok" id="okScores">✓ Guardado</div>
-      </div>
-      </div>
-    </div>
-
-    <div class="card">
       <div class="card-header-toggle" onclick="toggleCardPrincipal('previsualizador')">
         <h3>Previsualizar contador</h3>
         <span class="card-flecha" id="flecha-previsualizador">▸</span>
@@ -2279,7 +2245,6 @@ async function iniciarGuiaPractica(){
 
     renderSecciones(temaDataActual.practicaSecciones || []);
     renderMaquetas(temaDataActual.practicaMaquetas || []);
-    renderScores(temaDataActual.practicaScores || []);
   } catch(e){
     console.error(e);
     document.getElementById('contextoTema').textContent = 'Error cargando el tema.';
@@ -4559,152 +4524,6 @@ async function guardarMaquetas(){
   }catch(e){ console.error(e); alert('No se pudieron guardar las maquetas.'); }
 }
 
-// ============ v1.118: SCORES POR INSTRUMENTO ============
-// (a pedido) mismo patrón exacto que Maquetas por instrumento, arriba:
-// practicaScores es un array de {instrumento, publicId, paginas} en el
-// doc del tema, el instrumento sale del mismo catálogo
-// instrumentosDelProyecto (garantiza el mismo match con musico.html
-// que ya usa campoInstrumentoHtml). Único agregado real: subida a
-// Cloudinary va al endpoint /image/upload (no /video/upload como el
-// audio) con preset separado GUIAS2PDF, así Cloudinary trata el PDF
-// como recurso "image" y habilita la transformación pg_N para sacar
-// cualquier página como JPG on-the-fly (mismo mecanismo que ya usa
-// ensayo.html). Nada de esto toca maquetasEnEdicion ni sus funciones.
-const CLOUDINARY_PRESET_PDF = 'GUIAS2PDF';
-function subirPdfScoreACloudinary(file, onProgress){
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload`);
-    xhr.upload.onprogress = (e) => {
-      if(e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      let data = null;
-      try{ data = JSON.parse(xhr.responseText); }catch(err){ /* respuesta no-JSON, sigue abajo con data=null */ }
-      if(xhr.status >= 200 && xhr.status < 300 && data && data.public_id){
-        resolve({ publicId: data.public_id, paginas: data.pages || 1 });
-      } else {
-        reject(new Error((data && data.error && data.error.message) || `Error de Cloudinary (status ${xhr.status})`));
-      }
-    };
-    xhr.onerror = () => reject(new Error('Error de red al subir el PDF a Cloudinary'));
-    const form = new FormData();
-    form.append('file', file);
-    form.append('upload_preset', CLOUDINARY_PRESET_PDF);
-    xhr.send(form);
-  });
-}
-
-let scoresEnEdicion = [];
-function renderScores(scores){
-  scoresEnEdicion = scores.map(s => ({ ...s }));
-  pintarScores();
-}
-// Mismo criterio que campoInstrumentoHtml (maquetas): select si el
-// proyecto ya tiene instrumentos asignados en alguna sesión, texto
-// libre si no. Función separada (en vez de reusar la de maquetas) para
-// no acoplar los onchange a maquetasEnEdicion por accidente.
-function campoInstrumentoScoreHtml(s, i){
-  const valorActual = (s.instrumento || '').trim();
-  if(!instrumentosDelProyecto.length){
-    return `<input type="text" placeholder="Instrumento (ej: Trompeta)" value="${valorActual.replace(/"/g,'&quot;')}" onchange="scoresEnEdicion[${i}].instrumento = this.value">`;
-  }
-  const opciones = [...instrumentosDelProyecto];
-  if(valorActual && !opciones.includes(valorActual)) opciones.push(valorActual);
-  return `<select onchange="scoresEnEdicion[${i}].instrumento = this.value">
-    <option value="">— Instrumento —</option>
-    ${opciones.map(op => `<option value="${op.replace(/"/g,'&quot;')}" ${op === valorActual ? 'selected' : ''}>${op.replace(/</g,'&lt;')}</option>`).join('')}
-  </select>`;
-}
-function pintarScores(){
-  const cont = document.getElementById('listaScores');
-  if(!scoresEnEdicion.length){
-    cont.innerHTML = '<div class="vacio">Sin scores todavía.</div>';
-    return;
-  }
-  cont.innerHTML = scoresEnEdicion.map((s, i) => `
-    <div class="maqueta-card">
-      <div class="maqueta-card-fila">
-        <div class="maqueta-campo">
-          <label>Instrumento</label>
-          ${campoInstrumentoScoreHtml(s, i)}
-        </div>
-        <label class="btn-ghost btn-upload-audio">
-          📤 ${s.publicId ? 'Reemplazar PDF' : 'Subir PDF'}
-          <input type="file" accept="application/pdf" style="display:none" onchange="subirPdfScore(${i}, this.files[0])">
-        </label>
-        <button class="btn-del maqueta-card-del" onclick="eliminarScore(${i})" title="Eliminar score">🗑️</button>
-      </div>
-      ${s.publicId ? `
-      <div class="maqueta-card-fila" style="align-items:center;">
-        <span style="color:var(--muted);font-size:0.85rem;">📄 ${s.paginas || '?'} página(s)</span>
-        <button type="button" class="btn-ghost" onclick="toggleVerPaginasScore(${i})" id="btnVerPaginas-${i}">👁️ Ver páginas</button>
-      </div>
-      <div id="paginasScore-${i}" style="display:none;margin-top:8px;"></div>` : ''}
-      <div class="upload-status" id="scoreUploadStatus-${i}"></div>
-    </div>
-  `).join('');
-}
-function agregarFilaScore(){
-  scoresEnEdicion.push({ instrumento: '', publicId: '', paginas: 0 });
-  pintarScores();
-}
-function eliminarScore(i){
-  scoresEnEdicion.splice(i, 1);
-  pintarScores();
-}
-async function subirPdfScore(i, file){
-  if(!file) return;
-  const estado = document.getElementById('scoreUploadStatus-' + i);
-  if(estado){ estado.style.display = 'block'; estado.style.color = 'var(--muted)'; estado.textContent = 'Subiendo 0%…'; }
-  try{
-    const { publicId, paginas } = await subirPdfScoreACloudinary(file, pct => {
-      if(estado) estado.textContent = `Subiendo ${pct}%…`;
-    });
-    scoresEnEdicion[i].publicId = publicId;
-    scoresEnEdicion[i].paginas = paginas;
-    pintarScores();
-    // pintarScores() recrea la fila (y el div de estado, vacío de
-    // nuevo) — mismo criterio que subirAudioMaqueta: el PDF ya cargado
-    // (número de páginas visible) es la confirmación, sin dejar un
-    // mensaje colgado que haya que limpiar aparte.
-  }catch(e){
-    console.error('Error subiendo PDF a Cloudinary:', e);
-    if(estado){ estado.style.color = 'var(--err)'; estado.textContent = 'No se pudo subir el PDF. Probá de nuevo.'; }
-  }
-}
-// Miniaturas cargadas recién al abrir "Ver páginas" (lazy, una por una
-// vía data-src), no las N de una — mismo criterio que guiaPdfBloqueHtml
-// de ensayo.html.
-function toggleVerPaginasScore(i){
-  const cont = document.getElementById('paginasScore-' + i);
-  const btn = document.getElementById('btnVerPaginas-' + i);
-  if(!cont) return;
-  const abrir = cont.style.display === 'none';
-  cont.style.display = abrir ? 'block' : 'none';
-  if(btn) btn.textContent = abrir ? '🙈 Ocultar páginas' : '👁️ Ver páginas';
-  if(!abrir || cont.dataset.cargado) return;
-  cont.dataset.cargado = '1';
-  const s = scoresEnEdicion[i];
-  const total = s.paginas || 1;
-  let html = '';
-  for(let pagina = 1; pagina <= total; pagina++){
-    const imgUrl = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/pg_${pagina}/${s.publicId}.jpg`;
-    html += `<img src="${imgUrl}" loading="lazy" style="max-width:100%;border-radius:8px;border:1px solid var(--brd);display:block;margin-bottom:8px;" alt="Página ${pagina}">`;
-  }
-  const pdfUrl = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/${s.publicId}.pdf`;
-  html += `<button type="button" class="btn-ghost" style="width:100%;" onclick="window.open('${pdfUrl}', '_blank')">Ver PDF completo</button>`;
-  cont.innerHTML = html;
-}
-async function guardarScores(){
-  const limpio = scoresEnEdicion.filter(s => (s.instrumento || '').trim() && (s.publicId || '').trim());
-  try{
-    await temaRef.update({ practicaScores: limpio });
-    temaDataActual.practicaScores = limpio;
-    mostrarOk('okScores');
-  }catch(e){ console.error(e); alert('No se pudieron guardar los scores.'); }
-}
-
 // ============ PREVIEW DEL CONTADOR (mismo concepto que la demo) ============
 let previewPlaying = false;
 let previewSynth = null;
@@ -4818,7 +4637,7 @@ if(estaModoOfflineActivo()){
 // localStorage por bloque, INDEPENDIENTE entre bloques (no es acordeón,
 // eso solo aplica a las tarjetas de sección de abajo). Por defecto
 // (primera vez, sin nada guardado) arrancan CERRADOS.
-const CARDS_PRINCIPALES = ['datosTema', 'secciones', 'maquetas', 'scores', 'previsualizador'];
+const CARDS_PRINCIPALES = ['datosTema', 'secciones', 'maquetas', 'previsualizador'];
 function toggleCardPrincipal(nombre){
   const body = document.getElementById('body-' + nombre);
   const flecha = document.getElementById('flecha-' + nombre);

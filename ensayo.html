@@ -3,7 +3,113 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.219</title>
+<title>Audiolink — Ensayo v3.223</title>
+<!-- AUDIOLINK · ensayo.html · v3.223
+     v3.223: (a pedido, "dejar los scores de a 1 pág, con sig. y atrás",
+     portado del mismo pedido en musico.html v3.198) el bloque "📄 Guía"
+     ahora muestra las páginas referenciadas del tema (guiaPaginas) de a
+     una, con navegación Atrás/Siguiente e indicador "Página X de Y"
+     (Y = cantidad de páginas de ESE tema, no del PDF completo — pueden
+     no ser consecutivas, ej. 3, 7, 12). El botón "Ver PDF completo"
+     apunta siempre a la página actualmente mostrada. Cambios acotados
+     a guiaPdfBloqueHtml + onToggleGuiaPdf (agrega
+     cambiarPaginaGuiaPdf/renderPaginaGuiaPdf) + nuevos estilos
+     .practica-score-nav (mismos que musico.html v3.198, para que se
+     vea igual). Cero cambios en guardarGuiaPdfEnCategoria,
+     parsearRangoPaginas, Cloudinary, ni el resto del motor de
+     bpm/clave/compás/audio/offset/secciones.
+-->
+<!-- AUDIOLINK · ensayo.html · v3.222
+     v3.222: (a pedido) 2 cambios independientes, sin tocar cálculo de
+     bpm/clave/compás/audio/offset/secciones:
+     1) Guía de PDF por tema: el campo único guiaPagina (un número) se
+        reemplaza por guiaPaginas (array), permitiendo lista y/o rango
+        en el mismo input de texto (ej. "3, 5-7, 12" -> páginas 3, 5,
+        6, 7 y 12). Nueva función parsearRangoPaginas() (Subir tema/
+        Editar tema, mismo input, ahora type=text) y
+        formatearPaginasParaInput() para precargar el input al editar.
+        guiaPdfBloqueHtml() pinta una miniatura + botón "ver PDF
+        completo" por cada página del array, en vez de una sola.
+        Compatibilidad: temas viejos con guiaPagina (sin guiaPaginas
+        todavía) se siguen leyendo bien, tanto al precargar el
+        formulario de edición como en la pantalla de práctica
+        (fallback a [guiaPagina]) — al guardar una edición, el tema
+        pasa a guiaPaginas y el guiaPagina viejo se limpia (null) para
+        no dejar los dos conviviendo con datos distintos.
+     2) Menú ⋮ de la card de tema ("revisión mobile-first, sentía el
+        menú obtuso"): el dropdown flotante .tema-card-menu (6 botones
+        angostos pegados a la esquina de la card, sin backdrop, se
+        podía recortar contra el borde de la pantalla) se reemplaza
+        por un bottom sheet (sheetOpcionesTemaOverlay), mismo patrón
+        .sheet-overlay/.sheet-box que ya usan Editar tema/Setlists/
+        Categorías — full width, backdrop que cierra tocando afuera,
+        botones de 48px de alto agrupados (editar nombre/categoría/
+        tema arriba, duplicar en medio, restablecer ajustes si aplica,
+        borrar separado abajo en rojo). Nueva
+        abrirSheetOpcionesTema()/cerrarSheetOpcionesTema(), reemplazan
+        a toggleMenuTema(). Ninguna función destino (renombrarTema,
+        cambiarCategoriaTema, abrirEditorTema, duplicarTema, borrarTema,
+        restablecerAjustesSesionDesdeCard) cambia de firma ni de
+        lógica interna — solo cambia desde dónde se llaman. El CSS
+        viejo .tema-card-menu queda sin uso (no se borra, por si hace
+        falta revertir rápido) — candidato a limpieza en una futura
+        revisión de código, igual que seccionesChipsHtml (v3.219).
+-->
+<!-- AUDIOLINK · ensayo.html · v3.221
+     v3.221: (a pedido) PDF de guía de estudio, centralizado por
+     CATEGORÍA (no por tema — un mismo PDF cubre varios ejercicios).
+     Nuevo, sin tocar nada del motor existente:
+     1) "Subir tema"/"Editar tema" suman: input de archivo PDF
+        (opcional, sube y reemplaza el PDF de TODA la categoría del
+        tema) + número de página (por tema, campo guiaPagina en
+        GUIAS2). Mismo mecanismo unsigned-XHR-con-progreso que ya usa
+        subirAudioACloudinary, nueva función subirPdfACloudinary(),
+        preset separado GUIAS2PDF (requiere crearlo en Cloudinary,
+        unsigned, resource type Image, con delivery de PDF habilitado
+        si la cuenta es free).
+     2) guardarGuiaPdfEnCategoria(): sube el PDF y guarda
+        guiaPdfPublicId + guiaPdfPaginas en el doc CATEGORIAS2
+        correspondiente (buscado por nombre, ya existente siempre para
+        ese punto del flujo). Si no hay categoría elegida, no sube
+        nada y avisa con un toast — el tema igual se guarda.
+     3) Pantalla de práctica: bloque colapsable "📄 Guía" (mismo
+        <details>/CSS que ya usa .practica-offsetlocal, sin CSS
+        nuevo). Al abrirlo por primera vez, carga la miniatura de la
+        página exacta vía la transformación pg_N de Cloudinary
+        (gratis, sin recortar/subir nada aparte) y ofrece un botón
+        para abrir el PDF completo en esa página.
+     Nada de esto toca cálculo de bpm/clave/compás, audio, offset ni
+     secciones — es un agregado independiente.
+-->
+<!-- AUDIOLINK · ensayo.html · v3.220
+     v3.220: (a pedido) bpm/compás/clave/tonalidad "override" de
+     práctica ahora TAMBIÉN se guardan en Firestore (GUIAS2), mismo
+     patrón que offset/secciones — antes vivían solo en localStorage,
+     así que no viajaban a otro dispositivo. Cambios, ambos acotados a
+     guardarAjustesPractica()/cargarAjustesGuardados() — nada más se
+     tocó:
+     1) guardarAjustesPractica(uid, soloLocal): sigue guardando TODO en
+        localStorage igual que siempre (incluye un nuevo campo
+        ajustadoEn=Date.now()). Además, si el tema abierto es el que
+        está guardando (uid === 'practica-'+temaActualId) y no viene
+        con soloLocal=true, manda bpmOverride/compasesOverride/
+        claveOverride/tonalidadOverride + ajustesEn=Date.now() al doc
+        GUIAS2 de ese tema (merge:true) — no toca offset ni secciones,
+        que ya se guardan aparte.
+     2) cargarAjustesGuardados(uid): primero restaura del localStorage
+        las preferencias que NUNCA viajan a la nube (sonido, acentos,
+        subdivisión, volúmenes, on/off de click y clave — sin cambios).
+        Para bpm/compás/clave/tonalidad, compara el timestamp guardado
+        en localStorage (ajustadoEn) contra el que trae el tema desde
+        Firestore (ajustesEn, ya viene en temaActualDatos al abrir el
+        tema): gana el más reciente. Si gana la nube, sincroniza de
+        vuelta el localStorage de este dispositivo (guardarAjustesPractica
+        con soloLocal=true, para no reescribir Firestore con su propio
+        dato).
+     Nada de esto toca cálculo de bpm efectivo, clave, acentos,
+     subdivisión ni el resto del motor — solo dónde/cómo se persisten
+     estos 4 valores.
+-->
 <!-- AUDIOLINK · ensayo.html · v3.219
      v3.219: (a pedido, revisión de jerarquía visual) 4 ajustes, 100%
      CSS, ningún id ni función tocada:
@@ -820,6 +926,10 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .sheet-lista{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;min-height:40px;}
 .sheet-opcion{width:100%;text-align:left;min-height:48px;padding:0 14px;border-radius:10px;border:1px solid var(--brd);background:var(--surf-light);color:var(--txt);font-size:0.92rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between;}
 .sheet-opcion.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+/* v3.222: variante roja para acciones destructivas dentro de un sheet
+   (ver sheetOpcionesTemaOverlay) — mismo criterio de color que ya
+   usaba .tema-card-menu button.peligro. */
+.sheet-opcion.peligro{color:#e05a5a;border-color:#e05a5a;}
 .sheet-opcion-vacia{color:var(--muted);font-size:0.82rem;padding:10px 4px;}
 /* v3.186: fila del editor de categorías — el botón grande de elegir +
    dos botones chicos de acción (✏️ renombrar / 🗑️ borrar), todos con
@@ -1252,6 +1362,12 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    píxeles exactos (mismo valor que canvas.height), así el dibujo
    nunca queda estirado ni aplastado por el CSS. */
 .practica-offsetlocal{margin-top:10px;padding:14px;background:var(--surf-light);border-radius:10px;display:flex;flex-direction:column;gap:10px;}
+/* v3.223: barra de navegación de páginas de la Guía (Atrás/Siguiente),
+   portada de musico.html v3.198 (mismos selectores, mismo look). */
+.practica-score-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;margin-bottom:8px;}
+.practica-score-nav button{flex:0 0 auto;}
+.practica-score-nav button:disabled{opacity:.4;cursor:not-allowed;}
+.practica-score-nav .practica-score-pagina{flex:1 1 auto;text-align:center;font-size:.9rem;color:var(--txt-dim,var(--txt));}
 .practica-offsetlocal-marcar{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;}
 .practica-offsetlocal-marcar.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
 /* v3.174: (a pedido) "secciones locales propias" — lista editable de
@@ -1640,6 +1756,14 @@ main{padding:28px;max-width:760px;margin:0 auto;}
         <div class="practica-compas-libre-error" id="nuevoTemaCompasLibreError" style="display:none;color:var(--warn);font-size:0.85rem;margin-top:4px;"></div>
         <label>Categoría (opcional)</label>
         <button type="button" class="categoria-picker-btn vacio" id="nuevoTemaCategoriaBtn" onclick="abrirSelectorCategoria('subir')">Elegir categoría…</button>
+        <!-- v3.221: PDF de guía — vive a nivel de CATEGORÍA (ver
+             guardarGuiaPdfEnCategoria), por eso el aviso de abajo
+             depende de la categoría elegida arriba. -->
+        <label>PDF de guía de la categoría (opcional)</label>
+        <div id="nuevoTemaGuiaPdfInfo" style="font-size:0.82rem;color:var(--muted);margin-bottom:6px;">Elegí una categoría arriba para poder asociarle un PDF de guía.</div>
+        <input type="file" id="nuevoTemaGuiaPdfInput" accept="application/pdf" onchange="nuevoTemaGuiaPdfFile = (this.files && this.files[0]) || null;">
+        <label>Páginas del ejercicio en la guía (opcional)</label>
+        <input type="text" id="nuevoTemaGuiaPagina" placeholder="ej: 3, 5-7, 12">
         <label>Tonalidad (opcional)</label>
         <input type="text" id="nuevoTemaTonalidad" placeholder="ej: C, Am, F#m">
         <label>Clave (opcional)</label>
@@ -1736,6 +1860,11 @@ main{padding:28px;max-width:760px;margin:0 auto;}
       <div class="practica-compas-libre-error" id="editarTemaCompasLibreError" style="display:none;color:var(--warn);font-size:0.85rem;margin-top:4px;"></div>
       <label>Categoría (opcional)</label>
       <button type="button" class="categoria-picker-btn vacio" id="editarTemaCategoriaBtn" onclick="abrirSelectorCategoria('editar')">Elegir categoría…</button>
+      <label>PDF de guía de la categoría (opcional)</label>
+      <div id="editarTemaGuiaPdfInfo" style="font-size:0.82rem;color:var(--muted);margin-bottom:6px;"></div>
+      <input type="file" id="editarTemaGuiaPdfInput" accept="application/pdf" onchange="editarTemaGuiaPdfFile = (this.files && this.files[0]) || null;">
+      <label>Páginas del ejercicio en la guía (opcional)</label>
+      <input type="text" id="editarTemaGuiaPagina" placeholder="ej: 3, 5-7, 12">
       <label>Tonalidad (opcional)</label>
       <input type="text" id="editarTemaTonalidad" placeholder="ej: C, Am, F#m">
       <label>Clave (opcional)</label>
@@ -1761,6 +1890,21 @@ main{padding:28px;max-width:760px;margin:0 auto;}
     <div class="sheet-acciones">
       <span></span>
       <button type="button" class="btn-ghost" onclick="cerrarEditorTema()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- v3.222: bottom sheet "Opciones de tema" — reemplaza el dropdown
+     flotante .tema-card-menu (⋮) de cada card. Mismo patrón que los
+     demás sheets: backdrop full-screen, cierra tocando afuera o con
+     "Cancelar". La lista de botones se arma en abrirSheetOpcionesTema. -->
+<div class="sheet-overlay" id="sheetOpcionesTemaOverlay" onclick="if(event.target===this) cerrarSheetOpcionesTema()">
+  <div class="sheet-box" onclick="event.stopPropagation()">
+    <h3 id="sheetOpcionesTemaTitulo">Opciones</h3>
+    <div id="sheetOpcionesTemaLista"></div>
+    <div class="sheet-acciones">
+      <span></span>
+      <button type="button" class="btn-ghost" onclick="cerrarSheetOpcionesTema()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3832,9 +3976,10 @@ function toggleClavePractica(uid){
 // estadoPractica[uid] — nunca toca Firestore ni el dato real del
 // tema. Si localStorage falla (modo privado, cuota, etc.) se ignora
 // en silencio, el metrónomo sigue funcionando solo que sin recordar.
-function guardarAjustesPractica(uid){
+function guardarAjustesPractica(uid, soloLocal){
   const est = estadoPractica[uid];
   if(!est) return;
+  const ahora = Date.now();
   try{
     localStorage.setItem('audiolink-ajustes-' + uid, JSON.stringify({
       bpmOverride: est.bpmOverride,
@@ -3849,9 +3994,25 @@ function guardarAjustesPractica(uid){
       volFuerte: est.volFuerte,
       volNormal: est.volNormal,
       clickActivo: est.clickActivo,
-      claveActiva: est.claveActiva
+      claveActiva: est.claveActiva,
+      ajustadoEn: ahora
     }));
   }catch(e){}
+
+  // v3.220: (a pedido) bpm/compás/clave/tonalidad override viajan
+  // también a Firestore (GUIAS2), mismo doc que offset/secciones —
+  // así se sincronizan entre dispositivos. soloLocal=true corta acá
+  // (lo usa cargarAjustesGuardados cuando el valor YA vino de
+  // Firestore, para no reescribirlo contra sí mismo).
+  if(soloLocal) return;
+  if(!temaActualId || uid !== 'practica-' + temaActualId) return;
+  db.collection('GUIAS2').doc(temaActualId).set({
+    bpmOverride: (est.bpmOverride != null) ? est.bpmOverride : null,
+    compasesOverride: (est.compasesOverride !== undefined) ? est.compasesOverride : null,
+    claveOverride: (est.claveOverride !== undefined) ? est.claveOverride : null,
+    tonalidadOverride: (est.tonalidadOverride !== undefined) ? est.tonalidadOverride : null,
+    ajustesEn: ahora
+  }, { merge: true }).catch(e => console.error('No se pudieron guardar los ajustes de práctica en Firestore:', e));
 }
 
 // v3.6: se llama al inicializar, antes de recalcularEfectivoPractica,
@@ -3862,26 +4023,44 @@ function guardarAjustesPractica(uid){
 function cargarAjustesGuardados(uid){
   const est = estadoPractica[uid];
   if(!est) return;
-  let guardado;
+  let guardado = null;
   try{
     const raw = localStorage.getItem('audiolink-ajustes-' + uid);
-    if(!raw) return;
-    guardado = JSON.parse(raw);
-  }catch(e){ return; }
-  if(!guardado || typeof guardado !== 'object') return;
-  if(guardado.bpmOverride != null) est.bpmOverride = guardado.bpmOverride;
-  if(guardado.claveOverride !== undefined) est.claveOverride = guardado.claveOverride;
-  if(guardado.tonalidadOverride !== undefined) est.tonalidadOverride = guardado.tonalidadOverride;
-  if(guardado.compasesOverride !== undefined) est.compasesOverride = guardado.compasesOverride;
-  if(guardado.subdivisionOverride) est.subdivisionOverride = guardado.subdivisionOverride;
-  if(guardado.sonidoClick) est.sonidoClick = guardado.sonidoClick;
-  if(guardado.sonidoClave) est.sonidoClave = guardado.sonidoClave;
-  if(Array.isArray(guardado.acentos) && guardado.acentos.length === est.acentos.length) est.acentos = guardado.acentos;
-  if(Array.isArray(guardado.acentosClave) && guardado.acentosClave.length === est.acentosClave.length) est.acentosClave = guardado.acentosClave;
-  if(typeof guardado.volFuerte === 'number') est.volFuerte = guardado.volFuerte;
-  if(typeof guardado.volNormal === 'number') est.volNormal = guardado.volNormal;
-  if(typeof guardado.clickActivo === 'boolean') est.clickActivo = guardado.clickActivo;
-  if(typeof guardado.claveActiva === 'boolean') est.claveActiva = guardado.claveActiva;
+    if(raw) guardado = JSON.parse(raw);
+  }catch(e){ guardado = null; }
+  if(guardado && typeof guardado !== 'object') guardado = null;
+
+  // Preferencias que NUNCA viajan a Firestore — solo localStorage,
+  // igual que siempre.
+  if(guardado){
+    if(guardado.subdivisionOverride) est.subdivisionOverride = guardado.subdivisionOverride;
+    if(guardado.sonidoClick) est.sonidoClick = guardado.sonidoClick;
+    if(guardado.sonidoClave) est.sonidoClave = guardado.sonidoClave;
+    if(Array.isArray(guardado.acentos) && guardado.acentos.length === est.acentos.length) est.acentos = guardado.acentos;
+    if(Array.isArray(guardado.acentosClave) && guardado.acentosClave.length === est.acentosClave.length) est.acentosClave = guardado.acentosClave;
+    if(typeof guardado.volFuerte === 'number') est.volFuerte = guardado.volFuerte;
+    if(typeof guardado.volNormal === 'number') est.volNormal = guardado.volNormal;
+    if(typeof guardado.clickActivo === 'boolean') est.clickActivo = guardado.clickActivo;
+    if(typeof guardado.claveActiva === 'boolean') est.claveActiva = guardado.claveActiva;
+  }
+
+  // v3.220: (a pedido) bpm/compás/clave/tonalidad override SÍ viajan a
+  // Firestore (ver guardarAjustesPractica). Gana el más reciente entre
+  // este dispositivo (guardado.ajustadoEn) y la nube (temaActualDatos.
+  // ajustesEn, que ya viene cargado junto con el tema).
+  const remoto = (temaActualDatos && temaActualDatos.ajustesEn) ? temaActualDatos : null;
+  const localTs = (guardado && guardado.ajustadoEn) || 0;
+  const remotoTs = (remoto && remoto.ajustesEn) || 0;
+  const fuente = (remoto && remotoTs > localTs) ? remoto : guardado;
+  if(!fuente) return;
+  if(fuente.bpmOverride != null) est.bpmOverride = fuente.bpmOverride;
+  if(fuente.claveOverride !== undefined && fuente.claveOverride !== null) est.claveOverride = fuente.claveOverride;
+  if(fuente.tonalidadOverride !== undefined && fuente.tonalidadOverride !== null) est.tonalidadOverride = fuente.tonalidadOverride;
+  if(fuente.compasesOverride !== undefined && fuente.compasesOverride !== null) est.compasesOverride = fuente.compasesOverride;
+
+  // Si ganó la nube, sincroniza el localStorage de este dispositivo
+  // (soloLocal=true: no vuelve a escribir en Firestore su propio dato).
+  if(fuente === remoto) guardarAjustesPractica(uid, true);
 }
 
 // v3.192: (a pedido) ¿este tema tiene ajustes de sesión guardados en
@@ -7973,6 +8152,11 @@ function restaurarTemaAbiertoSiCorresponde(){
 // v1.4: FIX — confirmado por el usuario: el preset real es GUIASAUDIO2.
 const CLOUDINARY_CLOUD_NAME_AUDIO = 'mqwgjh3u';
 const CLOUDINARY_PRESET_AUDIO = 'GUIASAUDIO2';
+// v3.221: mismo cloud, preset unsigned aparte para PDFs de guía
+// (crear en Cloudinary: Upload presets → unsigned, y si la cuenta es
+// free habilitar Settings → Security → "Allow delivery of PDF and ZIP
+// files", si no la miniatura pg_N y el link al PDF completo fallan).
+const CLOUDINARY_PRESET_PDF = 'GUIAS2PDF';
 
 function mostrarVista(nombre){
   ['login','lista','subir','practica'].forEach(v => {
@@ -8237,14 +8421,6 @@ function filtrarYRenderizarTemas(){
         <button class="tema-card-progreso" data-accion="ciclar-progreso" data-id="${t.id}" title="Progreso: click para cambiar">${infoProgreso(t.progreso).emoji}</button>
         ${tieneAjustes ? `<button class="tema-card-ajustes" data-accion="restablecer-ajustes" data-id="${t.id}" data-nombre="${escapeHtml(t.nombre || 'este tema')}" title="Tenés ajustes de sesión guardados en este dispositivo (tempo/tono/clave/compás distintos del original) — click para restablecer">🔧</button>` : ''}
         <button class="tema-card-menubtn" data-accion="toggle-menu" data-id="${t.id}" title="Opciones">⋮</button>
-        <div class="tema-card-menu" id="menutema-${t.id}" style="display:none;" data-accion="stop">
-          <button data-accion="renombrar-tema" data-id="${t.id}">✏️ Cambiar nombre</button>
-          <button data-accion="cambiar-categoria" data-id="${t.id}">🏷️ Cambiar categoría</button>
-          <button data-accion="editar-tema" data-id="${t.id}">🛠️ Editar tema</button>
-          <button data-accion="duplicar-tema" data-id="${t.id}">📄 Duplicar tema</button>
-          ${tieneAjustes ? `<button data-accion="restablecer-ajustes" data-id="${t.id}" data-nombre="${escapeHtml(t.nombre || 'este tema')}">↺ Restablecer ajustes de sesión</button>` : ''}
-          <button class="peligro" data-accion="borrar-tema" data-id="${t.id}">🗑️ Borrar tema</button>
-        </div>
         <div class="tema-card-nombre">${escapeHtml(t.nombre || 'Tema')}</div>
         <div class="tema-card-meta">${formatBpm(t.bpm)} BPM · ${escapeHtml(t.compas || '4/4')}${t.tonalidad ? ' · ' + escapeHtml(t.tonalidad) : ''}</div>
         ${t.categoria ? `<span class="tema-card-categoria">${escapeHtml(t.categoria)}</span>` : ''}
@@ -8266,7 +8442,7 @@ function manejarClickListaTemas(ev){
   switch(accion){
     case 'abrir-tema': abrirTema(id); break;
     case 'ciclar-progreso': ciclarProgresoTema(id); break;
-    case 'toggle-menu': toggleMenuTema(ev, id); break;
+    case 'toggle-menu': abrirSheetOpcionesTema(ev, id); break;
     case 'renombrar-tema': renombrarTema(id); break;
     case 'cambiar-categoria': cambiarCategoriaTema(id); break;
     case 'editar-tema': abrirEditorTema(id); break;
@@ -8931,17 +9107,40 @@ async function duplicarTema(temaId){
 // menú ⋮ con stopPropagation para no abrir el tema al usarlo. Cada
 // acción hace un merge puntual sobre GUIAS2 y refresca solo esa fila
 // en memoria (misTemas), sin recargar todo Firestore de nuevo.
-function toggleMenuTema(ev, temaId){
-  ev.stopPropagation();
-  document.querySelectorAll('.tema-card-menu').forEach(m => {
-    if(m.id !== 'menutema-' + temaId) m.style.display = 'none';
-  });
-  const menu = document.getElementById('menutema-' + temaId);
-  if(menu) menu.style.display = (menu.style.display === 'none') ? 'block' : 'none';
+// v3.222: (a pedido, revisión mobile-first del menú de la card) el
+// dropdown flotante .tema-card-menu (6 botones angostos pegados a la
+// esquina de la card, sin backdrop) se reemplaza por un bottom sheet
+// — mismo patrón .sheet-overlay/.sheet-box que ya usan Editar tema/
+// Setlists/Categorías, cero CSS nuevo. Se abre con el id del tema en
+// contexto (sheetOpcionesTemaId) y arma sus botones con .sheet-opcion
+// (48px de alto, pensados para el dedo), agrupados por tipo de acción
+// en vez de listados todos igual. Ninguna función destino
+// (renombrarTema, cambiarCategoriaTema, abrirEditorTema, duplicarTema,
+// borrarTema, restablecerAjustesSesionDesdeCard) cambia de firma ni de
+// lógica — solo cambia desde dónde se llaman.
+let sheetOpcionesTemaId = null;
+function abrirSheetOpcionesTema(ev, temaId){
+  if(ev) ev.stopPropagation();
+  const tema = (misTemas || []).find(t => t.id === temaId);
+  if(!tema) return;
+  sheetOpcionesTemaId = temaId;
+  const tieneAjustes = temaTieneAjustesSesion(temaId);
+  document.getElementById('sheetOpcionesTemaTitulo').textContent = tema.nombre || 'Tema';
+  document.getElementById('sheetOpcionesTemaLista').innerHTML = `
+    <button type="button" class="sheet-opcion" onclick="cerrarSheetOpcionesTema(); renombrarTema('${temaId}')">✏️ Cambiar nombre</button>
+    <button type="button" class="sheet-opcion" onclick="cerrarSheetOpcionesTema(); cambiarCategoriaTema('${temaId}')">🏷️ Cambiar categoría</button>
+    <button type="button" class="sheet-opcion" onclick="cerrarSheetOpcionesTema(); abrirEditorTema('${temaId}')">🛠️ Editar tema</button>
+    <button type="button" class="sheet-opcion" style="margin-top:10px;" onclick="cerrarSheetOpcionesTema(); duplicarTema('${temaId}')">📄 Duplicar tema</button>
+    ${tieneAjustes ? `<button type="button" class="sheet-opcion" style="margin-top:10px;" onclick="cerrarSheetOpcionesTema(); restablecerAjustesSesionDesdeCard('${temaId}', '${escapeHtml(tema.nombre || 'este tema').replace(/'/g, "\\'")}')">↺ Restablecer ajustes de sesión</button>` : ''}
+    <button type="button" class="sheet-opcion peligro" style="margin-top:16px;" onclick="cerrarSheetOpcionesTema(); borrarTema('${temaId}')">🗑️ Borrar tema</button>`;
+  const ov = document.getElementById('sheetOpcionesTemaOverlay');
+  if(ov) ov.classList.add('abierto');
 }
-document.addEventListener('click', () => {
-  document.querySelectorAll('.tema-card-menu').forEach(m => m.style.display = 'none');
-});
+function cerrarSheetOpcionesTema(){
+  const ov = document.getElementById('sheetOpcionesTemaOverlay');
+  if(ov) ov.classList.remove('abierto');
+  sheetOpcionesTemaId = null;
+}
 async function renombrarTema(temaId){
   const tema = (misTemas || []).find(t => t.id === temaId);
   if(!tema) return;
@@ -9013,6 +9212,13 @@ function irASubirTema(){
   const btnCat = document.getElementById('nuevoTemaCategoriaBtn');
   if(btnCat){ btnCat.textContent = 'Elegir categoría…'; btnCat.classList.add('vacio'); }
   archivoASubir = null;
+  // v3.221: reset del bloque de PDF de guía al abrir el formulario en blanco.
+  nuevoTemaGuiaPdfFile = null;
+  const guiaPdfInput = document.getElementById('nuevoTemaGuiaPdfInput');
+  if(guiaPdfInput) guiaPdfInput.value = '';
+  const guiaPaginaInput = document.getElementById('nuevoTemaGuiaPagina');
+  if(guiaPaginaInput) guiaPaginaInput.value = '';
+  actualizarInfoGuiaPdfForm('nuevoTema', '');
   mostrarVista('subir');
 }
 
@@ -9197,6 +9403,7 @@ function elegirCategoriaDesdeSheet(categoriaId){
       btnCatEditar.textContent = nombre || 'Elegir categoría…';
       btnCatEditar.classList.toggle('vacio', !nombre);
     }
+    actualizarInfoGuiaPdfForm('editarTema', nombre);
   } else {
     nuevoTemaCategoriaSeleccionada = nombre;
     const btnCat = document.getElementById('nuevoTemaCategoriaBtn');
@@ -9204,12 +9411,34 @@ function elegirCategoriaDesdeSheet(categoriaId){
       btnCat.textContent = nombre || 'Elegir categoría…';
       btnCat.classList.toggle('vacio', !nombre);
     }
+    actualizarInfoGuiaPdfForm('nuevoTema', nombre);
   }
   cerrarSelectorCategoria();
 }
 
 // ============ SUBIR TEMA NUEVO ============
 let archivoASubir = null;
+// v3.221: PDF de guía elegido en cada formulario (se sube recién al
+// confirmar, igual que archivoASubir con el audio).
+let nuevoTemaGuiaPdfFile = null;
+let editarTemaGuiaPdfFile = null;
+// v3.221: texto de aviso sobre el PDF de guía, según la categoría
+// elegida en ese momento en el formulario (nuevoTema o editarTema).
+// Se llama cada vez que cambia la categoría seleccionada.
+function actualizarInfoGuiaPdfForm(prefijo, nombreCategoria){
+  const info = document.getElementById(prefijo + 'GuiaPdfInfo');
+  if(!info) return;
+  if(!nombreCategoria){
+    info.textContent = 'Elegí una categoría arriba para poder asociarle un PDF de guía.';
+    return;
+  }
+  const cat = (misCategorias || []).find(c => c.nombre === nombreCategoria);
+  if(cat && cat.guiaPdfPublicId){
+    info.textContent = `"${nombreCategoria}" ya tiene un PDF cargado (${cat.guiaPdfPaginas || '?'} páginas). Elegir un archivo abajo lo reemplaza para TODOS los temas de esta categoría.`;
+  } else {
+    info.textContent = `"${nombreCategoria}" todavía no tiene PDF de guía. Si subís uno acá, queda disponible para todos sus temas.`;
+  }
+}
 
 async function onArchivoNuevoTemaElegido(files){
   const file = files && files[0];
@@ -9347,6 +9576,9 @@ async function confirmarSubidaNuevoTema(){
     if(compas == null) return; // el error ya quedó visible en el formulario, no se guarda nada
   }
   const categoria = nuevoTemaCategoriaSeleccionada || '';
+  // v3.221: número de página del ejercicio dentro del PDF de guía de
+  // la categoría (campo aparte, guiaPagina, no afecta bpm/compás/etc.)
+  const guiaPaginas = parsearRangoPaginas(document.getElementById('nuevoTemaGuiaPagina').value);
   const tonalidad = (document.getElementById('nuevoTemaTonalidad').value || '').trim();
   const clave = resolverClaveSeleccionada('nuevoTemaClave', 'nuevoTemaClaveLibre');
   const btn = document.getElementById('btnConfirmarSubida');
@@ -9361,7 +9593,7 @@ async function confirmarSubidaNuevoTema(){
     const tamañoBytes = archivoASubir.size || null;
     const docRef = await db.collection('GUIAS2').add({
       dueño: auth.currentUser.email,
-      nombre, bpm, compas, categoria, tonalidad, clave,
+      nombre, bpm, compas, categoria, tonalidad, clave, guiaPaginas,
       offset: 0, secciones: [], progreso: '', notas: '',
       audioUrl: null, tamañoBytes,
       creado: firebase.firestore.FieldValue.serverTimestamp()
@@ -9369,7 +9601,7 @@ async function confirmarSubidaNuevoTema(){
     // v1: el archivo ya elegido corre DE UNA por el motor local (waveform,
     // metrónomo, todo) — la subida a Cloudinary pasa en paralelo, sin
     // bloquear la práctica.
-    const tema = { id: docRef.id, dueño: auth.currentUser.email, nombre, bpm, compas, categoria, tonalidad, clave, offset: 0, secciones: [], progreso: '', notas: '', tamañoBytes };
+    const tema = { id: docRef.id, dueño: auth.currentUser.email, nombre, bpm, compas, categoria, tonalidad, clave, guiaPaginas, offset: 0, secciones: [], progreso: '', notas: '', tamañoBytes };
     // v3.189: se agrega a misTemas en memoria — volverAMisTemas() ya no
     // relee Firestore siempre, así que si no se hace esto acá el tema
     // recién creado no aparecería en la grilla hasta pasados 3 minutos.
@@ -9387,6 +9619,15 @@ async function confirmarSubidaNuevoTema(){
       console.error('No se pudo subir el audio a Cloudinary:', err);
       mostrarToast('El tema quedó guardado y ya podés practicar, pero no se pudo subir la copia en la nube. Podés reintentar más tarde.', 'error');
     });
+    // v3.221: PDF de guía — sube en paralelo, sin bloquear la práctica,
+    // igual que el audio de arriba.
+    if(nuevoTemaGuiaPdfFile){
+      if(categoria){
+        guardarGuiaPdfEnCategoria(categoria, nuevoTemaGuiaPdfFile, txt => { if(txt) msg.textContent = txt; });
+      } else {
+        mostrarToast('Elegiste un PDF de guía pero no una categoría — no se subió. Podés asignarlo después editando el tema.', 'info');
+      }
+    }
   } catch(err){
     console.error('Error creando el tema:', err);
     msg.textContent = 'No se pudo guardar el tema. Intenta de nuevo.';
@@ -9444,6 +9685,16 @@ function abrirEditorTema(temaId){
     actualizarClaveLibreEditar(claveActual);
   }
   document.getElementById('editarTemaEstadoMsg').textContent = '';
+  // v3.221: reset del bloque de PDF de guía + precarga de la página
+  // ya guardada para este tema, y el aviso según su categoría actual.
+  editarTemaGuiaPdfFile = null;
+  const guiaPdfInputEditar = document.getElementById('editarTemaGuiaPdfInput');
+  if(guiaPdfInputEditar) guiaPdfInputEditar.value = '';
+  const guiaPaginaInputEditar = document.getElementById('editarTemaGuiaPagina');
+  // v3.222: compatibilidad — temas viejos traen guiaPagina (número
+  // único); si no hay guiaPaginas todavía, se precarga a partir de ese.
+  if(guiaPaginaInputEditar) guiaPaginaInputEditar.value = formatearPaginasParaInput(tema.guiaPaginas || (tema.guiaPagina ? [tema.guiaPagina] : []));
+  actualizarInfoGuiaPdfForm('editarTema', tema.categoria || '');
   const overlay = document.getElementById('sheetEditarTemaOverlay');
   if(overlay) overlay.classList.add('abierto');
 }
@@ -9530,6 +9781,7 @@ async function confirmarEditarTema(){
     if(compas == null) return; // el error ya quedó visible en el formulario, no se guarda nada
   }
   const categoria = editarTemaContexto.categoriaSeleccionada || '';
+  const guiaPaginas = parsearRangoPaginas(document.getElementById('editarTemaGuiaPagina').value);
   const tonalidad = (document.getElementById('editarTemaTonalidad').value || '').trim();
   // v3.209: FIX — antes leía el <select> crudo; si estaba en
   // "personalizado" guardaba ese literal en vez del patrón escrito en
@@ -9543,13 +9795,19 @@ async function confirmarEditarTema(){
     // v3.206: a propósito NO se incluye offset/secciones/audioUrl/etc.
     // — merge:true solo pisa los campos editables de este formulario,
     // el resto del documento del tema queda intacto.
-    await db.collection('GUIAS2').doc(temaId).set({ nombre, bpm, compas, categoria, tonalidad, clave }, { merge: true });
+    // v3.222: guiaPaginas (array) reemplaza a guiaPagina (número
+    // único). Se manda también guiaPagina:null para limpiar el campo
+    // viejo en Firestore en temas que lo traían de antes, así no
+    // quedan los dos campos convivendo con datos desactualizados.
+    await db.collection('GUIAS2').doc(temaId).set({ nombre, bpm, compas, categoria, tonalidad, clave, guiaPaginas, guiaPagina: null }, { merge: true });
     tema.nombre = nombre;
     tema.bpm = bpm;
     tema.compas = compas;
     tema.categoria = categoria;
     tema.tonalidad = tonalidad;
     tema.clave = clave;
+    tema.guiaPaginas = guiaPaginas;
+    tema.guiaPagina = null;
     if(temaActualId === temaId && temaActualDatos){
       temaActualDatos.nombre = nombre;
       temaActualDatos.bpm = bpm;
@@ -9557,11 +9815,21 @@ async function confirmarEditarTema(){
       temaActualDatos.categoria = categoria;
       temaActualDatos.tonalidad = tonalidad;
       temaActualDatos.clave = clave;
+      temaActualDatos.guiaPaginas = guiaPaginas;
+      temaActualDatos.guiaPagina = null;
     }
     misTemas.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
     filtrarYRenderizarTemas();
     cerrarEditorTema();
     mostrarToast('Tema actualizado.', 'info');
+    // v3.221: PDF de guía — sube en paralelo, sin bloquear el resto.
+    if(editarTemaGuiaPdfFile){
+      if(categoria){
+        guardarGuiaPdfEnCategoria(categoria, editarTemaGuiaPdfFile, () => {});
+      } else {
+        mostrarToast('Elegiste un PDF de guía pero no hay categoría asignada — no se subió.', 'info');
+      }
+    }
   } catch(err){
     console.error('No se pudo guardar la edición del tema:', err);
     msg.textContent = 'No se pudo guardar. Intenta de nuevo.';
@@ -9595,6 +9863,93 @@ function subirAudioACloudinary(file, onProgress){
     form.append('upload_preset', CLOUDINARY_PRESET_AUDIO);
     xhr.send(form);
   });
+}
+
+// v3.222: (a pedido) parser de "3, 5-7, 12" -> [3,5,6,7,12] para el
+// campo de páginas de guía por tema (antes un solo número, guiaPagina).
+// Ignora tokens inválidos en vez de fallar toda la carga; ordena y
+// saca duplicados. Devuelve [] si no hay nada válido (equivalente al
+// null anterior de guiaPagina).
+function parsearRangoPaginas(texto){
+  const partes = (texto || '').split(',');
+  const set = new Set();
+  partes.forEach(parte => {
+    const p = parte.trim();
+    if(!p) return;
+    const rango = /^([1-9][0-9]*)\s*-\s*([1-9][0-9]*)$/.exec(p);
+    if(rango){
+      let desde = parseInt(rango[1], 10), hasta = parseInt(rango[2], 10);
+      if(desde > hasta){ const tmp = desde; desde = hasta; hasta = tmp; }
+      for(let n = desde; n <= hasta && n - desde < 500; n++) set.add(n);
+      return;
+    }
+    const num = /^([1-9][0-9]*)$/.exec(p);
+    if(num) set.add(parseInt(num[1], 10));
+  });
+  return Array.from(set).sort((a, b) => a - b);
+}
+// Inverso simple para precargar el input al editar: no intenta
+// recomponer rangos (1,2,3 -> "1, 2, 3", no "1-3") — es un poco menos
+// compacto pero evita lógica de colapso de rangos que no hace falta,
+// el usuario puede reescribirlo como rango si quiere.
+function formatearPaginasParaInput(paginas){
+  return (paginas || []).join(', ');
+}
+
+// v3.221: mismo mecanismo que subirAudioACloudinary, pero al endpoint
+// /image/upload (así Cloudinary trata el PDF como recurso "image",
+// habilitando la transformación pg_N para sacar cualquier página como
+// JPG on-the-fly). Resuelve con { publicId, paginas } — paginas viene
+// del propio response de Cloudinary (data.pages).
+function subirPdfACloudinary(file, onProgress){
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload`);
+    xhr.upload.onprogress = (e) => {
+      if(e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      let data = null;
+      try{ data = JSON.parse(xhr.responseText); }catch(err){ /* respuesta no-JSON, sigue abajo con data=null */ }
+      if(xhr.status >= 200 && xhr.status < 300 && data && data.public_id){
+        resolve({ publicId: data.public_id, paginas: data.pages || 1 });
+      } else {
+        reject(new Error((data && data.error && data.error.message) || `Error de Cloudinary (status ${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Error de red al subir el PDF a Cloudinary'));
+    const form = new FormData();
+    form.append('file', file);
+    form.append('upload_preset', CLOUDINARY_PRESET_PDF);
+    xhr.send(form);
+  });
+}
+
+// v3.221: (a pedido) el PDF de guía vive a nivel de CATEGORÍA, no de
+// tema — un mismo tutorial cubre varios ejercicios, así que se sube
+// UNA vez y se guarda en el doc de CATEGORIAS2 (buscado por nombre,
+// que a esta altura del flujo ya existe siempre). Cada tema solo
+// referencia su número de página (campo guiaPagina, en GUIAS2, ver
+// confirmarSubidaNuevoTema/confirmarEditarTema). Falla en silencio
+// hacia el usuario vía toast — el tema ya quedó guardado igual, esto
+// es un agregado que puede reintentarse después editando el tema.
+function guardarGuiaPdfEnCategoria(nombreCategoria, file, onEstado){
+  const cat = (misCategorias || []).find(c => c.nombre === nombreCategoria);
+  if(!cat || !file) return;
+  if(onEstado) onEstado('Subiendo PDF de guía...');
+  subirPdfACloudinary(file, pct => { if(onEstado) onEstado(`Subiendo PDF de guía ${pct}%…`); })
+    .then(({ publicId, paginas }) => db.collection('CATEGORIAS2').doc(cat.id)
+      .set({ guiaPdfPublicId: publicId, guiaPdfPaginas: paginas }, { merge: true })
+      .then(() => ({ publicId, paginas })))
+    .then(({ publicId, paginas }) => {
+      cat.guiaPdfPublicId = publicId;
+      cat.guiaPdfPaginas = paginas;
+      if(onEstado) onEstado('');
+    })
+    .catch(err => {
+      console.error('No se pudo guardar el PDF de guía:', err);
+      mostrarToast('El tema quedó guardado, pero no se pudo subir el PDF de guía. Podés reintentar editando el tema.', 'error');
+    });
 }
 
 // ============ v3.189: CACHÉ DE AUDIO (Cache API) ============
@@ -9889,6 +10244,83 @@ function crearEstadoPracticaParaTema(tema){
 // Mismo criterio visual que musico.html (título + nombre de archivo +
 // controlesPracticaHtml), sin maquetas/versiones/YouTube: acá el audio
 // siempre llega por onArchivoLocalElegido (device o Cloudinary).
+// v3.221: (a pedido) bloque colapsable "📄 Guía" — referencia visual
+// al ejercicio dentro del PDF de la categoría (ver
+// guardarGuiaPdfEnCategoria). Reutiliza EXACTO el mismo <details>/CSS
+// que ya usa .practica-offsetlocal — cero CSS nuevo. La miniatura
+// (transformación pg_N de Cloudinary) recién se pide al abrir el
+// bloque (onToggleGuiaPdf), no al cargar la pantalla de práctica.
+// v3.222: (a pedido) un tema puede referenciar VARIAS páginas de la
+// guía (antes una sola, tema.guiaPagina). tema.guiaPaginas es el
+// campo nuevo (array); se mantiene fallback a tema.guiaPagina para
+// temas que quedaron con el dato viejo y todavía no se reeditaron.
+// Mismo <details>/CSS de siempre, ahora con una miniatura por página
+// en vez de una sola — cada una carga su imagen recién al abrir el
+// bloque (onToggleGuiaPdf sigue siendo el único disparador).
+// v3.223: (a pedido, "dejar los scores de a 1 pág, con sig. y atrás")
+// antes pintaba TODAS las páginas referenciadas (tema.guiaPaginas)
+// apiladas; ahora arma el contenedor una vez (con navegación) y
+// renderPaginaGuiaPdf() pinta/actualiza solo la imagen + el indicador
+// según cont.dataset.indice (índice dentro del array de páginas del
+// TEMA, no del PDF completo — pueden ser páginas salteadas).
+function guiaPdfBloqueHtml(uid, tema){
+  const cat = (misCategorias || []).find(c => c.nombre === (tema.categoria || ''));
+  if(!cat || !cat.guiaPdfPublicId) return '';
+  const paginas = (tema.guiaPaginas && tema.guiaPaginas.length) ? tema.guiaPaginas : (tema.guiaPagina ? [tema.guiaPagina] : []);
+  if(!paginas.length) return '';
+  const etiqueta = paginas.length === 1 ? `página ${paginas[0]}` : `páginas ${paginas.join(', ')}`;
+  return `
+    <details class="practica-offsetlocal" id="guiapdfdetails-${uid}" data-paginas="${paginas.join(',')}" data-publicid="${cat.guiaPdfPublicId}" ontoggle="onToggleGuiaPdf('${uid}')">
+      <summary><span class="practica-summary-icono">📄</span> Guía (${etiqueta})</summary>
+      <div id="guiapdfcont-${uid}"></div>
+    </details>`;
+}
+function onToggleGuiaPdf(uid){
+  const details = document.getElementById('guiapdfdetails-' + uid);
+  const cont = document.getElementById('guiapdfcont-' + uid);
+  if(!details || !cont || !details.open || cont.dataset.cargado) return;
+  cont.dataset.cargado = '1';
+  cont.dataset.indice = '0';
+  const total = (details.dataset.paginas || '').split(',').filter(Boolean).length || 1;
+  cont.innerHTML = `
+    <img id="guiapdfimg-${uid}" loading="lazy" style="max-width:100%;border-radius:8px;border:1px solid var(--brd);display:block;" alt="Página de la guía">
+    <div class="practica-score-nav">
+      <button type="button" class="btn-ghost" id="guiapdfprev-${uid}" onclick="cambiarPaginaGuiaPdf('${uid}', -1)">⬅ Atrás</button>
+      <span class="practica-score-pagina" id="guiapdflabel-${uid}">Página 1 de ${total}</span>
+      <button type="button" class="btn-ghost" id="guiapdfnext-${uid}" onclick="cambiarPaginaGuiaPdf('${uid}', 1)">Siguiente ➡</button>
+    </div>
+    <button type="button" class="btn-ghost" style="width:100%;margin-top:6px;" id="guiapdfver-${uid}">Ver PDF completo</button>`;
+  renderPaginaGuiaPdf(uid);
+}
+function cambiarPaginaGuiaPdf(uid, delta){
+  const details = document.getElementById('guiapdfdetails-' + uid);
+  const cont = document.getElementById('guiapdfcont-' + uid);
+  if(!details || !cont) return;
+  const paginas = (details.dataset.paginas || '').split(',').filter(Boolean);
+  let indice = (parseInt(cont.dataset.indice, 10) || 0) + delta;
+  indice = Math.min(Math.max(indice, 0), paginas.length - 1);
+  cont.dataset.indice = String(indice);
+  renderPaginaGuiaPdf(uid);
+}
+function renderPaginaGuiaPdf(uid){
+  const details = document.getElementById('guiapdfdetails-' + uid);
+  const cont = document.getElementById('guiapdfcont-' + uid);
+  if(!details || !cont) return;
+  const publicId = details.dataset.publicid;
+  const paginas = (details.dataset.paginas || '').split(',').filter(Boolean);
+  const indice = parseInt(cont.dataset.indice, 10) || 0;
+  const pagina = paginas[indice];
+  const img = document.getElementById(`guiapdfimg-${uid}`);
+  const label = document.getElementById(`guiapdflabel-${uid}`);
+  const prev = document.getElementById(`guiapdfprev-${uid}`);
+  const next = document.getElementById(`guiapdfnext-${uid}`);
+  const ver = document.getElementById(`guiapdfver-${uid}`);
+  if(img) img.src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/pg_${pagina}/${publicId}.jpg`;
+  if(label) label.textContent = `Página ${indice + 1} de ${paginas.length}`;
+  if(prev) prev.disabled = indice <= 0;
+  if(next) next.disabled = indice >= paginas.length - 1;
+  if(ver) ver.onclick = () => window.open(`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/${publicId}.pdf#page=${pagina}`, '_blank');
+}
 function bloquePracticaHtml(tema){
   const uid = 'practica-' + tema.id;
   const compasesPorBarra = parseInt((tema.compas || '4/4').split('/')[0], 10) || 4;
@@ -9908,6 +10340,7 @@ function bloquePracticaHtml(tema){
     <div class="practica-box">
       ${tituloCancion}
       ${notasHtml}
+      ${guiaPdfBloqueHtml(uid, tema)}
       <span id="practicaCargandoAudio" style="display:none;color:var(--muted)">Cargando audio de la nube…</span>
       ${controlesPracticaHtml(uid, compasesPorBarra, tema.bpm, tema.compas, tema.secciones || [], tema.clave)}
     </div>`;
