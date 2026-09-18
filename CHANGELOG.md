@@ -174,6 +174,36 @@ cambios en Cloudinary (sigue usando pg_N vía transformación, nada se
 sube ni se recorta acá), en obtenerScoreParaSesion, en
 scoreBloqueHtml, ni en el resto del motor de BPM/waveform/metrónomo.
 
+### v3.206
+(a pedido) 2 ajustes: 1) "que la respiración sea más rapidita, como
+un palpito, y probemos blanca, como luz" — período del pulso bajado
+de 500ms a 180ms y color cambiado de lila a blanco puro; el loop de
+respiración en pausa también baja su intervalo de 100ms a 40ms para
+que no se vea entrecortado. 2) "no me gusta que las líneas de sección
+pisan los números de la regla" — el número+caja de cada tick de
+compás (antes dibujado ANTES que las líneas de sección/offset/CUE) se
+difiere a un array y se redibuja al final de la función, después de
+esas líneas — así el número siempre queda arriba, sin excepción.
+
+### v3.205
+(a pedido) "que respire más intensamente y también cuando está
+detenido". Amplitud del pulso subida de ±0.1 a ±0.35 (rango
+0.15-0.85, antes 0.35-0.55). Se agrega iniciarRespiroWaveform/
+detenerRespiroWaveform: un loop liviano (setTimeout cada 100ms, no
+rAF) que redibuja el playhead SOLO mientras está en pausa (antes solo
+se veía animar mientras sonaba). Se apaga solo apenas detecta que
+volvió a sonar, y explícitamente al tocar play, al terminar el audio,
+y al destruir el estado. Arranca ya desde que se prepara el waveform
+(antes de tocar play por primera vez).
+
+### v3.204
+(a pedido) revierte la bandera de v3.203 — "no me gusta, dejalo como
+estaba [línea completa v3.202] pero más opaca [tenue, para que no
+compita], más delgada, y que respire". El playhead vuelve a cruzar
+todo el alto, pero sin sombra/glow, 1px en vez de 2px, y alpha
+pulsando suave entre 0.35 y 0.55 (antes sólido) — se nota que respira
+sin competir con el flash de las líneas de sección.
+
 ### v3.203
 (a pedido, "que la línea de posición no compita con las de sección")
 el playhead pasa de línea completa (mismo lenguaje visual que las
@@ -3412,6 +3442,24 @@ la imagen. (5) flechas ←/→ de teclado + mensaje si Cloudinary no
 devuelve la imagen, en vez de ícono roto. Cero cambios en
 guardarGuiaPdfEnCategoria, parsearRangoPaginas, Cloudinary, ni el
 resto del motor de bpm/clave/compás/audio/offset/secciones.
+
+### v3.231
+(a pedido, portado de musico.html v3.206) 1) pulso más rápido
+(período 180ms) y blanco (antes lila); intervalo de respiración en
+pausa bajado a 40ms. 2) el número de cada tick de compás se difiere y
+se redibuja al final, después de las líneas de sección/offset/CUE,
+para que nunca quede tapado.
+
+### v3.230
+(a pedido, portado de musico.html v3.205) amplitud del pulso subida a
+±0.35 (rango 0.15-0.85) + iniciarRespiroWaveform/detenerRespiroWaveform:
+loop liviano (setTimeout 100ms) que redibuja el playhead también en
+pausa, no solo mientras suena.
+
+### v3.229
+(a pedido, portado de musico.html v3.204) revierte la bandera de
+v3.228 — línea completa otra vez, pero fina (1px), tenue (alpha
+0.35-0.55, sin glow) y con pulso de respiración.
 
 ### v3.228
 (a pedido, portado de musico.html v3.203) playhead pasa de línea

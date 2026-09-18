@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.230</title>
-<!-- AUDIOLINK · ensayo.html · v3.230
-     v3.230: (a pedido, portado de musico.html v3.205) amplitud del
-     pulso subida a ±0.35 (rango 0.15-0.85) + iniciarRespiroWaveform/
-     detenerRespiroWaveform: loop liviano (setTimeout 100ms) que
-     redibuja el playhead también en pausa, no solo mientras suena.
+<title>Audiolink — Ensayo v3.231</title>
+<!-- AUDIOLINK · ensayo.html · v3.231
+     v3.231: (a pedido, portado de musico.html v3.206) 1) pulso más
+     rápido (período 180ms, antes 500ms) y blanco (antes lila);
+     intervalo del loop de respiración en pausa bajado a 40ms. 2) el
+     número+caja de cada tick de compás se difiere (array
+     numerosCompas) y se redibuja al final, después de las líneas de
+     sección/offset/CUE, para que nunca quede tapado.
      Historial completo de versiones: ver CHANGELOG.md -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -5663,7 +5665,7 @@ function iniciarRespiroWaveform(uid){
     if(!e || !e.waveformRespiroActivo) return;
     if(e.audioActivo && !e.audioActivo.paused){ e.waveformRespiroActivo = false; return; }
     if(e.getTiempoActual) dibujarWaveform(uid, e.getTiempoActual());
-    e.waveformRespiroTimeout = setTimeout(loop, 100);
+    e.waveformRespiroTimeout = setTimeout(loop, 40);
   };
   loop();
 }
@@ -6094,6 +6096,10 @@ function dibujarWaveform(uid, tiempoActual){
   const cada = elegirCadaTick(MIN_PX_TICK_PRINCIPAL);
   const compasDur = secPerBar * cada;
   const colorFondoTick = estilos.getPropertyValue('--bg').trim() || '#0b0b0d';
+  // v3.231: (a pedido, portado de musico.html v3.206) diferir el
+  // dibujo del número de compás hasta después de las líneas de
+  // sección/offset/CUE, para que nunca quede tapado por ellas.
+  const numerosCompas = [];
   ctxDraw.textAlign = 'center';
   let compasNum = cada + 1;
   // v3.202: (a pedido) el compás 1 (offsetEfectivo, arranque real del
@@ -6128,10 +6134,7 @@ function dibujarWaveform(uid, tiempoActual){
     ctxDraw.font = encendido0 ? 'bold 14px monospace' : 'bold 13px monospace';
     const textoNum0 = '1';
     const anchoTexto0 = ctxDraw.measureText(textoNum0).width;
-    ctxDraw.fillStyle = colorFondoTick;
-    ctxDraw.fillRect(tx0 - anchoTexto0 / 2 - 3, 0, anchoTexto0 + 6, 14);
-    ctxDraw.fillStyle = encendido0 ? '#fff4d6' : colorGold;
-    ctxDraw.fillText(textoNum0, tx0, 11);
+    numerosCompas.push({ tx: tx0, texto: textoNum0, ancho: anchoTexto0, encendido: encendido0, font: ctxDraw.font });
     const mmP0 = Math.floor(t0 / 60);
     const ssP0 = String(Math.floor(t0 % 60)).padStart(2, '0');
     const textoTiempoP0 = `${mmP0}:${ssP0}`;
@@ -6170,10 +6173,7 @@ function dibujarWaveform(uid, tiempoActual){
     ctxDraw.font = encendido ? 'bold 14px monospace' : 'bold 13px monospace';
     const textoNum = String(compasNum);
     const anchoTexto = ctxDraw.measureText(textoNum).width;
-    ctxDraw.fillStyle = colorFondoTick;
-    ctxDraw.fillRect(tx - anchoTexto / 2 - 3, 0, anchoTexto + 6, 14);
-    ctxDraw.fillStyle = encendido ? '#fff4d6' : colorGold;
-    ctxDraw.fillText(textoNum, tx, 11);
+    numerosCompas.push({ tx, texto: textoNum, ancho: anchoTexto, encendido, font: ctxDraw.font });
     // v3.145: (a pedido) la regla de tiempo se movió de "debajo del
     // número de compás" (arriba) a la parte inferior DEL WAVEFORM (el
     // borde de abajo de la zona de la onda, WAVEFORM_ONDA_H) — antes
@@ -6413,6 +6413,17 @@ function dibujarWaveform(uid, tiempoActual){
     ctxDraw.fill();
   }
 
+  // v3.231: (a pedido, portado de musico.html v3.206) redibujado
+  // diferido de los números de compás, encima de todas las líneas.
+  ctxDraw.textAlign = 'center';
+  numerosCompas.forEach(n => {
+    ctxDraw.font = n.font;
+    ctxDraw.fillStyle = colorFondoTick;
+    ctxDraw.fillRect(n.tx - n.ancho / 2 - 3, 0, n.ancho + 6, 14);
+    ctxDraw.fillStyle = n.encendido ? '#fff4d6' : colorGold;
+    ctxDraw.fillText(n.texto, n.tx, 11);
+  });
+
   // v3.37: (a pedido) autoscroll — solo aplica si hay zoom (si no, el
   // canvas entero ya es visible y no hay nada que scrollear) y si el
   // checkbox "Seguir reproducción" está tildado. Se corrige el scroll
@@ -6443,11 +6454,14 @@ function dibujarWaveform(uid, tiempoActual){
   // v3.230: (a pedido, portado de musico.html v3.205) amplitud subida
   // (0.5±0.35) + iniciarRespiroWaveform para que respire también en
   // pausa.
+  // v3.231: (a pedido, portado de musico.html v3.206) "más rapidita,
+  // como un palpito" + "probemos blanca, como luz". Período 180ms,
+  // color blanco puro.
   if(progressX >= 0 && progressX <= W){
-    const pulso = 0.5 + Math.sin(ahora / 500) * 0.35;
+    const pulso = 0.5 + Math.sin(ahora / 180) * 0.35;
     ctxDraw.save();
     ctxDraw.globalAlpha = pulso;
-    ctxDraw.strokeStyle = colorProgreso;
+    ctxDraw.strokeStyle = '#ffffff';
     ctxDraw.lineWidth = 1;
     ctxDraw.beginPath();
     ctxDraw.moveTo(progressX, 0);
