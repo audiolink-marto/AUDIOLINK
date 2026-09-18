@@ -3,19 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.226</title>
-<!-- AUDIOLINK · ensayo.html · v3.226
-     v3.226: (a pedido, portado de musico.html v3.201, mismos 5 puntos
-     — sin tocar el hint de swipe) 1) recuerda el último índice visto
-     dentro del array guiaPaginas (localStorage, por uid). 2) evita
-     re-precargar una página ya precargada en la misma apertura. 3)
-     zoom por doble-tap/doble-clic. 4) indicador "Página X de Y" en
-     verde+bold al llegar a la última, además del botón apagado. 5)
-     aria-label en botones ⬅/➡ + aria-live en el indicador. Cero
-     cambios en guardarGuiaPdfEnCategoria, parsearRangoPaginas,
-     Cloudinary, ni el resto del motor de bpm/clave/compás/audio/
-     offset/secciones. Historial completo de versiones: ver
-     CHANGELOG.md -->
+<title>Audiolink — Ensayo v3.230</title>
+<!-- AUDIOLINK · ensayo.html · v3.230
+     v3.230: (a pedido, portado de musico.html v3.205) amplitud del
+     pulso subida a ±0.35 (rango 0.15-0.85) + iniciarRespiroWaveform/
+     detenerRespiroWaveform: loop liviano (setTimeout 100ms) que
+     redibuja el playhead también en pausa, no solo mientras suena.
+     Historial completo de versiones: ver CHANGELOG.md -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="nav.css">
@@ -5645,9 +5639,9 @@ function conectarListenersMotorLocalPractica(uid, motor){
     dibujarWaveform(uid, tVisual);
     requestAnimationFrame(tick);
   };
-  motor.addEventListener('play', () => { marcarReproduccionActiva(uid); actualizarIconoPlayPractica(uid); requestAnimationFrame(tick); });
-  motor.addEventListener('pause', () => actualizarIconoPlayPractica(uid));
-  motor.addEventListener('ended', () => actualizarIconoPlayPractica(uid));
+  motor.addEventListener('play', () => { marcarReproduccionActiva(uid); actualizarIconoPlayPractica(uid); detenerRespiroWaveform(uid); requestAnimationFrame(tick); });
+  motor.addEventListener('pause', () => { actualizarIconoPlayPractica(uid); iniciarRespiroWaveform(uid); });
+  motor.addEventListener('ended', () => { actualizarIconoPlayPractica(uid); iniciarRespiroWaveform(uid); });
   motor.addEventListener('seeked', () => {
     const e = estadoPractica[uid];
     if(!e) return;
@@ -5656,7 +5650,29 @@ function conectarListenersMotorLocalPractica(uid, motor){
   });
 }
 
-// v3.19/v3.48: extrae los picos de amplitud del waveform desde un
+// v3.230: (a pedido, portado de musico.html v3.205) redibuja el
+// playhead (para que respire) mientras está en pausa — setTimeout
+// cada 100ms (~10fps, de sobra para una respiración lenta), se apaga
+// solo apenas detecta que volvió a sonar.
+function iniciarRespiroWaveform(uid){
+  const est = estadoPractica[uid];
+  if(!est || est.waveformRespiroActivo || !est.waveformPeaks) return;
+  est.waveformRespiroActivo = true;
+  const loop = () => {
+    const e = estadoPractica[uid];
+    if(!e || !e.waveformRespiroActivo) return;
+    if(e.audioActivo && !e.audioActivo.paused){ e.waveformRespiroActivo = false; return; }
+    if(e.getTiempoActual) dibujarWaveform(uid, e.getTiempoActual());
+    e.waveformRespiroTimeout = setTimeout(loop, 100);
+  };
+  loop();
+}
+function detenerRespiroWaveform(uid){
+  const est = estadoPractica[uid];
+  if(!est) return;
+  est.waveformRespiroActivo = false;
+  clearTimeout(est.waveformRespiroTimeout);
+}
 // AudioBuffer ya decodificado (antes decodificaba el archivo de nuevo
 // acá mismo; ahora recibe el buffer ya listo, sea del flujo normal o
 // de una decodificación de respaldo, para no decodificar dos veces).
@@ -5727,6 +5743,7 @@ function prepararWaveformDesdeBuffer(uid, audioBuffer){
   if(waveToolbar) waveToolbar.style.display = 'flex';
   if(cueRow) cueRow.style.display = 'flex';
   dibujarWaveform(uid, est.getTiempoActual());
+  iniciarRespiroWaveform(uid);
   // v3.193: (a pedido) "en mobile el waveform no ocupa el ancho
   // completo" — dibujarWaveform mide wrapEl.clientWidth UNA vez y fija
   // canvas.style.width a ese valor en px. Si esa primera medición
@@ -5772,7 +5789,8 @@ async function prepararWaveformLocal(uid, file){
 // loop, para que los ticks/la franja queden alineados al instante.
 // v3.34: alto de la zona de barras+ticks (fijo) y alto de cada
 // carril de etiquetas (se suman abajo, tantos como hagan falta).
-const WAVEFORM_ONDA_H = 90;
+const WAVEFORM_ONDA_MIN_H = 64;
+const WAVEFORM_ONDA_MAX_H = 130;
 const WAVEFORM_LANE_H = 20;
 const WAVEFORM_MAX_CARRILES = 6;
 
@@ -5804,6 +5822,11 @@ function dibujarWaveform(uid, tiempoActual){
   const wrapWidth = (wrapEl && wrapEl.clientWidth) || canvas.clientWidth || 700;
   const zoom = est.waveformZoom || 1;
   const W = Math.round(wrapWidth * zoom);
+  // v3.227: (a pedido, portado de musico.html v3.202, "escala la
+  // altura dentro del rango razonable", mobile first) WAVEFORM_ONDA_H
+  // fijo (90px) pasa a ondaH dinámico según el ancho real disponible
+  // (wrapWidth, no el zoom), acotado 64px-130px.
+  const ondaH = Math.round(Math.min(WAVEFORM_ONDA_MAX_H, Math.max(WAVEFORM_ONDA_MIN_H, wrapWidth * 0.22)));
   const dur = est.waveformDuracion || 1;
   const estilos = getComputedStyle(document.documentElement);
   const colorOk = estilos.getPropertyValue('--ok').trim() || '#4caf7d';
@@ -5889,7 +5912,13 @@ function dibujarWaveform(uid, tiempoActual){
     // siempre, más abajo) — una sección sin nombre no muestra ni letra
     // ni etiqueta.
     const letraSec = nombreCrudo ? letraEnsayoDeSeccion(est.secciones || [], sec) : '';
-    const nombreSec = nombreCrudo ? (letraSec ? `${letraSec} · ${nombreCrudo}` : nombreCrudo) : '';
+    const nombreCompleto = nombreCrudo ? (letraSec ? `${letraSec} · ${nombreCrudo}` : nombreCrudo) : '';
+    // v3.227: (a pedido, portado de musico.html v3.202, "ajusta las
+    // etiquetas", mobile first) a zoom bajo (1x-2x) se muestra solo la
+    // letra de ensayo (A/B/C…) en vez del nombre completo, para no
+    // amontonar texto en la onda angosta de un celular. El nombre
+    // completo sigue disponible al acercar (zoom 3x+).
+    const nombreSec = (zoom <= 2 && letraSec) ? letraSec : nombreCompleto;
     const anchoNombreSolo = nombreSec ? ctxDraw.measureText(nombreSec).width : 0;
     // v3.105: (a pedido) la nota de sección va PEGADA al lado del
     // nombre, mismo renglón (como en el PDF) — se dejó de usar un
@@ -5936,7 +5965,7 @@ function dibujarWaveform(uid, tiempoActual){
     if(elegido > carrilMaxUsado) carrilMaxUsado = elegido;
   });
   const nCarriles = infoSecciones.some(i => i.nombreSec) ? (carrilMaxUsado + 1) : 0;
-  const H = WAVEFORM_ONDA_H + nCarriles * WAVEFORM_LANE_H;
+  const H = ondaH + nCarriles * WAVEFORM_LANE_H;
   // v3.36: la resolución física del canvas es (ancho real × dpr) por
   // (alto × dpr) — solo se toca cuando cambió algo (ancho de pantalla,
   // cantidad de carriles, o dpr), para no forzar un reset en cada
@@ -6021,11 +6050,11 @@ function dibujarWaveform(uid, tiempoActual){
   const gap = Math.min(2, slot * 0.25);
   const bw = Math.max(0.4, slot - gap);
   const progressX = (tiempoActual / dur) * W;
-  const ALTO_BARRAS = 0.68; // proporción DENTRO de la zona fija de la onda (WAVEFORM_ONDA_H)
+  const ALTO_BARRAS = 0.68; // proporción DENTRO de la zona fija de la onda (ondaH)
   for(let i = 0; i < picos.length; i++){
     const x = i * slot;
-    const h = Math.max(2, picos[i] * WAVEFORM_ONDA_H * ALTO_BARRAS);
-    const y = (WAVEFORM_ONDA_H - h) / 2; // centradas dentro de la zona de la onda, nunca invade la zona de etiquetas
+    const h = Math.max(2, picos[i] * ondaH * ALTO_BARRAS);
+    const y = (ondaH - h) / 2; // centradas dentro de la zona de la onda, nunca invade la zona de etiquetas
     ctxDraw.fillStyle = (x < progressX) ? colorProgreso : colorFaint;
     ctxDraw.fillRect(x, y, bw, h);
   }
@@ -6108,7 +6137,7 @@ function dibujarWaveform(uid, tiempoActual){
     const textoTiempoP0 = `${mmP0}:${ssP0}`;
     ctxDraw.font = encendido0 ? 'bold 12px monospace' : '11px monospace';
     const anchoTiempoP0 = ctxDraw.measureText(textoTiempoP0).width;
-    const yTiempoP0 = WAVEFORM_ONDA_H - 4;
+    const yTiempoP0 = ondaH - 4;
     ctxDraw.fillStyle = colorFondoTick;
     ctxDraw.fillRect(tx0 - anchoTiempoP0 / 2 - 2, yTiempoP0 - 9, anchoTiempoP0 + 4, 11);
     ctxDraw.fillStyle = encendido0 ? '#fff4d6' : colorGold;
@@ -6156,7 +6185,7 @@ function dibujarWaveform(uid, tiempoActual){
     const textoTiempoP = `${mmP}:${ssP}`;
     ctxDraw.font = encendido ? 'bold 12px monospace' : '11px monospace';
     const anchoTiempoP = ctxDraw.measureText(textoTiempoP).width;
-    const yTiempoP = WAVEFORM_ONDA_H - 4;
+    const yTiempoP = ondaH - 4;
     ctxDraw.fillStyle = colorFondoTick;
     ctxDraw.fillRect(tx - anchoTiempoP / 2 - 2, yTiempoP - 9, anchoTiempoP + 4, 11);
     ctxDraw.fillStyle = encendido ? '#fff4d6' : colorGold;
@@ -6238,7 +6267,7 @@ function dibujarWaveform(uid, tiempoActual){
         const ssS = String(Math.floor(t % 60)).padStart(2, '0');
         ctxDraw.font = '9px monospace';
         ctxDraw.fillStyle = encendidoSec ? '#fff4d6' : colorGold;
-        ctxDraw.fillText(`${mmS}:${ssS}`, tx, WAVEFORM_ONDA_H - 4);
+        ctxDraw.fillText(`${mmS}:${ssS}`, tx, ondaH - 4);
         ctxDraw.globalAlpha = 1;
         ctxDraw.font = '9px monospace';
       }
@@ -6307,7 +6336,7 @@ function dibujarWaveform(uid, tiempoActual){
     if(!nombreSec) return;
     ctxDraw.font = encendida ? 'bold 14px monospace' : 'bold 13px monospace';
     const labelX = sx + 1;
-    const labelY = WAVEFORM_ONDA_H + carril * WAVEFORM_LANE_H + 3;
+    const labelY = ondaH + carril * WAVEFORM_LANE_H + 3;
     ctxDraw.fillStyle = colorFondoTick;
     ctxDraw.fillRect(labelX, labelY, anchoNombre + 6, 16);
     ctxDraw.fillStyle = encendida ? colorMezclarBlanco(color, 0.55) : color;
@@ -6405,6 +6434,41 @@ function dibujarWaveform(uid, tiempoActual){
         est.waveformScrollProgTimeout = setTimeout(() => { est.waveformScrollProgramatico = false; }, 100);
       }
     }
+  }
+
+  // v3.229: (a pedido, portado de musico.html v3.204) vuelve a línea
+  // completa (no bandera), pero fina (1px), tenue (alpha 0.35-0.55,
+  // sin sombra/glow) y con pulso de respiración — para no competir
+  // con las líneas de sección.
+  // v3.230: (a pedido, portado de musico.html v3.205) amplitud subida
+  // (0.5±0.35) + iniciarRespiroWaveform para que respire también en
+  // pausa.
+  if(progressX >= 0 && progressX <= W){
+    const pulso = 0.5 + Math.sin(ahora / 500) * 0.35;
+    ctxDraw.save();
+    ctxDraw.globalAlpha = pulso;
+    ctxDraw.strokeStyle = colorProgreso;
+    ctxDraw.lineWidth = 1;
+    ctxDraw.beginPath();
+    ctxDraw.moveTo(progressX, 0);
+    ctxDraw.lineTo(progressX, H);
+    ctxDraw.stroke();
+    ctxDraw.restore();
+  }
+
+  // v3.227: (a pedido, portado de musico.html v3.202) flash breve al
+  // hacer click para saltar en la onda (seekWaveformClick).
+  if(est.waveformFlashClick != null && est.waveformFlashClickHasta && ahora < est.waveformFlashClickHasta){
+    const restante = (est.waveformFlashClickHasta - ahora) / 300;
+    const xFlash = (est.waveformFlashClick / dur) * W;
+    ctxDraw.save();
+    ctxDraw.globalAlpha = Math.max(0, Math.min(1, restante));
+    ctxDraw.strokeStyle = colorProgreso;
+    ctxDraw.lineWidth = 2;
+    ctxDraw.beginPath();
+    ctxDraw.arc(xFlash, ondaH / 2, 6 + (1 - restante) * 10, 0, Math.PI * 2);
+    ctxDraw.stroke();
+    ctxDraw.restore();
   }
 
   est.waveformTiempoPrevio = tiempoActual;
@@ -6588,6 +6652,15 @@ function seekWaveformClick(evento, uid){
     return;
   }
   est.seek(t);
+  // v3.227: (a pedido, portado de musico.html v3.202) flash de feedback
+  // en el punto tocado; redibujado programado a los 320ms para que se
+  // desvanezca solo aunque esté en pausa.
+  est.waveformFlashClick = t;
+  est.waveformFlashClickHasta = performance.now() + 300;
+  clearTimeout(est.waveformFlashClickTimeout);
+  est.waveformFlashClickTimeout = setTimeout(() => {
+    dibujarWaveform(uid, est.getTiempoActual ? est.getTiempoActual() : t);
+  }, 320);
   dibujarWaveform(uid, t);
 }
 // v3.135: arma/desarma el modo "marcar tiempo 1 con el próximo click en
@@ -9365,6 +9438,8 @@ function destruirEstadoPractica(uid){
     try{ est.webAudioPlayerLocal.cerrar(); }catch(e){}
   }
   if(est.waveformResizeObserver) est.waveformResizeObserver.disconnect();
+  est.waveformRespiroActivo = false;
+  clearTimeout(est.waveformRespiroTimeout);
   // v3.201: los nodos de filtro viven mientras vive el estado — al
   // destruirlo, se desconectan del grafo (mismo criterio que el resto
   // de esta función).

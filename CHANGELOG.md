@@ -174,6 +174,54 @@ cambios en Cloudinary (sigue usando pg_N vía transformación, nada se
 sube ni se recorta acá), en obtenerScoreParaSesion, en
 scoreBloqueHtml, ni en el resto del motor de BPM/waveform/metrónomo.
 
+### v3.203
+(a pedido, "que la línea de posición no compita con las de sección")
+el playhead pasa de línea completa (mismo lenguaje visual que las
+líneas de sección, que sí cruzan todo el alto) a una bandera/
+triángulo SOLO arriba (14px) + un pulso sutil de opacidad (0.8-1.0,
+seno sobre performance.now()) — como es el único elemento que
+"respira", se encuentra solo sin competir en contraste con las
+líneas de sección (sin tocar). El pulso se nota mientras suena; en
+pausa queda fijo en la fase del instante en que se pausó, sin rAF
+propio agregado a propósito. Cero cambios en el resto de
+dibujarWaveform.
+
+### v3.202
+(a pedido, revisión de UI del waveform, mobile first) 4 ajustes en
+dibujarWaveform/seekWaveformClick, sin tocar precisión de offset/
+secciones/clave/click: 1) trazo vertical lila (con leve resplandor)
+en la posición de reproducción, dibujado al final (encima de todo)
+para más contraste que solo el cambio de color de barras — mismo
+lila de siempre (colorProgreso), no se cambió el color. 2) a zoom
+bajo (1x-2x, la vista por defecto en celular) las etiquetas de
+sección muestran solo la letra de ensayo (A/B/C…) en vez del nombre
+completo; el nombre completo vuelve al acercar (zoom 3x+) — mismo
+mecanismo de carriles/ancho de siempre, sin tocarlo. 3) flash breve
+(círculo que se desvanece en ~300ms) en el punto exacto donde se
+hizo click para saltar, además del salto del playhead — programado
+con un redibujado a los 320ms para que se apague solo incluso en
+pausa. 4) el alto fijo de 90px de la zona de onda pasa a escalar con
+el ancho real disponible (wrapWidth, no el zoom), acotado
+64px-130px — en un celular típico (~370-400px) da prácticamente el
+mismo ~90px de siempre; en tablet/desktop aprovecha más espacio. Cero
+cambios en WAVEFORM_LANE_H/MAX_CARRILES, en el cálculo de ticks/
+compás, ni en ninguna otra parte del motor de BPM/metrónomo/clave.
+
+### v3.201
+(a pedido, más optimizaciones sobre v3.200 — sin tocar el hint de
+swipe, a pedido explícito) 1) recuerda la última página vista por
+score (localStorage, por uid) y abre ahí en vez de volver siempre a
+la página 1. 2) evita re-precargar una página ya precargada en la
+misma apertura del panel (Set de páginas precargadas). 3) zoom por
+doble-tap/doble-clic sobre la imagen (toggle 2x, scroll dentro de
+.practica-score-imgwrap). 4) al llegar a la última página, el
+indicador "Página X de N" se pone en verde+bold además de apagarse
+el botón "Siguiente" — doble señal, no solo el botón gris. 5)
+aria-label en los botones ⬅/➡ (necesario ahora que bajo 400px no
+tienen texto visible) + aria-live="polite" en el indicador de
+página, para lectores de pantalla. Cero cambios en paginación/
+precarga base/swipe/teclado de v3.198-v3.200.
+
 ### v3.200
 (a pedido, 3 rondas sobre el visor paginado de v3.198/199) 1) los
 botones ⬅/➡ bajo 400px quedaban con flex:1 1 0 (rectángulo angosto
@@ -3364,6 +3412,22 @@ la imagen. (5) flechas ←/→ de teclado + mensaje si Cloudinary no
 devuelve la imagen, en vez de ícono roto. Cero cambios en
 guardarGuiaPdfEnCategoria, parsearRangoPaginas, Cloudinary, ni el
 resto del motor de bpm/clave/compás/audio/offset/secciones.
+
+### v3.228
+(a pedido, portado de musico.html v3.203) playhead pasa de línea
+completa a bandera arriba (14px) + pulso sutil de opacidad
+(0.8-1.0) — no compite con las líneas de sección, que siguen
+iguales. Cero cambios en el resto de dibujarWaveform.
+
+### v3.227
+(a pedido, portado de musico.html v3.202, mismos 4 ajustes de UI del
+waveform, mobile first) 1) trazo vertical lila en la posición de
+reproducción, encima de todo. 2) a zoom bajo (1x-2x) las etiquetas de
+sección muestran solo la letra de ensayo (A/B/C…); nombre completo al
+acercar (zoom 3x+). 3) flash breve en el punto de click para saltar.
+4) alto de la onda escala con el ancho real (64px-130px) en vez de
+90px fijo. Cero cambios en offset/secciones/clave/click ni en el
+resto del motor.
 
 ### v3.226
 (a pedido, portado de musico.html v3.201, mismos 5 puntos — sin tocar
