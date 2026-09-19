@@ -3,14 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.231</title>
-<!-- AUDIOLINK · ensayo.html · v3.231
-     v3.231: (a pedido, portado de musico.html v3.206) 1) pulso más
-     rápido (período 180ms, antes 500ms) y blanco (antes lila);
-     intervalo del loop de respiración en pausa bajado a 40ms. 2) el
-     número+caja de cada tick de compás se difiere (array
-     numerosCompas) y se redibuja al final, después de las líneas de
-     sección/offset/CUE, para que nunca quede tapado.
+<title>Audiolink — Ensayo v3.234</title>
+<!-- AUDIOLINK · ensayo.html · v3.234
+     v3.234: (a pedido, portado de musico.html v3.209/v3.210/v3.211/
+     v3.212) se completa la playerbar con lo que le faltaba respecto
+     a musico.html:
+     - Botones −0.01/+0.01 (ajustarOffsetLocalPractica, ya existía en
+       el bloque de calibración de más abajo, reutilizado acá) junto
+       a ‹ y › en la playerbar. Usan .tono-offset-btn (dorado), con
+       flex:0 auto + nowrap desde el vamos (en musico este fix se
+       agregó recién en v3.212 tras un desborde; acá se incluye de
+       entrada para no repetir el mismo bug).
+     - Toggle 🧲 Compás/Golpe (modoSnapClick, transienteMasCercanoPractica,
+       toggleModoSnapPractica, actualizarBotonModoSnapPractica) que
+       decide cómo hacen snap el CUE (📍, que antes no tenía ningún
+       snap) y el loop marcado con click (que ya usaba snap a compás
+       fijo, ahora respeta el modo con fallback a compás si no hay
+       golpe cerca). Default: Compás, para no cambiar el
+       comportamiento de siempre de nadie que ya usa loops. Usa
+       .practica-click-btn-etiqueta con nowrap+flex-shrink:0 desde el
+       inicio (en musico este fix se agregó recién en v3.211).
+     Los snaps de CUE/loop respetan el factorDeT/factorCompasGeneralDe
+     propios de ensayo.html (compases compuestos), que musico.html no
+     tiene — no es un copy-paste literal del bloque de musico, sino
+     la misma lógica adaptada a la firma de recorrerTramosMusico de
+     este archivo. loopRapidoCompasesPractica (presets de N compases)
+     queda fuera del toggle a propósito, igual que en musico — no es
+     un click sobre la onda.
+     v3.233: (a pedido, portado de musico.html v3.208) se agregan ‹ ›
+     a la playerbar principal (mismo nivel que ⏮ ▶ CUE) para recorrer
+     los transitorios detectados y mover el offset exacto al golpe
+     anterior/siguiente. Se deshabilitan solos en los extremos. Íconos
+     ‹ › (no ◀ ▶) a propósito, para no confundirse con play en mobile
+     sin hover. Mobile first: la playerbar ya tenía flex-wrap y 44px
+     táctil, así que los 2 botones nuevos pasan a segunda fila en
+     pantallas angostas sin romper nada.
      Historial completo de versiones: ver CHANGELOG.md -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -418,8 +445,10 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    un vistazo sin depender solo del símbolo. Modificador aparte para
    no afectar los demás botones .practica-click-btn (Vol, ≡, 🥁
    pre-conteo), que siguen siendo cuadrados de solo ícono. */
-.practica-click-btn-etiqueta{display:inline-flex;align-items:center;gap:6px;width:auto;min-width:auto;padding:8px 14px;font-size:0.8rem;font-weight:600;}
+.practica-click-btn-etiqueta{display:inline-flex;align-items:center;gap:6px;width:auto;min-width:auto;padding:8px 14px;font-size:0.8rem;font-weight:600;white-space:nowrap;flex-shrink:0;}
 .practica-click-btn-etiqueta .practica-btn-icono{display:flex;align-items:center;line-height:1;font-size:1.05rem;}
+.practica-click-btn.tono-offset-btn{border-color:var(--gold);color:var(--gold);flex:0 auto;white-space:nowrap;}
+.practica-click-btn.tono-offset-btn:disabled{opacity:.4;cursor:not-allowed;}
 .practica-click-btn:active{transform:scale(0.94);}
 .practica-click-btn.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
 /* v3.208: fila de botones rápidos del patrón de clave — mismo botón
@@ -2322,12 +2351,17 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
         <div class="practica-playerbar" id="playerbar-${uid}" style="display:none;">
           <button class="practica-click-btn practica-player-restartbtn" id="playerrestartbtn-${uid}" onclick="reiniciarPistaPractica('${uid}')" title="Volver al inicio de la pista">⏮</button>
           <button class="practica-click-btn practica-player-playbtn" id="playbtn-${uid}" onclick="togglePlayPractica('${uid}')" title="Reproducir / Pausar">▶</button>
+          <button class="practica-click-btn" id="offsetprevtrans-${uid}" onclick="navegarTransienteOffsetPractica('${uid}', -1)" title="Offset: ir al golpe detectado anterior" disabled>‹</button>
+          <button class="practica-click-btn tono-offset-btn" onclick="ajustarOffsetLocalPractica('${uid}', -0.01)" title="Offset: −0.01s">−0.01</button>
+          <button class="practica-click-btn tono-offset-btn" onclick="ajustarOffsetLocalPractica('${uid}', 0.01)" title="Offset: +0.01s">+0.01</button>
+          <button class="practica-click-btn" id="offsetnexttrans-${uid}" onclick="navegarTransienteOffsetPractica('${uid}', 1)" title="Offset: ir al golpe detectado siguiente" disabled>›</button>
           <button class="practica-cue-pad" id="cuepad-${uid}" onclick="marcarCuePractica('${uid}')" title="Marca el CUE (inicio de reproducción) en el segundo actual">CUE</button>
           <span class="practica-cue-row" id="cuerow-${uid}" style="display:none;">
             <button class="practica-cue-pad" id="cuequitarbtn-${uid}" onclick="quitarCuePractica('${uid}')" title="Quita el CUE — el play vuelve a arrancar desde el offset">✕</button>
             <button class="practica-cue-pad" id="cueclickbtn-${uid}" onclick="toggleArmarCueWaveform('${uid}')" title="Después de tocar esto, el próximo click en la onda marca el CUE ahí">📍</button>
           </span>
           <button class="practica-cue-pad" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')" title="Marca el inicio del loop en el segundo actual">↻</button>
+          <button class="practica-click-btn practica-click-btn-etiqueta" id="snapmodo-${uid}" onclick="toggleModoSnapPractica('${uid}')">🧲 Compás</button>
           <span class="practica-player-cargando" id="playercargando-${uid}" style="display:none;">Cargando audio…</span>
           <span class="practica-player-tiempo" id="playertiempo-${uid}">0:00 / 0:00</span>
           <button class="practica-click-btn practica-player-volbtn" id="playervolbtn-${uid}" onclick="toggleMutePractica('${uid}')" title="Silenciar">🔊</button>
@@ -3963,7 +3997,18 @@ function marcarLoopPractica(uid, tOverride){
   // no cambia de firma, solo recibe la "cantidad de beats" ya escalada
   // por el factor real (factor 1 en /4: sin cambio).
   const factorDeT = tramoDeT.factor || 1;
-  const snapped = snapACompasPractica(t, bpmLoop, beatsDeT * factorDeT * unidadCompases, tramoDeT.inicioSeg);
+  // v3.234: (a pedido, portado de musico.html v3.210) respeta
+  // est.modoSnapClick — en modo 'transitorio' usa el golpe detectado
+  // más cercano si hay uno a menos de 80ms; si no hay ninguno cerca,
+  // cae al snap a compás de siempre (el loop nunca queda sin snap,
+  // a diferencia del CUE).
+  let snapped;
+  if((est.modoSnapClick || 'rejilla') === 'transitorio'){
+    const cercano = transienteMasCercanoPractica(est, t);
+    snapped = cercano != null ? cercano : snapACompasPractica(t, bpmLoop, beatsDeT * factorDeT * unidadCompases, tramoDeT.inicioSeg);
+  }else{
+    snapped = snapACompasPractica(t, bpmLoop, beatsDeT * factorDeT * unidadCompases, tramoDeT.inicioSeg);
+  }
   if(est.loopInicio == null){
     est.loopInicio = snapped;
     if(btn){ btn.textContent = '⏹'; btn.title = 'Marca el fin del loop aquí'; }
@@ -5708,6 +5753,86 @@ function mostrarSeekFallbackPractica(uid, mostrar){
   if(aviso) aviso.style.display = mostrar ? '' : 'none';
 }
 
+// v3.232: (a pedido, portado de musico.html v3.207) detector de
+// múltiples transitorios — RMS por ventanas de 20ms, marca golpe si
+// la energía sube abruptamente respecto al promedio previo.
+function calcularTransientesDesdeBuffer(datos, sampleRate){
+  const ventanaSamples = Math.max(1, Math.floor(sampleRate * 0.02));
+  const numVentanas = Math.floor(datos.length / ventanaSamples);
+  if(numVentanas < 10) return [];
+  const rms = new Float32Array(numVentanas);
+  for(let i = 0; i < numVentanas; i++){
+    let suma = 0;
+    const inicio = i * ventanaSamples;
+    for(let j = 0; j < ventanaSamples; j++){
+      const v = datos[inicio + j] || 0;
+      suma += v * v;
+    }
+    rms[i] = Math.sqrt(suma / ventanaSamples);
+  }
+  let picoGlobalRms = 0;
+  for(let i = 0; i < numVentanas; i++) if(rms[i] > picoGlobalRms) picoGlobalRms = rms[i];
+  if(picoGlobalRms <= 0) return [];
+  const PROMEDIO_VENTANAS = 8;
+  const FACTOR_SALTO = 1.6;
+  const pisoAbsoluto = picoGlobalRms * 0.08;
+  const refractarioVentanas = Math.round(0.09 / 0.02);
+  const transientes = [];
+  let ultimaVentana = -refractarioVentanas;
+  for(let i = PROMEDIO_VENTANAS; i < numVentanas; i++){
+    if(rms[i] < pisoAbsoluto) continue;
+    let sumaPrevia = 0;
+    for(let k = i - PROMEDIO_VENTANAS; k < i; k++) sumaPrevia += rms[k];
+    const promedioPrevio = sumaPrevia / PROMEDIO_VENTANAS;
+    if(rms[i] > promedioPrevio * FACTOR_SALTO && (i - ultimaVentana) >= refractarioVentanas){
+      transientes.push((i * ventanaSamples) / sampleRate);
+      ultimaVentana = i;
+    }
+  }
+  return transientes;
+}
+// v3.234: (a pedido, portado de musico.html v3.210) "es posible
+// alternar entre snap de transitorio y snap de rejilla?" — un solo
+// interruptor por tema (est.modoSnapClick, 'rejilla' por defecto
+// para no cambiar el comportamiento de siempre del loop) que decide
+// cómo hacen snap el CUE (📍) y el loop (↻/click) marcados con click
+// en la onda. 'rejilla' usa el snap a compás que ya existía
+// (snapACompasPractica, respeta clave/bpm/tramos/factorDeT);
+// 'transitorio' usa el golpe detectado más cercano
+// (calcularTransientesDesdeBuffer, v3.232) si hay uno a menos de
+// 80ms, y si no hay ninguno cerca, cae a rejilla igual (el loop
+// nunca queda "suelto" sin snap) — la única excepción es el CUE en
+// modo transitorio sin golpe cerca, que cae al click crudo (el CUE
+// nunca tuvo snap antes de esta versión, así que no tiene un
+// "default seguro" al que caer más que el punto tocado).
+function toggleModoSnapPractica(uid){
+  const est = estadoPractica[uid];
+  if(!est) return;
+  est.modoSnapClick = (est.modoSnapClick === 'transitorio') ? 'rejilla' : 'transitorio';
+  actualizarBotonModoSnapPractica(uid);
+}
+function actualizarBotonModoSnapPractica(uid){
+  const est = estadoPractica[uid];
+  const btn = document.getElementById('snapmodo-' + uid);
+  if(!est || !btn) return;
+  const modo = est.modoSnapClick || 'rejilla';
+  btn.textContent = modo === 'transitorio' ? '🧲 Golpe' : '🧲 Compás';
+  btn.title = modo === 'transitorio'
+    ? 'CUE y loop marcados con click hacen snap al GOLPE detectado más cercano. Tocar para cambiar a snap por compás.'
+    : 'CUE y loop marcados con click hacen snap al COMPÁS/beat más cercano. Tocar para cambiar a snap por golpe detectado.';
+}
+// Busca el transitorio detectado más cercano a t, dentro de la
+// tolerancia; null si no hay ninguno o no hay transitorios calculados.
+function transienteMasCercanoPractica(est, t, tolerancia = 0.08){
+  if(!est.waveformTransientes || !est.waveformTransientes.length) return null;
+  let masCercano = null, distMin = Infinity;
+  for(const tt of est.waveformTransientes){
+    const d = Math.abs(tt - t);
+    if(d < distMin){ distMin = d; masCercano = tt; }
+  }
+  return (masCercano != null && distMin <= tolerancia) ? masCercano : null;
+}
+
 function prepararWaveformDesdeBuffer(uid, audioBuffer){
   const est = estadoPractica[uid];
   if(!est) return;
@@ -5737,6 +5862,11 @@ function prepararWaveformDesdeBuffer(uid, audioBuffer){
   }
   est.waveformPeaks = picos;
   est.waveformDuracion = audioBuffer.duration;
+  // v3.232: (a pedido, portado de musico.html v3.207) todos los
+  // transitorios del archivo, para snap al clickear "marcar inicio".
+  est.waveformTransientes = calcularTransientesDesdeBuffer(datos, audioBuffer.sampleRate);
+  actualizarUIOffsetLocalPractica(uid);
+  actualizarBotonModoSnapPractica(uid);
   mostrarSeekFallbackPractica(uid, false);
   const waveWrap = document.getElementById('waveformwrap-' + uid);
   const waveToolbar = document.getElementById('waveformtoolbar-' + uid);
@@ -6630,7 +6760,20 @@ function seekWaveformClick(evento, uid){
   // desarma solo. Mismo cálculo que marcarOffsetLocalPractica, pero
   // con el tiempo clickeado en vez de est.getTiempoActual().
   if(est.marcandoInicioClick){
-    est.offsetLocalDelta = t - (est.offset || 0);
+    // v3.232: (a pedido, portado de musico.html v3.207) snap al
+    // transitorio más cercano si el click cae a menos de 80ms de uno.
+    const TOLERANCIA_SNAP_INICIO = 0.08;
+    let tFinal = t;
+    let snapeo = false;
+    if(est.waveformTransientes && est.waveformTransientes.length){
+      let masCercano = null, distMin = Infinity;
+      for(const tt of est.waveformTransientes){
+        const d = Math.abs(tt - t);
+        if(d < distMin){ distMin = d; masCercano = tt; }
+      }
+      if(masCercano != null && distMin <= TOLERANCIA_SNAP_INICIO){ tFinal = masCercano; snapeo = true; }
+    }
+    est.offsetLocalDelta = tFinal - (est.offset || 0);
     est.marcandoInicioClick = false;
     canvas.classList.remove('practica-waveform-armado');
     const btnArmado = document.getElementById('marcarinicioclick-' + uid);
@@ -6639,6 +6782,10 @@ function seekWaveformClick(evento, uid){
     actualizarContadorPractica(uid, est.getTiempoActual());
     dibujarWaveform(uid, est.getTiempoActual());
     guardarOffsetLocalEnStorage(uid);
+    const infoSnap = document.getElementById('offsetlocalauto-' + uid);
+    if(infoSnap) infoSnap.textContent = snapeo
+      ? `Ajustado al golpe detectado en ${tFinal.toFixed(2)}s.`
+      : `Marcado en ${tFinal.toFixed(2)}s (sin golpe detectado cerca).`;
     return;
   }
   // v3.138: (a pedido) "CUE con click en la onda" — mismo patrón que el
@@ -6649,7 +6796,25 @@ function seekWaveformClick(evento, uid){
   // se arma uno por vez, ya que cada botón desarma implícitamente con
   // su propio toggle).
   if(est.marcandoCueClick){
-    est.cuePlayback = t;
+    let tFinal = t;
+    const modoCue = est.modoSnapClick || 'rejilla';
+    if(modoCue === 'transitorio'){
+      const cercano = transienteMasCercanoPractica(est, t);
+      if(cercano != null) tFinal = cercano;
+      // sin transitorio cerca: el CUE nunca tuvo snap antes de esta
+      // versión, así que en ese caso cae al click crudo (no a rejilla).
+    }else{
+      const bpmCue = est.bpmEfectivo || est.bpm;
+      if(bpmCue){
+        const offsetCue = (est.offset || 0) + (est.offsetLocalDelta || 0);
+        const unidadCompasesCue = est.clave ? 2 : 1;
+        const tramosCue = recorrerTramosMusico(seccionesRuntimeDe(est), offsetCue, bpmCue, compasEfectivoDe(est), !!est.compasesOverride, factorCompasGeneralDe(est));
+        const tramoDeTCue = tramoMusicoEnSegundo(tramosCue, t);
+        const factorDeTCue = tramoDeTCue.factor || 1;
+        tFinal = snapACompasPractica(t, bpmCue, tramoDeTCue.beats * factorDeTCue * unidadCompasesCue, tramoDeTCue.inicioSeg);
+      }
+    }
+    est.cuePlayback = tFinal;
     est.marcandoCueClick = false;
     canvas.classList.remove('practica-waveform-armado-cue');
     const btnCueArmado = document.getElementById('cueclickbtn-' + uid);
@@ -6897,6 +7062,44 @@ function actualizarUIOffsetLocalPractica(uid){
   if(!est || !el) return;
   const d = est.offsetLocalDelta || 0;
   el.textContent = (d >= 0 ? '+' : '') + d.toFixed(2) + 's';
+  // v3.233: (a pedido, portado de musico.html v3.208) sincroniza el
+  // estado disabled de ◀▶ según si hay un transitorio detectado en
+  // esa dirección desde el offset actual.
+  const btnPrev = document.getElementById('offsetprevtrans-' + uid);
+  const btnNext = document.getElementById('offsetnexttrans-' + uid);
+  if(btnPrev || btnNext){
+    const trans = est.waveformTransientes;
+    const actual = (est.offset || 0) + d;
+    const hayPrev = !!(trans && trans.some(t => t < actual - 0.005));
+    const hayNext = !!(trans && trans.some(t => t > actual + 0.005));
+    if(btnPrev) btnPrev.disabled = !hayPrev;
+    if(btnNext) btnNext.disabled = !hayNext;
+  }
+}
+
+// v3.233: (a pedido, portado de musico.html v3.208) mueve el offset al
+// transitorio anterior/siguiente respecto al offset actual.
+function navegarTransienteOffsetPractica(uid, direccion){
+  const est = estadoPractica[uid];
+  if(!est || !est.waveformTransientes || !est.waveformTransientes.length) return;
+  const actual = (est.offset || 0) + (est.offsetLocalDelta || 0);
+  const trans = est.waveformTransientes;
+  let candidato = null;
+  if(direccion > 0){
+    candidato = trans.find(t => t > actual + 0.005);
+  }else{
+    for(let i = trans.length - 1; i >= 0; i--){
+      if(trans[i] < actual - 0.005){ candidato = trans[i]; break; }
+    }
+  }
+  if(candidato == null) return;
+  est.offsetLocalDelta = candidato - (est.offset || 0);
+  actualizarUIOffsetLocalPractica(uid);
+  actualizarContadorPractica(uid, est.getTiempoActual());
+  dibujarWaveform(uid, est.getTiempoActual());
+  guardarOffsetLocalEnStorage(uid);
+  const infoSnap = document.getElementById('offsetlocalauto-' + uid);
+  if(infoSnap) infoSnap.textContent = `Offset movido al golpe en ${candidato.toFixed(2)}s.`;
 }
 
 // v3.28: (a pedido) recordar el offset local por archivo, SOLO en este
