@@ -3,85 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.252</title>
-<!-- AUDIOLINK · ensayo.html · v3.252
-     v3.252: (a pedido) el loop de SECCIÓN también se guarda con el tema (GUIAS2,
-     campo `loopSeccion`: {idx, nombre} de la sección que se repetía al activarlo,
-     o null si está apagado) y vuelve activo al abrir, en ensayo.html y en
-     compartir.html: se activa el modo y la reproducción se coloca al inicio de
-     esa sección (irASeccionPractica; no se usa el CUE para no dejar una marca
-     rosa al apagar el loop). Si la sección ya no existe o cambió de nombre, no
-     se aplica nada. No convive con `loop` (manual/xN): si vienen los dos, manda
-     el manual. Solo ensayo.html escribe; compartir.html solo lee.
-     v3.251: (a pedido) el loop puesto (manual o xN) se guarda con el tema en
-     GUIAS2 (campo `loop`: {inicio, fin, compases}) y vuelve ACTIVO al abrir
-     el tema, tanto en ensayo.html como en compartir.html. Cancelar el
-     loop (✕) lo borra (loop:null). Solo ensayo.html escribe; compartir.html
-     solo lee (el invitado no guarda nada). El loop de sección no se guarda
-     (sale de las secciones). Sin cambios en el motor de loops ni en los
-     tiempos: se reusa aplicarLoopNativoPractica.
-     v3.250: (a pedido) el botón ↻ (loopbtn-) ya no arranca el loop en el segundo
-     actual: queda OCULTO mientras no hay loop y solo aparece cuando hay
-     uno en curso (⏹ marcar fin / ✕ cancelar). Los loops se arman con los
-     presets xN y con el loop de sección; el botón queda como el ✕ para
-     cancelar. Sin cambios en marcarLoopPractica ni en el motor de loops.
-     v3.249: (a pedido) FIX del click al arrancar ANTES del offset. Antes,
-     schedulerTickGlobalPractica() recortaba tRel a 0 mientras el tiempo
-     estaba antes del offset, y el pulso 0 (golpe fuerte de inicio de
-     compás) se agendaba al instante de dar play, NO en el offset. Ahora
-     el bloque del click principal usa tRelClick (con signo antes del
-     offset) y agenda el pulso 0 exactamente en el offset. Después del
-     offset y en el metrónomo libre el comportamiento es idéntico. Sin
-     cambios en clave, subdivisión ni anclaje de secciones.
-     v3.248: (a pedido) respaldo del audio en el dispositivo, por si
-     Cloudinary falla (la app, Firestore y Netlify siguen andando —
-     solo el audio depende de Cloudinary).
-     (1) FIX del caché automático de v3.189: _guardarAudioEnCache()
-     llamaba resp.clone() DESPUÉS de un await, cuando abrirTema() ya
-     había consumido el body con r.blob() → "Failed to execute 'clone'
-     on 'Response': Response body is already used" y el caché NUNCA
-     guardaba nada. Ahora el clone va antes del primer await. Sin otro
-     cambio ahí (tope de 10 temas y LRU idénticos).
-     (2) Copia permanente por tema, aparte del caché de 10: "📥 Guardar
-     en este dispositivo" en el menú ⋮ del tema (y "Quitar copia..."),
-     marca 📥 en la card, y "📥 Guardar lista en este dispositivo" en
-     el editor de listas. Vive en su propio Cache API
-     (audiolink-audio-offline-v1), sin tope ni LRU, con índice de URLs
-     en localStorage (audiolink_offline_urls). _obtenerAudioDeCache()
-     mira primero esa copia y después el caché de 10; abrirTema() no
-     cambió. Borrar un tema quita su copia si ningún otro tema usa el
-     mismo audioUrl (los duplicados comparten audio y copia).
-     No cubre las páginas del PDF de guía (también viven en Cloudinary).
-     v3.247: (a pedido) compartir LISTAS de ensayo vía
-     compartir.html?lista=ID. Botón "🔗 Compartir" en el editor de cada
-     lista (compartirSetlistActual). Al compartir: la lista queda
-     compartido:true y cada tema suyo también (compartido:true +
-     guiaPdfPublicId, como v3.246); la lista guarda en
-     temasCompartidosPorLista SOLO los temas que ella compartió (los que
-     ya estaban compartidos por separado no se registran, así revocar
-     la lista nunca los toca). Revocar la lista (mismo botón) o borrarla
-     revoca esos temas, salvo los que otra lista compartida siga
-     necesitando. Agregar un tema a una lista ya compartida lo comparte
-     solo; quitarlo lo revoca (mismas reglas). Requiere firestore.rules
-     v2.39 (get público de SETLISTS2 con compartido==true). No se tocó
-     nada más: _guardarTemaIdsSetlist ganó un 2do parámetro opcional
-     (sin él, idéntico a antes).
-     v3.246: (a pedido, para la guía PDF en compartir.html v1.4)
-     compartirTemaActual() ahora, al activar compartido:true, copia
-     también al doc del tema el guiaPdfPublicId de su categoría (dato
-     que vive en CATEGORIAS2, con login, y que quien abre el link sin
-     cuenta no puede leer). Si la categoría no tiene PDF, guarda null.
-     Solo cambia esa escritura — nada más en compartirTemaActual() ni
-     en el resto del archivo. Los temas que ya estaban compartidos
-     siguen sin ese dato hasta revocar y volver a compartir.
-     v3.245: (a pedido) botón "🔗 Compartir" en la vista de práctica —
-     compartirTemaActual() marca compartido:true en el doc de GUIAS2 y
-     copia el link a compartir.html?tema=ID (archivo nuevo, standalone,
-     sin login, derivado de esta versión de ensayo.html — ver su propia
-     cabecera). Si el tema ya estaba compartido, el mismo botón ofrece
-     revocarlo (compartido:false). Requiere firestore.rules v1.2 (regla
-     `allow get: if resource.data.compartido == true` bajo GUIAS2). No se
-     tocó ninguna otra función ni el resto de la vista de práctica.
+<title>Audiolink — Ensayo v3.244</title>
+<!-- AUDIOLINK · ensayo.html · v3.244
      v3.244: (a pedido) el offset de audio detectado (‹ ›) y cualquier otro cambio de
      offset (±, 🎯, click en la onda, 🔍, ✓, ↺) ahora arrastran también las
      secciones locales — las que realmente se ven en ensayo, porque el audio
@@ -1235,9 +1158,6 @@ main{padding:28px;max-width:760px;margin:0 auto;}
         <button class="btn-ghost" onclick="volverAMisTemas()">‹ Mis temas</button>
         <!-- v3.188: cambio rápido de tema sin pasar por la grilla -->
         <button type="button" class="btn-ghost" onclick="abrirSelectorTema()" title="Cambiar de tema">⇄ Cambiar de tema</button>
-        <!-- v3.245: compartir el tema abierto con alguien sin cuenta, vía
-             compartir.html?tema=ID (ver compartirTemaActual()) -->
-        <button type="button" class="btn-ghost" onclick="compartirTemaActual()" title="Compartir este tema">🔗 Compartir</button>
       </div>
       <!-- v3.191: barra de setlist activa — solo visible si se entró a
            practicar DESDE una lista (ver abrirTemaDesdeSetlist). ◀/▶
@@ -1387,10 +1307,8 @@ main{padding:28px;max-width:760px;margin:0 auto;}
   <div class="sheet-box" onclick="event.stopPropagation()">
     <h3 id="sheetSetlistEditorTitulo">Editar lista</h3>
     <div class="sheet-lista" id="sheetSetlistEditorLista"></div>
-    <button type="button" class="btn-ghost" id="sheetSetlistOfflineBtn" style="width:100%;margin-top:10px;" onclick="guardarSetlistOffline()" title="Guarda el audio de todos los temas de la lista en este dispositivo">📥 Guardar lista en este dispositivo</button>
     <div class="sheet-acciones">
       <button type="button" class="btn" id="sheetSetlistPracticarBtn" onclick="practicarDesdeSetlist()">▶ Practicar</button>
-      <button type="button" class="btn-ghost" id="sheetSetlistCompartirBtn" onclick="compartirSetlistActual()" title="Compartir esta lista con alguien sin cuenta">🔗 Compartir</button>
       <button type="button" class="btn-ghost" onclick="cerrarEditorSetlist()">Cerrar</button>
     </div>
   </div>
@@ -2568,7 +2486,7 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
             <button class="practica-cue-pad" id="cuequitarbtn-${uid}" onclick="quitarCuePractica('${uid}')" title="Quita el CUE — el play vuelve a arrancar desde el offset">✕</button>
             <button class="practica-cue-pad" id="cueclickbtn-${uid}" onclick="toggleArmarCueWaveform('${uid}')" title="Después de tocar esto, el próximo click en la onda marca el CUE ahí">📍</button>
           </span>
-          <button class="practica-cue-pad" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')" title="Cancela el loop activo" style="display:none;">✕</button>
+          <button class="practica-cue-pad" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')" title="Marca el inicio del loop en el segundo actual">↻</button>
           <button class="practica-click-btn practica-click-btn-etiqueta" id="snapmodo-${uid}" onclick="toggleModoSnapPractica('${uid}')">🧲 Compás</button>
           <span class="practica-player-cargando" id="playercargando-${uid}" style="display:none;">Cargando audio…</span>
           <span class="practica-player-tiempo" id="playertiempo-${uid}">0:00 / 0:00</span>
@@ -2903,37 +2821,22 @@ function schedulerTickGlobalPractica(){
     const tRel = Math.max(0, tiempoActual - offset);
     const ahoraCtx = audioCtxPractica.currentTime;
     const ventanaHasta = tRel + SCHED_LOOKAHEAD_SEC;
-    // v3.249: tRelClick — igual que tRel pero SIN recortar a 0 antes del
-    // offset (solo click sincronizado; el metrónomo libre no usa offset
-    // de canción, así que ahí queda idéntico a tRel). Con signo, el
-    // pulso 0 se agenda en el futuro exacto (el offset) en vez de sonar
-    // al dar play. Solo lo usa el bloque del click principal.
-    const tRelClick = libreOn ? tRel : (tiempoActual - offset);
-    const ventanaHastaClick = tRelClick + SCHED_LOOKAHEAD_SEC;
 
     // --- pulso normal (click / metrónomo libre) ---
     if(clickOn || libreOn){
-      // v3.249: resync con tRelClick. Antes del offset (más allá del
-      // lookahead) el único pulso posible es el 0: se fuerza idx=0. Entre
-      // -lookahead y 0 el pulso 0 está por agendarse o ya se agendó: no
-      // se toca (evita duplicarlo con BPM altos). Desde el offset en
-      // adelante es la condición original, sin cambios.
-      let resyncClick = false;
-      if(est.schedNextBeatIdx == null) resyncClick = true;
-      else if(tRelClick < -SCHED_LOOKAHEAD_SEC) resyncClick = est.schedNextBeatIdx !== 0;
-      else if(tRelClick >= 0) resyncClick = Math.abs(est.schedNextBeatIdx * secPerBeat - tRelClick) > secPerBeat * 1.5;
-      if(resyncClick){
+      if(est.schedNextBeatIdx == null ||
+         Math.abs(est.schedNextBeatIdx * secPerBeat - tRel) > secPerBeat * 1.5){
         // primera vez, o desincronizado (seek/loop/cambio de bpm): resync
-        est.schedNextBeatIdx = Math.max(0, Math.ceil(tRelClick / secPerBeat));
+        est.schedNextBeatIdx = Math.ceil(tRel / secPerBeat);
       }
       // v3.110: (a pedido) tramos de compás para el click sincronizado
       // (no el libre, ver comentario en tramosClickMusico) — se calcula
       // UNA vez por tick, no dentro del while, para no rehacer el
       // sort/forEach por cada beat agendado en la ventana.
       const tramosClick = (clickOn && !libreOn) ? recorrerTramosMusico(seccionesRuntimeDe(est), offset, bpmEf, compasEfectivoDe(est), !!est.compasesOverride, factorCompasGeneralDe(est)) : null;
-      while(est.schedNextBeatIdx * secPerBeat < ventanaHastaClick){
+      while(est.schedNextBeatIdx * secPerBeat < ventanaHasta){
         const beatTime = est.schedNextBeatIdx * secPerBeat;
-        const when = ahoraCtx + (beatTime - tRelClick);
+        const when = ahoraCtx + (beatTime - tRel);
         let beatEnBarra;
         if(tramosClick){
           const tAbs = offset + beatTime;
@@ -3242,7 +3145,6 @@ function toggleLoopSeccionPractica(uid){
   // .practica-click-btn.activo).
   const chk = document.getElementById('loopseccionbtn-' + uid);
   if(chk) chk.classList.toggle('activo', est.loopSeccionActivo);
-  guardarLoopSeccionTemaPractica(uid, est.loopSeccionActivo); // v3.252: queda guardado en el tema
   // v3.29: al apagar, borra la franja del waveform que este loop venía
   // dibujando (loopInicio/loopFin se van seteando solo mientras está
   // activo, ver actualizarContadorPractica). Al encender no hace falta
@@ -4260,12 +4162,11 @@ function marcarLoopPractica(uid, tOverride){
   const info = document.getElementById('loopinfo-' + uid);
   if(est.loopActivo){
     est.loopInicio = null; est.loopFin = null; est.loopActivo = false;
-    if(btn){ btn.style.display = 'none'; } // v3.250: oculto sin loop
+    if(btn){ btn.textContent = '↻'; btn.title = 'Marca el inicio del loop en el segundo actual'; }
     if(info) info.textContent = '';
     limpiarPresetsLoopPractica(uid);
     aplicarLoopNativoPractica(uid);
     dibujarWaveform(uid, est.getTiempoActual());
-    guardarLoopTemaPractica(null); // v3.251: el tema queda sin loop
     return;
   }
   const t = tOverride != null ? tOverride : est.getTiempoActual();
@@ -4309,7 +4210,7 @@ function marcarLoopPractica(uid, tOverride){
   }
   if(est.loopInicio == null){
     est.loopInicio = snapped;
-    if(btn){ btn.textContent = '⏹'; btn.title = 'Marca el fin del loop aquí'; btn.style.display = ''; }
+    if(btn){ btn.textContent = '⏹'; btn.title = 'Marca el fin del loop aquí'; }
     if(info) info.textContent = `Inicio: ${segundosATextoPractica(snapped)}`;
   } else {
     let fin = snapped;
@@ -4317,78 +4218,11 @@ function marcarLoopPractica(uid, tOverride){
     if(fin <= est.loopInicio) fin = est.loopInicio + minBar;
     est.loopFin = fin;
     est.loopActivo = true;
-    if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; btn.style.display = ''; }
+    if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; }
     const secPerBarInfo = (60 / bpmLoop) * beatsDeT * factorDeT;
     const numCompases = Math.round((est.loopFin - est.loopInicio) / secPerBarInfo);
     if(info) info.textContent = `↻ Loop: ${segundosATextoPractica(est.loopInicio)} → ${segundosATextoPractica(est.loopFin)} (${numCompases} comp.)`;
-    guardarLoopTemaPractica({ inicio: est.loopInicio, fin: est.loopFin, compases: numCompases }); // v3.251
     aplicarLoopNativoPractica(uid);
-    dibujarWaveform(uid, est.getTiempoActual());
-  }
-}
-
-// v3.251: loop guardado en el tema (GUIAS2.loop = {inicio, fin, compases}).
-// Se guarda al activar/cancelar un loop manual o xN (solo ensayo.html escribe) y se
-// aplica ACTIVO al abrir el tema (ensayo.html y compartir.html). Datos inválidos se ignoran.
-function guardarLoopTemaPractica(loop){
-  if(!temaActualId) return;
-  const datos = loop ? { inicio: loop.inicio, fin: loop.fin, compases: loop.compases || null } : null;
-  // se refleja de una en el objeto del tema (mismo objeto que misTemas) para que reabrirlo
-  // en esta sesión traiga el loop nuevo sin releer Firestore.
-  if(temaActualDatos) temaActualDatos.loop = datos;
-  db.collection('GUIAS2').doc(temaActualId).set({ loop: datos }, { merge: true })
-    .catch(e => console.error('No se pudo guardar el loop en Firestore:', e));
-}
-function aplicarLoopGuardadoPractica(uid, loop){
-  const est = estadoPractica[uid];
-  if(!est || !loop) return;
-  const ini = Number(loop.inicio), fin = Number(loop.fin);
-  if(!isFinite(ini) || !isFinite(fin) || ini < 0 || fin <= ini) return;
-  est.loopInicio = ini; est.loopFin = fin; est.loopActivo = true;
-  const btn = document.getElementById('loopbtn-' + uid);
-  const info = document.getElementById('loopinfo-' + uid);
-  if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; btn.style.display = ''; }
-  const nComp = Number(loop.compases);
-  if(info) info.textContent = `↻ Loop: ${segundosATextoPractica(ini)} → ${segundosATextoPractica(fin)}` + (nComp > 0 ? ` (${nComp} comp.)` : '');
-  aplicarLoopNativoPractica(uid); // si el audio aún no cargó, no hace nada; se reaplica al conectar el motor
-}
-
-// v3.252: loop de sección guardado en el tema (GUIAS2.loopSeccion = {idx, nombre} | null).
-// idx = posición en la lista de secciones ordenada por inicio; nombre valida que sea la misma.
-function guardarLoopSeccionTemaPractica(uid, activo){
-  if(!temaActualId) return;
-  const est = estadoPractica[uid];
-  let datos = null;
-  if(activo && est){
-    // sección que se está repitiendo: la última que ya empezó (mismo criterio que el contador)
-    const secs = seccionesRuntimeDe(est).slice().sort((a,b) => (a.desdeSegundos||0) - (b.desdeSegundos||0));
-    const t = est.getTiempoActual ? est.getTiempoActual() : 0;
-    let idx = -1;
-    secs.forEach((sec, i) => { if(t >= (sec.desdeSegundos || 0)) idx = i; });
-    datos = idx >= 0 ? { idx: idx, nombre: secs[idx].nombre || '' } : { idx: null, nombre: null };
-  }
-  if(temaActualDatos) temaActualDatos.loopSeccion = datos;
-  db.collection('GUIAS2').doc(temaActualId).set({ loopSeccion: datos }, { merge: true })
-    .catch(e => console.error('No se pudo guardar el loop de sección en Firestore:', e));
-}
-function aplicarLoopSeccionGuardadoPractica(uid, ls){
-  const est = estadoPractica[uid];
-  if(!est || !ls || est._loopSeccionInicialAplicado) return;
-  est._loopSeccionInicialAplicado = true; // una sola vez por apertura del tema
-  if(est.loopActivo) return; // no conviven: si hay loop manual/xN guardado, manda ese
-  let secDestino = null;
-  if(Number.isInteger(ls.idx)){
-    const secs = seccionesRuntimeDe(est).slice().sort((a,b) => (a.desdeSegundos||0) - (b.desdeSegundos||0));
-    secDestino = secs[ls.idx] || null;
-    if(!secDestino || (ls.nombre && (secDestino.nombre || '') !== ls.nombre)) return; // la sección ya no existe o cambió
-  }
-  est.loopSeccionActivo = true;
-  const chk = document.getElementById('loopseccionbtn-' + uid);
-  if(chk) chk.classList.add('activo');
-  if(secDestino){
-    irASeccionPractica(uid, desdeRawSeccion(secDestino)); // salto + refresco de UI (ya llama a actualizarContadorPractica/dibujarWaveform)
-  } else if(est.getTiempoActual){
-    actualizarContadorPractica(uid, est.getTiempoActual());
     dibujarWaveform(uid, est.getTiempoActual());
   }
 }
@@ -4414,11 +4248,10 @@ function loopRapidoCompasesPractica(uid, n){
   limpiarPresetsLoopPractica(uid);
   if(yaActivoEsteMismo){
     est.loopInicio = null; est.loopFin = null; est.loopActivo = false;
-    if(btn){ btn.style.display = 'none'; } // v3.250: oculto sin loop
+    if(btn){ btn.textContent = '↻'; btn.title = 'Marca el inicio del loop en el segundo actual'; }
     if(info) info.textContent = '';
     aplicarLoopNativoPractica(uid);
     dibujarWaveform(uid, est.getTiempoActual());
-    guardarLoopTemaPractica(null); // v3.251: el tema queda sin loop
     return;
   }
   const t = est.getTiempoActual();
@@ -4443,10 +4276,9 @@ function loopRapidoCompasesPractica(uid, n){
   est.loopInicio = snapped;
   est.loopFin = snapped + secPerBarInfo * n;
   est.loopActivo = true;
-  if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; btn.style.display = ''; }
+  if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; }
   if(btnPreset) btnPreset.classList.add('activo');
   if(info) info.textContent = `↻ Loop: ${segundosATextoPractica(est.loopInicio)} → ${segundosATextoPractica(est.loopFin)} (${n} comp.)`;
-  guardarLoopTemaPractica({ inicio: est.loopInicio, fin: est.loopFin, compases: n }); // v3.251
   aplicarLoopNativoPractica(uid);
   dibujarWaveform(uid, est.getTiempoActual());
 }
@@ -6025,7 +5857,6 @@ function onArchivoLocalElegido(uid, files){
     // se pisa el motor nativo que ya esté usando a otra velocidad.
     if((est.velocidadLocal || 1) === 1){
       conectarMotorLocalPractica(uid, player);
-      aplicarLoopNativoPractica(uid); // v3.251: pasa el loop (guardado o ya puesto) al motor exacto
     }
   }).catch(err => {
     console.error('No se pudo decodificar el audio para loop exacto/waveform:', err);
@@ -6036,9 +5867,6 @@ function onArchivoLocalElegido(uid, files){
   }).finally(() => {
     if(cargandoEl) cargandoEl.style.display = 'none';
     if(playBtn) playBtn.disabled = false;
-    // v3.252: loop de sección guardado del tema — activo al abrir y colocado en esa sección.
-    // Va acá (no al crear el estado) porque el motor nuevo arranca en 0 y las secciones ya están cargadas.
-    if(est.archivoLocalFile === files[0]) aplicarLoopSeccionGuardadoPractica(uid, temaActualDatos && temaActualDatos.loopSeccion);
   });
   // v3.46: ya no son los controles nativos del <audio> — ahora el
   // músico le da play desde el playerbar custom cuando quiera.
@@ -8523,7 +8351,7 @@ function filtrarYRenderizarTemas(){
         ${tieneAjustes ? `<button class="tema-card-ajustes" data-accion="restablecer-ajustes" data-id="${t.id}" data-nombre="${escapeHtml(t.nombre || 'este tema')}" title="Tenés ajustes de sesión guardados en este dispositivo (tempo/tono/clave/compás distintos del original) — click para restablecer">🔧</button>` : ''}
         <button class="tema-card-menubtn" data-accion="toggle-menu" data-id="${t.id}" title="Opciones">⋮</button>
         <div class="tema-card-nombre">${escapeHtml(t.nombre || 'Tema')}</div>
-        <div class="tema-card-meta">${formatBpm(t.bpm)} BPM · ${escapeHtml(t.compas || '4/4')}${t.tonalidad ? ' · ' + escapeHtml(t.tonalidad) : ''}${temaEstaOffline(t) ? ' · <span title="Audio guardado en este dispositivo">📥</span>' : ''}</div>
+        <div class="tema-card-meta">${formatBpm(t.bpm)} BPM · ${escapeHtml(t.compas || '4/4')}${t.tonalidad ? ' · ' + escapeHtml(t.tonalidad) : ''}</div>
         ${t.categoria ? `<span class="tema-card-categoria">${escapeHtml(t.categoria)}</span>` : ''}
         ${t.clave ? `<span class="tema-card-clave">🌶${etiquetaClaveBadge(t.clave) ? ' ' + etiquetaClaveBadge(t.clave) : ''}</span>` : ''}
       </div>`; }).join('') + (restantes > 0 ? `<button type="button" class="btn-cargar-mas-temas" data-accion="cargar-mas-temas">Cargar ${Math.min(restantes, LIMITE_PAGINACION_TEMAS)} más (quedan ${restantes})</button>` : '');
@@ -8628,14 +8456,6 @@ async function borrarSetlist(setlistId){
   });
   if(!okBorrar) return;
   try{
-    // v3.247: si la lista estaba compartida, sus temas dejan de estarlo
-    // (los que ella compartió, salvo los que otra lista compartida use).
-    if(sl.compartido === true){
-      for(const idTema of (sl.temasCompartidosPorLista || [])){
-        try{ await _revocarTemaDeLista(sl, idTema); }
-        catch(e){ console.error('No se pudo revocar un tema al borrar la lista:', e); }
-      }
-    }
     await db.collection('SETLISTS2').doc(setlistId).delete();
     misSetlists = misSetlists.filter(s => s.id !== setlistId);
     if(setlistActivaId === setlistId){ setlistActivaId = null; actualizarBarraSetlistPractica(); }
@@ -8669,8 +8489,6 @@ function renderizarEditorSetlist(){
   if(titulo) titulo.textContent = sl.nombre || 'Lista';
   const idsIncluidos = sl.temaIds || [];
   if(btnPracticar) btnPracticar.disabled = !idsIncluidos.length;
-  const btnCompartirLista = document.getElementById('sheetSetlistCompartirBtn');
-  if(btnCompartirLista) btnCompartirLista.textContent = sl.compartido === true ? '🔗 Compartida' : '🔗 Compartir';
   // incluidos, en el orden guardado (con reorden ↑↓); después, los que
   // faltan agregar, alfabético (mismo orden que ya usa misTemas).
   const incluidos = idsIncluidos.map(id => (misTemas || []).find(t => t.id === id)).filter(Boolean);
@@ -8691,56 +8509,30 @@ function renderizarEditorSetlist(){
   lista.innerHTML = (filasIncluidos || '') + (incluidos.length && fuera.length ? '<div style="height:8px;"></div>' : '') + filasFuera
     || '<div class="sheet-opcion-vacia">Todavía no subiste ningún tema.</div>';
 }
-async function _guardarTemaIdsSetlist(nuevosIds, extra){
+async function _guardarTemaIdsSetlist(nuevosIds){
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
   if(!sl) return;
   try{
-    await db.collection('SETLISTS2').doc(setlistEditorId).set(Object.assign({ temaIds: nuevosIds }, extra || {}), { merge: true });
+    await db.collection('SETLISTS2').doc(setlistEditorId).set({ temaIds: nuevosIds }, { merge: true });
     sl.temaIds = nuevosIds;
-    if(extra) Object.assign(sl, extra);
     renderizarEditorSetlist();
   }catch(err){
     console.error('No se pudo actualizar la lista:', err);
     mostrarToast('No se pudo guardar el cambio en la lista. Intenta de nuevo.', 'error');
   }
 }
-async function agregarTemaASetlist(temaId){
+function agregarTemaASetlist(temaId){
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
   if(!sl) return;
   const ids = (sl.temaIds || []).slice();
   if(ids.includes(temaId)) return;
   ids.push(temaId);
-  // v3.247: en una lista ya compartida, el tema nuevo se comparte solo.
-  let extra = null;
-  if(sl.compartido === true){
-    try{
-      const registrados = await _compartirTemasParaLista(sl, [temaId]);
-      extra = { temasCompartidosPorLista: Array.from(new Set((sl.temasCompartidosPorLista || []).concat(registrados))) };
-    }catch(err){
-      console.error('No se pudo compartir el tema agregado a la lista:', err);
-      mostrarToast('No se pudo compartir el tema nuevo de la lista. Intenta de nuevo.', 'error');
-      return;
-    }
-  }
-  _guardarTemaIdsSetlist(ids, extra);
+  _guardarTemaIdsSetlist(ids);
 }
-async function quitarTemaDeSetlist(temaId){
+function quitarTemaDeSetlist(temaId){
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
   if(!sl) return;
-  // v3.247: en una lista compartida, quitar un tema que ella había
-  // compartido lo revoca (salvo que otra lista compartida lo siga usando).
-  let extra = null;
-  if(sl.compartido === true && (sl.temasCompartidosPorLista || []).includes(temaId)){
-    try{
-      await _revocarTemaDeLista(sl, temaId);
-      extra = { temasCompartidosPorLista: (sl.temasCompartidosPorLista || []).filter(id => id !== temaId) };
-    }catch(err){
-      console.error('No se pudo revocar el tema al quitarlo de la lista:', err);
-      mostrarToast('No se pudo revocar el tema al quitarlo de la lista. Intenta de nuevo.', 'error');
-      return;
-    }
-  }
-  _guardarTemaIdsSetlist((sl.temaIds || []).filter(id => id !== temaId), extra);
+  _guardarTemaIdsSetlist((sl.temaIds || []).filter(id => id !== temaId));
 }
 function moverTemaEnSetlist(indice, delta){
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
@@ -8760,89 +8552,6 @@ function practicarDesdeSetlist(){
   cerrarEditorSetlist();
   cerrarSheetSetlists();
   abrirTemaDesdeSetlist(primerId, sl.id);
-}
-
-// ---- v3.247: compartir/revocar una LISTA vía compartir.html?lista=ID ----
-// Modelo: la lista lleva compartido:true y temasCompartidosPorLista (ids
-// de los temas que ELLA pasó a compartido:true). Revocar solo toca esos
-// — nunca un tema que ya estaba compartido por separado.
-function _guiaPdfPublicIdDeTema(t){
-  const cat = (misCategorias || []).find(c => c.nombre === (t.categoria || ''));
-  return (cat && cat.guiaPdfPublicId) || null;
-}
-// ¿otra lista compartida (distinta de exceptoId) tiene registrado este tema?
-function _temaSostenidoPorOtraLista(temaId, exceptoId){
-  return (misSetlists || []).some(s => s.id !== exceptoId && s.compartido === true && (s.temasCompartidosPorLista || []).includes(temaId));
-}
-// Comparte los temas dados (compartido:true + guiaPdfPublicId). Devuelve
-// los ids que ESTA lista debe registrar: los que no estaban compartidos,
-// y los que ya estaban solo porque otra lista compartida los sostiene.
-async function _compartirTemasParaLista(sl, ids){
-  const registrados = [];
-  for(const id of ids){
-    const t = (misTemas || []).find(x => x.id === id);
-    if(!t) continue;
-    const yaCompartido = t.compartido === true;
-    const guiaPdfPublicId = _guiaPdfPublicIdDeTema(t);
-    await db.collection('GUIAS2').doc(id).set({ compartido: true, guiaPdfPublicId }, { merge: true });
-    t.compartido = true;
-    t.guiaPdfPublicId = guiaPdfPublicId;
-    if(temaActualDatos && temaActualId === id){ temaActualDatos.compartido = true; temaActualDatos.guiaPdfPublicId = guiaPdfPublicId; }
-    if(!yaCompartido || _temaSostenidoPorOtraLista(id, sl.id)) registrados.push(id);
-  }
-  return registrados;
-}
-async function _revocarTemaDeLista(sl, temaId){
-  if(_temaSostenidoPorOtraLista(temaId, sl.id)) return;
-  const t = (misTemas || []).find(x => x.id === temaId);
-  if(!t) return; // el tema ya no existe en la librería
-  await db.collection('GUIAS2').doc(temaId).set({ compartido: false }, { merge: true });
-  t.compartido = false;
-  if(temaActualDatos && temaActualId === temaId) temaActualDatos.compartido = false;
-}
-async function compartirSetlistActual(){
-  const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
-  if(!sl) return;
-  const base = location.href.replace(/ensayo\.html.*$/, 'compartir.html');
-  const link = base + '?lista=' + encodeURIComponent(sl.id);
-  try{
-    if(sl.compartido === true){
-      const okRevocar = await pedirConfirmacion({
-        titulo: `¿Revocar el link de "${sl.nombre}"?`,
-        mensaje: 'El link deja de funcionar y se revocan también los temas que esta lista había compartido. Los temas que ya compartías por separado no se tocan.',
-        okTexto: 'Revocar acceso', peligro: true
-      });
-      if(!okRevocar) return;
-      let fallos = 0;
-      for(const idTema of (sl.temasCompartidosPorLista || [])){
-        try{ await _revocarTemaDeLista(sl, idTema); }
-        catch(e){ fallos++; console.error('No se pudo revocar un tema de la lista:', e); }
-      }
-      await db.collection('SETLISTS2').doc(sl.id).set({ compartido: false, temasCompartidosPorLista: [] }, { merge: true });
-      sl.compartido = false;
-      sl.temasCompartidosPorLista = [];
-      renderizarEditorSetlist();
-      mostrarToast(fallos ? 'Lista revocada, pero algún tema no se pudo revocar. Intenta de nuevo.' : 'Acceso revocado.', fallos ? 'error' : 'info');
-      return;
-    }
-    const ids = sl.temaIds || [];
-    if(!ids.length){ mostrarToast('Agrega al menos un tema antes de compartir la lista.', 'info'); return; }
-    const registrados = await _compartirTemasParaLista(sl, ids);
-    const registro = Array.from(new Set((sl.temasCompartidosPorLista || []).concat(registrados)));
-    await db.collection('SETLISTS2').doc(sl.id).set({ compartido: true, temasCompartidosPorLista: registro }, { merge: true });
-    sl.compartido = true;
-    sl.temasCompartidosPorLista = registro;
-    renderizarEditorSetlist();
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      await navigator.clipboard.writeText(link);
-      mostrarToast('Lista compartida. Link copiado al portapapeles.', 'info');
-    }else{
-      prompt('Lista compartida. Copia este link:', link);
-    }
-  }catch(err){
-    console.error('No se pudo compartir la lista:', err);
-    mostrarToast('No se pudo compartir la lista. Intenta de nuevo.', 'error');
-  }
 }
 
 // ---- integración con la práctica: ◀ ▶ dentro de una lista activa ----
@@ -9351,7 +9060,6 @@ function abrirSheetOpcionesTema(ev, temaId){
     <button type="button" class="sheet-opcion" onclick="cerrarSheetOpcionesTema(); cambiarCategoriaTema('${temaId}')">🏷️ Cambiar categoría</button>
     <button type="button" class="sheet-opcion" onclick="cerrarSheetOpcionesTema(); abrirEditorTema('${temaId}')">🛠️ Editar tema</button>
     <button type="button" class="sheet-opcion" style="margin-top:10px;" onclick="cerrarSheetOpcionesTema(); duplicarTema('${temaId}')">📄 Duplicar tema</button>
-    ${tema.audioUrl ? `<button type="button" class="sheet-opcion" onclick="cerrarSheetOpcionesTema(); alternarTemaOffline('${temaId}')">${temaEstaOffline(tema) ? '🗑️ Quitar copia del dispositivo' : '📥 Guardar en este dispositivo (por si Cloudinary falla)'}</button>` : ''}
     ${tieneAjustes ? `<button type="button" class="sheet-opcion" style="margin-top:10px;" onclick="cerrarSheetOpcionesTema(); restablecerAjustesSesionDesdeCard('${temaId}', '${escapeHtml(tema.nombre || 'este tema').replace(/'/g, "\\'")}')">↺ Restablecer ajustes de sesión</button>` : ''}
     <button type="button" class="sheet-opcion peligro" style="margin-top:16px;" onclick="cerrarSheetOpcionesTema(); borrarTema('${temaId}')">🗑️ Borrar tema</button>`;
   const ov = document.getElementById('sheetOpcionesTemaOverlay');
@@ -9411,11 +9119,6 @@ async function borrarTema(temaId){
   try{
     await db.collection('GUIAS2').doc(temaId).delete();
     misTemas = (misTemas || []).filter(t => t.id !== temaId);
-    // v3.248: si tenía copia en el dispositivo y ningún otro tema usa el
-    // mismo audio (los duplicados lo comparten), se libera el espacio.
-    if(tema.audioUrl && temaEstaOffline(tema) && !misTemas.some(t => t.audioUrl === tema.audioUrl)){
-      quitarAudioOfflinePorUrl(tema.audioUrl);
-    }
     // v3.185: si el tema borrado era el que había quedado persistido
     // como "abierto" (ver restaurarTemaAbiertoSiCorresponde), se limpia
     // — si no, un reload futuro intentaría reabrir un tema que ya no
@@ -10213,11 +9916,6 @@ async function _lruTocarAudioCache(url){
 async function _obtenerAudioDeCache(url){
   if(!('caches' in window)) return null;
   try{
-    // v3.248: primero la copia permanente (si el tema fue guardado en
-    // el dispositivo), después el caché de los últimos 10.
-    const cacheOffline = await caches.open(AUDIOLINK_OFFLINE_CACHE_NOMBRE);
-    const respOffline = await cacheOffline.match(url);
-    if(respOffline) return await respOffline.blob();
     const cache = await caches.open(AUDIOLINK_CACHE_NOMBRE);
     const resp = await cache.match(url);
     if(!resp) return null;
@@ -10230,105 +9928,14 @@ async function _obtenerAudioDeCache(url){
 async function _guardarAudioEnCache(url, resp){
   if(!('caches' in window)) return;
   try{
-    // v3.248: FIX — el clone va ANTES del primer await. abrirTema()
-    // llama r.blob() justo después de invocar esta función (sin
-    // esperarla), y una vez consumido el body clone() tira "Response
-    // body is already used". La copia se hace acá, de forma síncrona.
-    const copia = resp.clone();
     const cache = await caches.open(AUDIOLINK_CACHE_NOMBRE);
-    await cache.put(url, copia);
+    // resp.clone() porque la respuesta original todavía se está
+    // consumiendo (r.blob()) del lado de abrirTema().
+    await cache.put(url, resp.clone());
     await _lruTocarAudioCache(url);
   }catch(e){
     console.error('No se pudo guardar el audio en caché:', e);
   }
-}
-
-// ============ v3.248: COPIA PERMANENTE EN EL DISPOSITIVO ============
-// Por si Cloudinary falla: el audio de los temas elegidos queda en un
-// Cache API aparte (sin tope ni LRU). Índice de URLs en localStorage,
-// solo para saber SIN esperar (ej. al pintar la grilla) cuáles están.
-const AUDIOLINK_OFFLINE_CACHE_NOMBRE = 'audiolink-audio-offline-v1';
-let _offlineUrlsMemo = null;
-function _offlineUrlsLeer(){
-  if(_offlineUrlsMemo) return _offlineUrlsMemo;
-  try{ _offlineUrlsMemo = JSON.parse(localStorage.getItem('audiolink_offline_urls') || '[]'); }
-  catch(e){ _offlineUrlsMemo = []; }
-  return _offlineUrlsMemo;
-}
-function _offlineUrlsGuardar(lista){
-  _offlineUrlsMemo = lista;
-  try{ localStorage.setItem('audiolink_offline_urls', JSON.stringify(lista)); }catch(e){}
-}
-function temaEstaOffline(t){
-  return !!(t && t.audioUrl && _offlineUrlsLeer().includes(t.audioUrl));
-}
-// Devuelve true si el audio quedó guardado (o ya lo estaba).
-async function guardarTemaOffline(temaId){
-  const t = (misTemas || []).find(x => x.id === temaId);
-  if(!t || !t.audioUrl) return false;
-  if(temaEstaOffline(t)) return true;
-  if(!('caches' in window)){
-    mostrarToast('Este navegador no permite guardar audio en el dispositivo.', 'error');
-    return false;
-  }
-  try{
-    const resp = await fetch(t.audioUrl);
-    if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    const cache = await caches.open(AUDIOLINK_OFFLINE_CACHE_NOMBRE);
-    await cache.put(t.audioUrl, resp);
-    const lista = _offlineUrlsLeer().slice();
-    if(!lista.includes(t.audioUrl)){ lista.push(t.audioUrl); _offlineUrlsGuardar(lista); }
-    // Pide almacenamiento persistente para que el navegador no lo borre
-    // solo si falta espacio (silencioso en Chrome; puede preguntar en otros).
-    try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
-    return true;
-  }catch(err){
-    console.error('No se pudo guardar el audio en el dispositivo:', err);
-    return false;
-  }
-}
-async function quitarAudioOfflinePorUrl(url){
-  try{
-    if('caches' in window){
-      const cache = await caches.open(AUDIOLINK_OFFLINE_CACHE_NOMBRE);
-      await cache.delete(url);
-    }
-  }catch(e){ console.error('No se pudo quitar la copia del dispositivo:', e); }
-  _offlineUrlsGuardar(_offlineUrlsLeer().filter(u => u !== url));
-}
-async function alternarTemaOffline(temaId){
-  const t = (misTemas || []).find(x => x.id === temaId);
-  if(!t || !t.audioUrl) return;
-  if(temaEstaOffline(t)){
-    await quitarAudioOfflinePorUrl(t.audioUrl);
-    filtrarYRenderizarTemas();
-    mostrarToast('Copia del dispositivo eliminada.', 'info');
-    return;
-  }
-  mostrarToast('Guardando audio en este dispositivo…', 'info');
-  const ok = await guardarTemaOffline(temaId);
-  filtrarYRenderizarTemas();
-  mostrarToast(ok ? 'Listo: este tema ya suena aunque Cloudinary falle.' : 'No se pudo guardar el audio. Revisa tu conexión e intenta de nuevo.', ok ? 'info' : 'error');
-}
-async function guardarSetlistOffline(){
-  const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
-  if(!sl) return;
-  const temas = (sl.temaIds || []).map(id => (misTemas || []).find(t => t.id === id)).filter(t => t && t.audioUrl);
-  if(!temas.length){ mostrarToast('La lista no tiene temas con audio para guardar.', 'info'); return; }
-  const pendientes = temas.filter(t => !temaEstaOffline(t));
-  if(!pendientes.length){ mostrarToast('Todos los temas de la lista ya están guardados en este dispositivo.', 'info'); return; }
-  const btn = document.getElementById('sheetSetlistOfflineBtn');
-  if(btn) btn.disabled = true;
-  let ok = 0;
-  for(let i = 0; i < pendientes.length; i++){
-    if(btn) btn.textContent = `📥 Guardando ${i + 1}/${pendientes.length}…`;
-    if(await guardarTemaOffline(pendientes[i].id)) ok++;
-  }
-  if(btn){ btn.disabled = false; btn.textContent = '📥 Guardar lista en este dispositivo'; }
-  filtrarYRenderizarTemas();
-  mostrarToast(ok === pendientes.length
-    ? `Listo: ${ok} tema(s) guardados en este dispositivo.`
-    : `Se guardaron ${ok} de ${pendientes.length}. Revisa tu conexión e intenta de nuevo.`, ok === pendientes.length ? 'info' : 'error');
 }
 
 // ============ ABRIR UN TEMA (mío) ============
@@ -10398,41 +10005,6 @@ function abrirTemaConArchivo(tema, file){
 // la última carga (por si se editó algo desde otro dispositivo) o si
 // esta es la primera vez que se entra a la grilla.
 const MIS_TEMAS_FRESCURA_MS = 3 * 60 * 1000;
-// v3.245: compartir/revocar el tema abierto vía compartir.html?tema=ID.
-// Activa compartido:true en el doc (permite el `allow get` público de
-// firestore.rules v1.2) y copia el link; si ya estaba compartido, ofrece
-// revocarlo (compartido:false) en vez de generar otro link.
-async function compartirTemaActual(){
-  if(!temaActualId || !temaActualDatos) return;
-  const base = location.href.replace(/ensayo\.html.*$/, 'compartir.html');
-  const link = base + '?tema=' + encodeURIComponent(temaActualId);
-  try{
-    if(temaActualDatos.compartido === true){
-      if(confirm('Este tema ya está compartido:\n' + link + '\n\n¿Revocar el acceso (el link deja de funcionar)?')){
-        await db.collection('GUIAS2').doc(temaActualId).set({ compartido: false }, { merge: true });
-        temaActualDatos.compartido = false;
-        alert('Acceso revocado.');
-      }
-      return;
-    }
-    // v3.246: la vista sin login no puede leer CATEGORIAS2, así que el
-    // publicId del PDF de la categoría viaja copiado en el propio tema.
-    const catGuia = (misCategorias || []).find(c => c.nombre === (temaActualDatos.categoria || ''));
-    const guiaPdfPublicId = (catGuia && catGuia.guiaPdfPublicId) || null;
-    await db.collection('GUIAS2').doc(temaActualId).set({ compartido: true, guiaPdfPublicId }, { merge: true });
-    temaActualDatos.compartido = true;
-    temaActualDatos.guiaPdfPublicId = guiaPdfPublicId;
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      await navigator.clipboard.writeText(link);
-      alert('Tema compartido. Link copiado al portapapeles:\n' + link);
-    }else{
-      prompt('Tema compartido. Copia este link:', link);
-    }
-  }catch(err){
-    console.error('No se pudo compartir el tema:', err);
-    alert('No se pudo generar el link para compartir. Intenta de nuevo.');
-  }
-}
 function volverAMisTemas(){
   temaActualId = null; temaActualDatos = null;
   limpiarTemaActualPersistido();
@@ -10555,7 +10127,6 @@ function crearEstadoPracticaParaTema(tema){
     }
   };
   const est = estadoPractica[uid];
-  aplicarLoopGuardadoPractica(uid, tema.loop); // v3.251: loop guardado del tema, activo al abrir
   cargarAjustesGuardados(uid);
   // v3.183: (a pedido) el badge "(ajustado)" comparaba los overrides
   // contra sus valores por defecto — pero cargarAjustesGuardados()

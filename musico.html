@@ -3,8 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Panel del Músico v3.212</title>
-<!-- AUDIOLINK · musico.html · v3.212
+<title>Audiolink — Panel del Músico v3.222</title>
+<!-- AUDIOLINK · musico.html · v3.222
+     v3.222: (a pedido, port de ensayo.html v3.243 + v3.244) al acomodar el offset
+     (‹ ›, ±, 🎯, click en la onda, 🔍, ✓, ↺) las secciones se reajustan con él y
+     conservan su distancia al offset: las del tema (sin archivo local) se
+     desplazan al leerlas (seccionesRuntimeDe/desdeRawSeccion) y las locales se
+     mueven y se guardan (fijarOffsetLocalDeltaPractica). 🔍 ahora también
+     repinta la onda y el contador.
+     v3.221: (a pedido) se agranda la letra de la regla de tiempo (0:15, 0:31…):
+     principal 9px→11px (negrita 12px al encender) e intermedia 8px→9px, los
+     mismos tamaños que ya usa ensayo.html.
+     v3.220: (a pedido, igual en ensayo.html v3.242) (1) la letra de ensayo de las etiquetas de
+     sección pasa a un marquito con fondo del color de la sección (invertido
+     cuando la etiqueta está activa), para que no parezca parte del nombre;
+     (2) el loop de sección se refresca al encenderlo, así la franja y las
+     banderitas de inicio/fin aparecen de inmediato aunque esté en pausa.
+     v3.219: (a pedido, igual en ensayo.html v3.241) cinco ajustes: (1) barra de progreso: pasado el
+     "Hasta" de la sección y con un loop marcado, la barra usa el loop como
+     referencia ("En loop (fuera de sección)") sin cambiar el límite real de
+     sección de v3.157; (2) al elegir otra sección se apaga la etiqueta
+     anterior (quedaba .activo); (3) banderitas verdes de inicio/fin del loop
+     en el waveform; (4) la regla de tiempo se dibuja al final, encima de
+     líneas y banderitas, y las banderitas de offset/CUE bajan de la fila de
+     números de compás; (5) letra de ensayo en las etiquetas de sección del
+     mapa, la misma de las etiquetas bajo el waveform.
+     v3.218: (a pedido) "creo el tema es por la onda... dejá que el
+     velo afecte el waveform como en el tema claro" — el velo de zonas
+     sin sección (v3.214) se dibujaba ANTES que las barras del
+     waveform ("detrás de todo"), así que sobre barras 100% opacas no
+     las oscurecía en absoluto — solo se notaba en los huecos entre
+     barras y en el carril de etiquetas (donde no hay barra encima).
+     Con fondo del panel cercano al negro en tema oscuro, esa fracción
+     visible era casi nula por más que se subiera la opacidad (v3.215/
+     v3.217). Ahora el dibujo del velo se movió a DESPUÉS del loop que
+     pinta las barras (el cálculo de rangosConSeccion se mantiene
+     donde estaba, no depende de las barras) — así tiñe los píxeles
+     reales de la onda en ambos temas. Los ticks de compás y las
+     líneas/etiquetas de sección siguen dibujándose después de esto
+     (sin cambios), así que quedan nítidos encima del velo. Las
+     franjas de sección activa/loop (dorada/verde) siguen debajo de
+     las barras, sin cambios — son fondo de contexto, no un tinte.
+     v3.217: (a pedido) "dejalo con el velo negro primero que pusiste,
+     solo que un poco más caliente o frío" — vuelve a negro para tema
+     oscuro (en vez del gris --muted de v3.216), con tinte cálido
+     rgba(20,14,6,0.55) — un negro con matiz marrón/dorado tenue, para
+     que combine con la paleta cálida del tema oscuro (--gold) en vez
+     de un negro neutro. Opacidad subida de 0.45 a 0.55 respecto al
+     negro original de v3.214 (que el músico reportó que "casi no se
+     sentía" en oscuro), para que se note sin dejar de ser negro. Sin
+     cambios en tema claro (rgba(0,0,0,0.45), sigue intacto).
+     v3.216: (a pedido) "es mejor el estilo oscuro... otro tono, ya
+     que la sección también lava, con sección seleccionada queda todo
+     lavado" — el blanco puro de v3.215 se leía muy parecido al
+     lavado dorado de la franja de sección activa (colorGold+'29'),
+     así que a simple vista ambos efectos ("hay estructura acá" vs
+     "no hay estructura acá") se confundían en uno solo. Se cambia el
+     valor oscuro de --velo-sin-seccion a un gris neutro
+     rgba(154,151,143,0.18) — mismo tono base que --muted (ya usado
+     en el panel para texto secundario/apagado), semánticamente "sin
+     protagonismo" en vez de "iluminado", y visualmente distinto del
+     dorado/verde/lila que ya usa el resto del waveform. Sin cambios
+     en tema claro (rgba(0,0,0,0.45), ya funcionaba bien).
+     v3.215: (a pedido) "en tema oscuro casi no se siente el velo" —
+     el velo de zonas sin sección (v3.214) usaba rgba(0,0,0,0.45) fijo,
+     que en tema oscuro (fondo ya casi negro, --bg:#0b0b0d) apenas se
+     notaba. Pasa a la variable --velo-sin-seccion (mismo patrón que
+     --gold/--ok, leída con getComputedStyle): en oscuro un velo CLARO
+     rgba(255,255,255,0.14) que "lava"/aclara la zona (más visible
+     contra fondo oscuro que un negro sobre negro); en
+     :root[data-tema="light"] se mantiene el rgba(0,0,0,0.45) original,
+     que ya funcionaba bien ahí.
+     v3.214: (a pedido) dos ajustes sobre la sesión de la barrita de
+     progreso/waveform:
+     (1) "la barrita de progreso aún no identifica loops que están
+     fuera de sección definida" — antes, sin sección activa (huecos
+     entre secciones), la barra de progreso quedaba en blanco aunque
+     hubiera un loop marcado sonando ahí. Ahora, en ese caso, usa el
+     loop mismo (est.loopInicio/est.loopFin) como referencia de la
+     barra: progreso dentro del loop, ticks de compás del tramo,
+     franja verde al 100% (ver bloque else de actualizarContadorPractica).
+     (2) "dale más opacidad en el waveform a las zonas que no tienen
+     sección definida" — nuevo velo semitransparente (rgba negro 45%)
+     sobre los huecos de tiempo sin ninguna sección, calculado con el
+     mismo criterio de "fin real de sección" que ya usaba la franja
+     dorada de la sección activa, generalizado a todas (ver
+     dibujarWaveform). Se dibuja detrás de todo lo demás — no cambia
+     el resto de franjas/colores existentes.
+     v3.213: (a pedido) "hacemos la barrita de progreso más
+     interactiva, que identifique compases y loops?" — dos agregados
+     visuales a la barra de progreso de sección (.practica-progreso-
+     barra): (1) marcas de compás finas, más marcadas cada 4 compases,
+     reusando compasesSeccion (ya calculado por
+     actualizarContadorPractica, cacheado en est.progresoTicksCompases
+     para no tocar el DOM en cada frame); (2) franja verde (var(--ok),
+     mismo color que ya usa la franja de loop del waveform en
+     dibujarWaveform) que resalta el tramo de la barra dentro del loop
+     marcado (est.loopInicio/est.loopFin), recortada a la sección
+     visible. Cero cambios en el click (toggleLoopSeccionPractica) ni
+     en el % de avance (elFill) — se agrega, no se reemplaza nada. No
+     se implementó el nivel de "click con snap para saltar" ni los
+     transitorios como puntos (quedaron descartados/pendientes de la
+     conversación, no forman parte de esta versión).
      v3.212: (a pedido) fix de UI — los botones −0.01/+0.01
      (.tono-offset-btn, agregados en v3.209) heredaban flex:0 de
      .practica-click-btn, cuyo shorthand fija flex-basis:0 (no
@@ -94,6 +194,7 @@ document.addEventListener('DOMContentLoaded', function(){
      '#a78bd6'), para no inventar un color nuevo suelto en la paleta. */
   --lila:#a78bd6;
   --lila-bg:rgba(167,139,214,0.14);
+  --velo-sin-seccion:rgba(20,14,6,0.55);
   --T:"Playfair Display",Georgia,serif;
   --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
   --M:"JetBrains Mono",monospace;
@@ -113,6 +214,7 @@ document.addEventListener('DOMContentLoaded', function(){
   --err:#b8453a;
   --lila:#7d5fae;
   --lila-bg:rgba(125,95,174,0.10);
+  --velo-sin-seccion:rgba(0,0,0,0.45);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;}
@@ -249,6 +351,8 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-mapa-bloque{flex:0 0 auto;position:relative;background:var(--surf-light);border:1px solid var(--sec-color, var(--brd));color:var(--sec-color, var(--txt));font-size:0.82rem;font-weight:700;text-align:center;padding:8px 6px;cursor:pointer;line-height:1.3;border-radius:8px;transition:background-color 0.2s, color 0.2s, box-shadow 0.2s;}
 .practica-mapa-bloque.activo{background:var(--sec-color, var(--gold));color:var(--sec-text, #fff);box-shadow:0 0 10px 1px var(--sec-color, var(--gold)) inset, 0 0 8px 1px var(--sec-color, var(--gold));}
 .practica-mapa-comp{display:block;font-size:0.72rem;font-weight:600;opacity:0.85;}
+.practica-mapa-letra{display:inline-block;min-width:1.35em;margin-right:6px;padding:0 5px;border-radius:5px;background:var(--sec-color, var(--gold));color:var(--sec-text, #fff);font-size:0.76rem;font-weight:800;line-height:1.35;text-align:center;}
+.practica-mapa-bloque.activo .practica-mapa-letra{background:var(--sec-text, #fff);color:var(--sec-color, var(--gold));}
 /* v3.94: badge de variación como elemento propio — antes iba como
    prefijo de texto plano, se perdía entre el nombre.
    - En el bloque grande (dos líneas: nombre + "X c.") va flotante en
@@ -440,7 +544,11 @@ main{padding:28px;max-width:760px;margin:0 auto;}
   .practica-seccion-local-header-tiempo{flex-basis:100%;order:4;white-space:normal;}
 }
 .practica-progreso{margin-top:8px;}
-.practica-progreso-barra{width:100%;height:5px;background:var(--surf-light);border-radius:3px;overflow:hidden;cursor:pointer;}
+.practica-progreso-barra{position:relative;width:100%;height:5px;background:var(--surf-light);border-radius:3px;overflow:hidden;cursor:pointer;}
+.practica-progreso-looprange{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.35;display:none;pointer-events:none;}
+.practica-progreso-ticks{position:absolute;inset:0;pointer-events:none;}
+.practica-progreso-tick{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.35);}
+.practica-progreso-tick.mayor{width:2px;background:rgba(0,0,0,.55);}
 .practica-progreso-fill{height:100%;width:0%;background:var(--gold);transition:width 0.15s linear;}
 .practica-progreso-texto{font-size:0.94rem;font-weight:700;color:var(--gold);margin-top:6px;text-align:center;}
 /* v3.58: (a pedido) flex-wrap para poder sumar botón de reinicio +
@@ -1817,7 +1925,7 @@ function letraEnsayoSugerida(seccionesOriginal, i){
 function letraEnsayoDeSeccion(seccionesOriginal, sec){
   const manual = (sec.letraEnsayo || '').trim();
   if(manual) return manual;
-  const idx = seccionesOriginal.indexOf(sec);
+  const idx = seccionesOriginal.indexOf(sec._orig || sec); // v3.222: _orig si es una copia desplazada
   return idx >= 0 ? letraEnsayoSugerida(seccionesOriginal, idx) : '';
 }
 // mezcla un color hex (#rrggbb) con blanco, para el flash de "sección
@@ -1894,7 +2002,15 @@ function mapaSeccionesHtml(uid, secciones, bpm, compasesPorBarra, offset){
     const tiempos = duracion != null ? duracion * compasesPorBarra : null;
     const anchoMin = tiempos != null ? Math.min(140, Math.max(48, tiempos * 1.5)) : 60;
     const color = colorDeSeccionEnLista(ordenadas, i);
-    return `<div class="practica-mapa-bloque" id="mapabloque-${uid}-${sec.desdeSegundos}" style="--sec-color:${color};--sec-text:${colorTextoContraste(color)};min-width:${anchoMin}px;" onclick="onClickBloqueSeccionPractica('${uid}', ${sec.desdeSegundos})">${sec.esVariacion ? '<span class="practica-chip-variacion">🔁</span>' : ''}${escapeHtml(sec.nombre)}${duracion != null ? `<span class="practica-mapa-comp">${duracion} c.</span>` : ''}</div>`;
+    // v3.219: (a pedido) letra de ensayo (A/B/C…) en la etiqueta, la MISMA
+    // que ya muestran las etiquetas bajo el waveform (letraEnsayoDeSeccion
+    // con la lista en su orden ORIGINAL de guardado — est.secciones, o el
+    // parámetro si el estado todavía no existe al armar el HTML por primera
+    // vez). Sin nombre no hay letra, igual que en el waveform.
+    const estMapaLetra = estadoPractica[uid];
+    const listaOrigLetra = (estMapaLetra && estMapaLetra.secciones) ? estMapaLetra.secciones : secciones;
+    const letraMapa = (sec.nombre || '').trim() ? letraEnsayoDeSeccion(listaOrigLetra, sec) : '';
+    return `<div class="practica-mapa-bloque" id="mapabloque-${uid}-${desdeRawSeccion(sec)}" style="--sec-color:${color};--sec-text:${colorTextoContraste(color)};min-width:${anchoMin}px;" onclick="onClickBloqueSeccionPractica('${uid}', ${desdeRawSeccion(sec)})">${sec.esVariacion ? '<span class="practica-chip-variacion">🔁</span>' : ''}${letraMapa ? `<span class="practica-mapa-letra">${escapeHtml(letraMapa)}</span>` : ''}${escapeHtml(sec.nombre)}${duracion != null ? `<span class="practica-mapa-comp">${duracion} c.</span>` : ''}</div>`;
   }).join('');
   return `<div class="practica-mapa-tema" id="mapatema-${uid}">${bloques}</div>`;
 }
@@ -1936,8 +2052,41 @@ function mapaSeccionesHtml(uid, secciones, bpm, compasesPorBarra, offset){
 // acá con archivo local — siguen intactas para cuando se vuelve a la
 // maqueta oficial. Export a PDF tampoco cambia (sigue leyendo
 // est.secciones directo, ver comentario de v3.163).
+// v3.222: (a pedido) "cuando acomodo el offset las secciones no se
+// reajustan" — las secciones del TEMA (est.secciones) se guardan en segundos
+// contra el offset OFICIAL; con un offsetLocalDelta ≠ 0 la grilla de compases
+// se corría pero las secciones (línea, etiqueta, sección activa, barra,
+// loop de sección, tramos de compás/click) se quedaban en su segundo
+// original. Ahora, sin archivo local, se devuelven copias desplazadas por el
+// mismo delta (desdeSegundos/hastaSegundos + delta) — el mismo criterio que ya
+// usaba irASeccionPractica (v3.50) para el salto. Cada copia guarda _orig (la
+// sección original, para la letra de ensayo) y _desdeRaw (el segundo CRUDO,
+// que sigue siendo la clave de los ids chip-/mapabloque- y de los saltos).
+// Las secciones LOCALES (archivo local) NO se desplazan: ya están en tiempo
+// real del archivo (v3.180). Con delta 0 se devuelve est.secciones tal cual,
+// idéntico a antes. La lista se cachea por (arreglo, delta, cantidad) para no
+// crear copias en cada frame.
 function seccionesRuntimeDe(est){
-  return (est && est.archivoLocalUrl) ? (est.seccionesLocales || []) : (est.secciones || []);
+  if(est && est.archivoLocalUrl) return est.seccionesLocales || [];
+  const base = (est && est.secciones) || [];
+  const d = (est && est.offsetLocalDelta) || 0;
+  if(!d || !base.length) return base;
+  const c = est._seccionesConDelta;
+  if(c && c.base === base && c.delta === d && c.n === base.length) return c.lista;
+  const lista = base.map(s => Object.assign({}, s, {
+    desdeSegundos: (s.desdeSegundos || 0) + d,
+    hastaSegundos: (s.hastaSegundos != null) ? s.hastaSegundos + d : s.hastaSegundos,
+    _orig: s,
+    _desdeRaw: s.desdeSegundos || 0
+  }));
+  est._seccionesConDelta = { base, delta: d, n: base.length, lista };
+  return lista;
+}
+// segundo CRUDO (sin desplazar) de una sección — clave estable para los ids
+// del DOM (chip-/mapabloque-), est.ultimaSeccionChip, seekManualObjetivo y
+// seccionDesactivadaSegundos. Sin desplazamiento equivale a desdeSegundos.
+function desdeRawSeccion(sec){
+  return (sec && sec._desdeRaw != null) ? sec._desdeRaw : ((sec && sec.desdeSegundos) || 0);
 }
 function compasEfectivoDe(est){
   return (est.compasesOverride || est.compasesPorBarra);
@@ -2109,7 +2258,11 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
   // no estaba pedida en el reorden y es la sección menos usada.
   return `
         <div class="practica-progreso">
-          <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop"><div class="practica-progreso-fill" id="progfill-${uid}"></div></div>
+          <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop">
+            <div class="practica-progreso-looprange" id="progloop-${uid}"></div>
+            <div class="practica-progreso-fill" id="progfill-${uid}"></div>
+            <div class="practica-progreso-ticks" id="progticks-${uid}"></div>
+          </div>
           <div class="practica-progreso-texto" id="progtxt-${uid}"></div>
         </div>
         <audio id="local-${uid}" style="display:none;"></audio>
@@ -2688,7 +2841,20 @@ function onClickBloqueSeccionPractica(uid, segundos){
   // en la rama de reactivación manual) se fuerza a que el próximo tick
   // detecte el "cambio" y vuelva a encender el resaltado de inmediato.
   const est = estadoPractica[uid];
-  if(est){ est.ultimaSeccionChip = null; est.seccionDesactivadaSegundos = null; }
+  if(est){
+    // v3.219: FIX — al elegir OTRA sección, esta línea ponía
+    // ultimaSeccionChip = null ANTES del salto, y actualizarContadorPractica
+    // solo apaga la etiqueta anterior si ultimaSeccionChip no es null: la
+    // anterior nunca se apagaba y quedaban dos encendidas. Ahora se apaga
+    // acá mismo (la función de deseleccionar y el salto quedan intactos).
+    if(est.ultimaSeccionChip !== undefined && est.ultimaSeccionChip !== null){
+      const chipPrevio = document.getElementById('chip-' + uid + '-' + est.ultimaSeccionChip);
+      if(chipPrevio) chipPrevio.classList.remove('activo');
+      const bloquePrevio = document.getElementById('mapabloque-' + uid + '-' + est.ultimaSeccionChip);
+      if(bloquePrevio) bloquePrevio.classList.remove('activo');
+    }
+    est.ultimaSeccionChip = null; est.seccionDesactivadaSegundos = null;
+  }
   irASeccionPractica(uid, segundos);
 }
 // apaga el resaltado de ESTA sección puntual. No toca
@@ -2795,6 +2961,65 @@ function toggleLoopSeccionPractica(uid){
     aplicarLoopNativoPractica(uid);
     dibujarWaveform(uid, est.getTiempoActual());
   }
+  // v3.220: (a pedido) "el loop de sección quedó sin banderitas" — al encender,
+  // loopInicio/loopFin solo se seteaban en el próximo tick de reproducción
+  // (actualizarContadorPractica), así que en pausa (o hasta que arrancaba el
+  // audio) no se veían ni la franja ni las banderitas de inicio/fin. Ahora se
+  // refresca en el momento, igual que ya hace irASeccionPractica.
+  else if(est.getTiempoActual){
+    actualizarContadorPractica(uid, est.getTiempoActual());
+    dibujarWaveform(uid, est.getTiempoActual());
+  }
+}
+
+// v3.213: (a pedido) "hacemos la barrita de progreso más interactiva,
+// que identifique compases y loops?" — dos agregados puramente
+// visuales a la barra de progreso de sección (.practica-progreso-
+// barra), reusando datos que actualizarContadorPractica ya calcula
+// (compasesSeccion/inicioSec/finSec), sin tocar su interacción de
+// click (toggleLoopSeccionPractica) ni el % de avance (elFill).
+//
+// Marcas de compás: una raya fina por compás dentro de la sección
+// activa, más marcada cada 4 compases (fraseo típico). Se regenera
+// solo cuando cambia la cantidad de compases de la sección (cacheado
+// en est.progresoTicksCompases) — no en cada frame, para no tocar el
+// DOM 60 veces por segundo sin necesidad.
+function actualizarTicksProgresoPractica(uid, est, compasesSeccion){
+  if(est.progresoTicksCompases === compasesSeccion) return;
+  est.progresoTicksCompases = compasesSeccion;
+  const cont = document.getElementById('progticks-' + uid);
+  if(!cont) return;
+  let html = '';
+  for(let i = 1; i < compasesSeccion; i++){
+    const pct = (i / compasesSeccion) * 100;
+    const clase = (i % 4 === 0) ? 'practica-progreso-tick mayor' : 'practica-progreso-tick';
+    html += `<div class="${clase}" style="left:${pct}%;"></div>`;
+  }
+  cont.innerHTML = html;
+}
+
+// Franja de loop: resalta (mismo verde var(--ok) que ya usa la franja
+// del loop en el waveform, ver dibujarWaveform) el tramo de la barra
+// que cae dentro del loop marcado (est.loopInicio/est.loopFin —
+// incluye tanto el loop manual como el loop de sección completa,
+// est.loopSeccionActivo, que en ese caso cubre el 100% del ancho),
+// recortado a los límites de la sección visible (inicioSec/finSec).
+function actualizarLoopRangeProgresoPractica(uid, est, inicioSec, finSec){
+  const el = document.getElementById('progloop-' + uid);
+  if(!el) return;
+  if(est.loopInicio == null || est.loopFin == null || finSec <= inicioSec){
+    el.style.display = 'none';
+    return;
+  }
+  const a = Math.max(inicioSec, est.loopInicio);
+  const b = Math.min(finSec, est.loopFin);
+  if(b <= a){
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  el.style.left = (((a - inicioSec) / (finSec - inicioSec)) * 100) + '%';
+  el.style.width = (((b - a) / (finSec - inicioSec)) * 100) + '%';
 }
 
 // v3.84: (a pedido, Fase 3) muestra/oculta el panel de cifrado/letra de
@@ -4261,7 +4486,7 @@ function actualizarContadorPractica(uid, tiempoActual){
   // 0.25s antes de su límite real durante reproducción normal.
   const MARGEN_SECCION = 0.25;
   secciones.forEach((sec, i) => {
-    const esObjetivoReciente = est.seekManualObjetivo != null && Math.abs(est.seekManualObjetivo - (sec.desdeSegundos || 0)) < 0.001;
+    const esObjetivoReciente = est.seekManualObjetivo != null && Math.abs(est.seekManualObjetivo - desdeRawSeccion(sec)) < 0.001;
     const margen = esObjetivoReciente ? MARGEN_SECCION : 0;
     if(tiempoActual >= (sec.desdeSegundos || 0) - margen){ actual = sec; siguiente = secciones[i+1] || null; actualIdx = i; }
   });
@@ -4291,7 +4516,7 @@ function actualizarContadorPractica(uid, tiempoActual){
   // v3.40: (a pedido) antes esto corría sin condición en cada frame,
   // reiniciando la transición del chip aunque siguiera siendo el mismo
   // — ahora solo se tocan las clases cuando la sección activa cambió.
-  const nuevoChipKey = actual ? actual.desdeSegundos : null;
+  const nuevoChipKey = actual ? desdeRawSeccion(actual) : null;
   if(nuevoChipKey !== est.ultimaSeccionChip){
     if(est.ultimaSeccionChip !== undefined && est.ultimaSeccionChip !== null){
       const chipAnterior = document.getElementById('chip-' + uid + '-' + est.ultimaSeccionChip);
@@ -4300,9 +4525,9 @@ function actualizarContadorPractica(uid, tiempoActual){
       if(bloqueAnterior) bloqueAnterior.classList.remove('activo');
     }
     if(actual){
-      const chipActual = document.getElementById('chip-' + uid + '-' + actual.desdeSegundos);
+      const chipActual = document.getElementById('chip-' + uid + '-' + desdeRawSeccion(actual));
       if(chipActual) chipActual.classList.add('activo');
-      const bloqueActual = document.getElementById('mapabloque-' + uid + '-' + actual.desdeSegundos);
+      const bloqueActual = document.getElementById('mapabloque-' + uid + '-' + desdeRawSeccion(actual));
       if(bloqueActual){
         bloqueActual.classList.add('activo');
       }
@@ -4339,7 +4564,29 @@ function actualizarContadorPractica(uid, tiempoActual){
     const finManual = actual.hastaSegundos;
     const finSec = (finManual != null) ? finManual : (siguiente ? (siguiente.desdeSegundos || 0) : (inicioSec + secPerBarTramoActual * 4));
     const pct = finSec > inicioSec ? Math.min(100, Math.max(0, ((tiempoActual - inicioSec) / (finSec - inicioSec)) * 100)) : 100;
-    elFill.style.width = pct + '%';
+    // v3.219: (a pedido) "la barrita de progreso aún no identifica los loops
+    // fuera de sección" — con varias secciones, pasado el "Hasta" de la
+    // activa (hueco antes de la siguiente) la barra seguía en modo sección
+    // (100%, "Siguiente: X en 0 comp.") y recortaba el loop, así que no se
+    // veía. Respeta la decisión de v3.157 (el límite REAL de sección sigue
+    // siendo el inicio de la siguiente — chip, cifrado y motor no cambian):
+    // SOLO la barra usa el loop marcado como referencia, igual que el bloque
+    // else de más abajo. Sin loop marcado, o con el loop de sección activo
+    // (que ya cubre la sección), queda exactamente como antes.
+    const refLoopHueco = (finManual != null && tiempoActual >= finManual && !est.loopSeccionActivo
+      && est.loopInicio != null && est.loopFin != null && est.loopFin > est.loopInicio)
+      ? { ini: est.loopInicio, fin: est.loopFin } : null;
+    let compasesLoopHueco = 0;
+    if(refLoopHueco){
+      const tramoLoopHueco = tramoMusicoEnSegundo(tramosContador, refLoopHueco.ini);
+      const secPerBarLoopHueco = tramoLoopHueco.secPerBar || secPerBar;
+      compasesLoopHueco = secPerBarLoopHueco > 0 ? Math.max(1, Math.round((refLoopHueco.fin - refLoopHueco.ini) / secPerBarLoopHueco)) : 0;
+      const pctLoopHueco = Math.min(100, Math.max(0, ((tiempoActual - refLoopHueco.ini) / (refLoopHueco.fin - refLoopHueco.ini)) * 100));
+      elFill.style.width = pctLoopHueco + '%';
+      elFill.style.background = '';
+    }else{
+      elFill.style.width = pct + '%';
+    }
     // v3.78/v3.81: (a pedido) etiqueta de sección junto al contador —
     // ya no dice "Sección:" (redundante, el nombre solo alcanza), y
     // ahora destaca la duración EN COMPASES (jerarquía visual mayor,
@@ -4361,6 +4608,9 @@ function actualizarContadorPractica(uid, tiempoActual){
     // v3.111: FIX — compasesSeccion ahora usa secPerBarTramoActual (el
     // compás real de ESTA sección) en vez del general fijo.
     const compasesSeccion = secPerBarTramoActual > 0 ? Math.max(1, Math.round((finSec - inicioSec) / secPerBarTramoActual)) : 0;
+    actualizarTicksProgresoPractica(uid, est, refLoopHueco ? compasesLoopHueco : compasesSeccion);
+    if(refLoopHueco) actualizarLoopRangeProgresoPractica(uid, est, refLoopHueco.ini, refLoopHueco.fin);
+    else actualizarLoopRangeProgresoPractica(uid, est, inicioSec, finSec);
     // v3.82: (a pedido) rango de compás inicio-fin de la sección,
     // debajo del rango en minutos — misma fórmula del barIndex del
     // contador grande (offset+offsetLocalDelta, secPerBar), aplicada
@@ -4401,7 +4651,9 @@ function actualizarContadorPractica(uid, tiempoActual){
     // cuántos compases", no en segundos. Mismo secPerBar/finSec que ya
     // calcula el resto de esta función.
     if(elTxt){
-      if(siguiente){
+      if(refLoopHueco){
+        elTxt.textContent = 'En loop (fuera de sección)';
+      }else if(siguiente){
         const compasesRestantes = secPerBar > 0 ? Math.max(0, Math.ceil((finSec - tiempoActual) / secPerBar)) : null;
         const distanciaTxt = compasesRestantes != null
           ? `${compasesRestantes} comp. (${segundosATextoPractica(finSec - tiempoActual)})`
@@ -4496,10 +4748,41 @@ function actualizarContadorPractica(uid, tiempoActual){
       est.seek(inicioSec);
     }
   } else if(elFill){
-    elFill.style.width = '0%';
-    elFill.style.background = ''; // v3.35: sin sección activa, vuelve al dorado por defecto (CSS)
-    if(elTxt) elTxt.textContent = '';
-    if(elSeccion) elSeccion.style.display = 'none';
+    // v3.214: (a pedido) "la barrita de progreso aún no identifica
+    // loops que están fuera de sección definida" — antes, sin una
+    // sección activa (huecos entre secciones, intro/outro sin
+    // etiquetar) la barra quedaba en blanco (0%, sin ticks, sin
+    // franja) aunque hubiera un loop marcado sonando justo ahí. Ahora,
+    // si hay un loop marcado (est.loopInicio/est.loopFin) se usa el
+    // loop mismo como referencia de la barra — progreso dentro del
+    // loop, ticks de compás del tramo en ese punto (tramosContador ya
+    // calculado arriba), franja verde cubriendo el 100% (todo lo
+    // visible ES el loop) — mismo criterio visual que una sección,
+    // sin depender de que haya una etiquetada ahí. Sin loop marcado,
+    // sigue el comportamiento de siempre (barra en blanco).
+    if(est.loopInicio != null && est.loopFin != null && est.loopFin > est.loopInicio){
+      const inicioLoopBar = est.loopInicio, finLoopBar = est.loopFin;
+      const pctLoop = Math.min(100, Math.max(0, ((tiempoActual - inicioLoopBar) / (finLoopBar - inicioLoopBar)) * 100));
+      elFill.style.width = pctLoop + '%';
+      elFill.style.background = '';
+      const tramoDeLoop = tramoMusicoEnSegundo(tramosContador, inicioLoopBar);
+      const secPerBarLoop = tramoDeLoop.secPerBar || secPerBar;
+      const compasesLoop = secPerBarLoop > 0 ? Math.max(1, Math.round((finLoopBar - inicioLoopBar) / secPerBarLoop)) : 0;
+      actualizarTicksProgresoPractica(uid, est, compasesLoop);
+      actualizarLoopRangeProgresoPractica(uid, est, inicioLoopBar, finLoopBar);
+      if(elTxt) elTxt.textContent = 'En loop (fuera de sección)';
+      if(elSeccion) elSeccion.style.display = 'none';
+    } else {
+      elFill.style.width = '0%';
+      elFill.style.background = ''; // v3.35: sin sección activa, vuelve al dorado por defecto (CSS)
+      if(elTxt) elTxt.textContent = '';
+      if(elSeccion) elSeccion.style.display = 'none';
+      est.progresoTicksCompases = null;
+      const contTicksVacio = document.getElementById('progticks-' + uid);
+      if(contTicksVacio) contTicksVacio.innerHTML = '';
+      const elLoopVacio = document.getElementById('progloop-' + uid);
+      if(elLoopVacio) elLoopVacio.style.display = 'none';
+    }
     actualizarCifradoPractica(uid, est, null, barIndex, -1);
     actualizarLetraCompletaPractica(uid, null);
   }
@@ -5789,6 +6072,7 @@ function dibujarWaveform(uid, tiempoActual){
   const colorProgreso = '#a78bd6';
   const colorFaint = estilos.getPropertyValue('--faint').trim() || '#5c5a55';
   const colorGold = estilos.getPropertyValue('--gold').trim() || '#c9a24b';
+  const colorVeloSinSeccion = estilos.getPropertyValue('--velo-sin-seccion').trim() || 'rgba(0,0,0,0.45)';
 
   // v3.27: (a pedido) fx de "encendido" al pasar por un tick/sección —
   // se detecta el cruce comparando el tiempo de este frame contra el
@@ -5944,6 +6228,30 @@ function dibujarWaveform(uid, tiempoActual){
   ctxDraw.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctxDraw.clearRect(0, 0, W, H);
 
+  // v3.218: (a pedido) "que el velo afecte el waveform como en el
+  // tema claro" — el cálculo de rangos se mantiene acá (no depende de
+  // las barras), pero el DIBUJO del velo (antes acá mismo, "detrás de
+  // todo") se movió a después de dibujar las barras (ver más abajo,
+  // junto al loop de picos) — dibujado ANTES, un fillRect semitrans-
+  // parente detrás de barras 100% opacas no las oscurece en absoluto,
+  // solo se nota en los huecos entre barras y en el carril de
+  // etiquetas; por eso en tema oscuro (barras grises sobre fondo casi
+  // negro) prácticamente no se sentía aunque se subiera la opacidad.
+  // Dibujado DESPUÉS, sí tiñe los píxeles reales de la onda.
+  const rangosConSeccion = infoSecciones.map((info, i) => {
+    const finManual = info.sec.hastaSegundos;
+    let fin;
+    if(finManual != null){
+      const beatsSec = beatsPorBarraDeSeccionMusico(info.sec, compasEfectivoDe(est));
+      fin = snapACompasPractica(finManual, bpmParaTicks, beatsSec, info.tSec);
+    } else if(infoSecciones[i + 1]){
+      fin = infoSecciones[i + 1].tSec;
+    } else {
+      fin = dur;
+    }
+    return { inicio: info.tSec, fin: Math.min(Math.max(fin, info.tSec), dur) };
+  });
+
   // v3.51: (a pedido) franja de fondo para la SECCIÓN seleccionada
   // (chip activo) — distinta de la franja del loop de abajo (esa es
   // colorOk/verde; esta es dorada) para poder distinguir "estoy en
@@ -5963,7 +6271,7 @@ function dibujarWaveform(uid, tiempoActual){
   // en actualizarContadorPractica).
   const estaDesactivadaManual = idxSeccionActiva !== -1
     && est.seccionDesactivadaSegundos != null
-    && Math.abs(infoSecciones[idxSeccionActiva].tSec - est.seccionDesactivadaSegundos) < 0.001;
+    && Math.abs(desdeRawSeccion(infoSecciones[idxSeccionActiva].sec) - est.seccionDesactivadaSegundos) < 0.001;
   if(idxSeccionActiva !== -1 && !estaDesactivadaManual){
     const infoAct = infoSecciones[idxSeccionActiva];
     const finManual = infoAct.sec.hastaSegundos;
@@ -6017,6 +6325,28 @@ function dibujarWaveform(uid, tiempoActual){
     ctxDraw.fillRect(x, y, bw, h);
   }
 
+  // v3.218: velo de zonas sin sección (rangosConSeccion, calculado
+  // arriba) dibujado ACÁ, encima de las barras recién pintadas — así
+  // sí tiñe sus píxeles (antes iba detrás de las barras, ver v3.214,
+  // y al ser estas 100% opacas el velo no se notaba salvo en los
+  // huecos entre barras). Franjas de sección activa/loop (dorada/
+  // verde, dibujadas más arriba) quedan debajo de las barras a
+  // propósito — son fondos de "contexto", no un tinte sobre la onda.
+  ctxDraw.fillStyle = colorVeloSinSeccion;
+  let cursorSinSeccion = 0;
+  rangosConSeccion.forEach(r => {
+    if(r.inicio > cursorSinSeccion){
+      const xA = (cursorSinSeccion / dur) * W;
+      const xB = (r.inicio / dur) * W;
+      ctxDraw.fillRect(xA, 0, Math.max(0, xB - xA), H);
+    }
+    cursorSinSeccion = Math.max(cursorSinSeccion, r.fin);
+  });
+  if(cursorSinSeccion < dur){
+    const xA = (cursorSinSeccion / dur) * W;
+    ctxDraw.fillRect(xA, 0, Math.max(0, W - xA), H);
+  }
+
   // ticks de compás — usan el mismo offset efectivo que ya calcula el
   // metrónomo (est.offset + est.offsetLocalDelta), así el primer tick
   // cae exacto donde el metrónomo marca el tiempo 1.
@@ -6063,6 +6393,7 @@ function dibujarWaveform(uid, tiempoActual){
   // después de líneas de sección/offset/CUE), así el número de compás
   // queda siempre arriba de cualquier línea, sin excepción.
   const numerosCompas = [];
+  const tiemposRegla = []; // v3.219: regla de tiempo diferida (se dibuja al final, encima de líneas/banderitas)
   ctxDraw.textAlign = 'center';
   let compasNum = cada + 1;
   // v3.190: (a pedido, portado de ensayo.html v3.202.1) el compás 1
@@ -6102,13 +6433,10 @@ function dibujarWaveform(uid, tiempoActual){
     const mmP0 = Math.floor(t0 / 60);
     const ssP0 = String(Math.floor(t0 % 60)).padStart(2, '0');
     const textoTiempoP0 = `${mmP0}:${ssP0}`;
-    ctxDraw.font = encendido0 ? 'bold 10px monospace' : '9px monospace';
+    ctxDraw.font = encendido0 ? 'bold 12px monospace' : '11px monospace';
     const anchoTiempoP0 = ctxDraw.measureText(textoTiempoP0).width;
     const yTiempoP0 = ondaH - 4;
-    ctxDraw.fillStyle = colorFondoTick;
-    ctxDraw.fillRect(tx0 - anchoTiempoP0 / 2 - 2, yTiempoP0 - 9, anchoTiempoP0 + 4, 11);
-    ctxDraw.fillStyle = encendido0 ? '#fff4d6' : colorGold;
-    ctxDraw.fillText(textoTiempoP0, tx0, yTiempoP0);
+    tiemposRegla.push({ tx: tx0, texto: textoTiempoP0, ancho: anchoTiempoP0, y: yTiempoP0, encendido: encendido0, font: ctxDraw.font, caja: true, alpha: 1 });
   }
   for(let t = offsetEfectivo + compasDur; t < dur; t += compasDur){
     const tx = (t / dur) * W;
@@ -6147,13 +6475,10 @@ function dibujarWaveform(uid, tiempoActual){
     const mmP = Math.floor(t / 60);
     const ssP = String(Math.floor(t % 60)).padStart(2, '0');
     const textoTiempoP = `${mmP}:${ssP}`;
-    ctxDraw.font = encendido ? 'bold 10px monospace' : '9px monospace';
+    ctxDraw.font = encendido ? 'bold 12px monospace' : '11px monospace';
     const anchoTiempoP = ctxDraw.measureText(textoTiempoP).width;
     const yTiempoP = ondaH - 4;
-    ctxDraw.fillStyle = colorFondoTick;
-    ctxDraw.fillRect(tx - anchoTiempoP / 2 - 2, yTiempoP - 9, anchoTiempoP + 4, 11);
-    ctxDraw.fillStyle = encendido ? '#fff4d6' : colorGold;
-    ctxDraw.fillText(textoTiempoP, tx, yTiempoP);
+    tiemposRegla.push({ tx: tx, texto: textoTiempoP, ancho: anchoTiempoP, y: yTiempoP, encendido: encendido, font: ctxDraw.font, caja: true, alpha: 1 });
     compasNum += cada;
   }
 
@@ -6230,9 +6555,8 @@ function dibujarWaveform(uid, tiempoActual){
         // mantiene igual de tenue que se pidió).
         const mmS = Math.floor(t / 60);
         const ssS = String(Math.floor(t % 60)).padStart(2, '0');
-        ctxDraw.font = '8px monospace';
-        ctxDraw.fillStyle = encendidoSec ? '#fff4d6' : colorGold;
-        ctxDraw.fillText(`${mmS}:${ssS}`, tx, ondaH - 4);
+        ctxDraw.font = '9px monospace';
+        tiemposRegla.push({ tx, texto: `${mmS}:${ssS}`, ancho: 0, y: ondaH - 4, encendido: encendidoSec, font: ctxDraw.font, caja: false, alpha: encendidoSec ? 1 : 0.5 });
         ctxDraw.globalAlpha = 1;
         ctxDraw.font = '9px monospace';
       }
@@ -6333,14 +6657,14 @@ function dibujarWaveform(uid, tiempoActual){
     ctxDraw.strokeStyle = colorOffsetLinea;
     ctxDraw.lineWidth = 2;
     ctxDraw.beginPath();
-    ctxDraw.moveTo(xOffset, 0);
+    ctxDraw.moveTo(xOffset, 14);
     ctxDraw.lineTo(xOffset, H);
     ctxDraw.stroke();
     ctxDraw.fillStyle = colorOffsetLinea;
     ctxDraw.beginPath();
-    ctxDraw.moveTo(xOffset, 0);
-    ctxDraw.lineTo(xOffset - 8, 5);
-    ctxDraw.lineTo(xOffset, 10);
+    ctxDraw.moveTo(xOffset, 14);
+    ctxDraw.lineTo(xOffset - 8, 19);
+    ctxDraw.lineTo(xOffset, 24);
     ctxDraw.closePath();
     ctxDraw.fill();
   }
@@ -6361,16 +6685,56 @@ function dibujarWaveform(uid, tiempoActual){
     ctxDraw.strokeStyle = colorCue;
     ctxDraw.lineWidth = 2;
     ctxDraw.beginPath();
-    ctxDraw.moveTo(xCue, 0);
+    ctxDraw.moveTo(xCue, 14);
     ctxDraw.lineTo(xCue, H);
     ctxDraw.stroke();
     ctxDraw.fillStyle = colorCue;
     ctxDraw.beginPath();
-    ctxDraw.moveTo(xCue, 0);
-    ctxDraw.lineTo(xCue + 8, 5);
-    ctxDraw.lineTo(xCue, 10);
+    ctxDraw.moveTo(xCue, 14);
+    ctxDraw.lineTo(xCue + 8, 19);
+    ctxDraw.lineTo(xCue, 24);
     ctxDraw.closePath();
     ctxDraw.fill();
+  }
+
+  // v3.219: (a pedido) banderitas de inicio (▶) y fin (◀) del loop
+  // marcado, en verde (mismo colorOk que su franja). Van en una fila propia
+  // (y 26-36), debajo de las de offset/CUE (14-24) y de la fila de números
+  // de compás (0-14), y el mástil termina antes de la regla de tiempo
+  // (ondaH-14), para no pisar ninguna. Con el loop a medio marcar (ya hay
+  // inicio, falta el fin) se ve solo la de inicio.
+  if(est.loopInicio != null || est.loopFin != null){
+    const yMastilA = 14, yMastilB = Math.max(yMastilA + 14, ondaH - 14), yBandera = 26;
+    ctxDraw.shadowBlur = 0;
+    ctxDraw.strokeStyle = colorOk;
+    ctxDraw.fillStyle = colorOk;
+    ctxDraw.lineWidth = 2;
+    if(est.loopInicio != null && est.loopInicio >= 0 && est.loopInicio <= dur){
+      const xLoopIni = (est.loopInicio / dur) * W;
+      ctxDraw.beginPath();
+      ctxDraw.moveTo(xLoopIni, yMastilA);
+      ctxDraw.lineTo(xLoopIni, yMastilB);
+      ctxDraw.stroke();
+      ctxDraw.beginPath();
+      ctxDraw.moveTo(xLoopIni, yBandera);
+      ctxDraw.lineTo(xLoopIni + 9, yBandera + 5);
+      ctxDraw.lineTo(xLoopIni, yBandera + 10);
+      ctxDraw.closePath();
+      ctxDraw.fill();
+    }
+    if(est.loopFin != null && est.loopFin >= 0 && est.loopFin <= dur){
+      const xLoopFin = (est.loopFin / dur) * W;
+      ctxDraw.beginPath();
+      ctxDraw.moveTo(xLoopFin, yMastilA);
+      ctxDraw.lineTo(xLoopFin, yMastilB);
+      ctxDraw.stroke();
+      ctxDraw.beginPath();
+      ctxDraw.moveTo(xLoopFin, yBandera);
+      ctxDraw.lineTo(xLoopFin - 9, yBandera + 5);
+      ctxDraw.lineTo(xLoopFin, yBandera + 10);
+      ctxDraw.closePath();
+      ctxDraw.fill();
+    }
   }
 
   // v3.206: redibujado diferido de los números de compás (ver el
@@ -6384,6 +6748,23 @@ function dibujarWaveform(uid, tiempoActual){
     ctxDraw.fillRect(n.tx - n.ancho / 2 - 3, 0, n.ancho + 6, 14);
     ctxDraw.fillStyle = n.encendido ? '#fff4d6' : colorGold;
     ctxDraw.fillText(n.texto, n.tx, 11);
+  });
+  // v3.219: (a pedido) "algunas líneas/marcadores/banderitas están pisando
+  // los números de la regla de tiempo" — la hora de cada tick se dibujaba
+  // ANTES que las líneas de sección, offset y CUE, que la cruzaban. Ahora se
+  // dibuja acá, al final (mismo criterio que los números de compás de
+  // arriba): con su caja de fondo la principal, sin caja y tenue la
+  // intermedia (como se pidió en v3.145). El playhead blanco sigue encima.
+  tiemposRegla.forEach(n => {
+    ctxDraw.font = n.font;
+    if(n.caja){
+      ctxDraw.fillStyle = colorFondoTick;
+      ctxDraw.fillRect(n.tx - n.ancho / 2 - 2, n.y - 9, n.ancho + 4, 11);
+    }
+    ctxDraw.globalAlpha = n.alpha;
+    ctxDraw.fillStyle = n.encendido ? '#fff4d6' : colorGold;
+    ctxDraw.fillText(n.texto, n.tx, n.y);
+    ctxDraw.globalAlpha = 1;
   });
 
   // v3.37: (a pedido) autoscroll — solo aplica si hay zoom (si no, el
@@ -6616,7 +6997,7 @@ function seekWaveformClick(evento, uid){
       }
       if(masCercano != null && distMin <= TOLERANCIA_SNAP_INICIO){ tFinal = masCercano; snapeo = true; }
     }
-    est.offsetLocalDelta = tFinal - (est.offset || 0);
+    fijarOffsetLocalDeltaPractica(uid, tFinal - (est.offset || 0));
     est.marcandoInicioClick = false;
     canvas.classList.remove('practica-waveform-armado');
     const btnArmado = document.getElementById('marcarinicioclick-' + uid);
@@ -6814,8 +7195,13 @@ async function detectarOffsetAutomaticoPractica(uid, file, limiteSegundos = 45){
     }
     if(btnBuscarMas) btnBuscarMas.style.display = 'none';
     const segundos = transienteSample / sampleRate;
-    est.offsetLocalDelta = segundos - (est.offset || 0);
+    fijarOffsetLocalDeltaPractica(uid, segundos - (est.offset || 0));
     actualizarUIOffsetLocalPractica(uid);
+    // v3.222: esta ruta no repintaba — ahora que también mueve secciones, sí
+    if(est.getTiempoActual){
+      actualizarContadorPractica(uid, est.getTiempoActual());
+      dibujarWaveform(uid, est.getTiempoActual());
+    }
     if(info) info.textContent = `Golpe inicial detectado en ${segundos.toFixed(2)}s — ajustalo abajo si no quedó exacto.`;
     guardarOffsetLocalEnStorage(uid); // v3.28
   }catch(e){
@@ -6857,17 +7243,54 @@ function marcarOffsetLocalPractica(uid){
   const est = estadoPractica[uid];
   if(!est) return;
   const actual = est.getTiempoActual();
-  est.offsetLocalDelta = actual - (est.offset || 0);
+  fijarOffsetLocalDeltaPractica(uid, actual - (est.offset || 0));
   actualizarUIOffsetLocalPractica(uid);
   actualizarContadorPractica(uid, actual);
   dibujarWaveform(uid, actual);
   guardarOffsetLocalEnStorage(uid); // v3.28
 }
 
+// v3.222: (a pedido, portado de ensayo.html v3.244) "offset de audio detectado"
+// (‹ ›) y en general cualquier cambio de offset: las secciones no se
+// reajustaban. Con archivo local cargado las secciones que se ven son las
+// LOCALES (est.seccionesLocales), y esas no las movía el desplazamiento de
+// seccionesRuntimeDe (que solo aplica a las del TEMA sin archivo local).
+// Ahora TODOS los cambios de offset pasan por acá: se asigna offsetLocalDelta
+// y las secciones locales se mueven el mismo paso (desde/hasta), quedando
+// siempre en las coordenadas del offset vigente — así las funciones que las
+// leen o editan (mapa, waveform, contador, ✏ por compás/tiempo) no cambian.
+// Cada sección conserva su distancia al offset (su posición en compases).
+// Se guardan enseguida (guardarSeccionesLocalEnStorage, localStorage por
+// archivo). Es reversible: ↺ o el paso contrario las devuelve. Redondeo a
+// 0.1 ms para no arrastrar ruido de coma flotante; sin recorte en 0 para que
+// el movimiento siga siendo simétrico.
+function fijarOffsetLocalDeltaPractica(uid, nuevoDelta){
+  const est = estadoPractica[uid];
+  if(!est) return;
+  const anterior = est.offsetLocalDelta || 0;
+  const paso = nuevoDelta - anterior;
+  est.offsetLocalDelta = nuevoDelta;
+  const locales = est.seccionesLocales;
+  if(!paso || !est.archivoLocalUrl || !Array.isArray(locales) || !locales.length) return;
+  const r4 = x => Math.round(x * 10000) / 10000;
+  locales.forEach(s => {
+    if(typeof s.desdeSegundos === 'number') s.desdeSegundos = r4(s.desdeSegundos + paso);
+    if(typeof s.hastaSegundos === 'number') s.hastaSegundos = r4(s.hastaSegundos + paso);
+  });
+  if(typeof est.seccionDesactivadaSegundos === 'number') est.seccionDesactivadaSegundos = r4(est.seccionDesactivadaSegundos + paso);
+  // los ids del DOM (chip-/mapabloque-) llevan el desde de cada sección: al
+  // moverse hay que rearmar el mapa y la lista, y soltar la clave activa
+  // vieja para que el próximo tick vuelva a marcar la etiqueta.
+  est.ultimaSeccionChip = null;
+  actualizarListaSeccionesLocalesPractica(uid);
+  actualizarMapaEstructuraPractica(uid);
+  guardarSeccionesLocalEnStorage(uid);
+}
+
 function ajustarOffsetLocalPractica(uid, delta){
   const est = estadoPractica[uid];
   if(!est) return;
-  est.offsetLocalDelta = (est.offsetLocalDelta || 0) + delta;
+  fijarOffsetLocalDeltaPractica(uid, (est.offsetLocalDelta || 0) + delta);
   actualizarUIOffsetLocalPractica(uid);
   actualizarContadorPractica(uid, est.getTiempoActual());
   dibujarWaveform(uid, est.getTiempoActual());
@@ -6877,7 +7300,7 @@ function ajustarOffsetLocalPractica(uid, delta){
 function restablecerOffsetLocalPractica(uid){
   const est = estadoPractica[uid];
   if(!est) return;
-  est.offsetLocalDelta = 0;
+  fijarOffsetLocalDeltaPractica(uid, 0);
   actualizarUIOffsetLocalPractica(uid);
   actualizarContadorPractica(uid, est.getTiempoActual());
   dibujarWaveform(uid, est.getTiempoActual());
@@ -6893,7 +7316,7 @@ function fijarOffsetLocalPractica(uid){
   if(!est || !input) return;
   const valor = parseFloat(input.value);
   if(isNaN(valor)) return;
-  est.offsetLocalDelta = valor;
+  fijarOffsetLocalDeltaPractica(uid, valor);
   actualizarUIOffsetLocalPractica(uid);
   actualizarContadorPractica(uid, est.getTiempoActual());
   dibujarWaveform(uid, est.getTiempoActual());
@@ -6946,7 +7369,7 @@ function navegarTransienteOffsetPractica(uid, direccion){
     }
   }
   if(candidato == null) return;
-  est.offsetLocalDelta = candidato - (est.offset || 0);
+  fijarOffsetLocalDeltaPractica(uid, candidato - (est.offset || 0));
   actualizarUIOffsetLocalPractica(uid);
   actualizarContadorPractica(uid, est.getTiempoActual());
   dibujarWaveform(uid, est.getTiempoActual());
