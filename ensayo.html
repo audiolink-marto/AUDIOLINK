@@ -3,8 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Ensayo v3.252</title>
-<!-- AUDIOLINK · ensayo.html · v3.252
+<title>Audiolink — Ensayo v3.254</title>
+<!-- AUDIOLINK · ensayo.html · v3.254
+     v3.254: (a pedido) contraste de las barras de la onda en tema CLARO. Antes las
+     barras sin reproducir (--faint) y las reproducidas (lila fijo) quedaban en ~2.4:1
+     y ~2.5:1 sobre el fondo del canvas (--surf-light) y casi con la misma luminosidad
+     entre sí (1.06:1). Ahora en claro: sin reproducir #8f897c (~3.1:1) y reproducidas
+     con --lila #7d5fae (~4.5:1), separadas ~1.5:1 entre sí. El tema oscuro no cambia.
+     Solo afecta las barras: colorFaint (etiquetas de sección) y colorProgreso (círculo
+     del clic) siguen igual.
+     v3.253: (a pedido) botón "↗ Ver hoja" junto a "🔗 Compartir" en la barra de la vista
+     de práctica: abre compartir.html?tema=ID en pestaña nueva (lo que ve el invitado).
+     Si el tema aún no está compartido avisa con un toast y no abre nada (no hay estado
+     que sincronizar). Además se ajusta el aspecto de los botones de esa barra: tamaño
+     compacto igual al de .top-actions-row, feedback al presionar (:active) con el dorado
+     del tema, sin el dorado "pegado" del :hover en pantallas táctiles, y en móvil
+     (≤480px) se reparten el ancho de la fila sin partir el texto. Solo ensayo.html.
      v3.252: (a pedido) el loop de SECCIÓN también se guarda con el tema (GUIAS2,
      campo `loopSeccion`: {idx, nombre} de la sección que se repetía al activarlo,
      o null si está apagado) y vuelve activo al abrir, en ensayo.html y en
@@ -367,6 +381,19 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 /* v3.188: cabecera de vista-practica — el "‹ Mis temas" de siempre más
    el botón ⇄ de cambio rápido de tema, sin mover nada más. */
 .practica-nav-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;}
+/* v3.253: (a pedido) botones de la barra de vista-practica (‹ Mis temas / ⇄ Cambiar de tema /
+   🔗 Compartir / ↗ Ver hoja). Mismo tamaño compacto que .top-actions-row. En pantallas táctiles el
+   :hover queda "pegado" (dorado) después de tocar: se anula ahí y el feedback lo da :active (declarado
+   DESPUÉS para ganar). En móvil se reparten el ancho de la fila; nowrap evita partir el texto. */
+.practica-nav-row .btn-ghost{min-height:40px;padding:0 14px;font-size:0.82rem;white-space:nowrap;}
+@media (hover:none){
+  .practica-nav-row .btn-ghost:hover{border-color:var(--brd);color:var(--muted);}
+}
+.practica-nav-row .btn-ghost:active{background:var(--gold-bg);border-color:var(--gold);color:var(--gold);}
+@media (max-width:480px){
+  .practica-nav-row{gap:6px;}
+  .practica-nav-row .btn-ghost{flex:1 1 auto;padding:0 10px;}
+}
 /* v3.191: barra de setlist activa (◀ nombre/posición ▶) — solo visible
    cuando se entró a practicar desde una lista. */
 .practica-setlist-bar{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 10px;border-radius:10px;background:var(--gold-bg);border:1px solid var(--gold);}
@@ -1238,6 +1265,8 @@ main{padding:28px;max-width:760px;margin:0 auto;}
         <!-- v3.245: compartir el tema abierto con alguien sin cuenta, vía
              compartir.html?tema=ID (ver compartirTemaActual()) -->
         <button type="button" class="btn-ghost" onclick="compartirTemaActual()" title="Compartir este tema">🔗 Compartir</button>
+        <!-- v3.253: abre la hoja compartida (compartir.html?tema=ID) en pestaña nueva; ver abrirHojaCompartidaTema() -->
+        <button type="button" class="btn-ghost" onclick="abrirHojaCompartidaTema()" title="Ver la hoja compartida de este tema (lo que ve el invitado)">↗ Ver hoja</button>
       </div>
       <!-- v3.191: barra de setlist activa — solo visible si se entró a
            practicar DESDE una lista (ver abrirTemaDesdeSetlist). ◀/▶
@@ -6386,6 +6415,11 @@ function dibujarWaveform(uid, tiempoActual){
   const colorOk = estilos.getPropertyValue('--ok').trim() || '#4caf7d';
   const colorProgreso = '#a78bd6';
   const colorFaint = estilos.getPropertyValue('--faint').trim() || '#5c5a55';
+  // v3.254: barras de la onda con contraste propio en tema claro (ver cabecera). Variables aparte
+  // de colorFaint/colorProgreso porque esas también pintan etiquetas de sección y el círculo del clic.
+  const esTemaClaro = document.documentElement.getAttribute('data-tema') === 'light';
+  const colorBarraOn = esTemaClaro ? (estilos.getPropertyValue('--lila').trim() || '#7d5fae') : colorProgreso;
+  const colorBarraOff = esTemaClaro ? '#8f897c' : colorFaint;
   const colorGold = estilos.getPropertyValue('--gold').trim() || '#c9a24b';
   const colorVeloSinSeccion = estilos.getPropertyValue('--velo-sin-seccion').trim() || 'rgba(0,0,0,0.45)';
 
@@ -6631,7 +6665,7 @@ function dibujarWaveform(uid, tiempoActual){
     const x = i * slot;
     const h = Math.max(2, picos[i] * ondaH * ALTO_BARRAS);
     const y = (ondaH - h) / 2; // centradas dentro de la zona de la onda, nunca invade la zona de etiquetas
-    ctxDraw.fillStyle = (x < progressX) ? colorProgreso : colorFaint;
+    ctxDraw.fillStyle = (x < progressX) ? colorBarraOn : colorBarraOff;
     ctxDraw.fillRect(x, y, bw, h);
   }
 
@@ -10432,6 +10466,18 @@ async function compartirTemaActual(){
     console.error('No se pudo compartir el tema:', err);
     alert('No se pudo generar el link para compartir. Intenta de nuevo.');
   }
+}
+// v3.253: abre compartir.html?tema=ID en una pestaña nueva — lo que ve el invitado (loop guardado,
+// tema claro, etc.). La hoja solo carga si el tema está compartido (regla `compartido == true`), así que si
+// no lo está se avisa en vez de abrir una pestaña con error. Mismo cálculo de base que compartirTemaActual().
+function abrirHojaCompartidaTema(){
+  if(!temaActualId || !temaActualDatos) return;
+  if(temaActualDatos.compartido !== true){
+    mostrarToast('Primero comparte el tema con "🔗 Compartir" para poder ver su hoja.', 'info');
+    return;
+  }
+  const base = location.href.replace(/ensayo\.html.*$/, 'compartir.html');
+  window.open(base + '?tema=' + encodeURIComponent(temaActualId), '_blank', 'noopener');
 }
 function volverAMisTemas(){
   temaActualId = null; temaActualDatos = null;

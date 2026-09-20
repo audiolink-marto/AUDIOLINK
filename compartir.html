@@ -3,8 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Tema compartido v2.1</title>
-<!-- AUDIOLINK · compartir.html · v2.1
+<title>Audiolink — Tema compartido v2.3</title>
+<!-- AUDIOLINK · compartir.html · v2.3
+     v2.3: (a pedido) contraste de las barras de la onda en tema CLARO. Antes las
+     barras sin reproducir (--faint) y las reproducidas (lila fijo) quedaban en ~2.4:1
+     y ~2.5:1 sobre el fondo del canvas (--surf-light) y casi con la misma luminosidad
+     entre sí (1.06:1). Ahora en claro: sin reproducir #8f897c (~3.1:1) y reproducidas
+     con --lila #7d5fae (~4.5:1), separadas ~1.5:1 entre sí. El tema oscuro no cambia.
+     Solo afecta las barras: colorFaint (etiquetas de sección) y colorProgreso (círculo
+     del clic) siguen igual.
+     v2.2: (a pedido) tema claro/oscuro para el invitado. Sin elección guardada, la
+     vista arranca según el modo del dispositivo (prefers-color-scheme) en vez de
+     siempre oscuro, y un botón ☀️/🌙 junto al rótulo "Tema compartido" permite
+     cambiarlo. La elección se guarda en la misma clave del ecosistema
+     ('audiolink_tema'), así que coincide con el resto de Audiolink en ese
+     dispositivo. No usa nav.js (sigue sin cargarse acá): funciones propias
+     alternarTemaCompartido/actualizarIconoTemaCompartido. Los estilos claros ya
+     eran idénticos a los de ensayo.html; no se tocaron.
      v2.1: (a pedido) el loop de SECCIÓN también se guarda con el tema (GUIAS2,
      campo `loopSeccion`: {idx, nombre} de la sección que se repetía al activarlo,
      o null si está apagado) y vuelve activo al abrir, en ensayo.html y en
@@ -137,7 +152,13 @@
 <script src="pdf-percusion.js"></script>
 <script>
 (function(){
-  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  // v2.2: sin elección guardada, arranca según el modo del dispositivo; NO se guarda
+  // nada hasta que el invitado elija con el botón ☀️/🌙 (así sigue al sistema).
+  let tema = null;
+  try{ tema = localStorage.getItem('audiolink_tema'); }catch(e){}
+  if(tema !== 'light' && tema !== 'dark'){
+    tema = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  }
   document.documentElement.setAttribute('data-tema', tema);
 })();
 </script>
@@ -1162,6 +1183,8 @@ main{padding:28px;max-width:760px;margin:0 auto;}
       <h2 id="practicaTituloTema">TEMA</h2>
       <div class="practica-nav-row">
         <span class="badge" style="opacity:.7;">🔗 Tema compartido — Audiolink</span>
+        <!-- v2.2: tema claro/oscuro (ver alternarTemaCompartido) -->
+        <button type="button" class="btn-ghost" id="btnTemaCompartido" style="min-height:40px;padding:0 14px;font-size:1rem;" onclick="alternarTemaCompartido()" title="Cambiar a tema claro" aria-label="Cambiar entre tema claro y oscuro">☀️</button>
         <!-- v1.7: guardar el audio en este dispositivo (ver
              alternarGuardarTemaCompartido / guardarListaCompartida) -->
         <button type="button" class="btn-ghost" id="btnGuardarTemaCompartido" style="display:none;min-height:40px;padding:0 14px;font-size:0.82rem;" onclick="alternarGuardarTemaCompartido()" title="Guarda el audio en este dispositivo, por si Cloudinary falla">📥 Guardar tema</button>
@@ -1385,6 +1408,29 @@ try{
   auth = { signOut: () => Promise.resolve(), onAuthStateChanged: () => {}, signInWithEmailAndPassword: () => Promise.reject(e) };
 }
 const db = crearDB();
+
+// v2.2: tema claro/oscuro del invitado. Nombres propios (no toggleTema/actualizarIconoTema
+// de nav.js, que acá no se carga). Misma clave y mismo atributo que el resto del ecosistema.
+function actualizarIconoTemaCompartido(){
+  const b = document.getElementById('btnTemaCompartido');
+  if(!b) return;
+  const claro = document.documentElement.getAttribute('data-tema') === 'light';
+  b.textContent = claro ? '🌙' : '☀️';
+  b.title = claro ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
+}
+function alternarTemaCompartido(){
+  const nuevo = document.documentElement.getAttribute('data-tema') === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  try{ localStorage.setItem('audiolink_tema', nuevo); }catch(e){}
+  actualizarIconoTemaCompartido();
+  // las ondas leen los colores del tema al dibujar: se repintan para no quedar con los del tema anterior
+  Object.keys(estadoPractica || {}).forEach(uid => {
+    const est = estadoPractica[uid];
+    if(est && est.getTiempoActual){ try{ dibujarWaveform(uid, est.getTiempoActual()); }catch(e){} }
+  });
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', actualizarIconoTemaCompartido);
+else actualizarIconoTemaCompartido();
 
 // v3.186: (a pedido, integración completa al ecosistema) toggleTema()
 // propio se QUITA — nav.js ya define window.toggleTema()/
@@ -6212,6 +6258,11 @@ function dibujarWaveform(uid, tiempoActual){
   const colorOk = estilos.getPropertyValue('--ok').trim() || '#4caf7d';
   const colorProgreso = '#a78bd6';
   const colorFaint = estilos.getPropertyValue('--faint').trim() || '#5c5a55';
+  // v2.3: barras de la onda con contraste propio en tema claro (ver cabecera). Variables aparte
+  // de colorFaint/colorProgreso porque esas también pintan etiquetas de sección y el círculo del clic.
+  const esTemaClaro = document.documentElement.getAttribute('data-tema') === 'light';
+  const colorBarraOn = esTemaClaro ? (estilos.getPropertyValue('--lila').trim() || '#7d5fae') : colorProgreso;
+  const colorBarraOff = esTemaClaro ? '#8f897c' : colorFaint;
   const colorGold = estilos.getPropertyValue('--gold').trim() || '#c9a24b';
   const colorVeloSinSeccion = estilos.getPropertyValue('--velo-sin-seccion').trim() || 'rgba(0,0,0,0.45)';
 
@@ -6457,7 +6508,7 @@ function dibujarWaveform(uid, tiempoActual){
     const x = i * slot;
     const h = Math.max(2, picos[i] * ondaH * ALTO_BARRAS);
     const y = (ondaH - h) / 2; // centradas dentro de la zona de la onda, nunca invade la zona de etiquetas
-    ctxDraw.fillStyle = (x < progressX) ? colorProgreso : colorFaint;
+    ctxDraw.fillStyle = (x < progressX) ? colorBarraOn : colorBarraOff;
     ctxDraw.fillRect(x, y, bw, h);
   }
 
