@@ -3,8 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Tema compartido v2.3</title>
-<!-- AUDIOLINK · compartir.html · v2.3
+<title>Audiolink — Tema compartido v2.5</title>
+<!-- AUDIOLINK · compartir.html · v2.5
+     v2.5: (a pedido) (1) se QUITAN DEFINITIVAMENTE los botones de PDF de la hoja compartida:
+     "📄 Exportar PDF" y "🥁 PDF Percusión" (fila pdfrow-), las funciones
+     exportarEstructuraPracticaPDF / exportarEstructuraPracticaPDFPercusion, su CSS
+     (.practica-pdf-row) y las 3 etiquetas de script que solo ellas usaban (jsPDF por CDN, pdf-armonias.js,
+     pdf-percusion.js) — la hoja carga más liviana. La guía del ejercicio (📄 Guía, páginas como
+     imagen) NO se toca. (2) el tutorial suma pasos: notas, guía del ejercicio, puntos de pulso y
+     clave, BPM/tono/armadura, ajustes y filtros de tono (ahora 13 a 15 pasos según el tema).
+     v2.4: (a pedido) tutorial interactivo tipo spotlight para el invitado — mismo patrón
+     que vaca.html v1.52 / index.html v1.9.26 (overlay + anillo sobre el elemento + tarjeta
+     con pasos, barra de progreso, ← Ant. / Siguiente → / ✕ Saltar; llave localStorage
+     'compartir_tutorial_v1'; botón 🎓 para relanzarlo). Se abre solo la primera vez, cuando
+     termina de cargar el audio. Colores con las variables del tema (claro/oscuro). Diferencia
+     con vaca.html: los pasos con target oculto (p. ej. la onda antes de decodificar) se
+     muestran centrados sin anillo, y los `opcional` se omiten si no hay elemento visible.
      v2.3: (a pedido) contraste de las barras de la onda en tema CLARO. Antes las
      barras sin reproducir (--faint) y las reproducidas (lila fijo) quedaban en ~2.4:1
      y ~2.5:1 sobre el fondo del canvas (--surf-light) y casi con la misma luminosidad
@@ -147,9 +161,7 @@
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
 <script src="header-config.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="pdf-armonias.js"></script>
-<script src="pdf-percusion.js"></script>
+<!-- v2.5: sin jsPDF / pdf-armonias.js / pdf-percusion.js — los botones de PDF se quitaron de la hoja compartida. -->
 <script>
 (function(){
   // v2.2: sin elección guardada, arranca según el modo del dispositivo; NO se guarda
@@ -321,6 +333,30 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 /* v3.188: cabecera de vista-practica — el "‹ Mis temas" de siempre más
    el botón ⇄ de cambio rápido de tema, sin mover nada más. */
 .practica-nav-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;}
+/* v2.4: tutorial spotlight — mismo patrón que vaca.html v1.52 (accent→--gold, bg2→--surf,
+   text→--txt, text2→--muted, border→--brd, red→--err) para que siga el tema claro/oscuro. */
+#tutorial-overlay{position:fixed;inset:0;z-index:9990;background:rgba(10,14,20,.72);pointer-events:all;transition:opacity .3s;}
+#tutorial-overlay.oculto{display:none !important;}
+#tutorial-spotlight-ring{position:fixed;z-index:9995;border-radius:12px;box-shadow:0 0 0 3px var(--gold),0 0 0 7px var(--gold-bg),0 0 28px var(--gold-bg);pointer-events:none;transition:top .35s cubic-bezier(.4,0,.2,1),left .35s cubic-bezier(.4,0,.2,1),width .35s cubic-bezier(.4,0,.2,1),height .35s cubic-bezier(.4,0,.2,1);}
+#tutorial-card{position:fixed;z-index:10000;background:var(--surf);border:1px solid var(--gold);border-radius:14px;padding:22px 22px 16px;width:316px;box-shadow:0 20px 60px rgba(0,0,0,.45);}
+#tutorial-card.animando{animation:tut-fade .26s ease;}
+@keyframes tut-fade{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:translateY(0);}}
+.tut-progress-bar{display:flex;gap:3px;margin-bottom:16px;}
+.tut-pip{flex:1;height:3px;border-radius:3px;background:var(--brd);transition:background .3s;}
+.tut-pip.activo{background:var(--gold);}
+.tut-pip.hecho{background:var(--gold);opacity:.4;}
+#tutorial-emoji{font-size:1.55rem;margin-bottom:8px;line-height:1;}
+#tutorial-titulo{color:var(--txt);font-size:.98rem;font-weight:700;margin-bottom:9px;}
+#tutorial-texto{color:var(--txt);opacity:.85;font-size:.81rem;line-height:1.65;margin-bottom:16px;}
+.tut-nav-row{display:flex;gap:6px;align-items:center;justify-content:space-between;}
+.tut-step-label{font-size:.67rem;color:var(--muted);font-weight:600;white-space:nowrap;}
+.btn-tut-ant{background:none;border:1px solid var(--brd);color:var(--muted);padding:7px 11px;border-radius:8px;font-size:.76rem;cursor:pointer;transition:all .18s;}
+.btn-tut-ant:hover{border-color:var(--gold);color:var(--gold);}
+.btn-tut-sig{background:var(--gold);color:var(--bg);border:none;padding:7px 14px;border-radius:8px;font-size:.76rem;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.btn-tut-sig:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn-tut-saltar{background:none;border:none;color:var(--muted);font-size:.7rem;cursor:pointer;padding:4px 5px;transition:color .18s;}
+.btn-tut-saltar:hover{color:var(--err);}
+@media (max-width:520px){ #tutorial-card{width:88vw;max-width:316px;} }
 /* v3.191: barra de setlist activa (◀ nombre/posición ▶) — solo visible
    cuando se entró a practicar desde una lista. */
 .practica-setlist-bar{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 10px;border-radius:10px;background:var(--gold-bg);border:1px solid var(--gold);}
@@ -668,10 +704,6 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    con altura táctil mínima de 44px, en vez de una fila apretada. La
    info del loop queda debajo del botón, centrada. */
 .practica-loop-row{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:10px;}
-/* v3.93: fila propia del botón PDF, separado de las acciones de loop
-   (antes vivía adentro de practica-loop-row) — ahora cierra el flujo,
-   después de letras. */
-.practica-pdf-row{margin-top:14px;padding-top:10px;border-top:1px dashed var(--brd);}
 .practica-loopseccion-row{display:flex;flex-direction:column;align-items:stretch;margin-top:6px;}
 .practica-loop-btn{width:100%;min-height:44px;font-size:0.82rem;padding:8px 14px;}
 .practica-loop-info{font-size:0.75rem;color:var(--muted);text-align:center;}
@@ -1032,6 +1064,23 @@ main{padding:28px;max-width:760px;margin:0 auto;}
      a funciones que solo defina nav.js; cerrarSesion() de más abajo se
      auto-asigna, no extiende nada de nav.js). -->
 
+<!-- v2.4: tutorial overlay — mismo patrón que vaca.html v1.52 (ver iniciarTutorial) -->
+<div id="tutorial-overlay" class="oculto">
+  <div id="tutorial-spotlight-ring" style="display:none;"></div>
+  <div id="tutorial-card">
+    <div class="tut-progress-bar" id="tut-progress-bar"></div>
+    <div id="tutorial-emoji"></div>
+    <div id="tutorial-titulo"></div>
+    <p id="tutorial-texto"></p>
+    <div class="tut-nav-row">
+      <button class="btn-tut-ant" id="btn-tut-ant" onclick="tutorialAnterior()">← Ant.</button>
+      <span class="tut-step-label" id="tut-step-label"></span>
+      <button class="btn-tut-saltar" onclick="tutorialSaltar()">✕ Saltar</button>
+      <button class="btn-tut-sig" id="btn-tut-sig" onclick="tutorialSiguiente()">Siguiente →</button>
+    </div>
+  </div>
+</div>
+
 <main id="mainWrap" class="main-wrap">
 
   <div id="vista-login" style="display:none;">
@@ -1185,6 +1234,8 @@ main{padding:28px;max-width:760px;margin:0 auto;}
         <span class="badge" style="opacity:.7;">🔗 Tema compartido — Audiolink</span>
         <!-- v2.2: tema claro/oscuro (ver alternarTemaCompartido) -->
         <button type="button" class="btn-ghost" id="btnTemaCompartido" style="min-height:40px;padding:0 14px;font-size:1rem;" onclick="alternarTemaCompartido()" title="Cambiar a tema claro" aria-label="Cambiar entre tema claro y oscuro">☀️</button>
+        <!-- v2.4: relanzar el tutorial (ver iniciarTutorial) -->
+        <button type="button" class="btn-ghost" id="btnTutorialCompartido" style="min-height:40px;padding:0 14px;font-size:1rem;" onclick="iniciarTutorial(true)" title="Relanzar guía" aria-label="Relanzar guía">🎓</button>
         <!-- v1.7: guardar el audio en este dispositivo (ver
              alternarGuardarTemaCompartido / guardarListaCompartida) -->
         <button type="button" class="btn-ghost" id="btnGuardarTemaCompartido" style="display:none;min-height:40px;padding:0 14px;font-size:0.82rem;" onclick="alternarGuardarTemaCompartido()" title="Guarda el audio en este dispositivo, por si Cloudinary falla">📥 Guardar tema</button>
@@ -1431,6 +1482,234 @@ function alternarTemaCompartido(){
 }
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', actualizarIconoTemaCompartido);
 else actualizarIconoTemaCompartido();
+
+// ===== TUTORIAL INTERACTIVO (v2.4) =====
+// Mismo patrón spotlight que vaca.html v1.52 / index.html v1.9.26: overlay + anillo + tarjeta.
+// Los pasos son datos (_TUT_PASOS): para agregar/quitar/cambiar textos se edita solo esa lista.
+//  · target: selector CSS del elemento a resaltar (null = tarjeta centrada, sin anillo).
+//  · opcional: si no hay un elemento VISIBLE al arrancar, el paso se omite.
+//  · un paso NO opcional cuyo target está oculto (ej. la onda antes de decodificar) se muestra
+//    centrado y sin anillo, en vez de dibujar el anillo sobre un elemento de tamaño 0.
+const _TUT_LLAVE = 'compartir_tutorial_v1';
+let _tutPaso = 0;
+let _tutPasosActivos = [];
+let _tutResizeT = null;
+
+const _TUT_PASOS = [
+  {
+    target: null,
+    emoji: '🎵',
+    titulo: 'Tu hoja de práctica',
+    texto: 'Te compartieron este tema para que practiques con la pista, el metrónomo, las secciones y los loops. Esta guía dura un par de minutos y puedes verla de nuevo con el botón 🎓.'
+  },
+  {
+    target: '.practica-notas-box',
+    emoji: '📝',
+    titulo: 'Notas del tema',
+    texto: 'Aquí ves las notas que dejó quien te compartió el tema. Puedes escribir las tuyas: se guardan solo en este dispositivo y no cambian las del autor.'
+  },
+  {
+    target: '[id^="guiapdfdetails-"]',
+    opcional: true,
+    emoji: '📄',
+    titulo: 'Guía del ejercicio',
+    texto: 'Este tema trae una guía. Ábrela para ver sus páginas: desliza o usa Anterior y Siguiente para cambiar de página, y toca dos veces la imagen para ampliarla. Recuerda en qué página te quedaste.'
+  },
+  {
+    target: '[id^="playerbar-"]',
+    emoji: '▶',
+    titulo: 'Controles de la pista',
+    texto: '▶ reproduce y pausa. ⏮ vuelve al inicio. La barra de progreso te deja moverte por el tema, y el altavoz silencia o ajusta el volumen de la pista.'
+  },
+  {
+    target: '[id^="looprow-"]',
+    emoji: '🔁',
+    titulo: 'Loop rápido',
+    texto: 'x1, x2, x4… repiten esa cantidad de compases desde donde estés. Aparece una ✕ en la barra de la pista para quitar el loop. Si quien te compartió dejó un loop guardado, ya viene activo.'
+  },
+  {
+    target: '[id^="waveformwrap-"]',
+    emoji: '🌊',
+    titulo: 'La onda',
+    texto: 'Toca la onda para saltar a ese punto. Si el tema tiene secciones, verás sus nombres marcados y puedes tocar cualquiera de los bloques de arriba para ir directo a ella.'
+  },
+  {
+    target: '[id^="waveformtoolbar-"]',
+    emoji: '🔎',
+    titulo: 'Zoom y repetir sección',
+    texto: '− y + acercan o alejan la onda, ↺ restaura el zoom y 🤿 lo ajusta a la sección actual. 🚶‍♂️ hace que la onda siga la reproducción. Cuando hay secciones aparece 🔁: repite la sección donde estés; tócalo de nuevo para quitarlo.'
+  },
+  {
+    target: '[id^="pcu-strip-"]',
+    emoji: '🎯',
+    titulo: 'Puntos de pulso y clave',
+    texto: 'Los puntos siguen el pulso dentro del compás y el primer tiempo va marcado. Si el tema tiene clave (Son, Rumba o Bossa, en 2-3 o 3-2), sus golpes también aparecen aquí y el botón 🌶 activa su sonido.'
+  },
+  {
+    target: '.practica-contador-card',
+    emoji: '🥁',
+    titulo: 'Compás, click y metrónomo',
+    texto: 'El número grande es el compás y el pequeño el pulso; abajo verás la sección actual. El primer botón activa el click sobre la pista, Vol ajusta su volumen y ≡ abre los ajustes. ▶ es un metrónomo libre, sin pista, y 🥁 activa el pre-conteo.'
+  },
+  {
+    target: '[id^="badge2-"]',
+    emoji: '🎼',
+    titulo: 'BPM, tono y armadura',
+    texto: 'Estas etiquetas resumen el tema: ♩ BPM, compás, clave y tonalidad. Junto a la tonalidad ves las notas que lleva su armadura, por ejemplo D (F♯ C♯) o B♭ (B♭ E♭). Si cambias algo en Ajustes aparece (ajustado): es solo para ti, no modifica el tema.'
+  },
+  {
+    target: '[id^="ajustesbtn-"]',
+    emoji: '⚙️',
+    titulo: 'Ajustes',
+    texto: 'Toca ≡ para abrir el panel: BPM del click (− / + y deslizador), compás, subdivisión (×2, ×4), clave, sonido del click y de la clave, acentos y volúmenes. ↺ Restablecer lo deja como venía. Nada de esto cambia el tema original.'
+  },
+  {
+    target: '[id^="filtroslocal-"]',
+    emoji: '🎚',
+    titulo: 'Filtros de tono',
+    texto: 'Pasa-altos quita graves y pasa-bajos quita agudos. Cada uno se activa con su botón y se ajusta con su deslizador; sirven para oír mejor un instrumento dentro de la mezcla.'
+  },
+  {
+    target: '#btnTemaCompartido',
+    emoji: '🌗',
+    titulo: 'Tema claro u oscuro',
+    texto: 'Cambia el aspecto de la hoja según lo que veas mejor. Se recuerda en este dispositivo.'
+  },
+  {
+    target: '#btnGuardarTemaCompartido',
+    opcional: true,
+    emoji: '💾',
+    titulo: 'Guardar en este dispositivo',
+    texto: 'Guarda el audio de este tema en tu dispositivo, por si falla la descarga.'
+  },
+  {
+    target: null,
+    emoji: '✅',
+    titulo: '¡Listo!',
+    texto: 'Ya conoces la hoja. Puedes volver a ver esta guía cuando quieras con el botón 🎓 de arriba. ¡Buena práctica!'
+  }
+];
+
+function _tutVisible(el) {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0; // display:none => rect en 0
+}
+
+function iniciarTutorial(forzar = false) {
+  let visto = null;
+  try { visto = localStorage.getItem(_TUT_LLAVE); } catch (e) {}
+  if (visto && !forzar) return;
+  const overlay = document.getElementById('tutorial-overlay');
+  if (!overlay) return;
+  if (!forzar && !overlay.classList.contains('oculto')) return; // ya abierto: no reiniciar a mitad
+  _tutPasosActivos = _TUT_PASOS.filter(p => {
+    if (!p.opcional) return true;
+    const el = p.target ? document.querySelector(p.target) : null;
+    return !!(el && _tutVisible(el));
+  });
+  _tutPaso = 0;
+  overlay.classList.remove('oculto');
+  _renderTutPaso();
+}
+
+function _renderTutPaso() {
+  const paso  = _tutPasosActivos[_tutPaso];
+  const total = _tutPasosActivos.length;
+  const ring  = document.getElementById('tutorial-spotlight-ring');
+  const card  = document.getElementById('tutorial-card');
+  if (!paso) return;
+
+  card.classList.remove('animando');
+  void card.offsetWidth;
+  card.classList.add('animando');
+
+  document.getElementById('tut-progress-bar').innerHTML =
+    _tutPasosActivos.map((_, i) =>
+      `<div class="tut-pip ${i < _tutPaso ? 'hecho' : i === _tutPaso ? 'activo' : ''}"></div>`
+    ).join('');
+
+  document.getElementById('tutorial-emoji').textContent  = paso.emoji;
+  document.getElementById('tutorial-titulo').textContent = paso.titulo;
+  document.getElementById('tutorial-texto').textContent  = paso.texto;
+  document.getElementById('tut-step-label').textContent  = `${_tutPaso + 1} / ${total}`;
+
+  document.getElementById('btn-tut-ant').style.visibility = _tutPaso === 0 ? 'hidden' : 'visible';
+  document.getElementById('btn-tut-sig').textContent = _tutPaso === total - 1 ? '✅ Finalizar' : 'Siguiente →';
+
+  const el = paso.target ? document.querySelector(paso.target) : null;
+  if (el && _tutVisible(el)) {
+    const pasoDeEste = _tutPaso;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // si se avanzó/cerró antes de los 400 ms, no se posiciona sobre un paso que ya no es el actual
+    setTimeout(() => {
+      if (_tutPaso === pasoDeEste && !document.getElementById('tutorial-overlay').classList.contains('oculto')) {
+        _posicionarTutorial(el, card, ring);
+      }
+    }, 400);
+  } else {
+    ring.style.display = 'none';
+    _centrarCard(card);
+  }
+}
+
+function _posicionarTutorial(el, card, ring) {
+  const rect  = el.getBoundingClientRect();
+  const pad   = 8;
+  const vp    = { w: window.innerWidth, h: window.innerHeight };
+  const cardW = card.offsetWidth  || 316;
+  const cardH = card.offsetHeight || 260;
+
+  ring.style.display = 'block';
+  ring.style.top     = (rect.top    - pad) + 'px';
+  ring.style.left    = (rect.left   - pad) + 'px';
+  ring.style.width   = (rect.width  + pad * 2) + 'px';
+  ring.style.height  = (rect.height + pad * 2) + 'px';
+
+  let top;
+  if (rect.bottom + cardH + 20 < vp.h)  top = rect.bottom + 16;
+  else if (rect.top - cardH - 16 > 0)   top = rect.top - cardH - 16;
+  else                                   top = Math.max(12, (vp.h - cardH) / 2);
+
+  let left = rect.left + (rect.width / 2) - (cardW / 2);
+  left = Math.max(12, Math.min(left, vp.w - cardW - 12));
+
+  card.style.top       = top  + 'px';
+  card.style.left      = left + 'px';
+  card.style.transform = 'none';
+}
+
+function _centrarCard(card) {
+  card.style.top       = '50%';
+  card.style.left      = '50%';
+  card.style.transform = 'translate(-50%, -50%)';
+}
+
+function tutorialSiguiente() {
+  if (_tutPaso >= _tutPasosActivos.length - 1) { terminarTutorial(); return; }
+  _tutPaso++;
+  _renderTutPaso();
+}
+
+function tutorialAnterior() {
+  if (_tutPaso > 0) { _tutPaso--; _renderTutPaso(); }
+}
+
+function tutorialSaltar() { terminarTutorial(); }
+
+function terminarTutorial() {
+  try { localStorage.setItem(_TUT_LLAVE, '1'); } catch (e) {}
+  document.getElementById('tutorial-overlay').classList.add('oculto');
+  document.getElementById('tutorial-spotlight-ring').style.display = 'none';
+  mostrarToast('🎓 Guía disponible en el botón de arriba');
+}
+
+// al girar el celular / cambiar el tamaño, el anillo y la tarjeta se recalculan (si el tutorial está abierto)
+window.addEventListener('resize', () => {
+  const ov = document.getElementById('tutorial-overlay');
+  if (!ov || ov.classList.contains('oculto')) return;
+  clearTimeout(_tutResizeT);
+  _tutResizeT = setTimeout(_renderTutPaso, 200);
+});
 
 // v3.186: (a pedido, integración completa al ecosistema) toggleTema()
 // propio se QUITA — nav.js ya define window.toggleTema()/
@@ -2627,7 +2906,7 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
         ${volumenRapidoHtml(uid)}
         ${panelAjustesHtml(uid, compasesPorBarra, clave)}
 
-        <div class="practica-pdf-row" id="pdfrow-${uid}" style="display:none;"><button class="btn-ghost" onclick="exportarEstructuraPracticaPDF('${uid}')">📄 Exportar PDF</button><button class="btn-ghost" onclick="exportarEstructuraPracticaPDFPercusion('${uid}')" style="margin-left:8px;">🥁 PDF Percusión</button></div>
+        <!-- v2.5: se quitan definitivamente "📄 Exportar PDF" y "🥁 PDF Percusión" (antes fila pdfrow-) de la hoja compartida. -->
 
         <!-- v1.3 compartir.html: se quita acá toda la sección
              "Configuración" (label + div#offsetlocal con los 5 <details>:
@@ -3205,13 +3484,6 @@ function actualizarLoopRangeProgresoPractica(uid, est, inicioSec, finSec){
 // El contenido del panel se arma/actualiza aparte, en
 // actualizarLineaCifradoPractica(); acá solo se abre/cierra, sin
 // recalcular nada.
-// v3.85: (a pedido) exporta la estructura de ESTA sesión a PDF, mismo
-// formato real/latin book (cajas de compás, 4 por línea) que ya arma
-// guia-practica.html — mismo código adaptado para leer de `est` (bpm/
-// compasesPorBarra/secciones/clave/temaNombre) en vez de los inputs del
-// panel de staff. Los datos (acordesPorCompas/letraPorCompas,
-// acordesCiclo/letraCiclo) son los mismos que ya carga el staff, sin
-// duplicar nada. 100% en el navegador (jsPDF por CDN), sin backend.
 // v1.81: (a pedido) amalgama — mismo criterio que beatsPorBarraDeSeccion
 // de guia-practica.html: s.compasOverride ("Compás (si cambia acá)")
 // ahora se respeta también acá para calcular la duración real de esa
@@ -3304,99 +3576,8 @@ function compasDeSegundosMusico(tramos, seg){
 // arriba hacen exactamente lo mismo (y más), así que el scheduler
 // pasa a usar esos — un solo constructor de tramos para todo el
 // archivo (contador, puntos, loops y click).
-function exportarEstructuraPracticaPDF(uid){
-  const est = estadoPractica[uid];
-  if(!est){ return; }
-  const seccionesFuente = seccionesRuntimeDe(est);
-  if(!seccionesFuente || !seccionesFuente.length){ mostrarToast('Este tema no tiene secciones cargadas todavía.', 'info'); return; }
-
-  // v3.100: mismo cálculo de duración que ya usaba este archivo (secPerBar
-  // a partir de bpm/compasesPorBarra, fin = hastaSegundos manual o el
-  // desdeSegundos de la próxima sección) — es lo único que de verdad
-  // difiere de guia-practica.html (que usa duracionCompasesSeccion, basado
-  // solo en hastaSegundos manual, sin caer a la próxima sección). El
-  // dibujo (dibujarCajas/dibujarCajaBreak/letra de ensayo/D.C./coda/barra
-  // de repetición) vive en pdf-estructura.js, compartido con el staff.
-  // v1.81: secPerBar general ya no se usa acá directo — se mueve DENTRO
-  // del .map() de abajo (secPerBarSeccion), por sección, para respetar
-  // compasOverride.
-  const claveTxt = est.clave ? (CLAVE_ETIQUETAS[est.clave] || est.clave) : null;
-
-  const secciones = seccionesFuente.slice().sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
-  const seccionesParaPDF = secciones.map((s, i) => {
-    // v3.103: (a pedido) FIX — antes las secciones Vamp (Solo/Coro)
-    // quedaban con duracion=null a propósito, porque la versión vieja de
-    // pdf-estructura.js no la necesitaba (usaba cicloCompases para la
-    // grilla). Desde pdf-estructura.js v1.46 el contador global de
-    // compases (#N, título "· N comp.", "se repite xN", resumen
-    // "c.#X-c.#Y") SÍ necesita duracion también en los Vamp — al llegar
-    // null, el contador se apagaba apenas pasaba la 1ra sección Vamp y
-    // todo lo que venía después se quedaba sin numerar. Ahora se calcula
-    // igual para todos los tipos, misma fórmula de siempre (por tiempo
-    // real: hastaSegundos manual, o si no hay, el desdeSegundos de la
-    // sección siguiente).
-    // v1.81: (a pedido) secPerBar ahora es POR SECCIÓN (respeta
-    // s.compasOverride), no el fijo de arriba — mismo `secPerBar`
-    // general de siempre cuando la sección no tiene override.
-    const secPerBarSeccion = est.bpm ? (60 / est.bpm) * beatsPorBarraDeSeccionMusico(s, compasEfectivoDe(est)) : 0;
-    const siguiente = secciones[i+1] || null;
-    const finSec = (s.hastaSegundos != null) ? s.hastaSegundos : (siguiente ? siguiente.desdeSegundos : null);
-    const duracion = (secPerBarSeccion > 0 && finSec != null) ? Math.max(1, Math.round((finSec - (s.desdeSegundos||0)) / secPerBarSeccion)) : null;
-    return Object.assign({}, s, {
-      duracion: duracion,
-      color: colorDeSeccionEnLista(secciones, i)
-    });
-  });
-
-  generarEstructuraPDF({
-    temaNombre: est.temaNombre || 'Tema',
-    bpm: est.bpm || '—',
-    compasTexto: est.compasTexto || '4/4',
-    claveTxt: claveTxt,
-    secciones: seccionesParaPDF
-  });
-}
-
-// v3.107: (a pedido) "PDF Percusión" — mismo armado de datos que
-// exportarEstructuraPracticaPDF de arriba (mismo `secciones`, mismo
-// `duracion`/`color` ya resueltos, incluido el FIX v3.103 de duracion
-// en Vamp y el v1.81 de compasOverride por sección), pero llama a
-// generarEstructuraPDFPercusion (pdf-percusion.js) en vez de
-// generarEstructuraPDF (pdf-armonias.js). Los campos propios de
-// percusión (esCampana, instrumentosPercusion, acentosPorCompas,
-// notasPercusionPorCompas) ya vienen dentro de `s` desde Firestore
-// (se cargan en guia-practica.html) — Object.assign los copia tal cual,
-// no hace falta leerlos acá. Cero cambios en exportarEstructuraPracticaPDF.
-function exportarEstructuraPracticaPDFPercusion(uid){
-  const est = estadoPractica[uid];
-  if(!est){ return; }
-  const seccionesFuente = seccionesRuntimeDe(est);
-  if(!seccionesFuente || !seccionesFuente.length){ mostrarToast('Este tema no tiene secciones cargadas todavía.', 'info'); return; }
-
-  // v1.81: secPerBar general ya no se usa directo — se mueve dentro del
-  // .map() (secPerBarSeccion), mismo criterio que exportarEstructuraPracticaPDF.
-  const claveTxt = est.clave ? (CLAVE_ETIQUETAS[est.clave] || est.clave) : null;
-
-  const secciones = seccionesFuente.slice().sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
-  const seccionesParaPDF = secciones.map((s, i) => {
-    const secPerBarSeccion = est.bpm ? (60 / est.bpm) * beatsPorBarraDeSeccionMusico(s, compasEfectivoDe(est)) : 0;
-    const siguiente = secciones[i+1] || null;
-    const finSec = (s.hastaSegundos != null) ? s.hastaSegundos : (siguiente ? siguiente.desdeSegundos : null);
-    const duracion = (secPerBarSeccion > 0 && finSec != null) ? Math.max(1, Math.round((finSec - (s.desdeSegundos||0)) / secPerBarSeccion)) : null;
-    return Object.assign({}, s, {
-      duracion: duracion,
-      color: colorDeSeccionEnLista(secciones, i)
-    });
-  });
-
-  generarEstructuraPDFPercusion({
-    temaNombre: est.temaNombre || 'Tema',
-    bpm: est.bpm || '—',
-    compasTexto: est.compasTexto || '4/4',
-    claveTxt: claveTxt,
-    secciones: seccionesParaPDF
-  });
-}
+// v2.5: exportarEstructuraPracticaPDF y exportarEstructuraPracticaPDFPercusion se quitaron junto con los
+// botones de PDF de la hoja compartida (siguen intactas en ensayo.html).
 
 function toggleClickPractica(uid){
   const est = estadoPractica[uid];
@@ -5911,6 +6092,9 @@ function onArchivoLocalElegido(uid, files){
     // v2.1: loop de sección guardado del tema — activo al abrir y colocado en esa sección.
     // Va acá (no al crear el estado) porque el motor nuevo arranca en 0 y las secciones ya están cargadas.
     if(est.archivoLocalFile === files[0]) aplicarLoopSeccionGuardadoPractica(uid, temaActualDatos && temaActualDatos.loopSeccion);
+    // v2.4: tutorial de la hoja compartida — solo la primera vez (ver iniciarTutorial). Va acá para que la
+    // onda y los controles ya estén visibles cuando el anillo los resalte.
+    if(est.archivoLocalFile === files[0]) setTimeout(() => iniciarTutorial(), 600);
   });
   // v3.46: ya no son los controles nativos del <audio> — ahora el
   // músico le da play desde el playerbar custom cuando quiera.
@@ -7611,7 +7795,7 @@ function actualizarMapaEstructuraPractica(uid){
   // ver controlesPracticaHtml) y esta función, que ya se llama cada vez
   // que la lista de secciones cambia, decide si mostrarlos u ocultarlos.
   const hay = secciones.length > 0;
-  const idsToggle = ['loopseccionbtn-', 'pdfrow-'];
+  const idsToggle = ['loopseccionbtn-'];
   idsToggle.forEach(prefijo => {
     const el = document.getElementById(prefijo + uid);
     if(el) el.style.display = hay ? '' : 'none';
