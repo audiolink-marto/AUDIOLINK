@@ -3,8 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Tema compartido v2.5</title>
-<!-- AUDIOLINK · compartir.html · v2.5
+<title>Audiolink — Tema compartido v2.9</title>
+<!-- AUDIOLINK · compartir.html · v2.9
+     v2.9: (portado de ensayo.html v3.270) mismos 3 ajustes al péndulo:
+     riel full-width de la card (antes 140px fijo), destello de esquina
+     como flashazo blanco (antes intensificaba el color propio), y
+     verde en el beat 1 de cada compás (atado al beat real, no al
+     "ciclo" del rebote).
+     v2.8: (portado de ensayo.html v3.269, a pedido) en tema claro,
+     fondo apenas más oscuro (#e3ddd0) detrás de los puntos de
+     beat/clave y del péndulo — se perdían contra el fondo casi blanco.
+     Solo tema claro, solo esos 3 contenedores puntuales, sin tocar
+     --surf-light global ni tema oscuro.
+     v2.7: FIX (a pedido, mismo fix que ensayo.html v3.268) — con un
+     tema sin ninguna sección cargada, el velo oscuro de "zona sin
+     sección" del waveform se pintaba sobre TODO el ancho, muy notorio
+     en tema claro. Ahora, sin secciones, se salta el velo entero — se
+     ve normal, como si todo estuviera "seleccionado". Con secciones
+     cargadas, sin cambios.
+     v2.6: (a pedido) se porta desde ensayo.html (v3.257-267) el péndulo
+     visual del pulso: fila propia debajo del número de compás (riel de
+     140px + punto que barre de un extremo a otro, sin saltar entre
+     compases), botón único de velocidad (½/×1/×2/×4, SVG de figuras
+     musicales) que cicla al tocarlo, y destello al tocar cada esquina
+     del riel. Nuevo: la velocidad del péndulo (pendVelocidadOverride)
+     viaja con el tema igual que BPM/compás/clave/tonalidad — quien abre
+     el link ve la misma velocidad que dejó configurada quien comparte;
+     si el propio visitante la cambia, ese cambio queda solo en su
+     dispositivo (mismo criterio que ya aplicaba a los demás overrides
+     en modo compartido). Se agregó también min-width:3ch al número de
+     compás grande (ya lo tenía ensayo.html desde v3.260) para que el
+     péndulo no se desplace al cambiar de 1 a 2-3 dígitos. Nada de esto
+     toca el resto del archivo (waveform, loop, filtros de tono, guía
+     PDF, tutorial, etc.).
      v2.5: (a pedido) (1) se QUITAN DEFINITIVAMENTE los botones de PDF de la hoja compartida:
      "📄 Exportar PDF" y "🥁 PDF Percusión" (fila pdfrow-), las funciones
      exportarEstructuraPracticaPDF / exportarEstructuraPracticaPDFPercusion, su CSS
@@ -539,8 +570,33 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-clave-piloto{position:absolute;top:-2px;left:6px;font-size:0.95rem;opacity:0.35;filter:grayscale(1);transition:opacity 0.08s, filter 0.08s;}
 .practica-clave-piloto.activo{opacity:1;filter:none;text-shadow:0 0 6px var(--gold);}
 .practica-semaforo{display:flex;justify-content:space-between;gap:6px;margin-top:8px;padding:10px 12px;background:var(--surf-light);border-radius:8px;}
-.practica-compas-grande{font-size:3.6rem;font-weight:700;color:var(--gold);font-family:var(--M);line-height:1;transition:color 0.08s, transform 0.08s;display:inline-block;}
+.practica-compas-grande{font-size:3.6rem;font-weight:700;color:var(--gold);font-family:var(--M);line-height:1;transition:color 0.08s, transform 0.08s;display:inline-block;min-width:3ch;text-align:center;}
 .practica-compas-grande.activo{color:var(--ok);transform:scale(1.12);}
+/* v2.6: (portado de ensayo.html v3.257-267) péndulo visual del pulso —
+   riel horizontal con un punto que barre de un extremo a otro, mismo
+   criterio de barrido continuo/rebote/velocidad. Fila propia debajo del
+   número de compás; selector de velocidad (½/×1/×2/×4) como un solo
+   botón que cicla al tocarlo. Ver ensayo.html para el detalle de cada
+   ajuste de esta evolución. */
+.practica-pendulo-row{display:block;margin-top:8px;}
+.practica-pendulovel-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;flex-wrap:wrap;}
+.practica-pendulovel-chip{min-height:36px;padding:0 10px;}
+/* v2.9: (portado de ensayo.html v3.270) el riel pasa de ancho fijo
+   (140px) a ocupar el ancho completo de la card — RECORRIDO_PX pasa a
+   medirse en vivo en el JS. */
+.practica-metro-pendulo{display:block;width:100%;height:14px;position:relative;}
+.practica-metro-pendulo .pendulo-riel{position:absolute;left:2px;right:2px;top:50%;height:2px;margin-top:-1px;background:var(--brd);border-radius:1px;}
+.practica-metro-pendulo .pendulo-punto{position:absolute;top:50%;left:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px 1px color-mix(in srgb, var(--warn) 55%, transparent);will-change:transform;}
+/* v2.9: en el beat 1 de cada compás, el punto se pone verde (var(--ok)),
+   atado al beat real (mismo bloque de flash del compás/dots), no al
+   "ciclo" del rebote. */
+.practica-metro-pendulo .pendulo-punto.beat1{background:var(--ok);box-shadow:0 0 6px 1px color-mix(in srgb, var(--ok) 55%, transparent);}
+.practica-metro-pendulo .pendulo-punto.pendulo-rebote{animation:pendulo-rebote-anim 0.12s ease-out;}
+/* v2.9: el destello de esquina pasa a un flashazo blanco puro. */
+@keyframes pendulo-rebote-anim{
+  0%{box-shadow:0 0 16px 6px rgba(255,255,255,0.95);}
+  100%{box-shadow:0 0 6px 1px transparent;}
+}
 .practica-beat-chico{font-size:0.9rem;font-weight:600;color:var(--muted);font-family:var(--M);margin-left:4px;}
 .beat-dot{width:14px;height:14px;border-radius:50%;background:var(--muted);opacity:0.4;transition:background 0.08s, transform 0.08s, opacity 0.08s, box-shadow 0.08s;}
 .beat-dot.fuerte{width:22px;height:22px;}
@@ -554,6 +610,16 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    Va DESPUÉS de .pcu-strip.compas2 y con 3 clases (mayor especificidad)
    para ganarle siempre que ambas estén presentes juntas. */
 .pcu-strip.compas2.compas-otro{border-color:var(--lila);background:var(--lila-bg);}
+/* v2.8: (portado de ensayo.html v3.269, a pedido) en tema claro, fondo
+   apenas más oscuro detrás de los puntos de beat/clave
+   (.practica-semaforo, .pcu-strip) y del péndulo
+   (.practica-pendulo-row) — se perdían contra el fondo casi blanco.
+   Solo tema claro, solo estos 3 contenedores puntuales; tema oscuro y
+   el resto de la interfaz sin cambios. :not(.compas2) para no pisar el
+   fondo dorado/lila que ya marca compás 2/otro compás en .pcu-strip. */
+:root[data-tema="light"] .practica-semaforo{background:#e3ddd0;}
+:root[data-tema="light"] .pcu-strip:not(.compas2){background:#e3ddd0;}
+:root[data-tema="light"] .practica-pendulo-row{background:#e3ddd0;border-radius:10px;padding:4px 0;}
 /* v3.114: (a pedido) plantillas de conteo — varias tiras conviven
    ocultas dentro del mismo .pcu-strip (ver pulsoClaveUnificadoHtml),
    solo la .pcu-tira-activa se muestra. El acento de color (inset,
@@ -2866,12 +2932,21 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
             <div class="practica-compas-wrap">
               <span class="practica-clave-piloto" id="clavepiloto-${uid}" style="display:none;" title="Clave">🌶</span>
               <div class="practica-compas-grande" id="compas-${uid}">1</div><span class="practica-beat-chico" id="beat-${uid}">· 1</span>
+              <div class="practica-pendulovel-row" id="pendvelpresets-${uid}">
+                <button type="button" class="practica-sonido-chip practica-pendulovel-chip" id="pendvel-${uid}" title="Velocidad del péndulo: ×1 (redonda) — toca para cambiar" onclick="ciclarVelocidadPenduloPractica('${uid}')">${SVG_FIGURA_REDONDA}</button>
+              </div>
               <div class="practica-seccion-actual" id="seccion-${uid}">—</div>
             </div>
             <button class="practica-click-btn" id="clickbtn-${uid}" onclick="toggleClickPractica('${uid}')" title="Click de metrónomo">${ICONO_METRONOMO_SVG}</button>
             <button class="practica-click-btn" id="clavebtn-${uid}" onclick="toggleClavePractica('${uid}')" title="Sonido de clave" style="display:none;">🌶</button>
             <button class="practica-click-btn practica-vol-btn" id="volbtn-${uid}" onclick="toggleVolumenRapidoPractica('${uid}')" title="Volumen rápido">Vol</button>
             <button class="practica-click-btn" id="ajustesbtn-${uid}" onclick="toggleAjustesPractica('${uid}')" title="Ajustes de metrónomo">≡</button>
+          </div>
+          <div class="practica-pendulo-row">
+            <span class="practica-metro-pendulo" title="Pulso (visual)" aria-hidden="true">
+              <span class="pendulo-riel"></span>
+              <span class="pendulo-punto" id="pendulopunto-${uid}"></span>
+            </span>
           </div>
           <div class="practica-badge-fila" id="badge2-${uid}"></div>
           <div class="practica-libre-row">
@@ -3207,6 +3282,42 @@ const ICONO_METRONOMO_SVG = '📏';
 // "Metro" — reutilizado en toggleClickPractica y actualizarUIAjustesPractica
 // para no repetir el markup en dos lugares.
 const HTML_BOTON_METRO = ICONO_METRONOMO_SVG;
+
+// v2.6: (portado de ensayo.html v3.261-267) íconos SVG de figuras
+// musicales para el botón de velocidad del péndulo — redonda (×1),
+// blanca (×2), negra (×4) y "1/2" dibujado como fracción. currentColor:
+// hereda el color del botón (.practica-sonido-chip / .activo dorado).
+const SVG_FIGURA_REDONDA = '<svg viewBox="0 0 26 20" width="22" height="17" aria-hidden="true"><ellipse cx="13" cy="10" rx="8.5" ry="6" transform="rotate(-18 13 10)" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>';
+const SVG_FIGURA_BLANCA = '<svg viewBox="0 0 22 26" width="17" height="20" aria-hidden="true"><ellipse cx="7.5" cy="19" rx="6" ry="4.3" transform="rotate(-18 7.5 19)" fill="none" stroke="currentColor" stroke-width="2.3"/><line x1="13" y1="16" x2="13" y2="1.5" stroke="currentColor" stroke-width="2.3"/></svg>';
+const SVG_FIGURA_NEGRA = '<svg viewBox="0 0 22 26" width="17" height="20" aria-hidden="true"><ellipse cx="7.5" cy="19" rx="6" ry="4.3" transform="rotate(-18 7.5 19)" fill="currentColor"/><line x1="13" y1="16" x2="13" y2="1.5" stroke="currentColor" stroke-width="2.3"/></svg>';
+const SVG_FIGURA_MEDIO = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><text x="10" y="15" text-anchor="middle" font-size="15" font-family="var(--M)" font-weight="700" fill="currentColor">½</text></svg>';
+// v2.6: mapa valor→figura + orden de ciclado (½ → ×1 → ×2 → ×4 → ½...),
+// mismo patrón "toca para ciclar" que ya usan los acentos.
+const PENDULO_VELOCIDAD_ORDEN = [0.5, 1, 2, 4];
+const PENDULO_VELOCIDAD_SVG = { 0.5: SVG_FIGURA_MEDIO, 1: SVG_FIGURA_REDONDA, 2: SVG_FIGURA_BLANCA, 4: SVG_FIGURA_NEGRA };
+const PENDULO_VELOCIDAD_TITULO = { 0.5: 'Velocidad del péndulo: ½ (más lento)', 1: 'Velocidad del péndulo: ×1 (redonda)', 2: 'Velocidad del péndulo: ×2 (blanca)', 4: 'Velocidad del péndulo: ×4 (negra)' };
+function actualizarFiguraPenduloPractica(uid, valor){
+  const btn = document.getElementById('pendvel-' + uid);
+  if(!btn) return;
+  btn.innerHTML = PENDULO_VELOCIDAD_SVG[valor] || SVG_FIGURA_REDONDA;
+  btn.title = (PENDULO_VELOCIDAD_TITULO[valor] || PENDULO_VELOCIDAD_TITULO[1]) + ' — toca para cambiar';
+}
+function cambiarVelocidadPenduloPractica(uid, valor){
+  const est = estadoPractica[uid];
+  if(!est) return;
+  const n = PENDULO_VELOCIDAD_ORDEN.includes(valor) ? valor : 1;
+  est.pendVelocidadOverride = (n === 1) ? null : n;
+  actualizarFiguraPenduloPractica(uid, n);
+  guardarAjustesPractica(uid);
+}
+function ciclarVelocidadPenduloPractica(uid){
+  const est = estadoPractica[uid];
+  if(!est) return;
+  const actual = est.pendVelocidadOverride || 1;
+  const idx = PENDULO_VELOCIDAD_ORDEN.indexOf(actual);
+  const siguiente = PENDULO_VELOCIDAD_ORDEN[(idx + 1) % PENDULO_VELOCIDAD_ORDEN.length];
+  cambiarVelocidadPenduloPractica(uid, siguiente);
+}
 
 const SONIDOS_CLICK = {
   clasico:   { tipo: 'sine',     fFuerte: 1300, fNormal: 900  },
@@ -3640,6 +3751,7 @@ function guardarAjustesPractica(uid, soloLocal){
       volNormal: est.volNormal,
       clickActivo: est.clickActivo,
       claveActiva: est.claveActiva,
+      pendVelocidadOverride: est.pendVelocidadOverride,
       ajustadoEn: ahora
     }));
   }catch(e){}
@@ -3657,6 +3769,7 @@ function guardarAjustesPractica(uid, soloLocal){
     compasesOverride: (est.compasesOverride !== undefined) ? est.compasesOverride : null,
     claveOverride: (est.claveOverride !== undefined) ? est.claveOverride : null,
     tonalidadOverride: (est.tonalidadOverride !== undefined) ? est.tonalidadOverride : null,
+    pendVelocidadOverride: (est.pendVelocidadOverride != null) ? est.pendVelocidadOverride : null,
     ajustesEn: ahora
   }, { merge: true }).catch(e => console.error('No se pudieron guardar los ajustes de práctica en Firestore:', e));
 }
@@ -3703,6 +3816,13 @@ function cargarAjustesGuardados(uid){
   if(fuente.claveOverride !== undefined && fuente.claveOverride !== null) est.claveOverride = fuente.claveOverride;
   if(fuente.tonalidadOverride !== undefined && fuente.tonalidadOverride !== null) est.tonalidadOverride = fuente.tonalidadOverride;
   if(fuente.compasesOverride !== undefined && fuente.compasesOverride !== null) est.compasesOverride = fuente.compasesOverride;
+  // v2.6: velocidad del péndulo (½/×1/×2/×4) viaja con el tema igual que
+  // BPM/compás/clave/tonalidad — así quien abre el link ve la misma
+  // velocidad que dejó configurada quien comparte. Si el propio
+  // visitante la cambia acá, ese cambio queda solo en su dispositivo
+  // (mismo criterio ya aplicado arriba a los demás overrides en
+  // MODO_COMPARTIDO — ver guardarAjustesPractica).
+  if(fuente.pendVelocidadOverride != null) est.pendVelocidadOverride = fuente.pendVelocidadOverride;
 
   // Si ganó la nube, sincroniza el localStorage de este dispositivo
   // (soloLocal=true: no vuelve a escribir en Firestore su propio dato).
@@ -4294,6 +4414,8 @@ function restablecerAjustesPractica(uid){
   est.acentosClave = acentosClavePorDefecto();
   est.volFuerte = 1;
   est.volNormal = 0.55;
+  est.pendVelocidadOverride = null;
+  actualizarFiguraPenduloPractica(uid, 1);
   const acentosRowReset = document.getElementById('acentosrow-' + uid);
   if(acentosRowReset) acentosRowReset.innerHTML = acentosBtnsHtml(uid, compasEfectivoDe(est));
   [2,3,4,5,6,7,8,9,12].forEach(b => {
@@ -4839,16 +4961,19 @@ function actualizarContadorPractica(uid, tiempoActual){
   // "flash tipo luz de semáforo" pedido en v3.11, solo que más corto.
   const elCompas = est.el && est.el.compas;
   const dots = est.el && est.el.dots;
+  const elPendulo = document.getElementById('pendulopunto-' + uid);
   if(beatEnBarra !== est.ultimoBeatVisual){
     est.ultimoBeatVisual = beatEnBarra;
     clearTimeout(est.flashTimeoutId);
     if(elCompas) elCompas.classList.toggle('activo', beatEnBarra === 0);
+    if(elPendulo) elPendulo.classList.toggle('beat1', beatEnBarra === 0);
     for(let i = 0; i < compasEfectivoDe(est); i++){
       const dot = dots ? dots[i] : document.getElementById('dot-' + uid + '-' + i);
       if(dot) dot.classList.toggle('activo', i === beatEnBarra);
     }
     est.flashTimeoutId = setTimeout(() => {
       if(elCompas) elCompas.classList.remove('activo');
+      if(elPendulo) elPendulo.classList.remove('beat1');
       const dotActivo = dots ? dots[beatEnBarra] : document.getElementById('dot-' + uid + '-' + beatEnBarra);
       if(dotActivo) dotActivo.classList.remove('activo');
     }, Math.max(60, (secPerBeat * 1000) / 2));
@@ -4856,6 +4981,49 @@ function actualizarContadorPractica(uid, tiempoActual){
   if(elCompas) elCompas.textContent = barIndex;
   const elBeat = document.getElementById('beat-' + uid);
   if(elBeat) elBeat.textContent = '· ' + (beatEnBarra + 1);
+
+  // v2.6: (portado de ensayo.html v3.257-267) brazo/punto de péndulo —
+  // ver comentario junto al CSS .practica-metro-pendulo. fracBar (0→1):
+  // posición continua dentro del compás actual, misma base que ya usa
+  // el resto de esta función (tRelTramo/secPerBarTramo). barIndex par
+  // barre de -1 a +1; impar, de +1 a -1 — el final de un compás y el
+  // inicio del siguiente quedan en el MISMO extremo, así el péndulo
+  // nunca "salta" al cruzar de compás.
+  if(elPendulo){
+    const tRelBarra = tRelTramo - beatsEnTramo * secPerBarTramo;
+    const fracBar = secPerBarTramo ? Math.min(1, Math.max(0, tRelBarra / secPerBarTramo)) : 0;
+    // Selector de velocidad del péndulo (½/×1/×2/×4, puramente visual):
+    // se escala el "ciclo continuo" barIndex+fracBar por la velocidad
+    // ANTES de partirlo en entero+fracción — mismo truco de diente-de-
+    // sierra que evita el salto entre compases, sin saltar tampoco al
+    // cambiar de velocidad.
+    const velocidadPendulo = est.pendVelocidadOverride || 1;
+    const absCiclo = (barIndex + fracBar) * velocidadPendulo;
+    const ciclo = Math.floor(absCiclo);
+    const fracCiclo = absCiclo - ciclo;
+    const pos = (ciclo % 2 === 0) ? (-1 + 2 * fracCiclo) : (1 - 2 * fracCiclo);
+    // v2.9: (portado de ensayo.html v3.270) el riel es full-width de la
+    // card, así que su ancho ya no es fijo — se mide en cada frame con
+    // clientWidth del contenedor (.practica-metro-pendulo) y se le
+    // restan los 4px de insets del riel (left:2px + right:2px).
+    const panelPendulo = elPendulo.parentElement;
+    const anchoRiel = panelPendulo ? panelPendulo.clientWidth : 140;
+    const RECORRIDO_PX = Math.max(0, (anchoRiel - 4) / 2);
+    elPendulo.style.transform = 'translateX(' + (pos * RECORRIDO_PX) + 'px)';
+    // Destello al tocar cada esquina del riel. "ciclo" (de arriba)
+    // cambia justo en el instante en que el punto llega al extremo y
+    // arranca de vuelta — se dispara solo una vez por rebote, no en
+    // cada frame. La animación (.pendulo-rebote, CSS) es puramente
+    // visual — no toca la posición ni la lógica de barrido de arriba.
+    if(ciclo !== est.pendUltimoCiclo){
+      est.pendUltimoCiclo = ciclo;
+      clearTimeout(est.pendReboteTimeoutId);
+      elPendulo.classList.remove('pendulo-rebote');
+      void elPendulo.offsetWidth; // fuerza reflow para poder reiniciar la animación si el rebote anterior no llegó a terminar
+      elPendulo.classList.add('pendulo-rebote');
+      est.pendReboteTimeoutId = setTimeout(() => elPendulo.classList.remove('pendulo-rebote'), 120);
+    }
+  }
 
   // v3.148: (a pedido) mismo criterio que ya usa dibujarWaveform
   // (línea con este mismo comentario, v3.136) — si el músico tildó
@@ -6699,19 +6867,27 @@ function dibujarWaveform(uid, tiempoActual){
   // v3.240: velo de zonas sin sección (rangosConSeccion, calculado
   // arriba), dibujado ACÁ encima de las barras para que tiña sus
   // píxeles (ver misma nota en musico.html v3.218).
-  ctxDraw.fillStyle = colorVeloSinSeccion;
-  let cursorSinSeccion = 0;
-  rangosConSeccion.forEach(r => {
-    if(r.inicio > cursorSinSeccion){
+  // FIX (a pedido): si el tema no tiene NINGUNA sección cargada,
+  // rangosConSeccion queda vacío y el bucle de abajo terminaba
+  // pintando el velo sobre TODO el waveform (cursorSinSeccion nunca
+  // avanzaba de 0). Ahora, sin secciones, se salta el velo entero —
+  // se ve normal, como si todo estuviera "seleccionado". Con
+  // secciones cargadas, el comportamiento no cambia en nada.
+  if(secciones.length > 0){
+    ctxDraw.fillStyle = colorVeloSinSeccion;
+    let cursorSinSeccion = 0;
+    rangosConSeccion.forEach(r => {
+      if(r.inicio > cursorSinSeccion){
+        const xA = (cursorSinSeccion / dur) * W;
+        const xB = (r.inicio / dur) * W;
+        ctxDraw.fillRect(xA, 0, Math.max(0, xB - xA), H);
+      }
+      cursorSinSeccion = Math.max(cursorSinSeccion, r.fin);
+    });
+    if(cursorSinSeccion < dur){
       const xA = (cursorSinSeccion / dur) * W;
-      const xB = (r.inicio / dur) * W;
-      ctxDraw.fillRect(xA, 0, Math.max(0, xB - xA), H);
+      ctxDraw.fillRect(xA, 0, Math.max(0, W - xA), H);
     }
-    cursorSinSeccion = Math.max(cursorSinSeccion, r.fin);
-  });
-  if(cursorSinSeccion < dur){
-    const xA = (cursorSinSeccion / dur) * W;
-    ctxDraw.fillRect(xA, 0, Math.max(0, W - xA), H);
   }
 
   // ticks de compás — usan el mismo offset efectivo que ya calcula el
@@ -10530,6 +10706,7 @@ function destruirEstadoPractica(uid){
   clearTimeout(est.seekManualObjetivoTimeout);
   clearTimeout(est.waveformScrollProgTimeout);
   if(est.metroPrecontTimeouts) est.metroPrecontTimeouts.forEach(t => clearTimeout(t));
+  clearTimeout(est.pendReboteTimeoutId);
   delete estadoPractica[uid];
 }
 function crearEstadoPracticaParaTema(tema){
@@ -10586,6 +10763,9 @@ function crearEstadoPracticaParaTema(tema){
     acentosClave: acentosClavePorDefecto(),
     volFuerte: 1,
     volNormal: 0.55,
+    pendVelocidadOverride: null,
+    pendUltimoCiclo: null,
+    pendReboteTimeoutId: null,
     getTiempoActual: () => 0,
     seek: () => {},
     pause: () => {},
@@ -10631,6 +10811,7 @@ function crearEstadoPracticaParaTema(tema){
       if(btnSubdivInicial) btnSubdivInicial.classList.toggle('activo', s === est.subdivisionOverride);
     });
   }
+  if(est.pendVelocidadOverride) actualizarFiguraPenduloPractica(uid, est.pendVelocidadOverride);
   actualizarResumenCompasSubdivPractica(uid);
   const preconteoGuardado = cargarPreconteoGeneral();
   if(preconteoGuardado){
