@@ -9,8 +9,21 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AUDIOLINK Ensayo">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Audiolink — Ensayo v3.272</title>
-<!-- AUDIOLINK · ensayo.html · v3.272
+<title>Audiolink — Ensayo v3.273</title>
+<!-- AUDIOLINK · ensayo.html · v3.273
+     v3.273: (a pedido) FIX raíz del "doble click / blur auditivo /
+     arrastradito" del METRO LIBRE (sin pista) en mobile — con pista
+     nunca pasaba porque tRel y el reloj de agendado (ahoraCtx =
+     audioCtxPractica.currentTime) salen del MISMO reloj
+     (motor.currentTime). El metro libre, en cambio, calculaba su
+     tiempo transcurrido con performance.now() — un reloj DISTINTO al
+     de agendado, que puede desfasarse del de audio en mobile. Ahora
+     ancla su tiempo transcurrido a audioCtxPractica.currentTime
+     (est.metroLibreInicioAudio, nueva, ver arrancarMetronomoReal) —
+     mismo reloj que ahoraCtx, sin margen para desfasarse entre sí. Lo
+     visual (tick/actualizarContadorPractica, est.metroLibreInicio) NO
+     cambia — sigue con performance.now(), el jitter ahí no se nota ni
+     se oye.
      v3.272: (a pedido) FIX de estabilidad del click en mobile — se
      quedaba y luego corría para empatar. SCHED_LOOKAHEAD_SEC (margen
      de agendado del scheduler de audio) sube de 0.1s a 0.35s — con
@@ -3244,7 +3257,7 @@ function schedulerTickGlobalPractica(){
     const secPerBeat = (60 / bpmEf) * factorCompasGeneralDe(est);
     const offset = (est.offset || 0) + (est.offsetLocalDelta || 0);
     const tiempoActual = libreOn
-      ? (performance.now() - est.metroLibreInicio) / 1000
+      ? (audioCtxPractica.currentTime - (est.metroLibreInicioAudio || 0)) // v3.273: mismo reloj que ahoraCtx (ver comentario en arrancarMetronomoReal), antes performance.now()
       : (est.getTiempoActual ? est.getTiempoActual() : 0);
     const tRel = Math.max(0, tiempoActual - offset);
     const ahoraCtx = audioCtxPractica.currentTime;
@@ -4894,7 +4907,21 @@ function toggleMetronomoLibre(uid){
 
   const arrancarMetronomoReal = () => {
     est.metroLibreActivo = true;
-    est.metroLibreInicio = performance.now();
+    est.metroLibreInicio = performance.now(); // referencia SOLO para lo visual (tick de abajo) — ver metroLibreInicioAudio
+    // v3.273: (a pedido) FIX raíz del "doble click / blur / arrastradito"
+    // del metro libre en mobile — antes, schedulerTickGlobalPractica
+    // calculaba el tiempo transcurrido del metro libre con
+    // performance.now() (est.metroLibreInicio) pero agendaba el audio
+    // con audioCtxPractica.currentTime (ahoraCtx): dos relojes DISTINTOS
+    // que pueden desfasarse entre sí en mobile. "Con pista" nunca pasaba
+    // esto porque ahí tRel y ahoraCtx salen del MISMO reloj
+    // (motor.currentTime). Ahora el metro libre también ancla su tiempo
+    // transcurrido a audioCtxPractica.currentTime (metroLibreInicioAudio)
+    // — mismo reloj que ahoraCtx, sin margen para desfasarse. Lo visual
+    // (tick/actualizarContadorPractica de abajo) se deja con
+    // performance.now() tal cual: el jitter ahí no se nota ni se oye.
+    obtenerAudioCtxPractica();
+    est.metroLibreInicioAudio = audioCtxPractica.currentTime;
     if(btn){ btn.textContent = '⏸'; btn.title = 'Metrónomo sonando — tocar para detener'; btn.classList.add('activo'); }
     const tick = () => {
       if(!est.metroLibreActivo) return;

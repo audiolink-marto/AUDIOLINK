@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Tema compartido v2.11</title>
-<!-- AUDIOLINK · compartir.html · v2.11
+<title>Audiolink — Tema compartido v2.12</title>
+<!-- AUDIOLINK · compartir.html · v2.12
+     v2.12: (portado de ensayo.html v3.273) FIX raíz del "doble click /
+     blur auditivo" del metro libre en mobile — anclado ahora a
+     audioCtxPractica.currentTime (est.metroLibreInicioAudio) en vez de
+     performance.now(), mismo reloj que usa el scheduler para agendar.
      v2.11: (portado de ensayo.html v3.272) FIX de estabilidad del
      click en mobile — SCHED_LOOKAHEAD_SEC sube de 0.1s a 0.35s (ver
      comentario junto a la constante).
@@ -3156,7 +3160,7 @@ function schedulerTickGlobalPractica(){
     const secPerBeat = (60 / bpmEf) * factorCompasGeneralDe(est);
     const offset = (est.offset || 0) + (est.offsetLocalDelta || 0);
     const tiempoActual = libreOn
-      ? (performance.now() - est.metroLibreInicio) / 1000
+      ? (audioCtxPractica.currentTime - (est.metroLibreInicioAudio || 0)) // v2.12: mismo reloj que ahoraCtx, antes performance.now()
       : (est.getTiempoActual ? est.getTiempoActual() : 0);
     const tRel = Math.max(0, tiempoActual - offset);
     const ahoraCtx = audioCtxPractica.currentTime;
@@ -4689,7 +4693,15 @@ function toggleMetronomoLibre(uid){
 
   const arrancarMetronomoReal = () => {
     est.metroLibreActivo = true;
-    est.metroLibreInicio = performance.now();
+    est.metroLibreInicio = performance.now(); // referencia SOLO para lo visual (tick de abajo) — ver metroLibreInicioAudio
+    // v2.12: (portado de ensayo.html v3.273) FIX raíz del "doble click /
+    // blur / arrastradito" del metro libre en mobile — antes se
+    // calculaba el tiempo transcurrido con performance.now() pero se
+    // agendaba el audio con audioCtxPractica.currentTime (dos relojes
+    // distintos que pueden desfasarse). Ahora ancla a
+    // audioCtxPractica.currentTime, mismo reloj que usa el scheduler.
+    obtenerAudioCtxPractica();
+    est.metroLibreInicioAudio = audioCtxPractica.currentTime;
     if(btn){ btn.textContent = '⏸'; btn.title = 'Metrónomo sonando — tocar para detener'; btn.classList.add('activo'); }
     const tick = () => {
       if(!est.metroLibreActivo) return;
