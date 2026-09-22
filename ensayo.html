@@ -9,8 +9,27 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AUDIOLINK Ensayo">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Audiolink — Ensayo v3.270</title>
-<!-- AUDIOLINK · ensayo.html · v3.270
+<title>Audiolink — Ensayo v3.272</title>
+<!-- AUDIOLINK · ensayo.html · v3.272
+     v3.272: (a pedido) FIX de estabilidad del click en mobile — se
+     quedaba y luego corría para empatar. SCHED_LOOKAHEAD_SEC (margen
+     de agendado del scheduler de audio) sube de 0.1s a 0.35s — con
+     0.1s, un traqueteo del hilo principal (>100ms) bastaba para que el
+     tick llegara tarde a agendar el próximo click, sonando como pulso
+     perdido + ráfaga de alcance. Sin cambios en la lógica de resync
+     (ya está escrita en función de esta constante, ver comentario
+     junto a la declaración). Costo: hasta ~350ms de demora en
+     reflejar un cambio de bpm/seek/loop en el audio agendado (antes
+     ~100ms) — imperceptible.
+     v3.271: (a pedido) el punto del péndulo se veía "arrastrado, con
+     halo" en mobile — el box-shadow difuminado (blur 6px, sin borde
+     propio) diluía el canto del punto, sobre todo en movimiento. Se
+     achica el blur (6px→3px, sin spread) y se agrega un borde de 1px
+     en un tono más oscuro que el relleno, en las 3 reglas que fijan su
+     color (normal/naranja, beat1/verde, ver .pendulo-punto y
+     .pendulo-punto.beat1) — sigue con un resplandor sutil pero ya no
+     reemplaza la forma. El flash blanco de esquina (v3.270) no cambió,
+     termina en transparente y no choca con el nuevo box-shadow base.
      v3.270: (a pedido) 3 ajustes al péndulo: (1) el riel pasa de ancho
      fijo (140px, vivía dentro de .practica-compas-wrap) a ocupar el
      ancho COMPLETO de .practica-contador-card — ahora es su propia
@@ -754,7 +773,14 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    ver ese comentario en el JS. */
 .practica-metro-pendulo{display:block;width:100%;height:14px;position:relative;}
 .practica-metro-pendulo .pendulo-riel{position:absolute;left:2px;right:2px;top:50%;height:2px;margin-top:-1px;background:var(--brd);border-radius:1px;}
-.practica-metro-pendulo .pendulo-punto{position:absolute;top:50%;left:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px 1px color-mix(in srgb, var(--warn) 55%, transparent);will-change:transform;}
+/* v3.271: (a pedido) el punto se veía "arrastrado, con halo" en mobile
+   — el box-shadow difuminado (blur 6px) diluía el borde y, en pantallas
+   chicas, se leía más como una mancha en movimiento que como un punto
+   definido. Se achica bastante el blur (6px→3px, sin spread) y se le
+   agrega un borde propio (1px, tono más oscuro que el relleno) para que
+   el punto tenga un canto nítido incluso mientras se mueve; sigue
+   teniendo un resplandor sutil, pero ya no reemplaza la forma. */
+.practica-metro-pendulo .pendulo-punto{position:absolute;top:50%;left:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--warn);border:1px solid color-mix(in srgb, var(--warn) 60%, black 25%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--warn) 45%, transparent);will-change:transform;}
 /* v3.270: (a pedido) en el beat 1 de cada compás, el punto se pone
    verde (var(--ok)) — mismo color que ya usan .practica-compas-grande.
    activo y beat-dot.fuerte.activo en ese mismo instante. Se prende y
@@ -762,7 +788,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    actualizarContadorPractica, mismo timeout), NO con el "ciclo" del
    rebote — así el color queda atado al beat real, sin importar la
    velocidad visual del péndulo (½/×1/×2/×4). */
-.practica-metro-pendulo .pendulo-punto.beat1{background:var(--ok);box-shadow:0 0 6px 1px color-mix(in srgb, var(--ok) 55%, transparent);}
+.practica-metro-pendulo .pendulo-punto.beat1{background:var(--ok);border-color:color-mix(in srgb, var(--ok) 60%, black 25%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--ok) 45%, transparent);}
 /* v3.263: (a pedido) destello al tocar cada esquina del riel — la
    clase se agrega/quita sola por JS (actualizarContadorPractica, junto
    a "ciclo"), dura 120ms. Solo cambia tamaño/brillo del punto vía
@@ -3172,7 +3198,21 @@ function latenciaSalidaAudioPractica(){
 // (dots, números, flash de clave) — el jitter ahí no se nota ni se
 // oye. Ver bloques removidos en actualizarContadorPractica (click y
 // clave) que antes disparaban el beep directamente.
-const SCHED_LOOKAHEAD_SEC = 0.1;
+// v3.272: (a pedido) click "inestable" en mobile — se quedaba y luego
+// corría para empatar. Causa: con SCHED_LOOKAHEAD_SEC=0.1, un traqueteo
+// del hilo principal (dibujo de waveform, reflow, etc.) de más de ~100ms
+// bastaba para que este tick llegara tarde a agendar el próximo click:
+// el "when" calculado ya caía encima o detrás de ahoraCtx, y Web Audio
+// lo dispara de inmediato — sonaba como un pulso perdido seguido de una
+// ráfaga para alcanzar el tiempo real. Subir el lookahead a 0.35s le da
+// mucho más colchón (un tick puede perderse varias veces seguidas sin
+// quedarse sin margen) sin ningún cambio en la lógica de resync — todas
+// las comparaciones (líneas de abajo) ya están escritas en función de
+// esta constante, no en un valor fijo. Único costo: un cambio de bpm/
+// seek/loop tarda hasta ~350ms en reflejarse en el audio agendado (antes
+// ~100ms) — imperceptible al oído, y el click sincronizado real (no lo
+// visual) es lo único que usa este scheduler.
+const SCHED_LOOKAHEAD_SEC = 0.35;
 const SCHED_INTERVAL_MS = 25;
 function schedulerTickGlobalPractica(){
   for(const uid in estadoPractica){
