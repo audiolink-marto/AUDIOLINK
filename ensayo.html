@@ -9,8 +9,43 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AUDIOLINK Ensayo">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Audiolink — Ensayo v3.273</title>
-<!-- AUDIOLINK · ensayo.html · v3.273
+<title>Audiolink — Ensayo v3.276</title>
+<!-- AUDIOLINK · ensayo.html · v3.276
+     v3.276: (a pedido) FIX real — el click sincronizado ahora se re-ancla
+     al INICIO DE CADA TRAMO (sección), igual que ya hacía el contador
+     visual (actualizarContadorPractica). Antes, con una sección que
+     empezaba en un segundo fuera de la grilla de compases (ej. offset
+     3.0 y una sección extra en 15.2), el contador/puntos saltaban al
+     compás 1 justo ahí, pero el click seguía sonando en su compás de
+     siempre (15, 17, 19… en vez de 15.2, 17.2, 19.2…) — quedaban
+     desincronizados entre sí. schedNextBeatIdx (índice fijo desde el
+     offset) pasa a schedNextBeatAbs (tiempo absoluto de la canción) +
+     proximoBeatClick(), que busca el tramo vigente en cada instante y
+     ancla el pulso 0 a tramoActual.inicioSeg. Con secciones alineadas a
+     la grilla (el caso de siempre) el resultado es idéntico a antes —
+     probado con una simulación del scheduler real antes de aplicar. El
+     metrónomo LIBRE (sin tramos ni offset de canción) no se tocó, sigue
+     con el índice de siempre. v3.249 (click al arrancar antes del
+     offset) queda intacto, es la misma familia de arreglo.
+     v3.275: (a pedido) 3 ajustes de claridad/default en el bloque de
+     metrónomo de práctica: (1) la clave arranca APAGADA y SIN acento
+     por defecto (antes: encendida y con el golpe 1 en "fuerte") — ver
+     claveActiva y acentosClavePorDefecto(); (2) el péndulo visual
+     arranca en BLANCA (×2) por defecto en vez de redonda (×1) — ver
+     PENDULO_VELOCIDAD_* y el botón pendvel-uid; (3) el botón "≡" de
+     ajustes avanzados (ambiguo, flotaba suelto entre Vol y ⬆) pasa a
+     "⚙️" con un separador visual propio, se enciende en dorado
+     (.activo) mientras el panel está abierto, y hace scrollIntoView
+     al abrirse — en mobile el panel queda lejos abajo y antes no había
+     ninguna señal de que algo se había abierto.
+     v3.274: (a pedido) FIX — con el audio del metro libre ya anclado
+     al reloj de audioCtxPractica (v3.273) pero el tick visual
+     (número/dots) todavía en performance.now(), quedaban desfasados
+     ENTRE SÍ (antes iban desfasados los dos juntos, no se notaba). Se
+     unifica: el tick visual también usa audioCtxPractica.currentTime -
+     metroLibreInicioAudio, el MISMO cálculo que usa el scheduler de
+     audio — ver arrancarMetronomoReal. est.metroLibreInicio
+     (performance.now()) ya no se usa en ningún lado del metro libre.
      v3.273: (a pedido) FIX raíz del "doble click / blur auditivo /
      arrastradito" del METRO LIBRE (sin pista) en mobile — con pista
      nunca pasaba porque tRel y el reloj de agendado (ahoraCtx =
@@ -881,6 +916,10 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-click-btn.tono-offset-btn:disabled{opacity:.4;cursor:not-allowed;}
 .practica-click-btn:active{transform:scale(0.94);}
 .practica-click-btn.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+/* v3.275: (a pedido) separa visualmente el botón de ajustes avanzados
+   (⚙️) del grupo click/clave/Vol — antes se leía como "un botón más"
+   de la fila, sin nada que indicara que abre un panel aparte. */
+.practica-ajustesbtn{margin-left:6px;padding-left:12px;border-left:1px solid var(--brd);}
 /* v3.208: fila de botones rápidos del patrón de clave — mismo botón
    cuadrado/ícono-solo de siempre (.practica-click-btn), solo más chico
    para que entren los 8 en una fila sin scrollear horizontal. */
@@ -2704,8 +2743,10 @@ function acentosPorDefecto(compasesPorBarra){
 // son/rumba/bossa siempre suman 5 golpes). Por defecto solo el primer
 // golpe del ciclo queda "fuerte", para no cambiar el comportamiento
 // que ya tenían quienes usaban esto antes de v3.8.
+// v3.275: (a pedido) sin acento por defecto — antes el golpe 1 nacía
+// "fuerte", ahora los 5 golpes nacen "normal" (parejo con clave apagada).
 function acentosClavePorDefecto(){
-  return Array.from({ length: 5 }).map((_, i) => (i === 0 ? 'fuerte' : 'normal'));
+  return Array.from({ length: 5 }).map(() => 'normal');
 }
 
 // v2.4: panel de ajustes de metrónomo — BPM/clave/sonido/acentos, todo
@@ -2738,8 +2779,9 @@ function panelAjustesHtml(uid, compasesPorBarra, clave){
   const opcionesClave = Object.keys(CLAVE_ETIQUETAS)
     .map(k => `<option value="${k}">${CLAVE_ETIQUETAS[k]}</option>`).join('');
   const acentosBtns = acentosBtnsHtml(uid, compasesPorBarra);
+  // v3.275: ningún golpe nace "fuerte" (ver acentosClavePorDefecto)
   const acentosClaveBtns = Array.from({ length: 5 }).map((_, i) =>
-    `<button class="practica-acento-btn ${i === 0 ? 'fuerte' : ''}" id="acentoclave-${uid}-${i}" onclick="toggleAcentoClavePractica('${uid}', ${i})">${i + 1}</button>`
+    `<button class="practica-acento-btn" id="acentoclave-${uid}-${i}" onclick="toggleAcentoClavePractica('${uid}', ${i})">${i + 1}</button>`
   ).join('');
   return `
       <div class="practica-ajustes-panel" id="ajustes-${uid}" style="display:none;">
@@ -2954,14 +2996,14 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
               <span class="practica-clave-piloto" id="clavepiloto-${uid}" style="display:none;" title="Clave">🌶</span>
               <div class="practica-compas-grande" id="compas-${uid}">1</div><span class="practica-beat-chico" id="beat-${uid}">· 1</span>
               <div class="practica-pendulovel-row" id="pendvelpresets-${uid}">
-                <button type="button" class="practica-sonido-chip practica-pendulovel-chip" id="pendvel-${uid}" title="Velocidad del péndulo: ×1 (redonda) — toca para cambiar" onclick="ciclarVelocidadPenduloPractica('${uid}')">${SVG_FIGURA_REDONDA}</button>
+                <button type="button" class="practica-sonido-chip practica-pendulovel-chip" id="pendvel-${uid}" title="Velocidad del péndulo: ×2 (blanca) — toca para cambiar" onclick="ciclarVelocidadPenduloPractica('${uid}')">${SVG_FIGURA_BLANCA}</button>
               </div>
               <div class="practica-seccion-actual" id="seccion-${uid}">—</div>
             </div>
             <button class="practica-click-btn" id="clickbtn-${uid}" onclick="toggleClickPractica('${uid}')" title="Click de metrónomo">${ICONO_METRONOMO_SVG}</button>
             <button class="practica-click-btn" id="clavebtn-${uid}" onclick="toggleClavePractica('${uid}')" title="Sonido de clave" style="display:none;">🌶</button>
             <button class="practica-click-btn practica-vol-btn" id="volbtn-${uid}" onclick="toggleVolumenRapidoPractica('${uid}')" title="Volumen rápido">Vol</button>
-            <button class="practica-click-btn" id="ajustesbtn-${uid}" onclick="toggleAjustesPractica('${uid}')" title="Ajustes de metrónomo">≡</button>
+            <button class="practica-click-btn practica-ajustesbtn" id="ajustesbtn-${uid}" onclick="toggleAjustesPractica('${uid}')" title="Ajustes avanzados de metrónomo">⚙️</button>
             <button class="practica-local-pad" id="localpadmetro-${uid}" onclick="document.getElementById('filein-${uid}').click()" title="Cambiar canción del dispositivo" style="display:none;">⬆</button>
           </div>
           <div class="practica-pendulo-row">
@@ -3277,34 +3319,68 @@ function schedulerTickGlobalPractica(){
       // -lookahead y 0 el pulso 0 está por agendarse o ya se agendó: no
       // se toca (evita duplicarlo con BPM altos). Desde el offset en
       // adelante es la condición original, sin cambios.
-      let resyncClick = false;
-      if(est.schedNextBeatIdx == null) resyncClick = true;
-      else if(tRelClick < -SCHED_LOOKAHEAD_SEC) resyncClick = est.schedNextBeatIdx !== 0;
-      else if(tRelClick >= 0) resyncClick = Math.abs(est.schedNextBeatIdx * secPerBeat - tRelClick) > secPerBeat * 1.5;
-      if(resyncClick){
-        // primera vez, o desincronizado (seek/loop/cambio de bpm): resync
-        est.schedNextBeatIdx = Math.max(0, Math.ceil(tRelClick / secPerBeat));
-      }
-      // v3.110: (a pedido) tramos de compás para el click sincronizado
-      // (no el libre, ver comentario en tramosClickMusico) — se calcula
-      // UNA vez por tick, no dentro del while, para no rehacer el
-      // sort/forEach por cada beat agendado en la ventana.
+      // v3.276: (a pedido) FIX raíz — el click sincronizado se re-ancla al
+      // INICIO DE CADA TRAMO (sección), igual que ya hacía el contador/los
+      // puntos (actualizarContadorPractica, tRelTramo). Antes el click
+      // seguía una grilla única contada desde el offset (schedNextBeatIdx
+      // fijo); si una sección empezaba en un segundo que no caía en esa
+      // grilla, el contador/puntos saltaban al 1 en el inicio real de la
+      // sección pero el click seguía sonando en su compás de siempre —
+      // quedaban desincronizados entre sí. Ahora se agenda en TIEMPO
+      // ABSOLUTO de la canción (est.schedNextBeatAbs, ya no un índice) y
+      // cada beat se calcula con proximoBeatClick(), que busca el tramo
+      // vigente en ese instante y ancla el pulso 0 a tramoActual.inicioSeg
+      // — así, al cruzar a una sección nueva, el próximo click cae justo
+      // en su inicio, igual que el contador. Con secciones alineadas a la
+      // grilla (el caso de siempre) el resultado es idéntico a antes.
+      // El metrónomo LIBRE (libreOn, sin tramos/offset de canción) no se
+      // toca: sigue con el índice de siempre, ver rama de abajo.
       const tramosClick = (clickOn && !libreOn) ? recorrerTramosMusico(seccionesRuntimeDe(est), offset, bpmEf, compasEfectivoDe(est), !!est.compasesOverride, factorCompasGeneralDe(est)) : null;
-      while(est.schedNextBeatIdx * secPerBeat < ventanaHastaClick){
-        const beatTime = est.schedNextBeatIdx * secPerBeat;
-        const when = ahoraCtx + (beatTime - tRelClick);
-        let beatEnBarra;
-        if(tramosClick){
-          const tAbs = offset + beatTime;
+      if(tramosClick){
+        const proximoBeatClick = (tDesde) => {
+          const tr = tramoMusicoEnSegundo(tramosClick, tDesde);
+          const k = Math.max(0, Math.ceil((tDesde - tr.inicioSeg) / secPerBeat - 1e-9));
+          return tr.inicioSeg + k * secPerBeat;
+        };
+        const resyncClick = est.schedNextBeatAbs == null
+          || est.schedNextBeatAbs < tiempoActual - 1e-6
+          || (est.schedNextBeatAbs - tiempoActual) > secPerBeat * 1.5;
+        if(resyncClick) est.schedNextBeatAbs = proximoBeatClick(tiempoActual);
+        while(est.schedNextBeatAbs < tiempoActual + SCHED_LOOKAHEAD_SEC){
+          const tAbs = est.schedNextBeatAbs;
+          const when = ahoraCtx + (tAbs - tiempoActual);
           const tramoActual = tramoMusicoEnSegundo(tramosClick, tAbs);
           const beatsDesdeInicioTramo = Math.round((tAbs - tramoActual.inicioSeg) / secPerBeat);
-          beatEnBarra = tramoActual.beats ? (((beatsDesdeInicioTramo % tramoActual.beats) + tramoActual.beats) % tramoActual.beats) : 0;
-        } else {
-          beatEnBarra = ((est.schedNextBeatIdx % compasEfectivoDe(est)) + compasEfectivoDe(est)) % compasEfectivoDe(est);
+          const beatEnBarra = tramoActual.beats ? (((beatsDesdeInicioTramo % tramoActual.beats) + tramoActual.beats) % tramoActual.beats) : 0;
+          const acento = (est.acentos && est.acentos[beatEnBarra]) || 'normal';
+          if(acento !== 'mudo') beepPractica(acento === 'fuerte', est.sonidoClick, acento === 'fuerte' ? est.volFuerte : est.volNormal, false, when);
+          // v3.276: paso al siguiente pulso — normalmente +secPerBeat
+          // (mismo tramo); si ese salto cruzaría el fin del tramo actual,
+          // se reancla EXACTO al inicio del tramo siguiente (su propio
+          // downbeat, que por construcción de recorrerTramosMusico es
+          // igual a finSeg) en vez de perderlo saltando a la grilla vieja.
+          let siguiente = tAbs + secPerBeat;
+          if(tramoActual.finSeg !== Infinity && siguiente > tramoActual.finSeg + 1e-9){
+            siguiente = tramoActual.finSeg;
+          }
+          est.schedNextBeatAbs = siguiente;
         }
-        const acento = (est.acentos && est.acentos[beatEnBarra]) || 'normal';
-        if(acento !== 'mudo') beepPractica(acento === 'fuerte', est.sonidoClick, acento === 'fuerte' ? est.volFuerte : est.volNormal, false, when);
-        est.schedNextBeatIdx++;
+      } else {
+        // libreOn: sin tramos ni offset de canción — mismo criterio de
+        // siempre, índice simple sobre tRelClick (=tRel acá, ver arriba).
+        let resyncClick = false;
+        if(est.schedNextBeatIdx == null) resyncClick = true;
+        else if(tRelClick < -SCHED_LOOKAHEAD_SEC) resyncClick = est.schedNextBeatIdx !== 0;
+        else if(tRelClick >= 0) resyncClick = Math.abs(est.schedNextBeatIdx * secPerBeat - tRelClick) > secPerBeat * 1.5;
+        if(resyncClick) est.schedNextBeatIdx = Math.max(0, Math.ceil(tRelClick / secPerBeat));
+        while(est.schedNextBeatIdx * secPerBeat < ventanaHastaClick){
+          const beatTime = est.schedNextBeatIdx * secPerBeat;
+          const when = ahoraCtx + (beatTime - tRelClick);
+          const beatEnBarra = ((est.schedNextBeatIdx % compasEfectivoDe(est)) + compasEfectivoDe(est)) % compasEfectivoDe(est);
+          const acento = (est.acentos && est.acentos[beatEnBarra]) || 'normal';
+          if(acento !== 'mudo') beepPractica(acento === 'fuerte', est.sonidoClick, acento === 'fuerte' ? est.volFuerte : est.volNormal, false, when);
+          est.schedNextBeatIdx++;
+        }
       }
     }
 
@@ -4388,10 +4464,20 @@ function actualizarUIAjustesPractica(uid){
   if(volNormalMini) volNormalMini.value = Math.round((est.volNormal == null ? 0.55 : est.volNormal) * 100);
 }
 
+// v3.275: (a pedido) el panel vive lejos, más abajo en el DOM — en
+// mobile no había ninguna señal de que el toggle hizo algo hasta que
+// el músico scrolleaba a mano y se topaba con él "por casualidad".
+// Ahora el botón ⚙️ queda encendido (.activo, mismo dorado que ya usan
+// los otros toggles) mientras el panel está abierto, y al abrirlo se
+// hace scrollIntoView para llevarlo a la vista automáticamente.
 function toggleAjustesPractica(uid){
   const panel = document.getElementById('ajustes-' + uid);
   if(!panel) return;
-  panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  const abierto = panel.style.display === 'none';
+  panel.style.display = abierto ? 'flex' : 'none';
+  const btn = document.getElementById('ajustesbtn-' + uid);
+  if(btn) btn.classList.toggle('activo', abierto);
+  if(abierto) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function ajustarBpmPractica(uid, delta){
@@ -4575,15 +4661,17 @@ function actualizarFiguraPenduloPractica(uid, valor){
 function cambiarVelocidadPenduloPractica(uid, valor){
   const est = estadoPractica[uid];
   if(!est) return;
-  const n = PENDULO_VELOCIDAD_ORDEN.includes(valor) ? valor : 1;
-  est.pendVelocidadOverride = (n === 1) ? null : n;
+  const n = PENDULO_VELOCIDAD_ORDEN.includes(valor) ? valor : 2;
+  // v3.275: default pasa de ×1 (redonda) a ×2 (blanca) — ahora es ×2
+  // el valor que NO se guarda como override (null = "usar el default").
+  est.pendVelocidadOverride = (n === 2) ? null : n;
   actualizarFiguraPenduloPractica(uid, n);
   guardarAjustesPractica(uid);
 }
 function ciclarVelocidadPenduloPractica(uid){
   const est = estadoPractica[uid];
   if(!est) return;
-  const actual = est.pendVelocidadOverride || 1;
+  const actual = est.pendVelocidadOverride || 2; // v3.275: default ×2 (antes ×1)
   const idx = PENDULO_VELOCIDAD_ORDEN.indexOf(actual);
   const siguiente = PENDULO_VELOCIDAD_ORDEN[(idx + 1) % PENDULO_VELOCIDAD_ORDEN.length];
   cambiarVelocidadPenduloPractica(uid, siguiente);
@@ -4616,7 +4704,7 @@ function restablecerAjustesPractica(uid){
     if(btnSubdiv) btnSubdiv.classList.toggle('activo', s === 1);
   });
   est.pendVelocidadOverride = null;
-  actualizarFiguraPenduloPractica(uid, 1);
+  actualizarFiguraPenduloPractica(uid, 2); // v3.275: default ×2 (antes ×1)
   est.sonidoClick = 'clasico';
   est.sonidoClave = 'clasico';
   est.acentos = acentosPorDefecto(compasEfectivoDe(est));
@@ -5262,7 +5350,7 @@ function actualizarContadorPractica(uid, tiempoActual){
     // reescala el tiempo, no se rompe la continuidad. En ×1 da
     // exactamente el mismo resultado que antes (ver barIndex/fracBar
     // arriba, sin cambios).
-    const velocidadPendulo = est.pendVelocidadOverride || 1;
+    const velocidadPendulo = est.pendVelocidadOverride || 2; // v3.275: default ×2 (antes ×1)
     const absCiclo = (barIndex + fracBar) * velocidadPendulo;
     const ciclo = Math.floor(absCiclo);
     const fracCiclo = absCiclo - ciclo;
@@ -11062,7 +11150,7 @@ function crearEstadoPracticaParaTema(tema){
     claveOverride: undefined,
     sonidoClick: 'clasico',
     sonidoClave: 'clasico',
-    claveActiva: true,
+    claveActiva: false, // v3.275: (a pedido) clave apagada por defecto (antes true)
     acentos: acentosPorDefecto(compasesPorBarra),
     acentosClave: acentosClavePorDefecto(),
     volFuerte: 1,
