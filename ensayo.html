@@ -4907,25 +4907,32 @@ function toggleMetronomoLibre(uid){
 
   const arrancarMetronomoReal = () => {
     est.metroLibreActivo = true;
-    est.metroLibreInicio = performance.now(); // referencia SOLO para lo visual (tick de abajo) — ver metroLibreInicioAudio
-    // v3.273: (a pedido) FIX raíz del "doble click / blur / arrastradito"
-    // del metro libre en mobile — antes, schedulerTickGlobalPractica
+    // v3.273: FIX raíz del "doble click / blur / arrastradito" del
+    // metro libre en mobile — antes, schedulerTickGlobalPractica
     // calculaba el tiempo transcurrido del metro libre con
-    // performance.now() (est.metroLibreInicio) pero agendaba el audio
-    // con audioCtxPractica.currentTime (ahoraCtx): dos relojes DISTINTOS
+    // performance.now() pero agendaba el audio con
+    // audioCtxPractica.currentTime (ahoraCtx): dos relojes DISTINTOS
     // que pueden desfasarse entre sí en mobile. "Con pista" nunca pasaba
     // esto porque ahí tRel y ahoraCtx salen del MISMO reloj
-    // (motor.currentTime). Ahora el metro libre también ancla su tiempo
-    // transcurrido a audioCtxPractica.currentTime (metroLibreInicioAudio)
-    // — mismo reloj que ahoraCtx, sin margen para desfasarse. Lo visual
-    // (tick/actualizarContadorPractica de abajo) se deja con
-    // performance.now() tal cual: el jitter ahí no se nota ni se oye.
+    // (motor.currentTime). El metro libre ancla su tiempo transcurrido
+    // a audioCtxPractica.currentTime (metroLibreInicioAudio) — mismo
+    // reloj que ahoraCtx, sin margen para desfasarse.
+    // v3.274: (a pedido) FIX — con el audio ya anclado al reloj de
+    // audioCtxPractica pero el "tick" visual (número/dots, de abajo)
+    // todavía en performance.now(), el número/dots quedaban desfasados
+    // CONTRA el click (antes iban desfasados los dos juntos del mismo
+    // modo, así que no se notaba). Se unifica: el tick visual también
+    // usa audioCtxPractica.currentTime - metroLibreInicioAudio, el
+    // MISMO cálculo que usa el scheduler de audio — audio y visual
+    // quedan atados al mismo reloj, sin forma de desfasarse entre sí.
+    // est.metroLibreInicio (performance.now()) ya no se usa en ningún
+    // lado del metro libre, se deja de asignar.
     obtenerAudioCtxPractica();
     est.metroLibreInicioAudio = audioCtxPractica.currentTime;
     if(btn){ btn.textContent = '⏸'; btn.title = 'Metrónomo sonando — tocar para detener'; btn.classList.add('activo'); }
     const tick = () => {
       if(!est.metroLibreActivo) return;
-      const tSimulado = (performance.now() - est.metroLibreInicio) / 1000;
+      const tSimulado = audioCtxPractica.currentTime - est.metroLibreInicioAudio;
       actualizarContadorPractica(uid, tSimulado);
       requestAnimationFrame(tick);
     };

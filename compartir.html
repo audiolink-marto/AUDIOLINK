@@ -3,8 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Tema compartido v2.12</title>
-<!-- AUDIOLINK · compartir.html · v2.12
+<title>Audiolink — Tema compartido v2.13</title>
+<!-- AUDIOLINK · compartir.html · v2.13
+     v2.13: (portado de ensayo.html v3.274) FIX — con el audio ya
+     anclado al reloj de audioCtxPractica (v2.12) pero el tick visual
+     (número/dots) todavía en performance.now(), quedaban desfasados
+     ENTRE SÍ (antes iban desfasados los dos juntos, no se notaba). Se
+     unifica: el tick visual también usa audioCtxPractica.currentTime -
+     metroLibreInicioAudio, el MISMO cálculo que usa el scheduler de
+     audio. est.metroLibreInicio (performance.now()) ya no se usa en
+     ningún lado del metro libre, se deja de asignar.
      v2.12: (portado de ensayo.html v3.273) FIX raíz del "doble click /
      blur auditivo" del metro libre en mobile — anclado ahora a
      audioCtxPractica.currentTime (est.metroLibreInicioAudio) en vez de
@@ -4693,19 +4701,22 @@ function toggleMetronomoLibre(uid){
 
   const arrancarMetronomoReal = () => {
     est.metroLibreActivo = true;
-    est.metroLibreInicio = performance.now(); // referencia SOLO para lo visual (tick de abajo) — ver metroLibreInicioAudio
     // v2.12: (portado de ensayo.html v3.273) FIX raíz del "doble click /
     // blur / arrastradito" del metro libre en mobile — antes se
     // calculaba el tiempo transcurrido con performance.now() pero se
     // agendaba el audio con audioCtxPractica.currentTime (dos relojes
     // distintos que pueden desfasarse). Ahora ancla a
     // audioCtxPractica.currentTime, mismo reloj que usa el scheduler.
+    // v2.13: (portado de ensayo.html v3.274) FIX — el tick visual
+    // (número/dots, de abajo) también se unifica a este mismo reloj,
+    // así audio y visual quedan atados sin forma de desfasarse entre
+    // sí. est.metroLibreInicio (performance.now()) ya no se asigna.
     obtenerAudioCtxPractica();
     est.metroLibreInicioAudio = audioCtxPractica.currentTime;
     if(btn){ btn.textContent = '⏸'; btn.title = 'Metrónomo sonando — tocar para detener'; btn.classList.add('activo'); }
     const tick = () => {
       if(!est.metroLibreActivo) return;
-      const tSimulado = (performance.now() - est.metroLibreInicio) / 1000;
+      const tSimulado = audioCtxPractica.currentTime - est.metroLibreInicioAudio;
       actualizarContadorPractica(uid, tSimulado);
       requestAnimationFrame(tick);
     };
