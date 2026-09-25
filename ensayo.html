@@ -9,8 +9,45 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AUDIOLINK Ensayo">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Audiolink — Ensayo v3.276</title>
-<!-- AUDIOLINK · ensayo.html · v3.276
+<title>Audiolink — Ensayo v3.280</title>
+<!-- AUDIOLINK · ensayo.html · v3.280
+     v3.280: (a pedido) el chip xN/placeholder del loop (v3.277) solo
+     se encendía al usar un preset (loopRapidoCompasesPractica) o al
+     reabrir un loop guardado (aplicarLoopGuardadoPractica) — el loop
+     MANUAL (marcarLoopPractica, a mano en la onda) nunca lo tocaba. Se
+     agrega el mismo criterio ahí. Mismo cambio en compartir.html
+     (v2.19), donde además es más notorio porque el loop del invitado
+     no persiste entre visitas y casi siempre se marca a mano.
+     v3.279: (a pedido) chip "compás actual/último de la sección"
+     pegado a la barra de seguimiento (ej. "12/16") — dato fijo,
+     siempre visible, separado del texto contextual de abajo (progtxt,
+     que sigue mostrando "Siguiente: ..." o quedando vacío). Numeración
+     absoluta, mismo criterio que ya usa "Compás X–Y" en la etiqueta de
+     sección. Sin sección activa, o en el hueco fuera de sección (loop
+     "en el aire"), el chip queda vacío — no hay un "total" claro ahí.
+     Mismo cambio en compartir.html (v2.18).
+     v3.278: (a pedido) 3 ajustes en el bloque de práctica: (1) el
+     botón ✕ de cancelar loop activo se muda del playerbar (donde vivía
+     pegado a los botones tipo CUE) al renglón de "Loop rápido", donde
+     corresponde; (2) la línea de la regla de compás en el waveform
+     (marca el primer tiempo de cada compás visible) pasa de dorado a
+     rojo — solo la línea, el número/hora arriba sigue dorado; (3) la
+     barra de seguimiento sube de 5px a 9px (se lee mejor de reojo en
+     mobile), el tick de "mayor" (inicio de frase, cada 4 compases) ya
+     no se distingue solo por el grosor sino que además sobresale 2px
+     arriba/abajo de la barra, y el rango de loop marcado sube de 35%
+     a 50% de opacidad. Mismos 3 cambios en compartir.html (v2.17).
+     v3.277: (a pedido) el loop guardado del tema (GUIAS2.loop) ya se
+     re-aplicaba solo (ver aplicarLoopGuardadoPractica, v3.251) pero
+     ningún chip x1/x2/x4/.../x64 se encendía para mostrar cuál se
+     usó — solo se veía en el texto "(N comp.)". Ahora, si
+     loop.compases coincide con un preset fijo, se enciende ese chip
+     (mismo estilo que al tocarlo en vivo); si NO coincide con ninguno
+     (loop dibujado a mano en la onda), se muestra un placeholder "xN"
+     en vez de dejar todo apagado. limpiarPresetsLoopPractica también
+     apaga este placeholder al elegir un preset fijo en vivo. Mismo
+     cambio en compartir.html (v2.16), para que un loop marcado desde
+     acá también se vea con el chip correcto al abrirlo del otro lado.
      v3.276: (a pedido) FIX real — el click sincronizado ahora se re-ancla
      al INICIO DE CADA TRAMO (sección), igual que ya hacía el contador
      visual (actualizarContadorPractica). Antes, con una sección que
@@ -1000,12 +1037,28 @@ main{padding:28px;max-width:760px;margin:0 auto;}
   .practica-seccion-local-header-tiempo{flex-basis:100%;order:4;white-space:normal;}
 }
 .practica-progreso{margin-top:8px;}
-.practica-progreso-barra{position:relative;width:100%;height:5px;background:var(--surf-light);border-radius:3px;overflow:hidden;cursor:pointer;}
-.practica-progreso-looprange{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.35;display:none;pointer-events:none;}
+/* v3.278: (a pedido) más alta (5px→9px) para leerse mejor de reojo en
+   mobile mientras se toca; overflow pasa a visible porque el tick
+   "mayor" ahora sobresale un poco arriba/abajo de la barra (ver
+   .practica-progreso-tick.mayor) para marcarse más que con solo el
+   grosor. */
+.practica-progreso-barra{position:relative;width:100%;height:9px;background:var(--surf-light);border-radius:4px;overflow:visible;cursor:pointer;}
+.practica-progreso-looprange{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.5;display:none;pointer-events:none;}
 .practica-progreso-ticks{position:absolute;inset:0;pointer-events:none;}
 .practica-progreso-tick{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.35);}
-.practica-progreso-tick.mayor{width:2px;background:rgba(0,0,0,.55);}
-.practica-progreso-fill{height:100%;width:0%;background:var(--gold);transition:width 0.15s linear;}
+/* v3.278: el tick de "mayor" (inicio de frase, cada 4 compases) ya no
+   se distingue solo por el grosor (1px→2px, casi imperceptible) —
+   ahora además sobresale 2px arriba/abajo de la barra. */
+.practica-progreso-tick.mayor{width:2px;background:rgba(0,0,0,.55);top:-2px;bottom:-2px;}
+.practica-progreso-fill{height:100%;width:0%;background:var(--gold);transition:width 0.15s linear;border-radius:4px;}
+/* v3.279: (a pedido) chip "compás actual/último de la sección" pegado
+   a la barra — dato fijo (como el 0:00/2:34 del player), separado del
+   texto contextual de abajo (progtxt, que sigue con "Siguiente: ...").
+   .practica-progreso-row envuelve barra+chip en una fila; la barra
+   toma el espacio flexible, el chip es de ancho fijo chico. */
+.practica-progreso-row{display:flex;align-items:center;gap:8px;}
+.practica-progreso-row .practica-progreso-barra{flex:1 1 auto;}
+.practica-progreso-compas{flex:0 0 auto;font-size:0.72rem;font-weight:700;color:var(--muted);white-space:nowrap;min-width:2.6em;text-align:right;}
 .practica-progreso-texto{font-size:0.94rem;font-weight:700;color:var(--gold);margin-top:6px;text-align:center;}
 /* v3.58: (a pedido) flex-wrap para poder sumar botón de reinicio +
    slider de volumen sin apretar la fila — la barra de búsqueda
@@ -1060,6 +1113,11 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 }
 .btn-preset:hover{border-color:var(--gold);color:var(--gold);}
 .btn-preset.activo{background:var(--gold);border-color:var(--gold);color:#1a1408;}
+/* v3.277: placeholder para loops guardados que NO coinciden con ningún
+   preset fijo (loop manual, dibujado a mano en la onda) — mismo look
+   que .btn-preset.activo pero sin cursor de botón, es solo indicador. */
+.btn-preset-custom{cursor:default;}
+.btn-preset-custom:hover{border-color:var(--brd);color:var(--muted);}
 .practica-local-row{margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 /* v3.168: (a pedido) "Usar canción del dispositivo" pasa de botón
    ancho de texto a pad cuadrado (mismo tamaño 44x44 que CUE/loop/
@@ -2914,10 +2972,13 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
         <button class="practica-local-pad prominente" id="localpadcta-${uid}" onclick="document.getElementById('filein-${uid}').click()" title="Usar canción del dispositivo"><span class="practica-local-pad-icono">⬆</span> Cargar canción del dispositivo</button>
 
         <div class="practica-progreso">
-          <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop">
-            <div class="practica-progreso-looprange" id="progloop-${uid}"></div>
-            <div class="practica-progreso-fill" id="progfill-${uid}"></div>
-            <div class="practica-progreso-ticks" id="progticks-${uid}"></div>
+          <div class="practica-progreso-row">
+            <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop">
+              <div class="practica-progreso-looprange" id="progloop-${uid}"></div>
+              <div class="practica-progreso-fill" id="progfill-${uid}"></div>
+              <div class="practica-progreso-ticks" id="progticks-${uid}"></div>
+            </div>
+            <span class="practica-progreso-compas" id="progcompas-${uid}"></span>
           </div>
           <div class="practica-progreso-texto" id="progtxt-${uid}"></div>
         </div>
@@ -2939,7 +3000,6 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
             <button class="practica-cue-pad" id="cuequitarbtn-${uid}" onclick="quitarCuePractica('${uid}')" title="Quita el CUE — el play vuelve a arrancar desde el offset">✕</button>
             <button class="practica-cue-pad" id="cueclickbtn-${uid}" onclick="toggleArmarCueWaveform('${uid}')" title="Después de tocar esto, el próximo click en la onda marca el CUE ahí">📍</button>
           </span>
-          <button class="practica-cue-pad" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')" title="Cancela el loop activo" style="display:none;">✕</button>
           <button class="practica-click-btn practica-click-btn-etiqueta" id="snapmodo-${uid}" onclick="toggleModoSnapPractica('${uid}')">🧲 Compás</button>
           </div>
           <div class="practica-pb-grupo practica-pb-tiempo">
@@ -2961,11 +3021,13 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
             <span class="loop-presets-label">Loop rápido:</span>
             <div class="loop-presets">
               ${[1,2,4,8,16,32,64].map(n => `<button type="button" class="btn-preset" id="looppreset-${uid}-${n}" onclick="loopRapidoCompasesPractica('${uid}', ${n})" title="Loop de ${n} compás${n === 1 ? '' : 'es'} desde acá">x${n}</button>`).join('')}
+              <span class="btn-preset btn-preset-custom" id="looppresetcustom-${uid}" style="display:none;" title="Loop guardado a mano (no coincide con ningún preset)"></span>
             </div>
             <div class="loop-presets-custom">
               <input type="number" class="loop-presets-custom-input" id="loopcustomn-${uid}" min="1" step="1" inputmode="numeric" placeholder="N°" title="Cantidad de compases del loop" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarLoopCustomPractica('${uid}');}">
               <button type="button" class="btn-preset" onclick="aplicarLoopCustomPractica('${uid}')" title="Loop de la cantidad de compases indicada, desde acá">Ir</button>
             </div>
+            <button class="practica-cue-pad" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')" title="Cancela el loop activo" style="display:none;">✕</button>
           </div>
           <span class="practica-loop-info" id="loopinfo-${uid}"></span>
         </div>
@@ -4805,6 +4867,21 @@ function marcarLoopPractica(uid, tOverride){
     const secPerBarInfo = (60 / bpmLoop) * beatsDeT * factorDeT;
     const numCompases = Math.round((est.loopFin - est.loopInicio) / secPerBarInfo);
     if(info) info.textContent = `↻ Loop: ${segundosATextoPractica(est.loopInicio)} → ${segundosATextoPractica(est.loopFin)} (${numCompases} comp.)`;
+    // v3.280: (a pedido) el loop MANUAL (a mano en la onda) no encendía
+    // ni el chip xN ni el placeholder — solo loopRapidoCompasesPractica
+    // y aplicarLoopGuardadoPractica lo hacían. Mismo criterio que ya
+    // usa aplicarLoopGuardadoPractica.
+    limpiarPresetsLoopPractica(uid);
+    const customBadgeManual = document.getElementById('looppresetcustom-' + uid);
+    const presetFijoManual = [1,2,4,8,16,32,64].includes(numCompases) ? document.getElementById('looppreset-' + uid + '-' + numCompases) : null;
+    if(presetFijoManual){
+      presetFijoManual.classList.add('activo');
+      if(customBadgeManual) customBadgeManual.style.display = 'none';
+    } else if(customBadgeManual && numCompases > 0){
+      customBadgeManual.textContent = 'x' + numCompases;
+      customBadgeManual.classList.add('activo');
+      customBadgeManual.style.display = '';
+    }
     guardarLoopTemaPractica({ inicio: est.loopInicio, fin: est.loopFin, compases: numCompases }); // v3.251
     aplicarLoopNativoPractica(uid);
     dibujarWaveform(uid, est.getTiempoActual());
@@ -4829,6 +4906,27 @@ function aplicarLoopGuardadoPractica(uid, loop){
   const ini = Number(loop.inicio), fin = Number(loop.fin);
   if(!isFinite(ini) || !isFinite(fin) || ini < 0 || fin <= ini) return;
   est.loopInicio = ini; est.loopFin = fin; est.loopActivo = true;
+  // v3.277: (a pedido) marca visualmente qué preset xN quedó guardado
+  // (antes solo se veía en el texto de abajo, ningún chip se
+  // encendía). Si compases no coincide con ningún preset fijo (loop
+  // manual dibujado a mano), se enciende un placeholder "xN" en vez de
+  // dejar todo apagado.
+  limpiarPresetsLoopPractica(uid);
+  const nCompChip = Number(loop.compases);
+  const customBadge = document.getElementById('looppresetcustom-' + uid);
+  const presetFijo = [1,2,4,8,16,32,64].includes(nCompChip) ? document.getElementById('looppreset-' + uid + '-' + nCompChip) : null;
+  if(presetFijo){
+    presetFijo.classList.add('activo');
+    if(customBadge) customBadge.style.display = 'none';
+  } else if(customBadge){
+    if(nCompChip > 0){
+      customBadge.textContent = 'x' + nCompChip;
+      customBadge.classList.add('activo');
+      customBadge.style.display = '';
+    } else {
+      customBadge.style.display = 'none';
+    }
+  }
   const btn = document.getElementById('loopbtn-' + uid);
   const info = document.getElementById('loopinfo-' + uid);
   if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; btn.style.display = ''; }
@@ -4956,6 +5054,9 @@ function limpiarPresetsLoopPractica(uid){
     const b = document.getElementById('looppreset-' + uid + '-' + n);
     if(b) b.classList.remove('activo');
   });
+  // v3.277: apaga también el placeholder de loop custom (ver aplicarLoopGuardadoPractica)
+  const customBadge = document.getElementById('looppresetcustom-' + uid);
+  if(customBadge){ customBadge.classList.remove('activo'); customBadge.style.display = 'none'; }
 }
 
 // v2.2: metrónomo de práctica libre — sin reproductor real, usa un
@@ -5538,6 +5639,15 @@ function actualizarContadorPractica(uid, tiempoActual){
     // grande), no el cálculo plano contra el compás general. Sin
     // compasOverride cargado, mismo resultado de siempre.
     const barInicio = compasDeSegundosMusico(tramosContador, inicioSec);
+    // v3.279: (a pedido) chip "compás actual/último" pegado a la barra
+    // — mismo criterio de numeración absoluta que ya usa el rango
+    // "Compás X–Y" de la etiqueta de sección, de abajo.
+    const elCompas = document.getElementById('progcompas-' + uid);
+    if(elCompas && !refLoopHueco){
+      const barFinChip = barInicio + compasesSeccion - 1;
+      const compasActualChip = Math.min(barFinChip, barInicio + Math.floor((tiempoActual - inicioSec) / secPerBarTramoActual));
+      elCompas.textContent = `${compasActualChip}/${barFinChip}`;
+    }
     if(elSeccion){
       const barFin = barInicio + compasesSeccion - 1;
       elSeccion.style.setProperty('--sec-color', colorDeSeccionEnLista(secciones, actualIdx));
@@ -5561,6 +5671,7 @@ function actualizarContadorPractica(uid, tiempoActual){
     // entre paréntesis — para el músico, la distancia real es "en
     // cuántos compases", no en segundos. Mismo secPerBar/finSec que ya
     // calcula el resto de esta función.
+    if(elCompas && refLoopHueco) elCompas.textContent = '';
     if(elTxt){
       if(refLoopHueco){
         elTxt.textContent = 'En loop (fuera de sección)';
@@ -5680,11 +5791,15 @@ function actualizarContadorPractica(uid, tiempoActual){
       actualizarLoopRangeProgresoPractica(uid, est, inicioLoopBar, finLoopBar);
       if(elTxt) elTxt.textContent = 'En loop (fuera de sección)';
       if(elSeccion) elSeccion.innerHTML = '—';
+      const elCompasLoop = document.getElementById('progcompas-' + uid);
+      if(elCompasLoop) elCompasLoop.textContent = '';
     } else {
       elFill.style.width = '0%';
       elFill.style.background = ''; // v3.35: sin sección activa, vuelve al dorado por defecto (CSS)
       if(elTxt) elTxt.textContent = '';
       if(elSeccion) elSeccion.innerHTML = '—';
+      const elCompasVacio = document.getElementById('progcompas-' + uid);
+      if(elCompasVacio) elCompasVacio.textContent = '';
       est.progresoTicksCompases = null;
       const contTicksVacio = document.getElementById('progticks-' + uid);
       if(contTicksVacio) contTicksVacio.innerHTML = '';
@@ -6968,6 +7083,10 @@ function dibujarWaveform(uid, tiempoActual){
   const colorBarraOn = esTemaClaro ? (estilos.getPropertyValue('--lila').trim() || '#7d5fae') : colorProgreso;
   const colorBarraOff = esTemaClaro ? '#8f897c' : colorFaint;
   const colorGold = estilos.getPropertyValue('--gold').trim() || '#c9a24b';
+  // v3.278: (a pedido) la línea de la regla de compás (principal y
+  // secundaria, marca el primer tiempo de cada compás visible) pasa de
+  // dorado a rojo — solo la LÍNEA, el número/hora arriba sigue dorado.
+  const colorPrimerTiempo = estilos.getPropertyValue('--err').trim() || '#d4574a';
   const colorVeloSinSeccion = estilos.getPropertyValue('--velo-sin-seccion').trim() || 'rgba(0,0,0,0.45)';
 
   // v3.27: (a pedido) fx de "encendido" al pasar por un tick/sección —
@@ -7305,7 +7424,7 @@ function dibujarWaveform(uid, tiempoActual){
       ctxDraw.lineWidth = 2.5;
     }else{
       ctxDraw.shadowBlur = 0;
-      ctxDraw.strokeStyle = colorGold;
+      ctxDraw.strokeStyle = colorPrimerTiempo;
       ctxDraw.lineWidth = 1;
     }
     ctxDraw.beginPath();
@@ -7341,7 +7460,7 @@ function dibujarWaveform(uid, tiempoActual){
       ctxDraw.lineWidth = 2.5;
     }else{
       ctxDraw.shadowBlur = 0;
-      ctxDraw.strokeStyle = colorGold;
+      ctxDraw.strokeStyle = colorPrimerTiempo;
       ctxDraw.lineWidth = 1;
     }
     ctxDraw.beginPath();
@@ -7422,7 +7541,7 @@ function dibujarWaveform(uid, tiempoActual){
         }else{
           ctxDraw.shadowBlur = 0;
           ctxDraw.globalAlpha = 0.22;
-          ctxDraw.strokeStyle = colorGold;
+          ctxDraw.strokeStyle = colorPrimerTiempo;
           ctxDraw.lineWidth = 1;
         }
         ctxDraw.beginPath();
