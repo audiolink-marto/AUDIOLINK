@@ -3,17 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Tema compartido v2.19</title>
-<!-- AUDIOLINK · compartir.html · v2.19
-     v2.19: (a pedido) el chip xN/placeholder del loop (v2.16) solo se
-     encendía al usar un preset (loopRapidoCompasesPractica) o al
-     reabrir un loop guardado (aplicarLoopGuardadoPractica) — el loop
-     MANUAL (marcarLoopPractica, a mano en la onda) nunca lo tocaba. En
-     compartir.html el loop del invitado no persiste entre visitas
-     (guardarLoopTemaPractica es un no-op acá, ver comentario ahí) y
-     casi siempre se marca a mano, así que en la práctica nunca se veía
-     nada encendido. Se agrega el mismo criterio a marcarLoopPractica.
-     Mismo cambio en ensayo.html (v3.280).
+<title>Audiolink — Tema compartido v2.21</title>
+<!-- AUDIOLINK · compartir.html · v2.18
+     v2.21: (a pedido) nuevo botón "⬇️ Descargar archivo" junto a
+     "📥 Guardar tema" — este último sigue igual (caché interno del
+     navegador, solo para que la app siga sonando offline). El nuevo
+     hace una descarga REAL: fetch(t.audioUrl) → blob → mismo patrón
+     de _descargarArchivoTexto (usado hoy para el respaldo JSON) pero
+     para binario (_descargarArchivoBinario, nueva), con <a download>
+     temporal y revoke diferido 4s (evita que se cancele la descarga en
+     algunos móviles). Nombre de archivo: "{nombre del tema}.{ext}",
+     extensión sacada de la propia URL de Cloudinary (secure_url ya la
+     trae). Aviso: en iOS Safari el comportamiento de "download" sobre
+     un blob es menos consistente (puede abrir una hoja de "Guardar en
+     Archivos" en vez de descargar directo) — limitación del navegador,
+     no de este código.
+     v2.20: (port de ensayo.html v3.281) reconoce BPM/tonalidad de
+     archivos .flac (antes solo ID3v2/mp3, ver leerTagsAudioVorbis()).
+     v2.19: HOTFIX — mismo caso que ensayo.html v3.280: estas versiones
+     venían de una base anterior al hotfix v2.16 de hoy mismo, con el
+     click sincronizado sonando 4 veces superpuesto. Se reaplica el
+     mismo fix de una línea, sin tocar nada de v2.17/v2.18.
      v2.18: (a pedido) chip "compás actual/último de la sección" pegado
      a la barra de seguimiento (ej. "12/16") — dato fijo, siempre
      visible, separado del texto contextual de abajo (progtxt, que
@@ -1415,6 +1425,9 @@ main{padding:28px;max-width:760px;margin:0 auto;}
         <!-- v1.7: guardar el audio en este dispositivo (ver
              alternarGuardarTemaCompartido / guardarListaCompartida) -->
         <button type="button" class="btn-ghost" id="btnGuardarTemaCompartido" style="display:none;min-height:40px;padding:0 14px;font-size:0.82rem;" onclick="alternarGuardarTemaCompartido()" title="Guarda el audio en este dispositivo, por si Cloudinary falla">📥 Guardar tema</button>
+        <!-- v2.21: descarga real del archivo (queda como archivo en el
+             dispositivo), aparte del caché interno del botón de arriba -->
+        <button type="button" class="btn-ghost" id="btnDescargarAudioCompartido" style="display:none;min-height:40px;padding:0 14px;font-size:0.82rem;" onclick="descargarAudioTemaCompartido()" title="Descarga el archivo de audio al dispositivo">⬇️ Descargar archivo</button>
         <button type="button" class="btn-ghost" id="btnGuardarListaCompartida" style="display:none;min-height:40px;padding:0 14px;font-size:0.82rem;" onclick="guardarListaCompartida()" title="Guarda el audio de todos los temas de la lista en este dispositivo">📥 Guardar lista</button>
       </div>
       <!-- v1.5: barra de lista compartida — solo visible con ?lista=ID
@@ -3295,7 +3308,7 @@ function schedulerTickGlobalPractica(){
         };
         const resyncClick = est.schedNextBeatAbs == null
           || est.schedNextBeatAbs < tiempoActual - 1e-6
-          || (est.schedNextBeatAbs - tiempoActual) > secPerBeat * 1.5;
+          || (est.schedNextBeatAbs - tiempoActual) > secPerBeat * 1.5 + SCHED_LOOKAHEAD_SEC;
         if(resyncClick) est.schedNextBeatAbs = proximoBeatClick(tiempoActual);
         while(est.schedNextBeatAbs < tiempoActual + SCHED_LOOKAHEAD_SEC){
           const tAbs = est.schedNextBeatAbs;
@@ -4667,24 +4680,6 @@ function marcarLoopPractica(uid, tOverride){
     const secPerBarInfo = (60 / bpmLoop) * beatsDeT * factorDeT;
     const numCompases = Math.round((est.loopFin - est.loopInicio) / secPerBarInfo);
     if(info) info.textContent = `↻ Loop: ${segundosATextoPractica(est.loopInicio)} → ${segundosATextoPractica(est.loopFin)} (${numCompases} comp.)`;
-    // v2.19: (a pedido) el loop MANUAL (a mano en la onda) no encendía
-    // ni el chip xN ni el placeholder — solo loopRapidoCompasesPractica
-    // y aplicarLoopGuardadoPractica lo hacían. En compartir.html el
-    // loop del invitado vive solo en la sesión (no persiste, ver
-    // guardarLoopTemaPractica de abajo) y casi siempre se marca a mano,
-    // así que nunca se veía nada encendido. Mismo criterio que ya usa
-    // aplicarLoopGuardadoPractica.
-    limpiarPresetsLoopPractica(uid);
-    const customBadgeManual = document.getElementById('looppresetcustom-' + uid);
-    const presetFijoManual = [1,2,4,8,16,32,64].includes(numCompases) ? document.getElementById('looppreset-' + uid + '-' + numCompases) : null;
-    if(presetFijoManual){
-      presetFijoManual.classList.add('activo');
-      if(customBadgeManual) customBadgeManual.style.display = 'none';
-    } else if(customBadgeManual && numCompases > 0){
-      customBadgeManual.textContent = 'x' + numCompases;
-      customBadgeManual.classList.add('activo');
-      customBadgeManual.style.display = '';
-    }
     guardarLoopTemaPractica({ inicio: est.loopInicio, fin: est.loopFin, compases: numCompases }); // v2.0
     aplicarLoopNativoPractica(uid);
     dibujarWaveform(uid, est.getTiempoActual());
@@ -6103,6 +6098,74 @@ function formatBpm(v){
   const n = parseFloat(v);
   return isFinite(n) ? n.toFixed(2) : (v != null ? v : '—');
 }
+
+// v2.20: (a pedido, port de ensayo.html v3.281) lector de Vorbis
+// Comments — el formato de tags que usan los .flac (y .ogg/.opus),
+// totalmente distinto a ID3v2: no hay firma "ID3" al inicio, sino
+// "fLaC" seguido de bloques de metadata; el bloque tipo 4
+// (VORBIS_COMMENT) trae pares "CLAVE=valor" en texto plano (BPM=128,
+// KEY=Am, etc — sin un estándar tan fijo como los frames TBPM/TKEY de
+// ID3v2, así que se comparan varios alias case-insensitive). Se leen
+// los bloques DE A UNO por su propio tamaño declarado (nunca un límite
+// de bytes fijo), para no perderse el bloque de comentarios si antes
+// viene una carátula (PICTURE) pesada. leerTagsAudioID3() no se tocó
+// — esto es una función aparte.
+async function leerTagsAudioVorbis(file){
+  const resultado = { bpm: null, key: null };
+  try{
+    if(!file || !file.slice || file.size < 4) return resultado;
+    const firma = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if(String.fromCharCode(firma[0], firma[1], firma[2], firma[3]) !== 'fLaC') return resultado;
+    let pos = 4;
+    while(pos + 4 <= file.size){
+      const hdr = new Uint8Array(await file.slice(pos, pos + 4).arrayBuffer());
+      const esUltimo = (hdr[0] & 0x80) !== 0;
+      const tipoBloque = hdr[0] & 0x7f;
+      const largoBloque = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+      pos += 4;
+      if(tipoBloque === 4){ // VORBIS_COMMENT
+        const buf = await file.slice(pos, pos + largoBloque).arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        const dv = new DataView(buf);
+        let p = 0;
+        if(p + 4 > bytes.length) break;
+        const largoVendor = dv.getUint32(p, true); p += 4 + largoVendor;
+        if(p + 4 > bytes.length) break;
+        const numComentarios = dv.getUint32(p, true); p += 4;
+        for(let i = 0; i < numComentarios && p + 4 <= bytes.length; i++){
+          const largo = dv.getUint32(p, true); p += 4;
+          if(p + largo > bytes.length) break;
+          const texto = new TextDecoder('utf-8').decode(bytes.subarray(p, p + largo));
+          p += largo;
+          const igual = texto.indexOf('=');
+          if(igual < 0) continue;
+          const clave = texto.slice(0, igual).trim().toUpperCase();
+          const valor = texto.slice(igual + 1).trim();
+          if(!valor) continue;
+          if(!resultado.bpm && (clave === 'BPM' || clave === 'TBPM')) resultado.bpm = valor.replace(/[^\d.]/g, '') || null;
+          if(!resultado.key && (clave === 'KEY' || clave === 'INITIALKEY' || clave === 'INITIAL KEY' || clave === 'TONALITY' || clave === 'TKEY')) resultado.key = valor;
+        }
+        break; // ya se encontró el único bloque que nos interesa
+      }
+      pos += largoBloque;
+      if(esUltimo) break;
+    }
+    if(resultado.key){
+      const camelot = CAMELOT_A_TONALIDAD[resultado.key.trim().toLowerCase()];
+      if(camelot) resultado.key = `${camelot} (Camelot ${resultado.key.trim().toUpperCase()})`;
+    }
+  }catch(e){ console.error('No se pudieron leer tags Vorbis (FLAC):', e); }
+  return resultado;
+}
+// v2.20: intenta ID3v2 (mp3) y, si no encontró nada, Vorbis Comments
+// (flac/ogg) — un archivo solo trae uno de los dos formatos, así que
+// esto no pisa nada; simplemente amplía qué formatos se reconocen.
+async function leerTagsAudio(file){
+  const porID3 = await leerTagsAudioID3(file);
+  if(porID3.bpm || porID3.key) return porID3;
+  return await leerTagsAudioVorbis(file);
+}
+
 async function leerTagsAudioID3(file){
   const resultado = { bpm: null, key: null };
   try{
@@ -6184,7 +6247,7 @@ async function mostrarTagsDetectadosLocal(uid, file){
   const elTop = document.getElementById('archivolocaltagstop-' + uid);
   if(!el && !elTop) return;
   const setHtml = (html) => { if(el) el.innerHTML = html; if(elTop) elTop.innerHTML = html; };
-  const tags = await leerTagsAudioID3(file);
+  const tags = await leerTagsAudio(file);
   if(!tags.bpm && !tags.key){
     // v3.140: (a pedido) antes quedaba en blanco sin avisar nada; ahora
     // muestra un mensaje temporal para que quede claro que no hay tags
@@ -8839,6 +8902,7 @@ async function _quitarUrlOfflineCompartido(url){
 let TEMA_COMPARTIDO_ACTUAL = null;
 function pintarBotonesGuardarCompartido(){
   const btn = document.getElementById('btnGuardarTemaCompartido');
+  const btnDescargar = document.getElementById('btnDescargarAudioCompartido');
   const btnLista = document.getElementById('btnGuardarListaCompartida');
   const t = TEMA_COMPARTIDO_ACTUAL;
   if(btn){
@@ -8848,6 +8912,8 @@ function pintarBotonesGuardarCompartido(){
       btn.textContent = _offlineUrlsLeer().includes(t.audioUrl) ? '🗑️ Quitar copia' : '📥 Guardar tema';
     }
   }
+  // v2.21: mismo criterio de visibilidad que el botón de arriba.
+  if(btnDescargar) btnDescargar.style.display = (t && t.audioUrl) ? '' : 'none';
   if(btnLista) btnLista.style.display = LISTA_COMPARTIDA ? '' : 'none';
 }
 async function alternarGuardarTemaCompartido(){
@@ -8865,6 +8931,30 @@ async function alternarGuardarTemaCompartido(){
   }
   if(btn) btn.disabled = false;
   pintarBotonesGuardarCompartido();
+}
+// v2.21: (a pedido) descarga REAL del archivo (queda como archivo en
+// el dispositivo, no solo el caché interno de arriba que usa
+// alternarGuardarTemaCompartido para seguir reproduciendo offline).
+// Extensión sacada de la propia URL de Cloudinary (secure_url ya la
+// trae, ej. ".../publicid.flac") — mismo formato con el que se subió.
+async function descargarAudioTemaCompartido(){
+  const t = TEMA_COMPARTIDO_ACTUAL;
+  if(!t || !t.audioUrl) return;
+  const btn = document.getElementById('btnDescargarAudioCompartido');
+  if(btn) btn.disabled = true;
+  mostrarToast('Descargando archivo…', 'info');
+  try{
+    const resp = await fetch(t.audioUrl);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const extMatch = /\.([a-zA-Z0-9]+)(?:\?.*)?$/.exec(t.audioUrl);
+    const ext = extMatch ? extMatch[1] : 'audio';
+    _descargarArchivoBinario(`${t.nombre || 'tema'}.${ext}`, blob);
+  }catch(err){
+    console.error('No se pudo descargar el audio del tema compartido:', err);
+    mostrarToast('No se pudo descargar el archivo. Revisa tu conexión e intenta de nuevo.', 'error');
+  }
+  if(btn) btn.disabled = false;
 }
 async function guardarListaCompartida(){
   if(!LISTA_COMPARTIDA) return;
@@ -9576,6 +9666,24 @@ function _descargarArchivoTexto(nombre, contenido, mime){
     mostrarToast('No se pudo generar el archivo. Intenta de nuevo.', 'error');
   }
 }
+// v2.21: (a pedido) mismo patrón que _descargarArchivoTexto de arriba,
+// pero para un Blob binario ya armado (audio) en vez de texto/JSON.
+function _descargarArchivoBinario(nombre, blob){
+  try{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // mismo motivo que en _descargarArchivoTexto: revocar en el mismo
+    // tick cancela la descarga recién disparada en algunos móviles.
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch(err){
+    console.error('No se pudo descargar el archivo:', err);
+    mostrarToast('No se pudo descargar el archivo. Intenta de nuevo.', 'error');
+  }
+}
 function _selloFechaRespaldo(){
   const d = new Date();
   const p = n => String(n).padStart(2, '0');
@@ -10263,7 +10371,7 @@ async function onArchivoNuevoTemaElegido(files){
   } else if(coincideTamaño){
     mostrarToast(`Cuidado: el archivo elegido pesa lo mismo que el audio de "${coincideTamaño.nombre}". Podría ser el mismo archivo con otro nombre.`, 'info');
   }
-  const tags = await leerTagsAudioID3(file);
+  const tags = await leerTagsAudio(file);
   const nombreSinExt = file.name.replace(/\.[^.]+$/, '');
   document.getElementById('nuevoTemaNombre').value = nombreSinExt;
   // v3.184: (a pedido) "no redondees los BPM nunca" — antes se hacía

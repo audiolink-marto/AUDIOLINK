@@ -9,15 +9,60 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AUDIOLINK Ensayo">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Audiolink — Ensayo v3.280</title>
-<!-- AUDIOLINK · ensayo.html · v3.280
-     v3.280: (a pedido) el chip xN/placeholder del loop (v3.277) solo
-     se encendía al usar un preset (loopRapidoCompasesPractica) o al
-     reabrir un loop guardado (aplicarLoopGuardadoPractica) — el loop
-     MANUAL (marcarLoopPractica, a mano en la onda) nunca lo tocaba. Se
-     agrega el mismo criterio ahí. Mismo cambio en compartir.html
-     (v2.19), donde además es más notorio porque el loop del invitado
-     no persiste entre visitas y casi siempre se marca a mano.
+<title>Audiolink — Ensayo v3.284</title>
+<!-- AUDIOLINK · ensayo.html · v3.279
+     v3.284: (a pedido) FIX — la guía tipo imagen suelta (v3.283) se
+     mostraba "con scroll" en vez de encuadrada: .practica-score-imgwrap
+     (overflow:auto + max-height:80dvh) está pensado para páginas de
+     partitura altas, con scroll intencional. Ahora, cuando la guía NO
+     es un PDF (esPdf === false), renderPaginaGuiaPdf le fija al <img>
+     max-height:80dvh + object-fit:contain (además del max-width:100%
+     de siempre) — entra completa dentro del recuadro sin necesidad de
+     scroll. El caso PDF no cambia en nada.
+     v3.283: (a pedido) 2 cambios en "PDF de guía" (subir nuevo tema /
+     editar tema): (1) el campo ahora acepta también imágenes sueltas
+     (ej. una carátula subida por error en vez del PDF de siempre) —
+     accept pasa a "application/pdf,image/*". subirPdfACloudinary ya
+     no asume 'pdf' siempre: guarda también el formato real que
+     devuelve Cloudinary (data.format), guardarGuiaPdfEnCategoria lo
+     persiste como guiaPdfFormato en CATEGORIAS2, y
+     guiaPdfBloqueHtml/renderPaginaGuiaPdf lo usan para decidir si arma
+     la URL con la transformación pg_N (PDF real, como siempre) o el
+     archivo directo sin pg_N (imagen suelta, que no tiene páginas) —
+     categorías viejas sin este dato siguen asumiendo 'pdf', ningún PDF
+     existente cambia de comportamiento. (2) subirPdfACloudinary manda
+     ahora folder='GUIAS2PDF' explícito en el form — el preset
+     unsigned GUIAS2PDF no tenía folder fijo configurado en Cloudinary
+     (confirmado en el dashboard), por eso los archivos llegaban fuera
+     de esa carpeta.
+     v3.282: (a pedido) preview de audio al elegir archivo en "Subir
+     nuevo tema" — antes, tras elegir el archivo en subirArchivoInput,
+     no había forma de escucharlo antes de confirmar la subida (solo
+     se leían tags para precargar BPM/tonalidad). Ahora
+     onArchivoNuevoTemaElegido genera una URL local con
+     URL.createObjectURL(file) y la asigna a un <audio controls> nuevo
+     (previewAudioNuevoTema) que aparece debajo del input de archivo.
+     100% local, no toca Cloudinary/Firebase ni leerTagsAudio/
+     confirmarSubidaNuevoTema. Se guarda la URL en previewAudioUrl
+     para poder revocarla (URL.revokeObjectURL) antes de crear la
+     siguiente, evitando fugas de memoria si se elige varios archivos
+     seguidos; irASubirTema() también la revoca y oculta el
+     reproductor al abrir el formulario en blanco.
+     v3.281: (a pedido) reconoce BPM/tonalidad de archivos .flac — el
+     lector de tags solo entendía ID3v2 (formato de MP3); un .flac usa
+     Vorbis Comments, un formato de metadatos totalmente distinto, así
+     que con .flac la detección quedaba siempre vacía en silencio (no
+     era un problema del tamaño del archivo). Se agrega
+     leerTagsAudioVorbis() aparte, y leerTagsAudio() que prueba ID3v2 y
+     si no encuentra nada prueba Vorbis — leerTagsAudioID3() en sí no
+     se tocó. Los 2 lugares que llamaban a leerTagsAudioID3() pasan a
+     leerTagsAudio().
+     v3.280: HOTFIX — estas versiones (subidas como "últimas") venían de
+     una base anterior al hotfix v3.277 de hoy mismo: el click
+     sincronizado sonaba 4 VECES SUPERPUESTO por cada pulso (margen de
+     resync insuficiente frente al lookahead real de 0.35s desde
+     v3.272). Se reaplica el mismo fix de una línea (secPerBeat*1.5 +
+     SCHED_LOOKAHEAD_SEC) sin tocar nada de v3.278/v3.279.
      v3.279: (a pedido) chip "compás actual/último de la sección"
      pegado a la barra de seguimiento (ej. "12/16") — dato fijo,
      siempre visible, separado del texto contextual de abajo (progtxt,
@@ -1569,6 +1614,8 @@ body{min-height:100dvh;}
     <div class="subir-box">
       <label>Archivo de audio</label>
       <input type="file" id="subirArchivoInput" accept="audio/*" onchange="onArchivoNuevoTemaElegido(this.files)">
+      <!-- v3.282: preview local del archivo elegido, antes de subirlo -->
+      <audio id="previewAudioNuevoTema" controls style="display:none;width:100%;margin-top:8px;"></audio>
       <div id="subirForm" style="display:none;">
         <label>Nombre del tema</label>
         <input type="text" id="nuevoTemaNombre">
@@ -1600,7 +1647,7 @@ body{min-height:100dvh;}
              depende de la categoría elegida arriba. -->
         <label>PDF de guía de la categoría (opcional)</label>
         <div id="nuevoTemaGuiaPdfInfo" style="font-size:0.82rem;color:var(--muted);margin-bottom:6px;">Elegí una categoría arriba para poder asociarle un PDF de guía.</div>
-        <input type="file" id="nuevoTemaGuiaPdfInput" accept="application/pdf" onchange="nuevoTemaGuiaPdfFile = (this.files && this.files[0]) || null;">
+        <input type="file" id="nuevoTemaGuiaPdfInput" accept="application/pdf,image/*" onchange="nuevoTemaGuiaPdfFile = (this.files && this.files[0]) || null;">
         <label>Páginas del ejercicio en la guía (opcional)</label>
         <input type="text" id="nuevoTemaGuiaPagina" placeholder="ej: 3, 5-7, 12">
         <label>Tonalidad (opcional)</label>
@@ -1706,7 +1753,7 @@ body{min-height:100dvh;}
       <button type="button" class="categoria-picker-btn vacio" id="editarTemaCategoriaBtn" onclick="abrirSelectorCategoria('editar')">Elegir categoría…</button>
       <label>PDF de guía de la categoría (opcional)</label>
       <div id="editarTemaGuiaPdfInfo" style="font-size:0.82rem;color:var(--muted);margin-bottom:6px;"></div>
-      <input type="file" id="editarTemaGuiaPdfInput" accept="application/pdf" onchange="editarTemaGuiaPdfFile = (this.files && this.files[0]) || null;">
+      <input type="file" id="editarTemaGuiaPdfInput" accept="application/pdf,image/*" onchange="editarTemaGuiaPdfFile = (this.files && this.files[0]) || null;">
       <label>Páginas del ejercicio en la guía (opcional)</label>
       <input type="text" id="editarTemaGuiaPagina" placeholder="ej: 3, 5-7, 12">
       <label>Tonalidad (opcional)</label>
@@ -3406,7 +3453,7 @@ function schedulerTickGlobalPractica(){
         };
         const resyncClick = est.schedNextBeatAbs == null
           || est.schedNextBeatAbs < tiempoActual - 1e-6
-          || (est.schedNextBeatAbs - tiempoActual) > secPerBeat * 1.5;
+          || (est.schedNextBeatAbs - tiempoActual) > secPerBeat * 1.5 + SCHED_LOOKAHEAD_SEC;
         if(resyncClick) est.schedNextBeatAbs = proximoBeatClick(tiempoActual);
         while(est.schedNextBeatAbs < tiempoActual + SCHED_LOOKAHEAD_SEC){
           const tAbs = est.schedNextBeatAbs;
@@ -4867,21 +4914,6 @@ function marcarLoopPractica(uid, tOverride){
     const secPerBarInfo = (60 / bpmLoop) * beatsDeT * factorDeT;
     const numCompases = Math.round((est.loopFin - est.loopInicio) / secPerBarInfo);
     if(info) info.textContent = `↻ Loop: ${segundosATextoPractica(est.loopInicio)} → ${segundosATextoPractica(est.loopFin)} (${numCompases} comp.)`;
-    // v3.280: (a pedido) el loop MANUAL (a mano en la onda) no encendía
-    // ni el chip xN ni el placeholder — solo loopRapidoCompasesPractica
-    // y aplicarLoopGuardadoPractica lo hacían. Mismo criterio que ya
-    // usa aplicarLoopGuardadoPractica.
-    limpiarPresetsLoopPractica(uid);
-    const customBadgeManual = document.getElementById('looppresetcustom-' + uid);
-    const presetFijoManual = [1,2,4,8,16,32,64].includes(numCompases) ? document.getElementById('looppreset-' + uid + '-' + numCompases) : null;
-    if(presetFijoManual){
-      presetFijoManual.classList.add('activo');
-      if(customBadgeManual) customBadgeManual.style.display = 'none';
-    } else if(customBadgeManual && numCompases > 0){
-      customBadgeManual.textContent = 'x' + numCompases;
-      customBadgeManual.classList.add('activo');
-      customBadgeManual.style.display = '';
-    }
     guardarLoopTemaPractica({ inicio: est.loopInicio, fin: est.loopFin, compases: numCompases }); // v3.251
     aplicarLoopNativoPractica(uid);
     dibujarWaveform(uid, est.getTiempoActual());
@@ -6352,6 +6384,74 @@ function formatBpm(v){
   const n = parseFloat(v);
   return isFinite(n) ? n.toFixed(2) : (v != null ? v : '—');
 }
+
+// v3.281: (a pedido) lector de Vorbis Comments — el formato de tags
+// que usan los .flac (y .ogg/.opus), totalmente distinto a ID3v2: no
+// hay firma "ID3" al inicio, sino "fLaC" seguido de bloques de
+// metadata; el bloque tipo 4 (VORBIS_COMMENT) trae pares "CLAVE=valor"
+// en texto plano (BPM=128, KEY=Am, etc — sin un estándar tan fijo como
+// los frames TBPM/TKEY de ID3v2, así que se comparan varios alias
+// case-insensitive). Se leen los bloques DE A UNO por su propio
+// tamaño declarado (nunca un límite de bytes fijo), para no perderse
+// el bloque de comentarios si antes viene una carátula (PICTURE)
+// pesada. leerTagsAudioID3() no se tocó — esto es una función aparte.
+async function leerTagsAudioVorbis(file){
+  const resultado = { bpm: null, key: null };
+  try{
+    if(!file || !file.slice || file.size < 4) return resultado;
+    const firma = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if(String.fromCharCode(firma[0], firma[1], firma[2], firma[3]) !== 'fLaC') return resultado;
+    let pos = 4;
+    while(pos + 4 <= file.size){
+      const hdr = new Uint8Array(await file.slice(pos, pos + 4).arrayBuffer());
+      const esUltimo = (hdr[0] & 0x80) !== 0;
+      const tipoBloque = hdr[0] & 0x7f;
+      const largoBloque = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+      pos += 4;
+      if(tipoBloque === 4){ // VORBIS_COMMENT
+        const buf = await file.slice(pos, pos + largoBloque).arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        const dv = new DataView(buf);
+        let p = 0;
+        if(p + 4 > bytes.length) break;
+        const largoVendor = dv.getUint32(p, true); p += 4 + largoVendor;
+        if(p + 4 > bytes.length) break;
+        const numComentarios = dv.getUint32(p, true); p += 4;
+        for(let i = 0; i < numComentarios && p + 4 <= bytes.length; i++){
+          const largo = dv.getUint32(p, true); p += 4;
+          if(p + largo > bytes.length) break;
+          const texto = new TextDecoder('utf-8').decode(bytes.subarray(p, p + largo));
+          p += largo;
+          const igual = texto.indexOf('=');
+          if(igual < 0) continue;
+          const clave = texto.slice(0, igual).trim().toUpperCase();
+          const valor = texto.slice(igual + 1).trim();
+          if(!valor) continue;
+          if(!resultado.bpm && (clave === 'BPM' || clave === 'TBPM')) resultado.bpm = valor.replace(/[^\d.]/g, '') || null;
+          if(!resultado.key && (clave === 'KEY' || clave === 'INITIALKEY' || clave === 'INITIAL KEY' || clave === 'TONALITY' || clave === 'TKEY')) resultado.key = valor;
+        }
+        break; // ya se encontró el único bloque que nos interesa
+      }
+      pos += largoBloque;
+      if(esUltimo) break;
+    }
+    if(resultado.key){
+      const camelot = CAMELOT_A_TONALIDAD[resultado.key.trim().toLowerCase()];
+      if(camelot) resultado.key = `${camelot} (Camelot ${resultado.key.trim().toUpperCase()})`;
+    }
+  }catch(e){ console.error('No se pudieron leer tags Vorbis (FLAC):', e); }
+  return resultado;
+}
+// v3.281: intenta ID3v2 (mp3) y, si no encontró nada, Vorbis Comments
+// (flac/ogg) — un archivo solo trae uno de los dos formatos, así que
+// esto no pisa nada; simplemente amplía qué formatos se reconocen.
+// Los 2 call-sites de abajo pasan de leerTagsAudioID3() a esta.
+async function leerTagsAudio(file){
+  const porID3 = await leerTagsAudioID3(file);
+  if(porID3.bpm || porID3.key) return porID3;
+  return await leerTagsAudioVorbis(file);
+}
+
 async function leerTagsAudioID3(file){
   const resultado = { bpm: null, key: null };
   try{
@@ -6433,7 +6533,7 @@ async function mostrarTagsDetectadosLocal(uid, file){
   const elTop = document.getElementById('archivolocaltagstop-' + uid);
   if(!el && !elTop) return;
   const setHtml = (html) => { if(el) el.innerHTML = html; if(elTop) elTop.innerHTML = html; };
-  const tags = await leerTagsAudioID3(file);
+  const tags = await leerTagsAudio(file);
   if(!tags.bpm && !tags.key){
     // v3.140: (a pedido) antes quedaba en blanco sin avisar nada; ahora
     // muestra un mensaje temporal para que quede claro que no hay tags
@@ -10146,6 +10246,10 @@ function irASubirTema(){
   const btnCat = document.getElementById('nuevoTemaCategoriaBtn');
   if(btnCat){ btnCat.textContent = 'Elegir categoría…'; btnCat.classList.add('vacio'); }
   archivoASubir = null;
+  // v3.282: reset de la preview de audio al abrir el formulario en blanco.
+  if(previewAudioUrl){ URL.revokeObjectURL(previewAudioUrl); previewAudioUrl = null; }
+  const previewAudio = document.getElementById('previewAudioNuevoTema');
+  if(previewAudio){ previewAudio.pause(); previewAudio.removeAttribute('src'); previewAudio.load(); previewAudio.style.display = 'none'; }
   // v3.221: reset del bloque de PDF de guía al abrir el formulario en blanco.
   nuevoTemaGuiaPdfFile = null;
   const guiaPdfInput = document.getElementById('nuevoTemaGuiaPdfInput');
@@ -10361,6 +10465,9 @@ function elegirCategoriaDesdeSheet(categoriaId){
 
 // ============ SUBIR TEMA NUEVO ============
 let archivoASubir = null;
+// v3.282: URL local (blob) de la preview de audio en "Subir nuevo
+// tema" — se guarda para poder revocarla antes de crear la siguiente.
+let previewAudioUrl = null;
 // v3.221: PDF de guía elegido en cada formulario (se sube recién al
 // confirmar, igual que archivoASubir con el audio).
 let nuevoTemaGuiaPdfFile = null;
@@ -10402,7 +10509,17 @@ async function onArchivoNuevoTemaElegido(files){
   } else if(coincideTamaño){
     mostrarToast(`Cuidado: el archivo elegido pesa lo mismo que el audio de "${coincideTamaño.nombre}". Podría ser el mismo archivo con otro nombre.`, 'info');
   }
-  const tags = await leerTagsAudioID3(file);
+  // v3.282: preview local del archivo elegido — revoca la URL anterior
+  // (si había una de una elección previa) antes de crear la nueva, para
+  // no acumular blobs en memoria.
+  const previewAudio = document.getElementById('previewAudioNuevoTema');
+  if(previewAudio){
+    if(previewAudioUrl) URL.revokeObjectURL(previewAudioUrl);
+    previewAudioUrl = URL.createObjectURL(file);
+    previewAudio.src = previewAudioUrl;
+    previewAudio.style.display = 'block';
+  }
+  const tags = await leerTagsAudio(file);
   const nombreSinExt = file.name.replace(/\.[^.]+$/, '');
   document.getElementById('nuevoTemaNombre').value = nombreSinExt;
   // v3.184: (a pedido) "no redondees los BPM nunca" — antes se hacía
@@ -10855,7 +10972,9 @@ function subirPdfACloudinary(file, onProgress){
       let data = null;
       try{ data = JSON.parse(xhr.responseText); }catch(err){ /* respuesta no-JSON, sigue abajo con data=null */ }
       if(xhr.status >= 200 && xhr.status < 300 && data && data.public_id){
-        resolve({ publicId: data.public_id, paginas: data.pages || 1 });
+        // v3.283: formato real que devuelve Cloudinary ('pdf', 'jpg',
+        // 'png', etc.) — antes se asumía siempre 'pdf' en el render.
+        resolve({ publicId: data.public_id, paginas: data.pages || 1, formato: data.format || 'pdf' });
       } else {
         reject(new Error((data && data.error && data.error.message) || `Error de Cloudinary (status ${xhr.status})`));
       }
@@ -10864,6 +10983,12 @@ function subirPdfACloudinary(file, onProgress){
     const form = new FormData();
     form.append('file', file);
     form.append('upload_preset', CLOUDINARY_PRESET_PDF);
+    // v3.283: el preset GUIAS2PDF no tiene folder fijo configurado en
+    // Cloudinary (confirmado en el dashboard: sin "Folder" seteado) —
+    // sin esto, los archivos caían fuera de la carpeta esperada. Se
+    // fuerza acá; si el preset alguna vez pasa a tener folder fijo en
+    // Cloudinary, este parámetro se ignora sin romper nada.
+    form.append('folder', 'GUIAS2PDF');
     xhr.send(form);
   });
 }
@@ -10881,12 +11006,16 @@ function guardarGuiaPdfEnCategoria(nombreCategoria, file, onEstado){
   if(!cat || !file) return;
   if(onEstado) onEstado('Subiendo PDF de guía...');
   subirPdfACloudinary(file, pct => { if(onEstado) onEstado(`Subiendo PDF de guía ${pct}%…`); })
-    .then(({ publicId, paginas }) => db.collection('CATEGORIAS2').doc(cat.id)
-      .set({ guiaPdfPublicId: publicId, guiaPdfPaginas: paginas }, { merge: true })
-      .then(() => ({ publicId, paginas })))
-    .then(({ publicId, paginas }) => {
+    .then(({ publicId, paginas, formato }) => db.collection('CATEGORIAS2').doc(cat.id)
+      .set({ guiaPdfPublicId: publicId, guiaPdfPaginas: paginas, guiaPdfFormato: formato }, { merge: true })
+      .then(() => ({ publicId, paginas, formato })))
+    .then(({ publicId, paginas, formato }) => {
       cat.guiaPdfPublicId = publicId;
       cat.guiaPdfPaginas = paginas;
+      // v3.283: formato real ('pdf' o 'jpg'/'png'/etc.) — decide en
+      // renderPaginaGuiaPdf si se usa la transformación pg_N (PDF) o
+      // la imagen directa (portada/imagen suelta, sin páginas).
+      cat.guiaPdfFormato = formato;
       if(onEstado) onEstado('');
     })
     .catch(err => {
@@ -11363,7 +11492,7 @@ function guiaPdfBloqueHtml(uid, tema){
   if(!paginas.length) return '';
   const etiqueta = paginas.length === 1 ? `página ${paginas[0]}` : `páginas ${paginas.join(', ')}`;
   return `
-    <details class="practica-offsetlocal" id="guiapdfdetails-${uid}" data-paginas="${paginas.join(',')}" data-publicid="${cat.guiaPdfPublicId}" ontoggle="onToggleGuiaPdf('${uid}')">
+    <details class="practica-offsetlocal" id="guiapdfdetails-${uid}" data-paginas="${paginas.join(',')}" data-publicid="${cat.guiaPdfPublicId}" data-formato="${cat.guiaPdfFormato || 'pdf'}" ontoggle="onToggleGuiaPdf('${uid}')">
       <summary><span class="practica-summary-icono">📄</span> Guía (${etiqueta})</summary>
       <div id="guiapdfcont-${uid}"></div>
     </details>`;
@@ -11421,6 +11550,11 @@ function renderPaginaGuiaPdf(uid){
   const cont = document.getElementById('guiapdfcont-' + uid);
   if(!details || !cont) return;
   const publicId = details.dataset.publicid;
+  // v3.283: 'pdf' (de siempre, con pg_N) o una imagen suelta (jpg/png/
+  // etc. subida directo como "guía", ej. una carátula) — sin páginas
+  // reales, se muestra el archivo tal cual, sin la transformación pg_N.
+  const formato = details.dataset.formato || 'pdf';
+  const esPdf = formato === 'pdf';
   const paginas = (details.dataset.paginas || '').split(',').filter(Boolean);
   const indice = parseInt(cont.dataset.indice, 10) || 0;
   const pagina = paginas[indice];
@@ -11433,7 +11567,28 @@ function renderPaginaGuiaPdf(uid){
   if(img){
     img.style.display = 'block';
     img.classList.remove('zoom');
-    img.src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/pg_${pagina}/${publicId}.jpg`;
+    img.src = esPdf
+      ? `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/pg_${pagina}/${publicId}.jpg`
+      : `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/${publicId}.${formato}`;
+    // v3.284: (a pedido) el wrap (.practica-score-imgwrap) tiene
+    // overflow:auto + max-height:80dvh pensado para páginas de
+    // partitura altas (scroll intencional). Con una imagen suelta eso
+    // se veía "con scroll" en vez de encuadrada — acá se fuerza que la
+    // imagen entre completa dentro de esa misma altura máxima, sin
+    // scroll. El caso PDF (esPdf) no se toca, sigue igual que siempre.
+    if(!esPdf){
+      img.style.maxHeight = '80dvh';
+      img.style.width = 'auto';
+      img.style.height = 'auto';
+      img.style.objectFit = 'contain';
+      img.style.margin = '0 auto';
+    } else {
+      img.style.maxHeight = '';
+      img.style.width = '';
+      img.style.height = '';
+      img.style.objectFit = '';
+      img.style.margin = '';
+    }
   }
   if(err) err.style.display = 'none';
   if(label){
@@ -11442,12 +11597,17 @@ function renderPaginaGuiaPdf(uid){
   }
   if(prev) prev.disabled = indice <= 0;
   if(next) next.disabled = indice >= paginas.length - 1;
-  if(ver) ver.onclick = () => window.open(`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/${publicId}.pdf#page=${pagina}`, '_blank');
+  if(ver) ver.onclick = () => window.open(esPdf
+    ? `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/${publicId}.pdf#page=${pagina}`
+    : `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/${publicId}.${formato}`, '_blank');
   try{ localStorage.setItem('guiaIndice_' + uid, String(indice)); }catch(e){}
   // v3.224: precarga silenciosa de la siguiente página del array (si existe)
   // v3.226: se salta si ya se precargó antes en esta apertura del panel.
+  // v3.283: solo aplica con PDF real — una imagen suelta siempre tiene
+  // 1 sola "página", paginas.length ya da false acá, pero se deja el
+  // chequeo explícito por si algún tema quedara mal migrado con >1.
   const precargadas = (cont.dataset.precargadas || '').split(',').filter(Boolean);
-  if(indice < paginas.length - 1 && !precargadas.includes(String(indice + 1))){
+  if(esPdf && indice < paginas.length - 1 && !precargadas.includes(String(indice + 1))){
     new Image().src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME_AUDIO}/image/upload/pg_${paginas[indice + 1]}/${publicId}.jpg`;
     precargadas.push(String(indice + 1));
     cont.dataset.precargadas = precargadas.join(',');

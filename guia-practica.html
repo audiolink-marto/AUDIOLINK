@@ -4,7 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.118
+<!-- AUDIOLINK · guia-practica.html · v1.120
+     v1.120: (port de ensayo.html v3.281) reconoce BPM/tonalidad de
+     archivos .flac (antes solo ID3v2/mp3, ver leerTagsAudioVorbis()).
+     v1.119: (a pedido) botón "🎧 Ver en Panel del Músico" — abre
+     musico.html?preview={correo}, mismo modo vista previa de staff que
+     ya soporta ese archivo (v1.x, ver su guard de sesión). Reusa
+     sesionesSnap (ya cargado, no agrega ninguna lectura nueva): junta
+     los músicos asignados a este proyecto vía musicosAsignados[].correo
+     (misma fuente que ya usa instrumentosDelProyecto). Con 1 solo
+     músico en el proyecto, el botón abre directo; con varios, aparece
+     un <select> al lado para elegir a cuál (un tema puede sonar en
+     sesiones de instrumentos/músicos distintos, no hay un "el" músico
+     único). Con 0 músicos asignados todavía, el botón no aparece. Sigue
+     sin existir un deep-link a un tema/sesión puntual dentro de
+     musico.html — abre la vista previa completa de esa persona
+     (todas sus sesiones de todos sus proyectos), igual que el modo
+     preview ya hace para staff.
      v1.118: (a pedido) nueva card "Scores por instrumento" — mismo
      patrón exacto que "Maquetas por instrumento" (arriba): array
      practicaScores ({instrumento, publicId, paginas}) en el doc del
@@ -1802,6 +1818,10 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
       <button class="btn-ghost" onclick="history.back()">← Volver</button>
     </div>
     <p id="contextoTema" style="color:var(--muted); font-size:0.93rem; margin-bottom:20px;">Cargando…</p>
+    <div id="verEnMusicoWrap" style="display:none; align-items:center; gap:8px; margin:-12px 0 20px; flex-wrap:wrap;">
+      <select id="selectMusicoPreview" style="display:none; max-width:260px;"></select>
+      <button type="button" class="btn-ghost" onclick="abrirEnMusico()">🎧 Ver en Panel del Músico</button>
+    </div>
 
     <div class="card">
       <div class="card-header-toggle" onclick="toggleCardPrincipal('datosTema')">
@@ -1973,6 +1993,42 @@ const temaId = params.get('t');
 let temaRef = null;
 let temaDataActual = {};
 let instrumentosDelProyecto = []; // v1.1: instrumentos ya asignados a músicos en las sesiones de este proyecto
+let musicosDelProyecto = []; // v1.119: [{correo, instrumentos:[...]}] para "Ver en Panel del Músico"
+
+// v1.119: este archivo no tenía un helper de escape — se agrega uno
+// mínimo, solo para el <select> de abajo (correo/instrumento vienen de
+// datos ya guardados por staff, pero sin escapar igual podrían romper
+// el innerHTML si algún correo/instrumento tuviera caracteres raros).
+function escapeHtml(str){
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+// v1.119: pinta el botón/select según cuántos músicos tiene el proyecto.
+function renderBotonVerEnMusico(){
+  const wrap = document.getElementById('verEnMusicoWrap');
+  const select = document.getElementById('selectMusicoPreview');
+  if(!musicosDelProyecto.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  if(musicosDelProyecto.length === 1){
+    select.style.display = 'none';
+    select.innerHTML = '';
+    return;
+  }
+  select.style.display = '';
+  select.innerHTML = musicosDelProyecto.map(m =>
+    `<option value="${escapeHtml(m.correo)}">${escapeHtml(m.instrumentos.join(' / ') || m.correo)}</option>`
+  ).join('');
+}
+// Abre musico.html en modo vista previa de staff (?preview=correo) para
+// el músico elegido (o el único, si hay uno solo). Misma vía que ya
+// usa ese archivo para su modo preview — no requiere tocarlo.
+function abrirEnMusico(){
+  if(!musicosDelProyecto.length) return;
+  const select = document.getElementById('selectMusicoPreview');
+  const correo = (select && select.style.display !== 'none') ? select.value : musicosDelProyecto[0].correo;
+  const base = location.href.replace(/guia-practica\.html.*$/, 'musico.html');
+  window.open(base + '?preview=' + encodeURIComponent(correo), '_blank');
+}
 
 // v1.13: (a pedido) catálogo de secciones típicas de salsa/son, con su
 // "tipo" embebido — el tipo decide qué campos de contenido tendrá la
@@ -2080,6 +2136,74 @@ const CAMELOT_A_TONALIDAD = {
   '1b':'B','2b':'F#','3b':'Db','4b':'Ab','5b':'Eb','6b':'Bb','7b':'F',
   '8b':'C','9b':'G','10b':'D','11b':'A','12b':'E',
 };
+
+// v1.120: (port de ensayo.html v3.281) lector de Vorbis Comments — el
+// formato de tags que usan los .flac (y .ogg/.opus), totalmente
+// distinto a ID3v2: no hay firma "ID3" al inicio, sino "fLaC" seguido
+// de bloques de metadata; el bloque tipo 4 (VORBIS_COMMENT) trae pares
+// "CLAVE=valor" en texto plano (BPM=128, KEY=Am, etc — sin un estándar
+// tan fijo como los frames TBPM/TKEY de ID3v2, así que se comparan
+// varios alias case-insensitive). Se leen los bloques DE A UNO por su
+// propio tamaño declarado (nunca un límite de bytes fijo), para no
+// perderse el bloque de comentarios si antes viene una carátula
+// (PICTURE) pesada. leerTagsAudioID3() no se tocó — esto es una
+// función aparte.
+async function leerTagsAudioVorbis(file){
+  const resultado = { bpm: null, key: null };
+  try{
+    if(!file || !file.slice || file.size < 4) return resultado;
+    const firma = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if(String.fromCharCode(firma[0], firma[1], firma[2], firma[3]) !== 'fLaC') return resultado;
+    let pos = 4;
+    while(pos + 4 <= file.size){
+      const hdr = new Uint8Array(await file.slice(pos, pos + 4).arrayBuffer());
+      const esUltimo = (hdr[0] & 0x80) !== 0;
+      const tipoBloque = hdr[0] & 0x7f;
+      const largoBloque = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+      pos += 4;
+      if(tipoBloque === 4){ // VORBIS_COMMENT
+        const buf = await file.slice(pos, pos + largoBloque).arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        const dv = new DataView(buf);
+        let p = 0;
+        if(p + 4 > bytes.length) break;
+        const largoVendor = dv.getUint32(p, true); p += 4 + largoVendor;
+        if(p + 4 > bytes.length) break;
+        const numComentarios = dv.getUint32(p, true); p += 4;
+        for(let i = 0; i < numComentarios && p + 4 <= bytes.length; i++){
+          const largo = dv.getUint32(p, true); p += 4;
+          if(p + largo > bytes.length) break;
+          const texto = new TextDecoder('utf-8').decode(bytes.subarray(p, p + largo));
+          p += largo;
+          const igual = texto.indexOf('=');
+          if(igual < 0) continue;
+          const clave = texto.slice(0, igual).trim().toUpperCase();
+          const valor = texto.slice(igual + 1).trim();
+          if(!valor) continue;
+          if(!resultado.bpm && (clave === 'BPM' || clave === 'TBPM')) resultado.bpm = valor.replace(/[^\d.]/g, '') || null;
+          if(!resultado.key && (clave === 'KEY' || clave === 'INITIALKEY' || clave === 'INITIAL KEY' || clave === 'TONALITY' || clave === 'TKEY')) resultado.key = valor;
+        }
+        break; // ya se encontró el único bloque que nos interesa
+      }
+      pos += largoBloque;
+      if(esUltimo) break;
+    }
+    if(resultado.key){
+      const camelot = CAMELOT_A_TONALIDAD[resultado.key.trim().toLowerCase()];
+      if(camelot) resultado.key = `${camelot} (Camelot ${resultado.key.trim().toUpperCase()})`;
+    }
+  }catch(e){ console.error('No se pudieron leer tags Vorbis (FLAC):', e); }
+  return resultado;
+}
+// v1.120: intenta ID3v2 (mp3) y, si no encontró nada, Vorbis Comments
+// (flac/ogg) — un archivo solo trae uno de los dos formatos, así que
+// esto no pisa nada; simplemente amplía qué formatos se reconocen.
+async function leerTagsAudio(file){
+  const porID3 = await leerTagsAudioID3(file);
+  if(porID3.bpm || porID3.key) return porID3;
+  return await leerTagsAudioVorbis(file);
+}
+
 async function leerTagsAudioID3(file){
   const resultado = { bpm: null, key: null };
   try{
@@ -2276,6 +2400,24 @@ async function iniciarGuiaPractica(){
       asignados.forEach(m => { if((m.instrumento || '').trim()) setInstrumentos.add(m.instrumento.trim()); });
     });
     instrumentosDelProyecto = [...setInstrumentos].sort((a, b) => a.localeCompare(b));
+
+    // v1.119: músicos asignados a ESTE proyecto (mismo sesionesSnap de
+    // arriba), para el botón "Ver en Panel del Músico" — dedupe por
+    // correo, guardando todos los instrumentos que ese correo toca acá.
+    const musicosMap = new Map();
+    sesionesSnap.forEach(d => {
+      const asignados = Array.isArray(d.data().musicosAsignados) ? d.data().musicosAsignados : [];
+      asignados.forEach(m => {
+        const correo = (m.correo || '').trim().toLowerCase();
+        if(!correo) return;
+        if(!musicosMap.has(correo)) musicosMap.set(correo, new Set());
+        if((m.instrumento || '').trim()) musicosMap.get(correo).add(m.instrumento.trim());
+      });
+    });
+    musicosDelProyecto = [...musicosMap.entries()]
+      .map(([correo, instrumentos]) => ({ correo, instrumentos: [...instrumentos].sort((a, b) => a.localeCompare(b)) }))
+      .sort((a, b) => a.correo.localeCompare(b.correo));
+    renderBotonVerEnMusico();
 
     renderSecciones(temaDataActual.practicaSecciones || []);
     renderMaquetas(temaDataActual.practicaMaquetas || []);
@@ -4527,7 +4669,7 @@ async function subirAudioMaqueta(i, file){
 async function mostrarTagsDetectadosMaqueta(i, file){
   const cont = document.getElementById('maquetaTagsInfo-' + i);
   if(!cont) return;
-  const tags = await leerTagsAudioID3(file);
+  const tags = await leerTagsAudio(file);
   if(!tags.bpm && !tags.key){ cont.style.display = 'none'; cont.innerHTML = ''; return; }
   const partes = [];
   if(tags.bpm) partes.push(`${tags.bpm} BPM`);

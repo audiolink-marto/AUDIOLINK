@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Panel del Músico v3.227</title>
+<title>Audiolink — Panel del Músico v3.230</title>
 <!-- AUDIOLINK · musico.html · v3.224
      v3.225: HOTFIX del fix de hoy (v3.224) — el click sincronizado
      sonaba 4 VECES SUPERPUESTO por cada pulso con el lookahead real ya
@@ -26,6 +26,52 @@
      de campo y mismo valor que ya manda guia-practica.html, así que
      pdf-armonias.js/pdf-percusion.js (ya preparados desde v1.104/v1.101)
      lo dibujan igual sin cambios de su lado.
+     v3.230: (port de ensayo.html v3.281) reconoce BPM/tonalidad de
+     archivos .flac (antes solo ID3v2/mp3, ver leerTagsAudioVorbis()).
+     v3.229: (a pedido) los 2 fixes de MOTOR DE AUDIO que quedaron
+     afuera de v3.228 por no ser de UI — port de ensayo.html v3.273 +
+     v3.274: el metrónomo libre (standalone, sin canción) agendaba sus
+     clicks comparando contra performance.now() (reloj del hilo
+     principal) mientras el resto del scheduler agenda en
+     audioCtxPractica.currentTime (reloj del hilo de audio) — un
+     pequeño desvío entre ambos podía sonar como un click doble o
+     "atascado". Ahora el metrónomo libre también usa
+     audioCtxPractica.currentTime - metroLibreInicioAudio (ancla nueva,
+     tomada al arrancar). est.metroLibreInicio (performance.now())
+     sigue existiendo solo para el tick VISUAL
+     (requestAnimationFrame/actualizarContadorPractica), que no tenía
+     este problema.
+     v3.228: (a pedido) "actualizar la UI a como está en ensayo.html, lo
+     que aplica" — se pusieron al día los ajustes visuales de v3.260 a
+     v3.279 de ensayo.html que sí aplican a este archivo (mismas clases/
+     estructura). Lo que SÍ se portó:
+     - v3.260(1): .practica-compas-grande con min-width:3ch — el número
+       de compás ya no arrastra al péndulo al pasar de 1 a 2-3 dígitos.
+     - v3.260(3): campo "N°"+"Ir" junto a los presets de Loop rápido
+       (aplicarLoopCustomPractica), para un loop de una cantidad de
+       compases que no está entre los presets x1..x64.
+     - v3.269: fondo #e3ddd0 en tema claro detrás de puntos de beat/
+       clave y péndulo (perdían contraste contra --surf-light).
+     - v3.278(1): el botón ✕ de cancelar loop se muda del playerbar al
+       renglón de "Loop rápido" (con sus mismos toggles de display que
+       ya tenía ensayo desde v3.250, agregados acá porque antes el botón
+       vivía siempre visible y ahora necesita ocultarse/mostrarse).
+     - v3.278(2): la línea de la regla de compás del waveform pasa de
+       dorado a rojo (colorPrimerTiempo) — el número/hora arriba sigue
+       dorado.
+     - v3.278(3): barra de seguimiento 5px→9px + overflow visible, tick
+       "mayor" sobresale 2px arriba/abajo, rango de loop 35%→50% opacidad.
+     - v3.279: chip "compás actual/último de la sección" (progcompas-)
+       pegado a la barra de seguimiento.
+     Lo que NO aplica / se dejó afuera a propósito:
+     - v3.260(2) (riel del péndulo 44→64px): superado por el rediseño
+       de riel a todo el ancho que ya se portó en v3.223 (v3.270+).
+     - v3.273/v3.274 (FIX de reloj del audio del metro libre/"doble
+       click"): son del MOTOR de audio, no de UI — quedan pendientes,
+       fuera del alcance de este pedido.
+     - v3.277 (chip de loop guardado que se re-aplica solo): depende de
+       GUIAS2.loop (persistencia por tema en Firestore), que este
+       archivo no tiene — no hay nada que resaltar acá.
      v3.226: (a pedido) el pre-conteo (🥁) ahora arranca APAGADO por
      defecto — antes venía activado (precontActivo:true) tanto para el
      metrónomo standalone como para arrancar la canción/maqueta (es una
@@ -292,6 +338,13 @@ body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh
    que también respete el modo claro. */
 audio{color-scheme:dark;}
 :root[data-tema="light"] audio{color-scheme:light;}
+/* v3.228: (port de ensayo.html v3.269) en tema claro, los puntos de
+   beat/clave y el punto del péndulo perdían contraste contra
+   --surf-light (casi blanco) — fondo apenas más oscuro SOLO en tema
+   claro, SOLO en estos contenedores puntuales. */
+:root[data-tema="light"] .practica-semaforo{background:#e3ddd0;}
+:root[data-tema="light"] .pcu-strip:not(.compas2){background:#e3ddd0;}
+:root[data-tema="light"] .practica-pendulo-row{background:#e3ddd0;border-radius:10px;padding:4px 0;}
 header{
   padding:16px 20px;border-bottom:1px solid var(--brd);
   display:flex;align-items:center;justify-content:space-between;
@@ -479,7 +532,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-clave-piloto{position:absolute;top:-2px;left:6px;font-size:0.95rem;opacity:0.35;filter:grayscale(1);transition:opacity 0.08s, filter 0.08s;}
 .practica-clave-piloto.activo{opacity:1;filter:none;text-shadow:0 0 6px var(--gold);}
 .practica-semaforo{display:flex;justify-content:space-between;gap:6px;margin-top:8px;padding:10px 12px;background:var(--surf-light);border-radius:8px;}
-.practica-compas-grande{font-size:3.6rem;font-weight:700;color:var(--gold);font-family:var(--M);line-height:1;transition:color 0.08s, transform 0.08s;display:inline-block;}
+.practica-compas-grande{font-size:3.6rem;font-weight:700;color:var(--gold);font-family:var(--M);line-height:1;transition:color 0.08s, transform 0.08s;display:inline-block;min-width:3ch;text-align:center;}
 .practica-compas-grande.activo{color:var(--ok);transform:scale(1.12);}
 .practica-beat-chico{font-size:0.9rem;font-weight:600;color:var(--muted);font-family:var(--M);margin-left:4px;}
 .practica-pendulo-row{display:block;margin-top:8px;}
@@ -622,12 +675,14 @@ main{padding:28px;max-width:760px;margin:0 auto;}
   .practica-seccion-local-header-tiempo{flex-basis:100%;order:4;white-space:normal;}
 }
 .practica-progreso{margin-top:8px;}
-.practica-progreso-barra{position:relative;width:100%;height:5px;background:var(--surf-light);border-radius:3px;overflow:hidden;cursor:pointer;}
-.practica-progreso-looprange{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.35;display:none;pointer-events:none;}
+.practica-progreso-row{display:flex;align-items:center;gap:6px;}
+.practica-progreso-barra{position:relative;width:100%;height:9px;background:var(--surf-light);border-radius:4px;overflow:visible;cursor:pointer;}
+.practica-progreso-looprange{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.5;display:none;pointer-events:none;}
 .practica-progreso-ticks{position:absolute;inset:0;pointer-events:none;}
 .practica-progreso-tick{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.35);}
-.practica-progreso-tick.mayor{width:2px;background:rgba(0,0,0,.55);}
+.practica-progreso-tick.mayor{width:2px;background:rgba(0,0,0,.55);top:-2px;bottom:-2px;}
 .practica-progreso-fill{height:100%;width:0%;background:var(--gold);transition:width 0.15s linear;}
+.practica-progreso-compas{flex:0 0 auto;font-size:0.72rem;font-weight:700;color:var(--muted);white-space:nowrap;min-width:2.6em;text-align:right;}
 .practica-progreso-texto{font-size:0.94rem;font-weight:700;color:var(--gold);margin-top:6px;text-align:center;}
 /* v3.58: (a pedido) flex-wrap para poder sumar botón de reinicio +
    slider de volumen sin apretar la fila — la barra de búsqueda
@@ -668,6 +723,11 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .loop-presets-row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;background:var(--surf-light);border-radius:8px;padding:10px 12px;}
 .loop-presets-label{font-size:0.75rem;color:var(--muted);white-space:nowrap;}
 .loop-presets{display:flex;gap:6px;flex-wrap:wrap;}
+/* v3.228: (port de ensayo.html v3.260) campo para loop de N compases a
+   mano, cuando el número no está entre los presets rápidos (x1..x64).
+   Reusa loopRapidoCompasesPractica con el N tipeado. */
+.loop-presets-custom{display:flex;align-items:center;gap:4px;}
+.loop-presets-custom-input{width:52px;min-height:32px;text-align:center;border-radius:6px;border:1px solid var(--brd);background:var(--surf);color:var(--txt);font-family:var(--M);font-size:0.82rem;padding:4px 2px;}
 .btn-preset{
   flex:0 0 auto;width:44px;height:44px;padding:0;
   background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
@@ -2373,10 +2433,13 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
   // no estaba pedida en el reorden y es la sección menos usada.
   return `
         <div class="practica-progreso">
-          <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop">
-            <div class="practica-progreso-looprange" id="progloop-${uid}"></div>
-            <div class="practica-progreso-fill" id="progfill-${uid}"></div>
-            <div class="practica-progreso-ticks" id="progticks-${uid}"></div>
+          <div class="practica-progreso-row">
+            <div class="practica-progreso-barra" onclick="toggleLoopSeccionPractica('${uid}')" title="Tocar para repetir la sección actual en loop">
+              <div class="practica-progreso-looprange" id="progloop-${uid}"></div>
+              <div class="practica-progreso-fill" id="progfill-${uid}"></div>
+              <div class="practica-progreso-ticks" id="progticks-${uid}"></div>
+            </div>
+            <span class="practica-progreso-compas" id="progcompas-${uid}"></span>
           </div>
           <div class="practica-progreso-texto" id="progtxt-${uid}"></div>
         </div>
@@ -2393,7 +2456,6 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
             <button class="practica-cue-pad" id="cuequitarbtn-${uid}" onclick="quitarCuePractica('${uid}')" title="Quita el CUE — el play vuelve a arrancar desde el offset">✕</button>
             <button class="practica-cue-pad" id="cueclickbtn-${uid}" onclick="toggleArmarCueWaveform('${uid}')" title="Después de tocar esto, el próximo click en la onda marca el CUE ahí">📍</button>
           </span>
-          <button class="practica-cue-pad" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')" title="Marca el inicio del loop en el segundo actual">↻</button>
           <button class="practica-click-btn practica-click-btn-etiqueta" id="snapmodo-${uid}" onclick="toggleModoSnapPractica('${uid}')">🧲 Compás</button>
           <span class="practica-player-cargando" id="playercargando-${uid}" style="display:none;">Cargando audio…</span>
           <span class="practica-player-tiempo" id="playertiempo-${uid}">0:00 / 0:00</span>
@@ -2413,6 +2475,11 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
             <div class="loop-presets">
               ${[1,2,4,8,16,32,64].map(n => `<button type="button" class="btn-preset" id="looppreset-${uid}-${n}" onclick="loopRapidoCompasesPractica('${uid}', ${n})" title="Loop de ${n} compás${n === 1 ? '' : 'es'} desde acá">x${n}</button>`).join('')}
             </div>
+            <div class="loop-presets-custom">
+              <input type="number" class="loop-presets-custom-input" id="loopcustomn-${uid}" min="1" step="1" inputmode="numeric" placeholder="N°" title="Cantidad de compases del loop" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarLoopCustomPractica('${uid}');}">
+              <button type="button" class="btn-preset" onclick="aplicarLoopCustomPractica('${uid}')" title="Loop de la cantidad de compases indicada, desde acá">Ir</button>
+            </div>
+            <button class="practica-cue-pad" id="loopbtn-${uid}" onclick="marcarLoopPractica('${uid}')" title="Marca el inicio del loop en el segundo actual" style="display:none;">↻</button>
           </div>
           <span class="practica-loop-info" id="loopinfo-${uid}"></span>
         </div>
@@ -2760,8 +2827,19 @@ function schedulerTickGlobalPractica(){
     if(!bpmEf) continue;
     const secPerBeat = 60 / bpmEf;
     const offset = (est.offset || 0) + (est.offsetLocalDelta || 0);
+    // v3.229: (port de ensayo.html v3.273) el metrónomo libre usaba
+    // performance.now() para decidir CUÁNDO agendar cada click (reloj
+    // del hilo principal), mientras el resto del scheduler agenda ese
+    // sonido en audioCtxPractica.currentTime (reloj del hilo de audio,
+    // más preciso/estable). Un pequeño desvío entre los dos relojes
+    // podía sonar como un click doble o "atascado". Ahora usa el MISMO
+    // reloj que ahoraCtx: audioCtxPractica.currentTime -
+    // metroLibreInicioAudio (ver arrancarMetronomoReal). El tick VISUAL
+    // (actualizarContadorPractica, más abajo) sigue con performance.now()
+    // — no tiene el mismo problema, requestAnimationFrame ya está
+    // atado al reloj de dibujo del navegador.
     const tiempoActual = libreOn
-      ? (performance.now() - est.metroLibreInicio) / 1000
+      ? (audioCtxPractica.currentTime - (est.metroLibreInicioAudio || 0))
       : (est.getTiempoActual ? est.getTiempoActual() : 0);
     const tRel = Math.max(0, tiempoActual - offset);
     const ahoraCtx = audioCtxPractica.currentTime;
@@ -4183,7 +4261,7 @@ function marcarLoopPractica(uid, tOverride){
   const info = document.getElementById('loopinfo-' + uid);
   if(est.loopActivo){
     est.loopInicio = null; est.loopFin = null; est.loopActivo = false;
-    if(btn){ btn.textContent = '↻'; btn.title = 'Marca el inicio del loop en el segundo actual'; }
+    if(btn){ btn.textContent = '↻'; btn.title = 'Marca el inicio del loop en el segundo actual'; btn.style.display = 'none'; }
     if(info) info.textContent = '';
     limpiarPresetsLoopPractica(uid);
     aplicarLoopNativoPractica(uid);
@@ -4225,7 +4303,7 @@ function marcarLoopPractica(uid, tOverride){
   }
   if(est.loopInicio == null){
     est.loopInicio = snapped;
-    if(btn){ btn.textContent = '⏹'; btn.title = 'Marca el fin del loop aquí'; }
+    if(btn){ btn.textContent = '⏹'; btn.title = 'Marca el fin del loop aquí'; btn.style.display = ''; }
     if(info) info.textContent = `Inicio: ${segundosATextoPractica(snapped)}`;
   } else {
     let fin = snapped;
@@ -4233,7 +4311,7 @@ function marcarLoopPractica(uid, tOverride){
     if(fin <= est.loopInicio) fin = est.loopInicio + minBar;
     est.loopFin = fin;
     est.loopActivo = true;
-    if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; }
+    if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; btn.style.display = ''; }
     const secPerBarInfo = (60 / bpmLoop) * beatsDeT;
     const numCompases = Math.round((est.loopFin - est.loopInicio) / secPerBarInfo);
     if(info) info.textContent = `↻ Loop: ${segundosATextoPractica(est.loopInicio)} → ${segundosATextoPractica(est.loopFin)} (${numCompases} comp.)`;
@@ -4263,7 +4341,7 @@ function loopRapidoCompasesPractica(uid, n){
   limpiarPresetsLoopPractica(uid);
   if(yaActivoEsteMismo){
     est.loopInicio = null; est.loopFin = null; est.loopActivo = false;
-    if(btn){ btn.textContent = '↻'; btn.title = 'Marca el inicio del loop en el segundo actual'; }
+    if(btn){ btn.textContent = '↻'; btn.title = 'Marca el inicio del loop en el segundo actual'; btn.style.display = 'none'; }
     if(info) info.textContent = '';
     aplicarLoopNativoPractica(uid);
     dibujarWaveform(uid, est.getTiempoActual());
@@ -4288,11 +4366,23 @@ function loopRapidoCompasesPractica(uid, n){
   est.loopInicio = snapped;
   est.loopFin = snapped + secPerBarInfo * n;
   est.loopActivo = true;
-  if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; }
+  if(btn){ btn.textContent = '✕'; btn.title = 'Cancela el loop activo'; btn.style.display = ''; }
   if(btnPreset) btnPreset.classList.add('activo');
   if(info) info.textContent = `↻ Loop: ${segundosATextoPractica(est.loopInicio)} → ${segundosATextoPractica(est.loopFin)} (${n} comp.)`;
   aplicarLoopNativoPractica(uid);
   dibujarWaveform(uid, est.getTiempoActual());
+}
+// v3.228: (port de ensayo.html v3.260) campo "N°"+"Ir" del loop rápido
+// — mismo motor que los presets xN, solo que con el N tipeado a mano.
+function aplicarLoopCustomPractica(uid){
+  const input = document.getElementById('loopcustomn-' + uid);
+  if(!input) return;
+  const n = parseInt(input.value, 10);
+  if(!n || n < 1){
+    input.focus();
+    return;
+  }
+  loopRapidoCompasesPractica(uid, n);
 }
 function limpiarPresetsLoopPractica(uid){
   // v3.190: (a pedido, portado de ensayo.html v3.210.3) FIX — faltaban
@@ -4343,6 +4433,12 @@ function toggleMetronomoLibre(uid){
   const arrancarMetronomoReal = () => {
     est.metroLibreActivo = true;
     est.metroLibreInicio = performance.now();
+    // v3.229: (port de ensayo.html v3.274) ancla en el reloj de audio,
+    // que usa el scheduler del click (ver el tiempoActual de arriba);
+    // est.metroLibreInicio (performance.now()) sigue existiendo SOLO
+    // para el tick visual (requestAnimationFrame, un poco más abajo).
+    obtenerAudioCtxPractica();
+    est.metroLibreInicioAudio = audioCtxPractica.currentTime;
     if(btn){ btn.textContent = '⏸'; btn.title = 'Metrónomo sonando — tocar para detener'; btn.classList.add('activo'); }
     const tick = () => {
       if(!est.metroLibreActivo) return;
@@ -4830,6 +4926,15 @@ function actualizarContadorPractica(uid, tiempoActual){
     // grande), no el cálculo plano contra el compás general. Sin
     // compasOverride cargado, mismo resultado de siempre.
     const barInicio = compasDeSegundosMusico(tramosContador, inicioSec);
+    // v3.228: (port de ensayo.html v3.279) chip "compás actual/último"
+    // pegado a la barra — mismo criterio de numeración absoluta que
+    // ya usa el rango "Compás X–Y" de la etiqueta de sección de abajo.
+    const elCompas = document.getElementById('progcompas-' + uid);
+    if(elCompas && !refLoopHueco){
+      const barFinChip = barInicio + compasesSeccion - 1;
+      const compasActualChip = Math.min(barFinChip, barInicio + Math.floor((tiempoActual - inicioSec) / secPerBarTramoActual));
+      elCompas.textContent = `${compasActualChip}/${barFinChip}`;
+    }
     if(elSeccion){
       const barFin = barInicio + compasesSeccion - 1;
       elSeccion.style.setProperty('--sec-color', colorDeSeccionEnLista(secciones, actualIdx));
@@ -4980,11 +5085,15 @@ function actualizarContadorPractica(uid, tiempoActual){
       actualizarLoopRangeProgresoPractica(uid, est, inicioLoopBar, finLoopBar);
       if(elTxt) elTxt.textContent = 'En loop (fuera de sección)';
       if(elSeccion) elSeccion.style.display = 'none';
+      const elCompasLoop = document.getElementById('progcompas-' + uid);
+      if(elCompasLoop) elCompasLoop.textContent = '';
     } else {
       elFill.style.width = '0%';
       elFill.style.background = ''; // v3.35: sin sección activa, vuelve al dorado por defecto (CSS)
       if(elTxt) elTxt.textContent = '';
       if(elSeccion) elSeccion.style.display = 'none';
+      const elCompasVacio = document.getElementById('progcompas-' + uid);
+      if(elCompasVacio) elCompasVacio.textContent = '';
       est.progresoTicksCompases = null;
       const contTicksVacio = document.getElementById('progticks-' + uid);
       if(contTicksVacio) contTicksVacio.innerHTML = '';
@@ -5493,6 +5602,74 @@ function formatBpm(v){
   const n = parseFloat(v);
   return isFinite(n) ? n.toFixed(2) : (v != null ? v : '—');
 }
+
+// v3.230: (a pedido, port de ensayo.html v3.281) lector de Vorbis
+// Comments — el formato de tags que usan los .flac (y .ogg/.opus),
+// totalmente distinto a ID3v2: no hay firma "ID3" al inicio, sino
+// "fLaC" seguido de bloques de metadata; el bloque tipo 4
+// (VORBIS_COMMENT) trae pares "CLAVE=valor" en texto plano (BPM=128,
+// KEY=Am, etc — sin un estándar tan fijo como los frames TBPM/TKEY de
+// ID3v2, así que se comparan varios alias case-insensitive). Se leen
+// los bloques DE A UNO por su propio tamaño declarado (nunca un límite
+// de bytes fijo), para no perderse el bloque de comentarios si antes
+// viene una carátula (PICTURE) pesada. leerTagsAudioID3() no se tocó
+// — esto es una función aparte.
+async function leerTagsAudioVorbis(file){
+  const resultado = { bpm: null, key: null };
+  try{
+    if(!file || !file.slice || file.size < 4) return resultado;
+    const firma = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if(String.fromCharCode(firma[0], firma[1], firma[2], firma[3]) !== 'fLaC') return resultado;
+    let pos = 4;
+    while(pos + 4 <= file.size){
+      const hdr = new Uint8Array(await file.slice(pos, pos + 4).arrayBuffer());
+      const esUltimo = (hdr[0] & 0x80) !== 0;
+      const tipoBloque = hdr[0] & 0x7f;
+      const largoBloque = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+      pos += 4;
+      if(tipoBloque === 4){ // VORBIS_COMMENT
+        const buf = await file.slice(pos, pos + largoBloque).arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        const dv = new DataView(buf);
+        let p = 0;
+        if(p + 4 > bytes.length) break;
+        const largoVendor = dv.getUint32(p, true); p += 4 + largoVendor;
+        if(p + 4 > bytes.length) break;
+        const numComentarios = dv.getUint32(p, true); p += 4;
+        for(let i = 0; i < numComentarios && p + 4 <= bytes.length; i++){
+          const largo = dv.getUint32(p, true); p += 4;
+          if(p + largo > bytes.length) break;
+          const texto = new TextDecoder('utf-8').decode(bytes.subarray(p, p + largo));
+          p += largo;
+          const igual = texto.indexOf('=');
+          if(igual < 0) continue;
+          const clave = texto.slice(0, igual).trim().toUpperCase();
+          const valor = texto.slice(igual + 1).trim();
+          if(!valor) continue;
+          if(!resultado.bpm && (clave === 'BPM' || clave === 'TBPM')) resultado.bpm = valor.replace(/[^\d.]/g, '') || null;
+          if(!resultado.key && (clave === 'KEY' || clave === 'INITIALKEY' || clave === 'INITIAL KEY' || clave === 'TONALITY' || clave === 'TKEY')) resultado.key = valor;
+        }
+        break; // ya se encontró el único bloque que nos interesa
+      }
+      pos += largoBloque;
+      if(esUltimo) break;
+    }
+    if(resultado.key){
+      const camelot = CAMELOT_A_TONALIDAD[resultado.key.trim().toLowerCase()];
+      if(camelot) resultado.key = `${camelot} (Camelot ${resultado.key.trim().toUpperCase()})`;
+    }
+  }catch(e){ console.error('No se pudieron leer tags Vorbis (FLAC):', e); }
+  return resultado;
+}
+// v3.230: intenta ID3v2 (mp3) y, si no encontró nada, Vorbis Comments
+// (flac/ogg) — un archivo solo trae uno de los dos formatos, así que
+// esto no pisa nada; simplemente amplía qué formatos se reconocen.
+async function leerTagsAudio(file){
+  const porID3 = await leerTagsAudioID3(file);
+  if(porID3.bpm || porID3.key) return porID3;
+  return await leerTagsAudioVorbis(file);
+}
+
 async function leerTagsAudioID3(file){
   const resultado = { bpm: null, key: null };
   try{
@@ -5573,7 +5750,7 @@ async function mostrarTagsDetectadosLocal(uid, file){
   const elTop = document.getElementById('archivolocaltagstop-' + uid);
   if(!el && !elTop) return;
   const setHtml = (html) => { if(el) el.innerHTML = html; if(elTop) elTop.innerHTML = html; };
-  const tags = await leerTagsAudioID3(file);
+  const tags = await leerTagsAudio(file);
   if(!tags.bpm && !tags.key){
     // v3.140: (a pedido) antes quedaba en blanco sin avisar nada; ahora
     // muestra un mensaje temporal para que quede claro que no hay tags
@@ -6280,6 +6457,11 @@ function dibujarWaveform(uid, tiempoActual){
   const colorProgreso = '#a78bd6';
   const colorFaint = estilos.getPropertyValue('--faint').trim() || '#5c5a55';
   const colorGold = estilos.getPropertyValue('--gold').trim() || '#c9a24b';
+  // v3.228: (port de ensayo.html v3.278) la línea de la regla de compás
+  // (principal y secundaria, marca el primer tiempo de cada compás
+  // visible) pasa de dorado a rojo — solo la LÍNEA, el número/hora
+  // arriba sigue dorado (fillStyle, sin tocar).
+  const colorPrimerTiempo = estilos.getPropertyValue('--err').trim() || '#d4574a';
   const colorVeloSinSeccion = estilos.getPropertyValue('--velo-sin-seccion').trim() || 'rgba(0,0,0,0.45)';
 
   // v3.27: (a pedido) fx de "encendido" al pasar por un tick/sección —
@@ -6626,7 +6808,7 @@ function dibujarWaveform(uid, tiempoActual){
       ctxDraw.lineWidth = 2.5;
     }else{
       ctxDraw.shadowBlur = 0;
-      ctxDraw.strokeStyle = colorGold;
+      ctxDraw.strokeStyle = colorPrimerTiempo;
       ctxDraw.lineWidth = 1;
     }
     ctxDraw.beginPath();
@@ -6662,7 +6844,7 @@ function dibujarWaveform(uid, tiempoActual){
       ctxDraw.lineWidth = 2.5;
     }else{
       ctxDraw.shadowBlur = 0;
-      ctxDraw.strokeStyle = colorGold;
+      ctxDraw.strokeStyle = colorPrimerTiempo;
       ctxDraw.lineWidth = 1;
     }
     ctxDraw.beginPath();
@@ -6744,7 +6926,7 @@ function dibujarWaveform(uid, tiempoActual){
         }else{
           ctxDraw.shadowBlur = 0;
           ctxDraw.globalAlpha = 0.22;
-          ctxDraw.strokeStyle = colorGold;
+          ctxDraw.strokeStyle = colorPrimerTiempo;
           ctxDraw.lineWidth = 1;
         }
         ctxDraw.beginPath();
