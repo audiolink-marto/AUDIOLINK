@@ -3,8 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Panel del Músico v3.230</title>
+<title>Audiolink — Panel del Músico v3.231</title>
 <!-- AUDIOLINK · musico.html · v3.224
+     v3.231: (a pedido, mismo fix que compartir.html v2.23) 2 ajustes
+     puntuales a la esfera del péndulo visual, sin tocar timing de
+     audio/click/dots: (1) FIX de percepción — el recorrido
+     (RECORRIDO_PX) posicionaba el CENTRO de la esfera hasta el límite
+     del riel, pero al ser la esfera más ancha (11px) que el inset del
+     riel (2px), su BORDE visible llegaba al límite ~3.5px (y por tanto
+     un poco antes en el tiempo) antes del instante real del beat — se
+     sentía como que el péndulo iba adelantado. Se resta el radio de la
+     esfera del cálculo para que sea el borde, no el centro, el que
+     llegue exacto al límite en el instante del beat. (2) más
+     "definición" visual: borde más marcado + gradiente radial sutil
+     (luz arriba-izquierda) en vez del relleno plano, en normal y beat1.
      v3.225: HOTFIX del fix de hoy (v3.224) — el click sincronizado
      sonaba 4 VECES SUPERPUESTO por cada pulso con el lookahead real ya
      subido a 0.35s en la misma v3.224. Mismo hotfix que ensayo.html
@@ -540,8 +552,12 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-pendulovel-chip{min-height:36px;padding:0 10px;}
 .practica-metro-pendulo{display:block;width:100%;height:14px;position:relative;}
 .practica-metro-pendulo .pendulo-riel{position:absolute;left:2px;right:2px;top:50%;height:2px;margin-top:-1px;background:var(--brd);border-radius:1px;}
-.practica-metro-pendulo .pendulo-punto{position:absolute;top:50%;left:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--warn);border:1px solid color-mix(in srgb, var(--warn) 60%, black 25%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--warn) 45%, transparent);will-change:transform;}
-.practica-metro-pendulo .pendulo-punto.beat1{background:var(--ok);border-color:color-mix(in srgb, var(--ok) 60%, black 25%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--ok) 45%, transparent);}
+/* v3.231: (a pedido, mismo criterio que compartir.html v2.23) más
+   "definición" — borde más marcado (1px→1.5px, mezcla más oscura) +
+   gradiente radial sutil (luz arriba-izquierda) en vez del relleno
+   plano. No toca tamaño, glow exterior ni el resto del bloque. */
+.practica-metro-pendulo .pendulo-punto{position:absolute;top:50%;left:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--warn) 65%, white 35%), var(--warn) 60%, color-mix(in srgb, var(--warn) 75%, black 15%) 100%);border:1.5px solid color-mix(in srgb, var(--warn) 55%, black 35%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--warn) 45%, transparent);will-change:transform;}
+.practica-metro-pendulo .pendulo-punto.beat1{background:radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ok) 65%, white 35%), var(--ok) 60%, color-mix(in srgb, var(--ok) 75%, black 15%) 100%);border-color:color-mix(in srgb, var(--ok) 55%, black 35%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--ok) 45%, transparent);}
 .practica-metro-pendulo .pendulo-punto.pendulo-rebote{animation:pendulo-rebote-anim 0.12s ease-out;}
 @keyframes pendulo-rebote-anim{
   0%{box-shadow:0 0 16px 6px rgba(255,255,255,0.95);}
@@ -4757,7 +4773,16 @@ function actualizarContadorPractica(uid, tiempoActual){
     const pos = (ciclo % 2 === 0) ? (-1 + 2 * fracCiclo) : (1 - 2 * fracCiclo);
     const panelPendulo = elPendulo.parentElement;
     const anchoRiel = panelPendulo ? panelPendulo.clientWidth : 140;
-    const RECORRIDO_PX = Math.max(0, (anchoRiel - 4) / 2);
+    // v3.231: (a pedido, mismo fix que compartir.html v2.23) el cálculo
+    // de arriba movía el CENTRO de la esfera hasta el límite del riel,
+    // pero la esfera (11px, radio 5.5px) es más ancha que el inset del
+    // riel (2px) — su BORDE visible llegaba al límite ~3.5px antes del
+    // instante real del beat (al ser el movimiento lineal, "antes" en
+    // espacio es "antes" en tiempo), sensación de péndulo adelantado.
+    // Se resta el radio de la esfera para que sea el borde, no el
+    // centro, el que llegue exacto al límite en el instante del beat.
+    const RADIO_ESFERA_PX = 5.5;
+    const RECORRIDO_PX = Math.max(0, (anchoRiel - 4) / 2 - RADIO_ESFERA_PX);
     elPendulo.style.transform = 'translateX(' + (pos * RECORRIDO_PX) + 'px)';
     if(ciclo !== est.pendUltimoCiclo){
       est.pendUltimoCiclo = ciclo;
