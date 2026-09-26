@@ -3,8 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Tema compartido v2.21</title>
+<title>Audiolink — Tema compartido v2.22</title>
 <!-- AUDIOLINK · compartir.html · v2.18
+     v2.22: (a pedido) 2 ajustes menores, sin tocar lógica de carga/tutorial:
+     (1) el botón 🎓 de relanzar el tutorial ahora tiene un pulso dorado
+     permanente (crece/decrece + glow, ver .tut-btn-llamativo /
+     @keyframes tutBtnRespira) para que se note más entre los demás
+     íconos del header — es solo CSS, no cambia _TUT_LLAVE ni cuándo se
+     abre el tutorial. (2) el paso 💾 del tutorial ("Guardar en este
+     dispositivo") ahora menciona también el botón "⬇️ Descargar
+     archivo" (v2.21) que vive justo al lado — antes solo hablaba del
+     caché interno, el visitante no se enteraba de que existe una
+     descarga real aparte.
      v2.21: (a pedido) nuevo botón "⬇️ Descargar archivo" junto a
      "📥 Guardar tema" — este último sigue igual (caché interno del
      navegador, solo para que la app siga sonando offline). El nuevo
@@ -456,6 +466,14 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-nav-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;}
 /* v2.4: tutorial spotlight — mismo patrón que vaca.html v1.52 (accent→--gold, bg2→--surf,
    text→--txt, text2→--muted, border→--brd, red→--err) para que siga el tema claro/oscuro. */
+/* v2.22: (a pedido) pulso permanente del botón 🎓 — crece/decrece +
+   glow dorado, respeta tema claro/oscuro vía var(--gold). No toca
+   .btn-ghost base ni ningún otro botón del header. */
+@keyframes tutBtnRespira{
+  0%,100%{ box-shadow:0 1px 3px rgba(0,0,0,0.15); transform:scale(1); }
+  50%{ box-shadow:0 0 0 6px var(--gold-bg), 0 0 14px var(--gold); transform:scale(1.08); }
+}
+.tut-btn-llamativo{ animation:tutBtnRespira 2.2s ease-in-out infinite; }
 #tutorial-overlay{position:fixed;inset:0;z-index:9990;background:rgba(10,14,20,.72);pointer-events:all;transition:opacity .3s;}
 #tutorial-overlay.oculto{display:none !important;}
 #tutorial-spotlight-ring{position:fixed;z-index:9995;border-radius:12px;box-shadow:0 0 0 3px var(--gold),0 0 0 7px var(--gold-bg),0 0 28px var(--gold-bg);pointer-events:none;transition:top .35s cubic-bezier(.4,0,.2,1),left .35s cubic-bezier(.4,0,.2,1),width .35s cubic-bezier(.4,0,.2,1),height .35s cubic-bezier(.4,0,.2,1);}
@@ -1421,7 +1439,7 @@ main{padding:28px;max-width:760px;margin:0 auto;}
         <!-- v2.2: tema claro/oscuro (ver alternarTemaCompartido) -->
         <button type="button" class="btn-ghost" id="btnTemaCompartido" style="min-height:40px;padding:0 14px;font-size:1rem;" onclick="alternarTemaCompartido()" title="Cambiar a tema claro" aria-label="Cambiar entre tema claro y oscuro">☀️</button>
         <!-- v2.4: relanzar el tutorial (ver iniciarTutorial) -->
-        <button type="button" class="btn-ghost" id="btnTutorialCompartido" style="min-height:40px;padding:0 14px;font-size:1rem;" onclick="iniciarTutorial(true)" title="Relanzar guía" aria-label="Relanzar guía">🎓</button>
+        <button type="button" class="btn-ghost tut-btn-llamativo" id="btnTutorialCompartido" style="min-height:40px;padding:0 14px;font-size:1rem;" onclick="iniciarTutorial(true)" title="Relanzar guía" aria-label="Relanzar guía">🎓</button>
         <!-- v1.7: guardar el audio en este dispositivo (ver
              alternarGuardarTemaCompartido / guardarListaCompartida) -->
         <button type="button" class="btn-ghost" id="btnGuardarTemaCompartido" style="display:none;min-height:40px;padding:0 14px;font-size:0.82rem;" onclick="alternarGuardarTemaCompartido()" title="Guarda el audio en este dispositivo, por si Cloudinary falla">📥 Guardar tema</button>
@@ -1769,7 +1787,7 @@ const _TUT_PASOS = [
     opcional: true,
     emoji: '💾',
     titulo: 'Guardar en este dispositivo',
-    texto: 'Guarda el audio de este tema en tu dispositivo, por si falla la descarga.'
+    texto: 'Guarda el audio en la memoria interna de la app, para seguir practicando aunque falle Cloudinary. Junto a este botón, ⬇️ Descargar archivo hace una descarga real del audio a tu dispositivo, como cualquier archivo descargado.'
   },
   {
     target: null,
