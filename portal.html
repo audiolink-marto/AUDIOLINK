@@ -4,7 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Portal de Clientes</title>
-<!-- AUDIOLINK · portal.html · v2.5
+<link rel="apple-touch-icon" href="logo/apple-touch-icon.png">
+<meta property="og:image" content="https://audiolink-marto.github.io/AUDIOLINK/logo/logo-circular-512.png">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- AUDIOLINK · portal.html · v2.6
+     v2.6: (a pedido) 2 cosas, solo aditivas:
+     (1) <head>: apple-touch-icon, og:image y manifest — mismo patrón
+     que index.html/ensayo.html/musico.html/ingeniero.html.
+     (2) dentro de #loginScreen, arriba de .brand: el dial con el
+     disco en barrido (7:30 -vuelta larga por arriba- 4:30 -regreso
+     corto- 3:00, loop) y LED fijo — mismo ícono ya usado en
+     login.html v1.11 pero animado en vez de estático, ya que aquí no
+     hay guard de sesión que oculte el login rápido (se ve más tiempo
+     en pantalla). No se tocaron las barritas vu, el shimmer de fondo,
+     el formulario ni login().
      v2.5: se quita la copia local de escapeHtml() — ya se cargaba
      utils.js (desde v2.4, para formatCOP), que ahora también provee
      escapeHtml() (misma función, mismo resultado). No se tocó nada más.
@@ -341,6 +354,14 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
   text-align:center;padding:18px 20px 24px;font-size:0.68rem;color:var(--faint);
   letter-spacing:0.02em;
 }
+.login-dial-wrap{position:relative;width:72px;height:72px;margin:0 auto 10px;}
+.login-dial-wrap img{display:block;width:100%;height:100%;}
+.login-dial-wrap .login-dial-knob{position:absolute;top:50%;left:50%;width:43.4%;height:43.4%;aspect-ratio:1;transform:translate(-50%,-50%) rotate(135deg);animation:alBarrido 1.8s ease-in-out infinite alternate;}
+@keyframes alBarrido{
+  0%   { transform:translate(-50%,-50%) rotate(135deg); }
+  50%  { transform:translate(-50%,-50%) rotate(405deg); }
+  100% { transform:translate(-50%,-50%) rotate(360deg); }
+}
 </style>
 </head>
 <body>
@@ -349,6 +370,10 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 <div id="loginScreen">
   <div class="login-bg-shimmer" id="login-bg-shimmer"></div>
   <div class="login-box">
+    <div class="login-dial-wrap">
+      <img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display='none'">
+      <img class="login-dial-knob" src="logo/logo-knob-192.png" alt="">
+    </div>
     <div class="brand" style="justify-content:center;margin-bottom:8px;">
       <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
       <h1>AUDIOLINK</h1>

@@ -97,6 +97,275 @@ nav.css igual que el resto de páginas.
 
 ## nav.js
 
+### v1.31
+(a pedido) sin cambios de código. El historial V1.1–V1.28 se
+traslada de la cabecera a CHANGELOG.md (sección nav.js); en la
+cabecera queda la versión vigente, las 2 entradas previas (V1.30 y V1.29)
+y la descripción de uso. Todo lo que sigue después de la cabecera es
+idéntico a v1.30.
+
+### v1.30
+(a pedido) los íconos pasan de "temblor" (filtro de v1.29) a
+dibujo tipo HOJA TÉCNICA hecho a mano en el propio SVG, en la línea del
+dial (cruz de ejes, marcas, aros dobles): trazo principal con
+sobre-trazo en las esquinas, líneas finas de detalle (clase al-k) y
+ejes de construcción punteados (clase al-c). Se redibujan los 17 de
+ITEMS (campo svg) y luna/sol/encendido de los botones del dial y del
+panel (los tres con un aro punteado de órbita). Se ELIMINA el filtro
+alPen de v1.29 (penDefs y los <g filter>), ya no hace falta. Las clases
+al-k / al-c se definen en nav.css v1.26 (sin ese CSS los detalles se
+verían con el trazo principal). No cambian ids, hrefs, labels, grupos,
+tema, sesión, sync, ni el emoji de respaldo (`icon`).
+
+### v1.29
+(a pedido) los íconos SVG (17 de ITEMS + luna/sol/encendido de
+los botones del dial y del panel) se ven dibujados a mano, como el
+dial: cada SVG envuelve sus trazos en <g filter="url(#alPen)"> y se
+inyecta una sola vez, junto al sidebar, un <svg> de 0x0 con ese filtro
+(feTurbulence + feDisplacementMap: un temblor leve del trazo, en
+unidades del viewBox de 24, así escala igual en todos los tamaños).
+Solo cambia el dibujo: estructura, ids, onclick, ITEMS, tema, sesión,
+sync y el emoji de respaldo no se tocaron. Intensidad = atributo
+scale del filtro (1.4; 0 = trazo limpio). El filtro NO usa
+display:none (algunos navegadores lo ignoran). Scrollbar: nav.css v1.25.
+
+### v1.28
+(a pedido) el menú móvil adopta la misma familia del dial. En
+nav.js solo cambia el panel "···": "Cambiar tema" y "Cerrar sesión"
+pasan del emoji (🌙 / ⏻) a los mismos SVG del sidebar (luna/sol según
+el modo, encendido). El ícono de tema del panel (#iconoTemaMas) se
+actualiza junto con el del sidebar en actualizarIconoTema(). Siguen
+siendo filas con texto (en móvil el texto ayuda al toque). Topbar,
+bottomnav, ITEMS, tema, sesión, sync y el resto no se tocaron. El resto
+del ajuste móvil (píldoras, halo, LED, separadores dobles) es solo CSS:
+nav.css v1.23.
+
+### v1.27
+(a pedido) los 17 emojis de ITEMS se reemplazan por íconos de
+trazo fino (SVG, currentColor) en la misma familia del dial: sidebar,
+barra inferior y panel "···" móvil a la vez. Cada ítem de ITEMS gana un
+campo `svg` (markup interno del <svg>); el campo `icon` con el emoji NO
+se borró y queda como respaldo: iconoItem(it) usa el SVG si existe y, si
+no, el emoji. Se sube _svgAttr (antes definida junto a los botones del
+dial) para que ITEMS y esos botones compartan el mismo grosor de trazo.
+No cambian ids, hrefs, labels, grupos, idsFueraBottomnav, tema, sesión,
+sync ni sbFootExtra/masMobileExtra (siguen aceptando emoji). Los
+items "Cambiar tema"/"Cerrar sesión" del panel "···" tampoco se
+tocaron. Tamaño de los SVG: nav.css v1.22.
+
+### v1.26
+(a pedido) los íconos SVG de los botones junto al dial (luna,
+sol, encendido) pasan de trazo 1.6 a 1.4 para leerse como línea de
+pluma, en armonía con el dial. Solo cambia el grosor (_svgAttr); la
+estructura, ids, onclick y lógica de v1.25 no se tocaron. El aspecto
+del botón (disco crema, aro de tinta, hover ámbar) vive en nav.css v1.20.
+
+### v1.25
+(a pedido) en el sidebar, "Tema" y "Cerrar sesión" pasan de
+filas del pie a dos botones circulares SOLO ICONO (SVG de trazo, sin
+texto) a lado y lado del dial del logo: tema a la izquierda, cerrar
+sesión a la derecha, ambos con tooltip. El ícono del tema cambia según
+el modo (luna en oscuro, sol en claro, mismo criterio que tenía el
+emoji). El dial ahora vive dentro de una fila .sb-dial (con .sb-dial-face
+como cara clicable, conserva id="sbDial"), así que sus botones vecinos
+no disparan el colapsar. La fila "Colapsar" (#sidebarToggle) NO se
+borró: se oculta por CSS y el dial sigue usándola por debajo (misma
+lógica y mismo guardado en localStorage). Con el sidebar colapsado los
+dos botones se ocultan (solo se ve el dial). Si la página tiene
+soportaTema:false se deja un hueco invisible del lado izquierdo para
+que el dial siga centrado. El panel "···" móvil, la topbar móvil, ITEMS,
+sbFootExtra, conexión, sync, acordeón y el resto no se tocaron.
+Estilos: nav.css v1.19.
+
+### v1.24
+(a pedido) el .sb-dial del sidebar (v1.23) ahora es clicable:
+dispara un click sobre el #sidebarToggle ya existente, así reusa
+exactamente su misma lógica de colapsar/expandir y su guardado en
+localStorage (audiolink_sb_colapsado) — no se duplicó ni se tocó esa
+función. Se agrega title="Colapsar/expandir menú" para que no se
+confunda con un link al dashboard. El dial de la topbar móvil no
+tiene esta interacción, porque ahí no existe el concepto de
+colapsar. Centrado del dial: nav.css v1.17.
+
+### v1.23
+el dial del logo (logo-circular-192.png, desde LOGO_DIR) se suma
+a la marca. Sidebar: en un renglón propio ARRIBA de las barritas `vu`
+(bloque nuevo .sb-dial); topbar móvil: en línea, a la izquierda de las
+barritas. Si el PNG no carga, la imagen se oculta sola. Solo se agrega
+la constante dialBrand y los dos puntos de inserción en sidebarHtml /
+topbar; las barritas `vu`, el LED de conexión, el badge de sync,
+ITEMS, tema y el resto no se tocaron. Estilos en nav.css v1.16.
+
+### v1.22
+los archivos del logo viven en una carpeta propia (por defecto
+`logo/`, constante LOGO_DIR abajo). Cambiar el nombre de la carpeta =
+cambiar solo esa constante.
+
+### v1.21
+favicon compartido del ecosistema (logo circular del dial).
+Al cargar, si la página NO tiene ya un <link rel="icon">, inyecta en
+<head> favicon.ico + logo-circular-32.png (desde LOGO_DIR). Si la página
+ya declara su propio icon, no se toca. No se modifican rel="apple-touch-icon" ni
+manifests (ícono de la app instalada sigue igual), ni las barritas
+`vu`, ITEMS, sidebar, sync, tema ni ninguna otra función.
+
+### v1.20
+se agrega el ítem "Ensayo" (ensayo.html) a ITEMS, en el grupo
+'Operación' — módulo standalone de práctica (login propio, "Mis
+temas", metrónomo/waveform) que hasta ahora vivía fuera del sidebar
+compartido, con su propio header. Se suma también a
+idsFueraBottomnav (mismo criterio que Vacas/Eventos/Cocina) para no
+saturar la barra inferior móvil. No se tocó ninguna otra función,
+ítem existente ni la lógica de inyección/colapsar/tema.
+
+### v1.19
+_navForzarSincronizacion() ahora también avisa cuando
+sincronizarColaOffline() devuelve `no_reconocidos > 0` (offline-mock.js
+v1.10) — antes, un cambio de una colección no soportada offline (ej.
+clientes/egresos antes de v1.10) se quedaba atascado en la cola sin
+ningún aviso: el botón no mostraba error ni éxito, "no pasaba nada".
+Además, actualizarBadgeSync() ahora actualiza TODAS las copias de
+.sync-badge (antes usaba getElementById, que solo tocaba la copia
+del sidebar — en mobile la copia visible del topbar nunca se
+actualizaba ni mostraba/ocultaba el número real, así que el badge
+podía quedar visible pero "muerto"). No se tocó el resto del flujo
+de sync ni el resto de actualizarEstadoConexion().
+
+### v1.18
+se agrega el ítem "Cocina" (cocina.html) a ITEMS, en el grupo
+'Operación' junto a Vacas/Eventos — sistema de costeo interno
+(insumos→recetas→ventas) migrado a la navegación estándar. Se suma
+también a idsFueraBottomnav para no saturar la barra inferior móvil
+(queda accesible por sidebar desktop y panel "···" móvil). No se
+tocó ninguna otra función, ítem existente ni la lógica de
+inyección/colapsar/tema.
+
+### v1.17
+nuevo grupo colapsable "Ajustes" en el acordeón (sidebar
+desktop + panel "···" móvil), junto a Gestión/Catálogos/Operación/
+Finanzas. Se agrega el ítem "Header PDF" (header-config.html, panel
+centralizado de logo/diffuser/color/opacidades — ver header-config.js
+v1.0) y se mueve "Avatar / Icono" (antes grupo:null, suelto al
+final) a este mismo grupo nuevo. Ambos se suman a idsFueraBottomnav
+(avatares ya estaba) para no saturar la barra inferior móvil de 4
+accesos — quedan accesibles por sidebar desktop y panel "···" móvil.
+No se tocó ninguna otra función, ítem ni la lógica de
+inyección/colapsar/tema existente.
+
+### v1.16
+badge de "N cambios pendientes" (Fase 2 offline), junto al
+conn-dot en sidebar y topbar. Lee obtenerColaCambiosOffline() +
+obtenerConflictosOffline() de offline-mock.js (si no está cargado en
+la página, se asume 0, sin romper nada). Tocar el badge fuerza
+sincronizarColaOffline() manualmente (botón de respaldo); además, al
+detectar el evento 'online' del navegador se intenta sincronizar
+solo, salvo que el modo offline manual esté activo a propósito. No
+se tocó actualizarEstadoConexion() ni la lógica de conn-dot/banner
+ya existente.
+
+### v1.15
+el indicador de conexión (.conn-dot) ahora distingue DOS
+casos que antes se mezclaban en uno solo ("sin conexión"): (1) sin
+internet real (navigator.onLine), y (2) modo offline ACTIVADO A
+PROPÓSITO por el usuario (switch de index.html v2.22), aunque SÍ
+haya internet real — antes el punto quedaba verde en este segundo
+caso, confuso al verificar en qué modo está la app. Nueva clase
+`conn-modo-offline` en <body> (además de la ya existente
+`conn-offline`), CSS define el color/animación de cada estado (ver
+nav.css v1.12). El banner inferior también distingue el mensaje
+según el caso. No se tocó ninguna otra función existente.
+
+### v1.14
+fix — el banner de sin conexión a veces no desaparecía solo
+al recuperar señal (había que recargar la página), mientras el punto
+de estado (v1.13) sí se actualizaba. Los eventos nativos 'online'/
+'offline' del navegador son conocidos por no dispararse siempre de
+forma confiable (varía según navegador/SO/red). Se agrega un chequeo
+de respaldo cada 5s (setInterval) y también al volver a la pestaña
+(evento 'visibilitychange') — ambos llaman la misma
+actualizarEstadoConexion() de siempre, así que aunque el evento nativo
+falle, en máximo 5s (o al volver a mirar la pestaña) se corrige solo,
+sin depender de un recargado manual. No se tocó la lógica interna de
+la función ni el resto del archivo.
+
+### v1.13
+dos mejoras al indicador de conexión (v1.11/v1.12), a pedido
+del usuario. (1) Punto de estado (🟢/🔴) junto al logo "AUDIOLINK",
+tanto en el sidebar de escritorio como en la topbar móvil. (2) Las
+barritas del ícono `vu` JUNTO AL LOGO cambian de dorado a rojo cuando
+se pierde conexión — se le agrega la clase extra .vu-brand solo a
+esas dos instancias (sidebar + topbar), el ícono `vu` del botón de
+menú móvil (⋮) queda igual que siempre, sin tocar, para no confundir
+"conexión" con "hay opciones nuevas en el menú". Todo controlado por
+una sola clase en <body> ('conn-offline'/quitarla si online), que
+actualizarEstadoConexion() ya calculaba — no se agregó ningún
+listener nuevo, solo se extendió esa misma función. No se tocó
+ninguna otra lógica.
+
+### v1.12
+fix — el banner de sin conexión (v1.11) nunca se creaba en la
+práctica. Dependía solo de 'DOMContentLoaded' para dispararse la
+primera vez, pero nav.js normalmente se carga DESPUÉS de que ese
+evento ya ocurrió (se inyecta en #nav-mount, que ya existe en el
+DOM) — el listener se registraba tarde y nunca se disparaba. Se
+agrega una llamada directa a actualizarEstadoConexion() al cargar el
+script (sin esperar el evento), y se deja 'DOMContentLoaded' como
+respaldo por si algún módulo cargara nav.js antes de tiempo. No se
+tocó la lógica de show/hide ni los listeners online/offline.
+
+### v1.11
+se agrega el indicador global de "sin conexión" — banner fijo
+arriba de la pantalla ("🔴 Sin conexión — los cambios se guardarán al
+recuperar señal"), que aparece/desaparece con los eventos nativos
+online/offline del navegador. Se centraliza acá (no en cada HTML) para
+que quede disponible automáticamente en todos los módulos apenas
+carguen nav.js — pensado para acompañar el piloto de Firestore offline
+persistence (proyecto.html v5.26) sin tener que repetir el indicador
+archivo por archivo cuando se replique a logistica.html/bitacora.html/
+etc. No depende de Firestore directamente: es solo navigator.onLine +
+los eventos del navegador, así que funciona igual en cualquier módulo,
+tenga o no enablePersistence() activado. No se tocó ninguna otra
+función existente.
+
+### v1.10
+se agrega el ítem "Recordatorios" (recordatorios.html) a ITEMS,
+en el grupo 'Gestión' (junto a Proyectos/Clientes) — módulo nuevo de
+notas/recordatorios personales o de equipo (ver index.html v2.8 y
+firestore.rules v2.29). Se suma también a idsFueraBottomnav para no
+saturar la barra inferior móvil (queda accesible por sidebar desktop
+y panel "···" móvil). No se tocó ninguna otra función, ítem existente
+ni la lógica de inyección/colapsar/tema.
+
+### v1.9
+fix — "Cotizador" nunca aparecía en el panel "···" móvil.
+Estaba en ITEMS con grupo:'Finanzas' (por eso sí se veía en el
+sidebar desktop, que recorre ITEMS completo), pero se excluía de la
+bottomnav con una condición aparte (it.id !== 'cotizador') en vez de
+vía idsFueraBottomnav — y como masMobileGroupedHtml() solo muestra
+lo que está en esa lista, Cotizador quedaba inalcanzable desde el
+menú móvil. Se agrega 'cotizador' a idsFueraBottomnav; la condición
+`it.id !== 'cotizador'` en el filtro de la bottomnav queda igual
+(redundante pero inofensiva, no se tocó para minimizar el diff). No
+se tocó ningún otro ítem, grupo ni lógica.
+
+### v1.8
+acordeón por grupo. Cada .sb-grupo-label (desktop) y su
+equivalente en el panel "···" móvil ahora son clickeables: pliegan/
+expanden los ítems de ese grupo (Gestión/Catálogos/Operación/
+Finanzas). Estado por grupo persistido en localStorage, clave
+`audiolink_sb_grupo_<nombre>` — compartida entre desktop y mobile,
+así que cerrar un grupo en uno lo cierra en el otro. Si el sidebar
+desktop está en modo colapsado (solo íconos), el acordeón por grupo
+se ignora vía CSS (.sidebar.collapsed fuerza todos los grupos
+visibles) — no tiene sentido plegar grupos cuando ya solo se ven
+íconos. También: el botón de menú móvil (antes "⋮" / .btn-icon,
+suelto en cada página) ahora lo genera nav.js con el mismo ícono
+`vu` (barritas animadas) que ya vive junto al título "AUDIOLINK" —
+se reutiliza el mismo markup/CSS del vu de marca, sin duplicar
+nada. Páginas viejas con su propio botón "⋮"/.btn-icon van a mostrar
+temporalmente los dos botones superpuestos hasta que se les quite
+ese bloque manualmente (pendiente, uno por uno).
+
 ### v1.7
 sidebar de escritorio agrupado por categoría (Gestión/Catálogos/
 Operación/Finanzas), separado por encabezados de sección
@@ -110,17 +379,314 @@ exactamente igual que antes, sin reordenarse.
 
 ### v1.6
 se agrega el ítem "Avatar / Icono" (avatares-iconos.html) a ITEMS,
-después de "Vacas". Se suma también a idsFueraBottomnav para no
+después de "Vacas" — catálogo de avatars/iconos del ecosistema
+(Cloudinary, folder ICONOS + Firestore colección avataresIconos). Se suma también a idsFueraBottomnav para no
 saturar la barra inferior móvil (queda accesible por sidebar desktop
 y panel "···" móvil). No se tocó ninguna otra función, ítem existente
 ni la lógica de inyección/colapsar/tema.
 
+### v1.5
+se agrega el ítem "Vacas" (vacas.html) a ITEMS, después de
+"Cotizador" — módulo de vaca colectiva (crowdfunding interno). Se suma
+también a idsFueraBottomnav para no saturar la barra inferior móvil
+(queda accesible por sidebar desktop y panel "···" móvil). No se tocó
+ninguna otra función, ítem existente ni la lógica de
+inyección/colapsar/tema.
+
+### v1.4
+se agrega el ítem "Eventos" (eventos.html) a ITEMS, después de
+"Equipo Técnico" — módulo Live (sonido en vivo), mismo criterio que
+V1.3 (página nueva del ecosistema que aún no estaba en el menú). Se
+suma también a idsFueraBottomnav para no saturar la barra inferior
+móvil (queda accesible por sidebar desktop y panel "···" móvil). No
+se tocó ninguna otra función, ítem existente ni la lógica de
+inyección/colapsar/tema.
+
+### v1.3
+se agregan los ítems "Egresos" (egresos.html) y "Equipo Técnico"
+(equipo-tecnico.html) a ITEMS, después de "Pagos" — mismo criterio que
+V1.2 (páginas nuevas del ecosistema que aún no estaban en el menú).
+Ambos se suman también a idsFueraBottomnav para no saturar la barra
+inferior móvil (quedan accesibles por sidebar desktop y panel "···"
+móvil). No se tocó ninguna otra función, ítem existente ni la lógica
+de inyección/colapsar/tema.
+
+### v1.2
+se agregan los ítems "Estudios" (estudios.html) y "Músicos"
+(musicos.html) a ITEMS, entre Clientes y Logística — mismos catálogos
+maestros que antes vivían como modales dentro de proyecto.html (ver
+plan de migración acordado). Como ya son ítems reales de ITEMS[], se
+retiraron de proyecto.html los accesos duplicados que tenía en su
+sbFootExtra (abrirModalEstudios()/abrirModalMusicos()) — ahora entran
+por acá, con href real, disponibles en TODO el ecosistema (antes solo
+se podían abrir desde Proyectos). Se agregan también al filtro del
+mobile-bottomnav (junto a cotizador y clientes) para que la barra
+inferior mobile no crezca de 4 accesos — quedan disponibles ahí vía
+sidebar desktop y panel "···" mobile. No se tocó ninguna otra función,
+ítem existente ni la lógica de inyección/colapsar/tema.
+
+### v1.1
+se agrega el ítem "Clientes" (clientes.html) a ITEMS, entre
+Proyectos y Logística. No se tocó ninguna otra función, ítem existente
+ni la lógica de inyección/colapsar/tema.
+
 ## nav.css
+
+### v1.28
+(a pedido) sin cambios de reglas. El historial v1.1–v1.25 se
+traslada de la cabecera a CHANGELOG.md (sección nav.css); en la
+cabecera queda la versión vigente, las 2 entradas previas (v1.27 y v1.26)
+y la descripción de uso. Todo lo que sigue después de la cabecera es
+idéntico a v1.27.
+
+### v1.27
+(a pedido) la fila Dashboard —y cualquier hijo directo de
+.sb-nav— se comprimía a la mitad cuando el menú necesita scroll,
+porque en un contenedor flex con overflow los hijos se encogen antes
+de que aparezca la barra. Se fija flex-shrink:0 en los hijos directos
+de .sb-nav para que conserven su alto natural y el sobrante se
+desplace. Bloque aditivo al final; no se editó ninguna regla anterior.
+
+### v1.26
+clases para los íconos "hoja técnica" (nav.js v1.30). .al-k =
+línea fina de detalle; .al-c = eje de construcción punteado (guion-
+punto, tenue). Se definen aquí para que el trazo fino sea relativo al
+principal en cualquier tamaño. Bloque aditivo al final; no se editó
+ninguna regla anterior.
+
+### v1.25
+(a pedido) la barra de scroll del sidebar (.sb-nav) y del panel
+"···" móvil (.mas-mobile-panel) salía clara en tema oscuro: el navegador
+la pintaba con su esquema claro por defecto. Se fija color-scheme según
+el tema (oscuro por defecto, claro con html[data-tema="light"]) y una
+barra delgada con el tono --faint sobre pista transparente. Para
+navegadores sin scrollbar-color se agrega el equivalente ::-webkit-.
+Solo esos dos contenedores; no se toca el scroll de la página.
+Bloque aditivo al final; no se editó ninguna regla anterior.
+
+### v1.24
+(a pedido) cada ícono de ítem (sidebar, panel "···" y barra
+inferior móvil) va dentro de un disco con doble aro fino, como los
+botones del dial, pero SIN crema: en reposo solo aro, con los colores
+del tema (--brd / --muted); en hover se ilumina en ámbar; el ítem
+ACTIVO es el disco "encendido" (relleno --gold-bg, aro y trazo
+--gold). Consecuencias, todas dentro de este bloque: (a) el aro doble
+de la píldora activa (v1.21) y el halo de hover de la píldora
+(v1.21/v1.23) se anulan, porque el disco ya cumple ese papel (el LED
+ámbar del activo se conserva en sidebar y panel; en la barra inferior
+se oculta, el disco encendido lo reemplaza); (b) las filas se acortan
+(padding) para que el disco de 28px no las haga más altas; (c) con el
+sidebar colapsado el disco queda centrado. Solo aplica a ítems con
+SVG: los extras con emoji (sbFootExtra/masMobileExtra) quedan igual.
+Bloque aditivo al final; no se editó ninguna regla anterior.
+
+### v1.23
+(a pedido) el menú móvil adopta el mismo lenguaje que el
+sidebar (v1.21). Bloque aditivo al final; no se editó ninguna regla
+anterior. Panel "···": ítems en píldora con halo ámbar en hover/toque,
+etiquetas de grupo más sobrias, separador doble sobre el crédito.
+Barra inferior: LED ámbar sobre el ítem activo y línea doble arriba.
+Topbar: línea doble abajo, aro fino en el punto de conexión y el badge
+de sync. Topbar/panel/bottomnav conservan su estructura y tamaños.
+
+### v1.22
+tamaño de los íconos SVG de ITEMS (nav.js v1.27): 18px en el
+sidebar y en el panel "···", 22px en la barra inferior móvil. Bloque
+aditivo al final; no se editó ninguna regla anterior.
+
+### v1.21
+(a pedido, opción A) el resto del sidebar adopta el lenguaje
+del dial SIN cambiar su fondo (sigue el tema, como siempre). Todo va
+en un bloque aditivo al final del archivo ("v1.21"); no se editó ni
+se borró ninguna regla anterior, solo se sobreescriben por orden.
+(1) .sb-item pasa a forma de píldora; el ítem ACTIVO reemplaza el
+bloque --gold-bg por doble aro fino ámbar + LED ámbar pequeño (como
+el del dial). (2) Hover de ítem: aro fino + halo ámbar suave.
+(3) Separadores del sidebar (bajo la marca y sobre el pie): línea
+doble fina, como los aros del dial. (4) Etiquetas de grupo y crédito
+más sobrias (más espaciado entre letras). (5) .conn-dot y
+.sync-badge dentro del sidebar ganan un aro fino; sus colores/estados
+y animaciones no se tocaron. Topbar móvil, panel "···" y bottomnav
+no se tocaron. nav.js no cambia (sigue v1.26).
+
+### v1.20
+(a pedido) los botones de tema / cerrar sesión junto al dial
+(.sb-dial-btn, v1.19) pasan a imitar el dial del logo: mini disco
+crema con aro de tinta y un segundo aro fino interior, ícono en tinta
+oscura, y en hover el ícono y el aro pasan a ámbar con halo tipo LED
+(el del dial). Colores FIJOS, no variables del tema, porque el dial es
+crema en modo oscuro y claro por igual. Tamaño 30→28px (el dial, 44px,
+sigue siendo el protagonista). Solo se reemplazan las reglas
+.sb-dial-btn / svg / :hover; el resto de v1.19 no se tocó.
+
+### v1.19
+(a pedido) estilos de los botones circulares de tema y cerrar
+sesión a lado y lado del dial (nav.js v1.25). .sb-dial pasa a fila de
+tres elementos (botón · dial · botón); la cara clicable del dial es
+ahora .sb-dial-face (antes el cursor/hover vivían en .sb-dial completo,
+que ahora incluye los botones). Botón: 30px, aro fino --brd como el
+bisel del dial, ícono en --muted que se enciende en --gold al pasar el
+mouse. Colapsado (64px) los dos botones se ocultan. La fila .sb-toggle
+("Colapsar") queda oculta con display:none — el elemento sigue en el
+DOM porque el dial lo dispara. No se tocó ningún otro estilo.
+
+### v1.18
+(a pedido) el color de "sin conexión real" (conn-offline)
+pasa de rojo a magenta — mismo mecanismo, mismo comportamiento
+persistente (el banner ya se quedaba fijo mientras dura el estado,
+eso no cambió), solo la paleta. Afecta 4 puntos: .offline-banner,
+el keyframe (renombrado ledGlowRojo → ledGlowMagenta, mismo
+mecanismo de resplandor), .conn-dot y .vu-brand span bajo
+body.conn-offline. Colores fijos (no ligados a --err ni a ninguna
+variable del tema), mismo criterio que ya usaba el lila de
+conn-modo-offline — así --err sigue intacto para validaciones de
+formularios y cualquier otro uso ajeno a conexión. El lila de
+conn-modo-offline no se tocó.
+
+### v1.17
+(a pedido) el dial del sidebar (.sb-dial, v1.16) se centra
+horizontalmente (justify-content:center) tanto abierto como
+colapsado, y se le agrega cursor:pointer + hover sutil porque ahora
+es clicable (nav.js v1.24). El dial de la topbar móvil no se tocó.
+
+### v1.16
+estilos del dial del logo (nav.js v1.23). Sidebar: renglón
+propio .sb-dial sobre la marca (44px abierto, 32px colapsado — cabe
+en los 32px útiles del sidebar de 64px). Topbar móvil: 28px en línea
+junto a las barritas. Borde fino con --brd para que se lea en tema
+claro y oscuro. Todo aditivo: no se tocó ningún estilo existente.
+
+### v1.15
+estilo .sync-badge para el contador de "N pendientes" de
+nav.js v1.16 (Fase 2 offline). No se tocó ningún estilo existente.
+
+### v1.14
+ver comentario inline junto a ledGlowRojo más abajo — resumen:
+el estado rojo (conn-offline) gana el mismo efecto de resplandor que
+ya tenía el lila (v1.13), en vez del pulso simple anterior.
+
+### v1.13
+ver comentarios inline junto a ledGlow y la variante del
+banner más abajo — resumen: el modo offline manual pasa de amarillo
+(--warn, se confundía con --gold) a lila, y su LED gana un efecto
+de resplandor real (ledGlow: box-shadow en capas que crecen/atenúan)
+en vez del pulso simple de escala/opacidad que compartía con
+conn-offline (rojo, que se deja como estaba). No se tocó ningún
+otro estilo.
+
+### v1.12
+el .conn-dot ahora tiene efecto LED pulsante (@keyframes
+ledPulse) en los dos estados que requieren atención — antes era un
+simple cambio de color estático. Se agrega el estado nuevo
+`conn-modo-offline` (amarillo/--warn) para el modo offline manual
+activado a propósito (ver nav.js v1.15) — antes solo existía
+conn-offline (rojo) para "sin internet real", y el modo manual con
+internet disponible quedaba indistinguible (el punto se veía verde).
+El banner inferior (.offline-banner) también tiene su variante
+amarilla para este caso. El verde (estado normal) se deja sin
+animación a propósito, para no generar parpadeo constante cuando
+todo funciona bien. No se tocó ningún otro estilo.
+
+### v1.11
+fix — en mobile el banner "sin conexión" se quedaba pegado
+encima de la barra inferior después de recuperar señal, en vez de
+desaparecer del todo. Causa: la posición base usaba
+bottom:var(--bn-h) con transform:translateY(100%) para "ocultarlo",
+pero eso solo lo desplazaba una fracción — no lo sacaba realmente de
+pantalla, quedaba montado sobre la barra de navegación. Se cambia el
+enfoque: la posición base ahora es SIEMPRE bottom:0 (oculto = fuera
+de pantalla del todo, transform:translateY(120%)); en mobile, al
+mostrarse (.show), se levanta con translateY(calc(-1 * var(--bn-h)))
+para quedar arriba de la barra inferior, en vez de mover la posición
+de reposo. En desktop no cambia el comportamiento visual (translateY(0)
+sigue siendo bottom:0 normal). No se tocó nada más.
+
+### v1.10
+el banner "sin conexión" se mueve de arriba a abajo — no tapa
+el header/topbar. En desktop queda pegado al fondo (bottom:0). En
+mobile (≤768px) queda justo ARRIBA de la barra .mobile-bottomnav
+(bottom:var(--bn-h)), para no superponerse con ella — la animación
+de entrada pasa de translateY(-100%) a translateY(100%), deslizando
+desde abajo en vez de desde arriba. No se tocó ningún otro estilo.
+
+### v1.9
+CSS de las dos mejoras de nav.js v1.13. (1) .conn-dot — puntito
+redondo junto al logo "AUDIOLINK" (sidebar + topbar móvil), verde por
+defecto (--ok), rojo cuando <body> tiene la clase .conn-offline.
+(2) .vu-brand span (las barritas del logo, no las del botón de menú
+móvil) cambian de --gold a --err bajo la misma clase .conn-offline
+en <body>. Ningún selector nuevo choca con .vu ni .btn-menu-vu
+existentes — .vu-brand es aditivo. No se tocó nada más.
+
+### v1.8
+CSS del banner "sin conexión" (ver nav.js v1.11) — fijo arriba
+de la pantalla, oculto por defecto (translateY), se muestra con
+.show cuando navigator.onLine es false. Encima del sidebar/topbar
+(z-index alto) para que sea visible en cualquier módulo. No se tocó
+ningún otro estilo existente.
+
+### v1.7
+fix cosmético — el espaciado reducido para el primer grupo
+(GESTIÓN) nunca se aplicaba: el selector pedía que .sb-grupo-label
+fuera :first-child de .sb-nav, pero como antes va el ítem Dashboard
+(fuera de cualquier .sb-grupo), el grupo "Gestión" nunca es
+literalmente el primer hijo — es el primero DE SU TIPO. Se cambia
+a :first-of-type para que sí aplique. Puramente visual, no cambia
+ninguna lógica.
+
+### v1.6
+fix — el panel "···" móvil (.mas-mobile-panel) no tenía límite
+de altura con scroll. Antes tenía pocos ítems y siempre entraba en
+pantalla; desde v1.4 (acordeón por grupo) creció con los labels de
+sección y en pantallas chicas se cortaba contra el borde inferior,
+dejando invisibles/inalcanzables los últimos ítems (Tema, Cerrar
+sesión, y los masMobileExtra de cada página, ej. "Nuevo Proyecto").
+Se agrega max-height relativo al viewport + overflow-y:auto, así si
+no entra todo, scrollea en vez de cortarse. No se tocó nada más del
+panel ni su lógica de apertura/cierre.
+
+### v1.5
+se centraliza acá el ícono `vu` (las 5 barritas animadas del
+título "AUDIOLINK" y del nuevo botón de menú móvil, ver nav.js
+v1.8). Antes .vu vivía duplicado como CSS suelto en cada página —
+algunas lo conservaban (ej. proyecto.html) y otras lo habían borrado
+asumiendo que ya estaba centralizado acá (ej. index.html), lo que
+causaba que el ícono desapareciera solo en esas páginas. Mismo
+selector y mismos valores que tenía proyecto.html, sin inventar
+nada nuevo — ahora vive en un solo lugar para todo el ecosistema.
+
+### v1.4
+soporte para acordeón por grupo (ver nav.js v1.8). Se agrega
+.sb-grupo/.sb-grupo-body (desktop) y .mas-mobile-grupo/
+.mas-mobile-grupo-body (panel "···" móvil), con la flecha
+.sb-grupo-arrow que rota al plegar. Cuando el sidebar está en modo
+colapsado (solo íconos, .sidebar.collapsed), el acordeón por grupo
+se ignora vía CSS — todos los grupos quedan visibles igual que
+antes. También se agrega .btn-menu-vu: reset de botón para el nuevo
+ícono de menú móvil (las barritas `vu`, ver nav.js v1.8) que
+reemplaza al viejo "⋮". No se tocó nada del sidebar colapsable
+global existente.
+
+### v1.3
+fix visual en .sb-grupo-label — el texto se veía "pisado"/
+cortado contra el ítem de arriba (line-height insuficiente +
+overflow:hidden innecesario). Se agrega line-height explícito, se
+sube el padding-top y se quita overflow:hidden (solo hace falta
+white-space:nowrap para que no rompa línea). No se tocó nada del
+sidebar colapsable (sigue funcionando igual, ver .sidebar.collapsed).
 
 ### v1.2
 se agrega .sb-grupo-label — encabezado de sección para el sidebar de
 escritorio agrupado (ver nav.js v1.7). Solo aplica al sidebar;
 mobile-bottomnav y panel "···" no se tocaron.
+
+### v1.1
+se aumenta un poco el tamaño en mobile del texto del
+.mobile-bottomnav (0.64rem→0.7rem, ícono 1.15rem→1.2rem) y del panel
+"···" .mas-mobile-item (0.82rem→0.88rem), para mejorar legibilidad y
+área táctil. El botón .btn-icon ("⋮") NO se toca acá — vive como
+regla propia en cada página (nav.css no la define), así que su ajuste
+se hizo directamente en cada archivo.
 
 ## header-config.js
 
@@ -145,6 +711,311 @@ con los IDs documentados en la cabecera del archivo, y opcionalmente el
 preview (#headerPreviewBox y sus hijos).
 
 ## musico.html
+
+Nota: no se encontró el texto de v3.207/v3.208 para migrar (la cabecera
+del archivo ya no los conservaba) — salto conocido, sin contenido
+recuperable.
+
+### v3.225
+HOTFIX del fix de hoy (v3.224) — el click sincronizado
+sonaba 4 VECES SUPERPUESTO por cada pulso con el lookahead real ya
+subido a 0.35s en la misma v3.224. Mismo hotfix que ensayo.html
+v3.277: el margen de resync ahora suma el lookahead
+(secPerBeat*1.5 + SCHED_LOOKAHEAD_SEC). Detectado justo AL simular
+el scheduler real de este archivo (con su propio 0.35s) para
+validar v3.224 — ensayo.html/compartir.html llevaban el mismo bug
+desde su v3.276/v2.15 de hoy sin que la simulación anterior lo
+hubiera mostrado (usaba por error un lookahead de prueba de 0.1s).
+
+### v3.227
+(a pedido) anacrusa en los 2 PDF que exporta este archivo
+(exportarEstructuraPracticaPDF/Percusion) — es un flag de TEMA
+(temaData.practicaAnacrusa, checkbox #inputAnacrusa de
+guia-practica.html v1.99), así que NO hizo falta agregar ningún
+checkbox nuevo acá: el dato ya viaja en el mismo doc de tema que
+BPM/compás/clave/tonalidad, que musico.html ya lee. Se cachea como
+est.anacrusa al crear el estado (mismo patrón que est.temaNombre/
+est.clave) y se manda como `anacrusa: !!est.anacrusa` a
+generarEstructuraPDF/generarEstructuraPDFPercusion — mismo nombre
+de campo y mismo valor que ya manda guia-practica.html, así que
+pdf-armonias.js/pdf-percusion.js (ya preparados desde v1.104/v1.101)
+lo dibujan igual sin cambios de su lado.
+
+### v3.230
+(port de ensayo.html v3.281) reconoce BPM/tonalidad de
+archivos .flac (antes solo ID3v2/mp3, ver leerTagsAudioVorbis()).
+
+### v3.229
+(a pedido) los 2 fixes de MOTOR DE AUDIO que quedaron
+afuera de v3.228 por no ser de UI — port de ensayo.html v3.273 +
+v3.274: el metrónomo libre (standalone, sin canción) agendaba sus
+clicks comparando contra performance.now() (reloj del hilo
+principal) mientras el resto del scheduler agenda en
+audioCtxPractica.currentTime (reloj del hilo de audio) — un
+pequeño desvío entre ambos podía sonar como un click doble o
+"atascado". Ahora el metrónomo libre también usa
+audioCtxPractica.currentTime - metroLibreInicioAudio (ancla nueva,
+tomada al arrancar). est.metroLibreInicio (performance.now())
+sigue existiendo solo para el tick VISUAL
+(requestAnimationFrame/actualizarContadorPractica), que no tenía
+este problema.
+
+### v3.228
+(a pedido) "actualizar la UI a como está en ensayo.html, lo
+que aplica" — se pusieron al día los ajustes visuales de v3.260 a
+v3.279 de ensayo.html que sí aplican a este archivo (mismas clases/
+estructura). Lo que SÍ se portó:
+- v3.260(1): .practica-compas-grande con min-width:3ch — el número
+  de compás ya no arrastra al péndulo al pasar de 1 a 2-3 dígitos.
+- v3.260(3): campo "N°"+"Ir" junto a los presets de Loop rápido
+  (aplicarLoopCustomPractica), para un loop de una cantidad de
+  compases que no está entre los presets x1..x64.
+- v3.269: fondo #e3ddd0 en tema claro detrás de puntos de beat/
+  clave y péndulo (perdían contraste contra --surf-light).
+- v3.278(1): el botón ✕ de cancelar loop se muda del playerbar al
+  renglón de "Loop rápido" (con sus mismos toggles de display que
+  ya tenía ensayo desde v3.250, agregados acá porque antes el botón
+  vivía siempre visible y ahora necesita ocultarse/mostrarse).
+- v3.278(2): la línea de la regla de compás del waveform pasa de
+  dorado a rojo (colorPrimerTiempo) — el número/hora arriba sigue
+  dorado.
+- v3.278(3): barra de seguimiento 5px→9px + overflow visible, tick
+  "mayor" sobresale 2px arriba/abajo, rango de loop 35%→50% opacidad.
+- v3.279: chip "compás actual/último de la sección" (progcompas-)
+  pegado a la barra de seguimiento.
+Lo que NO aplica / se dejó afuera a propósito:
+- v3.260(2) (riel del péndulo 44→64px): superado por el rediseño
+  de riel a todo el ancho que ya se portó en v3.223 (v3.270+).
+- v3.273/v3.274 (FIX de reloj del audio del metro libre/"doble
+  click"): son del MOTOR de audio, no de UI — quedan pendientes,
+  fuera del alcance de este pedido.
+- v3.277 (chip de loop guardado que se re-aplica solo): depende de
+  GUIAS2.loop (persistencia por tema en Firestore), que este
+  archivo no tiene — no hay nada que resaltar acá.
+
+### v3.226
+(a pedido) el pre-conteo (🥁) ahora arranca APAGADO por
+defecto — antes venía activado (precontActivo:true) tanto para el
+metrónomo standalone como para arrancar la canción/maqueta (es una
+sola bandera compartida, est.precontActivo). El usuario eligió
+apagarlo por defecto en los DOS casos, no solo en el standalone,
+para no separar la bandera en dos. Quien ya lo tenía prendido o
+apagado a mano sigue como estaba — esto solo cambia el default de
+la primera vez (sin nada guardado en PRECONT_GENERAL_KEY).
+
+### v3.224
+(a pedido) port de los 3 fixes del click sincronizado que ya
+tenían ensayo.html/compartir.html: (1) v3.249 — el click ya no
+perdía el pulso del offset si arrancaba antes de él; (2) v3.272 —
+SCHED_LOOKAHEAD_SEC pasa de 0.1s a 0.35s (más colchón contra un
+tick lento del scheduler, evita el "click inestable" en mobile);
+(3) v3.276 — el click se re-ancla al INICIO DE CADA TRAMO
+(sección), igual que ya hacía el contador visual, en vez de seguir
+una grilla fija contada desde el offset (se desincronizaba si una
+sección empezaba fuera de esa grilla). schedNextBeatIdx pasa a
+schedNextBeatAbs SOLO para el click sincronizado con tramos; el
+metrónomo LIBRE (sin canción/offset) sigue con el índice de
+siempre, sin tocar. Probado con la misma simulación del scheduler
+real que se usó para validar el fix en ensayo.html. Nota: acá no
+existe factorCompasGeneralDe(est) (compás /8 etc.) como en
+ensayo.html v3.205+ — secPerBeat queda igual que estaba, fuera de
+alcance de este pedido.
+
+### v3.223
+(a pedido) dos ports de ensayo.html/compartir.html: (1)
+PÉNDULO VISUAL del pulso (port de ensayo.html v3.257-v3.275): fila
+.practica-pendulo-row con el riel/punto (mismo CSS/HTML/lógica en
+actualizarContadorPractica) y el selector de velocidad ½/×1/×2/×4
+(botón único que cicla, ciclarVelocidadPenduloPractica), guardado
+en el MISMO localStorage por sesión que ya usa
+guardarAjustesPractica/cargarAjustesGuardados (est.pendVelocidadOverride,
+null=default ×2) — no toca Firestore, igual que el resto de esos
+overrides acá. (2) RESPALDO DE AUDIO EN EL DISPOSITIVO (port de
+ensayo.html v3.248), por si Cloudinary falla: botón "📥 Guardar
+audio"/"🗑️ Quitar copia" por sesión (maquetas tipo 'audio', no
+YouTube) junto a chipsVersiones. Mismo Cache API
+(audiolink-audio-offline-v1) e índice localStorage
+(audiolink_offline_urls) que ensayo.html/compartir.html — si están
+en el mismo sitio, comparten la copia. conectarMaquetaEnPractica()
+usa la copia guardada para el <audio> nativo Y para el upgrade a
+Web Audio (evita el 2do fetch si ya está en caché); al cambiar de
+versión (cambiarVersionMaquetaPractica) el botón se repinta con la
+maqueta activa. No toqué la guía PDF (#3 pedido) — ya existe acá
+con scoreBloqueHtml/onToggleScorePractica, portarla de nuevo
+hubiera sido redundante.
+
+### v3.222
+(a pedido, port de ensayo.html v3.243 + v3.244) al acomodar el offset
+(‹ ›, ±, 🎯, click en la onda, 🔍, ✓, ↺) las secciones se reajustan con él y
+conservan su distancia al offset: las del tema (sin archivo local) se
+desplazan al leerlas (seccionesRuntimeDe/desdeRawSeccion) y las locales se
+mueven y se guardan (fijarOffsetLocalDeltaPractica). 🔍 ahora también
+repinta la onda y el contador.
+
+### v3.221
+(a pedido) se agranda la letra de la regla de tiempo (0:15, 0:31…):
+principal 9px→11px (negrita 12px al encender) e intermedia 8px→9px, los
+mismos tamaños que ya usa ensayo.html.
+
+### v3.220
+(a pedido, igual en ensayo.html v3.242) (1) la letra de ensayo de las etiquetas de
+sección pasa a un marquito con fondo del color de la sección (invertido
+cuando la etiqueta está activa), para que no parezca parte del nombre;
+(2) el loop de sección se refresca al encenderlo, así la franja y las
+banderitas de inicio/fin aparecen de inmediato aunque esté en pausa.
+
+### v3.219
+(a pedido, igual en ensayo.html v3.241) cinco ajustes: (1) barra de progreso: pasado el
+"Hasta" de la sección y con un loop marcado, la barra usa el loop como
+referencia ("En loop (fuera de sección)") sin cambiar el límite real de
+sección de v3.157; (2) al elegir otra sección se apaga la etiqueta
+anterior (quedaba .activo); (3) banderitas verdes de inicio/fin del loop
+en el waveform; (4) la regla de tiempo se dibuja al final, encima de
+líneas y banderitas, y las banderitas de offset/CUE bajan de la fila de
+números de compás; (5) letra de ensayo en las etiquetas de sección del
+mapa, la misma de las etiquetas bajo el waveform.
+
+### v3.218
+(a pedido) "creo el tema es por la onda... dejá que el
+velo afecte el waveform como en el tema claro" — el velo de zonas
+sin sección (v3.214) se dibujaba ANTES que las barras del
+waveform ("detrás de todo"), así que sobre barras 100% opacas no
+las oscurecía en absoluto — solo se notaba en los huecos entre
+barras y en el carril de etiquetas (donde no hay barra encima).
+Con fondo del panel cercano al negro en tema oscuro, esa fracción
+visible era casi nula por más que se subiera la opacidad (v3.215/
+v3.217). Ahora el dibujo del velo se movió a DESPUÉS del loop que
+pinta las barras (el cálculo de rangosConSeccion se mantiene
+donde estaba, no depende de las barras) — así tiñe los píxeles
+reales de la onda en ambos temas. Los ticks de compás y las
+líneas/etiquetas de sección siguen dibujándose después de esto
+(sin cambios), así que quedan nítidos encima del velo. Las
+franjas de sección activa/loop (dorada/verde) siguen debajo de
+las barras, sin cambios — son fondo de contexto, no un tinte.
+
+### v3.217
+(a pedido) "dejalo con el velo negro primero que pusiste,
+solo que un poco más caliente o frío" — vuelve a negro para tema
+oscuro (en vez del gris --muted de v3.216), con tinte cálido
+rgba(20,14,6,0.55) — un negro con matiz marrón/dorado tenue, para
+que combine con la paleta cálida del tema oscuro (--gold) en vez
+de un negro neutro. Opacidad subida de 0.45 a 0.55 respecto al
+negro original de v3.214 (que el músico reportó que "casi no se
+sentía" en oscuro), para que se note sin dejar de ser negro. Sin
+cambios en tema claro (rgba(0,0,0,0.45), sigue intacto).
+
+### v3.216
+(a pedido) "es mejor el estilo oscuro... otro tono, ya
+que la sección también lava, con sección seleccionada queda todo
+lavado" — el blanco puro de v3.215 se leía muy parecido al
+lavado dorado de la franja de sección activa (colorGold+'29'),
+así que a simple vista ambos efectos ("hay estructura acá" vs
+"no hay estructura acá") se confundían en uno solo. Se cambia el
+valor oscuro de --velo-sin-seccion a un gris neutro
+rgba(154,151,143,0.18) — mismo tono base que --muted (ya usado
+en el panel para texto secundario/apagado), semánticamente "sin
+protagonismo" en vez de "iluminado", y visualmente distinto del
+dorado/verde/lila que ya usa el resto del waveform. Sin cambios
+en tema claro (rgba(0,0,0,0.45), ya funcionaba bien).
+
+### v3.215
+(a pedido) "en tema oscuro casi no se siente el velo" —
+el velo de zonas sin sección (v3.214) usaba rgba(0,0,0,0.45) fijo,
+que en tema oscuro (fondo ya casi negro, --bg:#0b0b0d) apenas se
+notaba. Pasa a la variable --velo-sin-seccion (mismo patrón que
+--gold/--ok, leída con getComputedStyle): en oscuro un velo CLARO
+rgba(255,255,255,0.14) que "lava"/aclara la zona (más visible
+contra fondo oscuro que un negro sobre negro); en
+:root[data-tema="light"] se mantiene el rgba(0,0,0,0.45) original,
+que ya funcionaba bien ahí.
+
+### v3.214
+(a pedido) dos ajustes sobre la sesión de la barrita de
+progreso/waveform:
+(1) "la barrita de progreso aún no identifica loops que están
+fuera de sección definida" — antes, sin sección activa (huecos
+entre secciones), la barra de progreso quedaba en blanco aunque
+hubiera un loop marcado sonando ahí. Ahora, en ese caso, usa el
+loop mismo (est.loopInicio/est.loopFin) como referencia de la
+barra: progreso dentro del loop, ticks de compás del tramo,
+franja verde al 100% (ver bloque else de actualizarContadorPractica).
+(2) "dale más opacidad en el waveform a las zonas que no tienen
+sección definida" — nuevo velo semitransparente (rgba negro 45%)
+sobre los huecos de tiempo sin ninguna sección, calculado con el
+mismo criterio de "fin real de sección" que ya usaba la franja
+dorada de la sección activa, generalizado a todas (ver
+dibujarWaveform). Se dibuja detrás de todo lo demás — no cambia
+el resto de franjas/colores existentes.
+
+### v3.213
+(a pedido) "hacemos la barrita de progreso más
+interactiva, que identifique compases y loops?" — dos agregados
+visuales a la barra de progreso de sección (.practica-progreso-
+barra): (1) marcas de compás finas, más marcadas cada 4 compases,
+reusando compasesSeccion (ya calculado por
+actualizarContadorPractica, cacheado en est.progresoTicksCompases
+para no tocar el DOM en cada frame); (2) franja verde (var(--ok),
+mismo color que ya usa la franja de loop del waveform en
+dibujarWaveform) que resalta el tramo de la barra dentro del loop
+marcado (est.loopInicio/est.loopFin), recortada a la sección
+visible. Cero cambios en el click (toggleLoopSeccionPractica) ni
+en el % de avance (elFill) — se agrega, no se reemplaza nada. No
+se implementó el nivel de "click con snap para saltar" ni los
+transitorios como puntos (quedaron descartados/pendientes de la
+conversación, no forman parte de esta versión).
+
+### v3.212
+(a pedido) fix de UI — los botones −0.01/+0.01
+(.tono-offset-btn, agregados en v3.209) heredaban flex:0 de
+.practica-click-btn, cuyo shorthand fija flex-basis:0 (no
+content-based), así que su ancho salía solo del min-width:44px
+en vez de medirse por el texto, y "−0.01"/"+0.01" (más ancho que
+44px) se desbordaba fuera de la caja del botón. Se le suma
+flex:0 auto + white-space:nowrap a .tono-offset-btn para que
+mida según su contenido. Mismo tipo de fix que el del botón 🧲
+en v3.211, pero ahí la causa era la falta de la clase etiqueta;
+acá es el flex-basis heredado. No afecta a ‹ › (mismo selector,
+pero un solo carácter nunca necesitó más que el mínimo) ni a
+ningún otro botón cuadrado (▶, ⏮, CUE, 📍, ↻, 🔊), que no usan
+.tono-offset-btn.
+
+### v3.211
+(a pedido) fix de UI — el botón 🧲 (toggle snap
+Compás/Golpe, agregado en v3.210) usaba la clase genérica
+.practica-click-btn (ancho fijo ~44px, sin nowrap), así que el
+texto "Compás"/"Golpe" se desbordaba fuera de la caja del botón
+en vez de acomodarse en una línea, rompiendo visualmente la fila
+completa del reproductor y tapando parte de los botones vecinos
+(−0.01/+0.01/CUE), lo que hacía que los clicks fallaran. Se le
+aplica .practica-click-btn-etiqueta (clase que ya existía en el
+CSS pero nunca se había usado en ningún botón) y se le suma
+white-space:nowrap + flex-shrink:0 a esa misma clase para que el
+texto nunca se parta en dos líneas ni el botón se achique
+empujando a los de al lado. Cero cambios en la lógica de
+toggleModoSnapPractica/modoSnapClick ni en el snap de CUE/loop.
+
+### v3.210
+(a pedido) "es posible alternar entre snap de transitorio
+y snap de rejilla?" — toggle 🧲 Compás/Golpe en la playerbar
+(modoSnapClick), aplicado al snap del CUE (que antes no tenía
+ninguno) y al snap del loop marcado con click (que ya usaba
+snap a compás fijo, ahora respeta el modo elegido con fallback a
+compás si no hay golpe cerca). Default: Compás, para no cambiar
+el comportamiento de siempre de nadie que ya usa loops.
+
+### v3.209
+(a pedido) "poné los botones de 0.01 y -0.01 al lado de
+cada chevron respectivo... revisá su estilo y color". Se agregan
+−0.01/+0.01 (ajustarOffsetLocalPractica, ya existía en el bloque
+de calibración de más abajo, reutilizado acá) junto a ‹ y ›
+respectivamente, en la playerbar: ‹ −0.01 · · · +0.01 ›. Los 4
+pasan a usar .tono-offset-btn (dorado, mismo --gold que ya usa
+.tono-offset para el bloque "Calibración inicial") en vez del
+gris genérico de .practica-click-btn — así se leen como un grupo
+de controles de offset, distinto de play/CUE/loop en la misma
+barra. Cero cambios en ajustarOffsetLocalPractica ni en
+navegarTransienteOffsetPractica, solo estilo y ubicación.
+Historial completo de versiones: ver CHANGELOG.md
 
 ### v3.199
 (a pedido, "qué optimizarías" sobre el visor paginado de v3.198 — se
@@ -3424,11 +4295,589 @@ nombre, proyectosAsignados[]) — separada del catálogo administrativo
 ARQUITECTURA.md). Sin esas piezas, este archivo carga pero no puede leer nada
 todavía — es la UI primero, según lo pedido. Historial completo de versiones:
 ver CHANGELOG.md -->
+## guia-practica.html
+
+Nota: el historial anterior a v1.118 (v1.0–v1.117) ya no vive en la
+cabecera del propio archivo (se había recortado antes de empezar a
+centralizar acá) — sin contenido recuperable.
+
+### v1.120
+(port de ensayo.html v3.281) reconoce BPM/tonalidad de
+archivos .flac (antes solo ID3v2/mp3, ver leerTagsAudioVorbis()).
+
+### v1.119
+(a pedido) botón "🎧 Ver en Panel del Músico" — abre
+musico.html?preview={correo}, mismo modo vista previa de staff que
+ya soporta ese archivo (v1.x, ver su guard de sesión). Reusa
+sesionesSnap (ya cargado, no agrega ninguna lectura nueva): junta
+los músicos asignados a este proyecto vía musicosAsignados[].correo
+(misma fuente que ya usa instrumentosDelProyecto). Con 1 solo
+músico en el proyecto, el botón abre directo; con varios, aparece
+un <select> al lado para elegir a cuál (un tema puede sonar en
+sesiones de instrumentos/músicos distintos, no hay un "el" músico
+único). Con 0 músicos asignados todavía, el botón no aparece. Sigue
+sin existir un deep-link a un tema/sesión puntual dentro de
+musico.html — abre la vista previa completa de esa persona
+(todas sus sesiones de todos sus proyectos), igual que el modo
+preview ya hace para staff.
+
+### v1.118
+(a pedido) nueva card "Scores por instrumento" — mismo
+patrón exacto que "Maquetas por instrumento" (arriba): array
+practicaScores ({instrumento, publicId, paginas}) en el doc del
+tema, instrumento elegido del mismo catálogo
+instrumentosDelProyecto (campoInstrumentoScoreHtml, gemela de
+campoInstrumentoHtml). Diferencia real: la subida a Cloudinary
+(subirPdfScoreACloudinary) va a /image/upload con preset propio
+GUIAS2PDF (ya existente en la cuenta) en vez de /video/upload —
+así Cloudinary habilita la transformación pg_N para sacar
+cualquier página del PDF como JPG on-the-fly, sin recortar ni
+subir nada aparte. "👁️ Ver páginas" por fila carga las miniaturas
+recién al abrirla (lazy, pg_1 a pg_N), con botón para el PDF
+completo. Nueva entrada 'scores' en CARDS_PRINCIPALES + llamada a
+renderScores() en iniciarGuiaPractica(), junto a renderMaquetas().
+Cero cambios en maquetasEnEdicion, subirAudioMaqueta ni el resto
+del motor de BPM/compás/secciones/preview.
+
 ## ensayo.html
 
-Nota: el historial completo de versiones anteriores a v3.223 todavía
+Nota: el historial completo de versiones anteriores a v3.183 todavía
 vive en la cabecera del propio archivo (no migrado a este changelog
 todavía, ver nota general del encabezado de este documento).
+
+### v3.281
+(a pedido) reconoce BPM/tonalidad de archivos .flac — el
+lector de tags solo entendía ID3v2 (formato de MP3); un .flac usa
+Vorbis Comments, un formato de metadatos totalmente distinto, así
+que con .flac la detección quedaba siempre vacía en silencio (no
+era un problema del tamaño del archivo). Se agrega
+leerTagsAudioVorbis() aparte, y leerTagsAudio() que prueba ID3v2 y
+si no encuentra nada prueba Vorbis — leerTagsAudioID3() en sí no
+se tocó. Los 2 lugares que llamaban a leerTagsAudioID3() pasan a
+leerTagsAudio().
+
+### v3.280
+HOTFIX — estas versiones (subidas como "últimas") venían de
+una base anterior al hotfix v3.277 de hoy mismo: el click
+sincronizado sonaba 4 VECES SUPERPUESTO por cada pulso (margen de
+resync insuficiente frente al lookahead real de 0.35s desde
+v3.272). Se reaplica el mismo fix de una línea (secPerBeat*1.5 +
+SCHED_LOOKAHEAD_SEC) sin tocar nada de v3.278/v3.279.
+
+### v3.279
+(a pedido) chip "compás actual/último de la sección"
+pegado a la barra de seguimiento (ej. "12/16") — dato fijo,
+siempre visible, separado del texto contextual de abajo (progtxt,
+que sigue mostrando "Siguiente: ..." o quedando vacío). Numeración
+absoluta, mismo criterio que ya usa "Compás X–Y" en la etiqueta de
+sección. Sin sección activa, o en el hueco fuera de sección (loop
+"en el aire"), el chip queda vacío — no hay un "total" claro ahí.
+Mismo cambio en compartir.html (v2.18).
+
+### v3.278
+(a pedido) 3 ajustes en el bloque de práctica: (1) el
+botón ✕ de cancelar loop activo se muda del playerbar (donde vivía
+pegado a los botones tipo CUE) al renglón de "Loop rápido", donde
+corresponde; (2) la línea de la regla de compás en el waveform
+(marca el primer tiempo de cada compás visible) pasa de dorado a
+rojo — solo la línea, el número/hora arriba sigue dorado; (3) la
+barra de seguimiento sube de 5px a 9px (se lee mejor de reojo en
+mobile), el tick de "mayor" (inicio de frase, cada 4 compases) ya
+no se distingue solo por el grosor sino que además sobresale 2px
+arriba/abajo de la barra, y el rango de loop marcado sube de 35%
+a 50% de opacidad. Mismos 3 cambios en compartir.html (v2.17).
+
+### v3.277
+(a pedido) el loop guardado del tema (GUIAS2.loop) ya se
+re-aplicaba solo (ver aplicarLoopGuardadoPractica, v3.251) pero
+ningún chip x1/x2/x4/.../x64 se encendía para mostrar cuál se
+usó — solo se veía en el texto "(N comp.)". Ahora, si
+loop.compases coincide con un preset fijo, se enciende ese chip
+(mismo estilo que al tocarlo en vivo); si NO coincide con ninguno
+(loop dibujado a mano en la onda), se muestra un placeholder "xN"
+en vez de dejar todo apagado. limpiarPresetsLoopPractica también
+apaga este placeholder al elegir un preset fijo en vivo. Mismo
+cambio en compartir.html (v2.16), para que un loop marcado desde
+acá también se vea con el chip correcto al abrirlo del otro lado.
+
+### v3.276
+(a pedido) FIX real — el click sincronizado ahora se re-ancla
+al INICIO DE CADA TRAMO (sección), igual que ya hacía el contador
+visual (actualizarContadorPractica). Antes, con una sección que
+empezaba en un segundo fuera de la grilla de compases (ej. offset
+3.0 y una sección extra en 15.2), el contador/puntos saltaban al
+compás 1 justo ahí, pero el click seguía sonando en su compás de
+siempre (15, 17, 19… en vez de 15.2, 17.2, 19.2…) — quedaban
+desincronizados entre sí. schedNextBeatIdx (índice fijo desde el
+offset) pasa a schedNextBeatAbs (tiempo absoluto de la canción) +
+proximoBeatClick(), que busca el tramo vigente en cada instante y
+ancla el pulso 0 a tramoActual.inicioSeg. Con secciones alineadas a
+la grilla (el caso de siempre) el resultado es idéntico a antes —
+probado con una simulación del scheduler real antes de aplicar. El
+metrónomo LIBRE (sin tramos ni offset de canción) no se tocó, sigue
+con el índice de siempre. v3.249 (click al arrancar antes del
+offset) queda intacto, es la misma familia de arreglo.
+
+### v3.275
+(a pedido) 3 ajustes de claridad/default en el bloque de
+metrónomo de práctica: (1) la clave arranca APAGADA y SIN acento
+por defecto (antes: encendida y con el golpe 1 en "fuerte") — ver
+claveActiva y acentosClavePorDefecto(); (2) el péndulo visual
+arranca en BLANCA (×2) por defecto en vez de redonda (×1) — ver
+PENDULO_VELOCIDAD_* y el botón pendvel-uid; (3) el botón "≡" de
+ajustes avanzados (ambiguo, flotaba suelto entre Vol y ⬆) pasa a
+"⚙️" con un separador visual propio, se enciende en dorado
+(.activo) mientras el panel está abierto, y hace scrollIntoView
+al abrirse — en mobile el panel queda lejos abajo y antes no había
+ninguna señal de que algo se había abierto.
+
+### v3.274
+(a pedido) FIX — con el audio del metro libre ya anclado
+al reloj de audioCtxPractica (v3.273) pero el tick visual
+(número/dots) todavía en performance.now(), quedaban desfasados
+ENTRE SÍ (antes iban desfasados los dos juntos, no se notaba). Se
+unifica: el tick visual también usa audioCtxPractica.currentTime -
+metroLibreInicioAudio, el MISMO cálculo que usa el scheduler de
+audio — ver arrancarMetronomoReal. est.metroLibreInicio
+(performance.now()) ya no se usa en ningún lado del metro libre.
+
+### v3.273
+(a pedido) FIX raíz del "doble click / blur auditivo /
+arrastradito" del METRO LIBRE (sin pista) en mobile — con pista
+nunca pasaba porque tRel y el reloj de agendado (ahoraCtx =
+audioCtxPractica.currentTime) salen del MISMO reloj
+(motor.currentTime). El metro libre, en cambio, calculaba su
+tiempo transcurrido con performance.now() — un reloj DISTINTO al
+de agendado, que puede desfasarse del de audio en mobile. Ahora
+ancla su tiempo transcurrido a audioCtxPractica.currentTime
+(est.metroLibreInicioAudio, nueva, ver arrancarMetronomoReal) —
+mismo reloj que ahoraCtx, sin margen para desfasarse entre sí. Lo
+visual (tick/actualizarContadorPractica, est.metroLibreInicio) NO
+cambia — sigue con performance.now(), el jitter ahí no se nota ni
+se oye.
+
+### v3.272
+(a pedido) FIX de estabilidad del click en mobile — se
+quedaba y luego corría para empatar. SCHED_LOOKAHEAD_SEC (margen
+de agendado del scheduler de audio) sube de 0.1s a 0.35s — con
+0.1s, un traqueteo del hilo principal (>100ms) bastaba para que el
+tick llegara tarde a agendar el próximo click, sonando como pulso
+perdido + ráfaga de alcance. Sin cambios en la lógica de resync
+(ya está escrita en función de esta constante, ver comentario
+junto a la declaración). Costo: hasta ~350ms de demora en
+reflejar un cambio de bpm/seek/loop en el audio agendado (antes
+~100ms) — imperceptible.
+
+### v3.271
+(a pedido) el punto del péndulo se veía "arrastrado, con
+halo" en mobile — el box-shadow difuminado (blur 6px, sin borde
+propio) diluía el canto del punto, sobre todo en movimiento. Se
+achica el blur (6px→3px, sin spread) y se agrega un borde de 1px
+en un tono más oscuro que el relleno, en las 3 reglas que fijan su
+color (normal/naranja, beat1/verde, ver .pendulo-punto y
+.pendulo-punto.beat1) — sigue con un resplandor sutil pero ya no
+reemplaza la forma. El flash blanco de esquina (v3.270) no cambió,
+termina en transparente y no choca con el nuevo box-shadow base.
+
+### v3.270
+(a pedido) 3 ajustes al péndulo: (1) el riel pasa de ancho
+fijo (140px, vivía dentro de .practica-compas-wrap) a ocupar el
+ancho COMPLETO de .practica-contador-card — ahora es su propia
+fila entre el metro (número+botones) y el badge de abajo;
+RECORRIDO_PX pasa de fijo a medido en vivo (clientWidth del
+contenedor); (2) el destello al tocar cada esquina del riel pasa
+de intensificar el color propio del punto a un flashazo blanco
+puro que se apaga rápido; (3) en el beat 1 de cada compás el punto
+se pone verde (var(--ok)), igual que .practica-compas-grande.
+activo y el dot fuerte — atado al beat real (mismo bloque/timeout
+de flash de siempre), no al "ciclo" del rebote, así queda
+correcto a cualquier velocidad visual del péndulo (½/×1/×2/×4).
+
+### v3.269
+(a pedido) en tema claro, fondo apenas más oscuro (#e3ddd0)
+detrás de los puntos de beat/clave (.practica-semaforo, .pcu-strip)
+y del péndulo (.practica-pendulo-row) — se perdían contra el fondo
+casi blanco. Solo tema claro, solo esos 3 contenedores; tema
+oscuro y el resto de la interfaz sin cambios.
+
+### v3.268
+FIX (a pedido) — con un tema sin ninguna sección cargada,
+el velo oscuro de "zona sin sección" del waveform (v3.240) se
+pintaba sobre TODO el ancho (rangosConSeccion quedaba vacío,
+cursorSinSeccion nunca avanzaba de 0), muy notorio en tema claro.
+Ahora, sin secciones, se salta el velo entero — se ve normal, como
+si todo estuviera "seleccionado". Con secciones cargadas, sin
+cambios.
+
+### v3.267
+(a pedido) 2 ajustes chicos sobre el selector de velocidad del
+péndulo: (1) pasa de 4 chips visibles a un solo botón que muestra SOLO
+la figura activa y cicla a la siguiente al tocarlo (½ → ×1 → ×2 → ×4 →
+½...), mismo patrón "toca para ciclar" que ya usan los acentos; (2) el
+punto ahora recorre TODA la línea del riel de punta a punta (68px desde
+el centro, antes 24px se quedaba corto en el riel de 140px de v3.264).
+Ninguno de los dos cambia la matemática del barrido/rebote (v3.257-266),
+solo el control visual y la escala en px.
+
+### v3.266
+(a pedido) el selector de velocidad del péndulo (½/×1/×2/×4,
+v3.261) sale del panel de ajustes avanzados (⚙️) — ahí quedaba
+escondido y el músico no lo encontraba. Ahora vive siempre visible,
+justo debajo del riel (nueva fila .practica-pendulovel-row, chips
+más compactos que los del panel para que entren las 4 figuras en
+una sola fila en mobile). El ícono fijo "toca para abrir ajustes"
+de v3.261 (#pendulofigura-) se saca — ya no hace falta, los chips
+mismos muestran cuál está activo (dorado). cambiarVelocidad-
+PenduloPractica/actualizarFiguraPenduloPractica no cambian su
+lógica (siguen buscando los botones por id pendvel-${uid}-*, da
+igual el contenedor); solo se les quita la referencia muerta al
+ícono eliminado. Nada de la matemática del barrido/rebote cambia.
+
+### v3.265
+(a pedido) el destello del rebote (v3.263) queda en 120ms
+en vez de 220ms — cambia la duración de @keyframes
+pendulo-rebote-anim y el setTimeout que le hace juego (deben ir
+siempre parejos). Nada más cambia.
+
+### v3.264
+(a pedido) el péndulo pasa de estar junto al número de
+compás a su propia fila debajo (practica-pendulo-row, nuevo div
+entre compas-grande/beat-chico y seccion-actual) y se ensancha de
+64px a 140px (fijo, no por vw — .practica-metro no hace wrap hasta
+los 480px, un ancho relativo al viewport se pasaría de largo en
+pantallas medianas/desktop). Sin cambios en RECORRIDO_PX (24px):
+con más riel libre a los costados, el recorrido queda con más aire
+visual sin tocar la lógica de barrido ni el rebote de las esquinas.
+
+### v3.263
+(a pedido) destello en el punto del péndulo cada vez que
+toca una esquina del riel — se detecta el instante en que "ciclo"
+cambia (dentro de actualizarContadorPractica, junto al cálculo de
+pos/absCiclo de v3.261: cambia justo al llegar al extremo y volver),
+mismo criterio de "instante" que ya usa el flash del compás
+(est.ultimoBeatVisual). Se agrega la clase .pendulo-rebote al punto
+por 120ms (con reflow para poder reiniciar la animación si un
+rebote pisa al anterior) y se limpia el timeout al destruir el
+estado (destruirEstadoPractica). La animación (@keyframes
+pendulo-rebote-anim) solo anima box-shadow — nunca transform, para
+no pelear con el translateX que ya pone el JS en cada frame. No
+cambia la posición, velocidad ni continuidad del barrido.
+
+### v3.262
+FIX del ícono "1/2" de v3.261 — la línea diagonal + los
+dígitos "1" y "2" como <text> sueltos quedaban amontonados/
+ilegibles en el tamaño real del botón. Se reemplaza por un solo
+glifo de fracción (½) centrado (SVG_FIGURA_MEDIO). No cambia nada
+más del selector de velocidad ni del resto del archivo.
+
+### v3.261
+(a pedido) selector de velocidad del péndulo, puramente
+visual (no cambia el click ni el bpm real): ½ (dibujado a mano),
+×1 redonda (como estaba), ×2 blanca, ×4 negra — SVG con
+currentColor, mismo estilo de chip que subdivisión. Vive en el
+panel de ajustes (fila nueva, panelAjustesHtml) y además hay un
+ícono fijo junto al péndulo (#pendulofigura-, siempre visible
+aunque el panel esté cerrado, toca para abrir el panel). Estado en
+est.pendVelocidadOverride (null = ×1 por defecto), persistido solo
+en localStorage de este dispositivo — igual que subdivisionOverride,
+nunca viaja a Firestore (ver guardarAjustesPractica/
+cargarAjustesGuardados). La matemática del barrido (dentro de
+actualizarContadorPractica) escala el ciclo continuo barIndex+fracBar
+por la velocidad antes de partirlo en entero+fracción — mismo truco
+de v3.259 que evita el salto entre compases, ahora sin saltar
+tampoco al cambiar de velocidad. En ×1 dio exactamente el mismo
+resultado que antes (verificado en el cálculo).
+
+### v3.260
+(a pedido) tres ajustes en la vista de práctica:
+(1) el número grande de compás (.practica-compas-grande) ahora tiene
+min-width:3ch — antes, al pasar de 1 a 2 o 3 dígitos, el bloque
+centrado (número + péndulo) cambiaba de ancho y arrastraba al
+péndulo con él. Ahora el número ocupa siempre el mismo espacio y
+el péndulo queda fijo, sin desplazarse por el conteo de compás.
+(2) recorrido del péndulo ampliado: riel de 44px → 64px y
+RECORRIDO_PX de 16 → 24 (mismo cálculo de fracBar/pos de v3.259,
+solo cambia la escala en px). Pensando en mobile se optó por un
+aumento moderado (no el doble) para que quepa cómodo junto al
+número de 3 dígitos sin apretar el resto de la fila.
+(3) campo "N°" + botón "Ir" junto a los presets de Loop rápido
+(loop-presets-custom / aplicarLoopCustomPractica) para armar un
+loop de una cantidad de compases que no está entre los presets
+x1/x2/x4/x8/x16/x32/x64. Reusa loopRapidoCompasesPractica tal cual
+(mismo motor, mismo guardado del loop con el tema) — no se tocó el
+comportamiento de los presets existentes.
+
+### v3.259
+FIX del punto deslizante de v3.258 — usaba tRelTramo (tiempo del
+tramo completo) en vez del tiempo dentro del compás actual, por eso saltaba
+de lado en cada compás después del primero. Corregido con tRelBarra.
+
+### v3.258
+(a pedido) el pulso visual de v3.257 pasa de brazo giratorio a un
+punto que se desliza sobre un riel horizontal (misma fracBar/pos continua
+de v3.257, ahora como translateX en vez de rotate).
+
+### v3.257
+(a pedido) brazo de péndulo junto al número de pulso — ver comentario
+junto a .practica-metro-pendulo (CSS) y junto a elPendulo (JS, dentro de
+actualizarContadorPractica). Barrido continuo entre los tiempos del compás,
+alternando de sentido cada compás para que nunca salte.
+
+### v3.256
+(a pedido) "+ Subir nuevo tema" abre el selector de archivos en el
+mismo toque (irASubirTema), sin el paso intermedio de tocar el input de
+archivo aparte.
+
+### v3.255
+(a pedido, con compartir.html v2.6) mejoras móviles: app instalable y que abre sin
+señal (manifest-ensayo.webmanifest + registrar-sw.js → sw.js + íconos; solo cascarón, el
+modo offline de datos de offline-mock.js no cambia); barra del reproductor en 3 filas en
+pantalla angosta; pellizco de dos dedos para zoom en la onda; pantalla encendida mientras
+suena (Wake Lock); controles en pantalla de bloqueo (Media Session, donde el navegador lo
+permite); alturas en dvh. Lo compartido vive en practica-movil.js. Sin viewport-fit=cover
+a propósito (ver nota en practica-movil.js).
+
+### v3.254
+(a pedido) contraste de las barras de la onda en tema CLARO. Antes las
+barras sin reproducir (--faint) y las reproducidas (lila fijo) quedaban en ~2.4:1
+y ~2.5:1 sobre el fondo del canvas (--surf-light) y casi con la misma luminosidad
+entre sí (1.06:1). Ahora en claro: sin reproducir #8f897c (~3.1:1) y reproducidas
+con --lila #7d5fae (~4.5:1), separadas ~1.5:1 entre sí. El tema oscuro no cambia.
+Solo afecta las barras: colorFaint (etiquetas de sección) y colorProgreso (círculo
+del clic) siguen igual.
+
+### v3.253
+(a pedido) botón "↗ Ver hoja" junto a "🔗 Compartir" en la barra de la vista
+de práctica: abre compartir.html?tema=ID en pestaña nueva (lo que ve el invitado).
+Si el tema aún no está compartido avisa con un toast y no abre nada (no hay estado
+que sincronizar). Además se ajusta el aspecto de los botones de esa barra: tamaño
+compacto igual al de .top-actions-row, feedback al presionar (:active) con el dorado
+del tema, sin el dorado "pegado" del :hover en pantallas táctiles, y en móvil
+(≤480px) se reparten el ancho de la fila sin partir el texto. Solo ensayo.html.
+
+### v3.252
+(a pedido) el loop de SECCIÓN también se guarda con el tema (GUIAS2,
+campo `loopSeccion`: {idx, nombre} de la sección que se repetía al activarlo,
+o null si está apagado) y vuelve activo al abrir, en ensayo.html y en
+compartir.html: se activa el modo y la reproducción se coloca al inicio de
+esa sección (irASeccionPractica; no se usa el CUE para no dejar una marca
+rosa al apagar el loop). Si la sección ya no existe o cambió de nombre, no
+se aplica nada. No convive con `loop` (manual/xN): si vienen los dos, manda
+el manual. Solo ensayo.html escribe; compartir.html solo lee.
+
+### v3.251
+(a pedido) el loop puesto (manual o xN) se guarda con el tema en
+GUIAS2 (campo `loop`: {inicio, fin, compases}) y vuelve ACTIVO al abrir
+el tema, tanto en ensayo.html como en compartir.html. Cancelar el
+loop (✕) lo borra (loop:null). Solo ensayo.html escribe; compartir.html
+solo lee (el invitado no guarda nada). El loop de sección no se guarda
+(sale de las secciones). Sin cambios en el motor de loops ni en los
+tiempos: se reusa aplicarLoopNativoPractica.
+
+### v3.250
+(a pedido) el botón ↻ (loopbtn-) ya no arranca el loop en el segundo
+actual: queda OCULTO mientras no hay loop y solo aparece cuando hay
+uno en curso (⏹ marcar fin / ✕ cancelar). Los loops se arman con los
+presets xN y con el loop de sección; el botón queda como el ✕ para
+cancelar. Sin cambios en marcarLoopPractica ni en el motor de loops.
+
+### v3.249
+(a pedido) FIX del click al arrancar ANTES del offset. Antes,
+schedulerTickGlobalPractica() recortaba tRel a 0 mientras el tiempo
+estaba antes del offset, y el pulso 0 (golpe fuerte de inicio de
+compás) se agendaba al instante de dar play, NO en el offset. Ahora
+el bloque del click principal usa tRelClick (con signo antes del
+offset) y agenda el pulso 0 exactamente en el offset. Después del
+offset y en el metrónomo libre el comportamiento es idéntico. Sin
+cambios en clave, subdivisión ni anclaje de secciones.
+
+### v3.248
+(a pedido) respaldo del audio en el dispositivo, por si
+Cloudinary falla (la app, Firestore y Netlify siguen andando —
+solo el audio depende de Cloudinary).
+(1) FIX del caché automático de v3.189: _guardarAudioEnCache()
+llamaba resp.clone() DESPUÉS de un await, cuando abrirTema() ya
+había consumido el body con r.blob() → "Failed to execute 'clone'
+on 'Response': Response body is already used" y el caché NUNCA
+guardaba nada. Ahora el clone va antes del primer await. Sin otro
+cambio ahí (tope de 10 temas y LRU idénticos).
+(2) Copia permanente por tema, aparte del caché de 10: "📥 Guardar
+en este dispositivo" en el menú ⋮ del tema (y "Quitar copia..."),
+marca 📥 en la card, y "📥 Guardar lista en este dispositivo" en
+el editor de listas. Vive en su propio Cache API
+(audiolink-audio-offline-v1), sin tope ni LRU, con índice de URLs
+en localStorage (audiolink_offline_urls). _obtenerAudioDeCache()
+mira primero esa copia y después el caché de 10; abrirTema() no
+cambió. Borrar un tema quita su copia si ningún otro tema usa el
+mismo audioUrl (los duplicados comparten audio y copia).
+No cubre las páginas del PDF de guía (también viven en Cloudinary).
+
+### v3.247
+(a pedido) compartir LISTAS de ensayo vía
+compartir.html?lista=ID. Botón "🔗 Compartir" en el editor de cada
+lista (compartirSetlistActual). Al compartir: la lista queda
+compartido:true y cada tema suyo también (compartido:true +
+guiaPdfPublicId, como v3.246); la lista guarda en
+temasCompartidosPorLista SOLO los temas que ella compartió (los que
+ya estaban compartidos por separado no se registran, así revocar
+la lista nunca los toca). Revocar la lista (mismo botón) o borrarla
+revoca esos temas, salvo los que otra lista compartida siga
+necesitando. Agregar un tema a una lista ya compartida lo comparte
+solo; quitarlo lo revoca (mismas reglas). Requiere firestore.rules
+v2.39 (get público de SETLISTS2 con compartido==true). No se tocó
+nada más: _guardarTemaIdsSetlist ganó un 2do parámetro opcional
+(sin él, idéntico a antes).
+
+### v3.246
+(a pedido, para la guía PDF en compartir.html v1.4)
+compartirTemaActual() ahora, al activar compartido:true, copia
+también al doc del tema el guiaPdfPublicId de su categoría (dato
+que vive en CATEGORIAS2, con login, y que quien abre el link sin
+cuenta no puede leer). Si la categoría no tiene PDF, guarda null.
+Solo cambia esa escritura — nada más en compartirTemaActual() ni
+en el resto del archivo. Los temas que ya estaban compartidos
+siguen sin ese dato hasta revocar y volver a compartir.
+
+### v3.245
+(a pedido) botón "🔗 Compartir" en la vista de práctica —
+compartirTemaActual() marca compartido:true en el doc de GUIAS2 y
+copia el link a compartir.html?tema=ID (archivo nuevo, standalone,
+sin login, derivado de esta versión de ensayo.html — ver su propia
+cabecera). Si el tema ya estaba compartido, el mismo botón ofrece
+revocarlo (compartido:false). Requiere firestore.rules v1.2 (regla
+`allow get: if resource.data.compartido == true` bajo GUIAS2). No se
+tocó ninguna otra función ni el resto de la vista de práctica.
+
+### v3.244
+(a pedido) el offset de audio detectado (‹ ›) y cualquier otro cambio de
+offset (±, 🎯, click en la onda, 🔍, ✓, ↺) ahora arrastran también las
+secciones locales — las que realmente se ven en ensayo, porque el audio
+siempre entra como archivo local. Ver fijarOffsetLocalDeltaPractica.
+(El desplazamiento de v3.243 en seccionesRuntimeDe queda para secciones
+del tema sin archivo local.)
+
+### v3.243
+(a pedido) al acomodar el offset (offsetLocalDelta) las secciones del
+tema se reajustan con él: línea, etiqueta, sección activa, barra, loop de
+sección y tramos de compás/click usan el mismo desplazamiento que ya
+usaba el salto a sección. Las secciones locales no se desplazan. Ver
+seccionesRuntimeDe/desdeRawSeccion. (Port a musico.html: pendiente.)
+
+### v3.242
+(a pedido, igual en musico.html v3.220) (1) la letra de ensayo de las etiquetas de
+sección pasa a un marquito con fondo del color de la sección (invertido
+cuando la etiqueta está activa), para que no parezca parte del nombre;
+(2) el loop de sección se refresca al encenderlo, así la franja y las
+banderitas de inicio/fin aparecen de inmediato aunque esté en pausa.
+
+### v3.241
+(a pedido, igual en musico.html v3.219) cinco ajustes: (1) barra de progreso: pasado el
+"Hasta" de la sección y con un loop marcado, la barra usa el loop como
+referencia ("En loop (fuera de sección)") sin cambiar el límite real de
+sección de v3.157; (2) al elegir otra sección se apaga la etiqueta
+anterior (quedaba .activo); (3) banderitas verdes de inicio/fin del loop
+en el waveform; (4) la regla de tiempo se dibuja al final, encima de
+líneas y banderitas, y las banderitas de offset/CUE bajan de la fila de
+números de compás; (5) letra de ensayo en las etiquetas de sección del
+mapa, la misma de las etiquetas bajo el waveform.
+
+### v3.240
+(a pedido, portado de musico.html v3.218) el dibujo del
+velo de zonas sin sección se movió a después de las barras del
+waveform (antes iba detrás, "backwards" sobre barras 100%
+opacas, así que no las oscurecía nada) — ahora tiñe los píxeles
+reales de la onda en ambos temas. El cálculo de rangosConSeccion
+se mantiene donde estaba. Ticks/líneas/etiquetas de sección
+siguen dibujándose después, nítidos encima del velo.
+
+### v3.239
+(a pedido, portado de musico.html v3.217) vuelve a negro
+para tema oscuro (en vez del gris --muted de v3.238), con tinte
+cálido rgba(20,14,6,0.55) — opacidad subida de 0.45 a 0.55
+respecto al negro original de v3.236 para que se note. Sin
+cambios en tema claro.
+
+### v3.238
+(a pedido, portado de musico.html v3.216) "es mejor el
+estilo oscuro... otro tono, ya que la sección también lava, con
+sección seleccionada queda todo lavado" — el valor oscuro de
+--velo-sin-seccion pasa de blanco puro (se confundía con el
+lavado dorado de sección activa) a un gris neutro
+rgba(154,151,143,0.18), mismo tono base que --muted. Sin cambios
+en tema claro.
+
+### v3.237
+(a pedido, portado de musico.html v3.215) "en tema
+oscuro casi no se siente el velo" — el velo de zonas sin sección
+(v3.236) pasa a la variable --velo-sin-seccion (mismo patrón que
+--gold/--ok): en oscuro un velo claro rgba(255,255,255,0.14), en
+:root[data-tema="light"] se mantiene el rgba(0,0,0,0.45) original.
+
+### v3.236
+(a pedido, portado de musico.html v3.214) dos ajustes:
+(1) la barra de progreso de sección, sin sección activa, usa el
+loop marcado (est.loopInicio/est.loopFin) como referencia en vez
+de quedar en blanco (ver bloque else de actualizarContadorPractica).
+(2) nuevo velo semitransparente (rgba negro 45%) en el waveform
+sobre los huecos de tiempo sin ninguna sección definida, con el
+mismo criterio de "fin real de sección" que ya usaba la franja
+dorada de la sección activa — acá incluye factorCompasDeSeccion
+(compases compuestos propios de ensayo), a diferencia de
+musico.html que no lo necesita. Se dibuja detrás de todo lo
+demás en dibujarWaveform.
+
+### v3.235
+(a pedido, portado de musico.html v3.213) "hacemos la
+barrita de progreso más interactiva, que identifique compases y
+loops?" — dos agregados visuales a la barra de progreso de
+sección (.practica-progreso-barra): (1) marcas de compás finas,
+más marcadas cada 4 compases, reusando compasesSeccion (ya
+calculado por actualizarContadorPractica); (2) franja verde
+(var(--ok), mismo color que ya usa la franja de loop del
+waveform) que resalta el tramo dentro del loop marcado
+(est.loopInicio/est.loopFin), recortada a la sección visible.
+Cero cambios en el click (toggleLoopSeccionPractica) ni en el %
+de avance (elFill). Idéntico a musico.html — esta barra no
+depende de factorDeT/compases compuestos (es la de sección, no
+la de compás general), así que acá sí fue un port 1 a 1.
+
+### v3.234
+(a pedido, portado de musico.html v3.209/v3.210/v3.211/
+v3.212) se completa la playerbar con lo que le faltaba respecto
+a musico.html:
+- Botones −0.01/+0.01 (ajustarOffsetLocalPractica, ya existía en
+  el bloque de calibración de más abajo, reutilizado acá) junto
+  a ‹ y › en la playerbar. Usan .tono-offset-btn (dorado), con
+  flex:0 auto + nowrap desde el vamos (en musico este fix se
+  agregó recién en v3.212 tras un desborde; acá se incluye de
+  entrada para no repetir el mismo bug).
+- Toggle 🧲 Compás/Golpe (modoSnapClick, transienteMasCercanoPractica,
+  toggleModoSnapPractica, actualizarBotonModoSnapPractica) que
+  decide cómo hacen snap el CUE (📍, que antes no tenía ningún
+  snap) y el loop marcado con click (que ya usaba snap a compás
+  fijo, ahora respeta el modo con fallback a compás si no hay
+  golpe cerca). Default: Compás, para no cambiar el
+  comportamiento de siempre de nadie que ya usa loops. Usa
+  .practica-click-btn-etiqueta con nowrap+flex-shrink:0 desde el
+  inicio (en musico este fix se agregó recién en v3.211).
+Los snaps de CUE/loop respetan el factorDeT/factorCompasGeneralDe
+propios de ensayo.html (compases compuestos), que musico.html no
+tiene — no es un copy-paste literal del bloque de musico, sino
+la misma lógica adaptada a la firma de recorrerTramosMusico de
+este archivo. loopRapidoCompasesPractica (presets de N compases)
+queda fuera del toggle a propósito, igual que en musico — no es
+un click sobre la onda.
+
+### v3.233
+(a pedido, portado de musico.html v3.208) se agregan ‹ ›
+a la playerbar principal (mismo nivel que ⏮ ▶ CUE) para recorrer
+los transitorios detectados y mover el offset exacto al golpe
+anterior/siguiente. Se deshabilitan solos en los extremos. Íconos
+‹ › (no ◀ ▶) a propósito, para no confundirse con play en mobile
+sin hover. Mobile first: la playerbar ya tenía flex-wrap y 44px
+táctil, así que los 2 botones nuevos pasan a segunda fila en
+pantallas angostas sin romper nada.
+Historial completo de versiones: ver CHANGELOG.md
 
 ### v3.224
 (a pedido, "qué optimizarías" sobre el visor paginado de v3.223 — se
@@ -4346,6 +5795,324 @@ renderPaginaGuiaPdf) + nuevos estilos .practica-score-nav (mismos que
 musico.html v3.198, para que se vea igual). Cero cambios en
 guardarGuiaPdfEnCategoria, parsearRangoPaginas, Cloudinary, ni el
 resto del motor de bpm/clave/compás/audio/offset/secciones.
+
+## compartir.html
+
+### v2.20
+(port de ensayo.html v3.281) reconoce BPM/tonalidad de
+archivos .flac (antes solo ID3v2/mp3, ver leerTagsAudioVorbis()).
+
+### v2.19
+HOTFIX — mismo caso que ensayo.html v3.280: estas versiones
+venían de una base anterior al hotfix v2.16 de hoy mismo, con el
+click sincronizado sonando 4 veces superpuesto. Se reaplica el
+mismo fix de una línea, sin tocar nada de v2.17/v2.18.
+
+### v2.18
+(a pedido) chip "compás actual/último de la sección" pegado
+a la barra de seguimiento (ej. "12/16") — dato fijo, siempre
+visible, separado del texto contextual de abajo (progtxt, que
+sigue mostrando "Siguiente: ..." o quedando vacío). Numeración
+absoluta, mismo criterio que ya usa "Compás X–Y" en la etiqueta de
+sección. Sin sección activa, o en el hueco fuera de sección (loop
+"en el aire"), el chip queda vacío — no hay un "total" claro ahí.
+Mismo cambio en ensayo.html (v3.279).
+
+### v2.17
+(a pedido) 3 ajustes en el bloque de práctica: (1) el
+botón ✕ de cancelar loop activo se muda del playerbar (donde vivía
+pegado a los botones tipo CUE) al renglón de "Loop rápido", donde
+corresponde; (2) la línea de la regla de compás en el waveform
+(marca el primer tiempo de cada compás visible) pasa de dorado a
+rojo — solo la línea, el número/hora arriba sigue dorado; (3) la
+barra de seguimiento sube de 5px a 9px (se lee mejor de reojo en
+mobile), el tick de "mayor" (inicio de frase, cada 4 compases) ya
+no se distingue solo por el grosor sino que además sobresale 2px
+arriba/abajo de la barra, y el rango de loop marcado sube de 35%
+a 50% de opacidad. Mismos 3 cambios en ensayo.html (v3.278).
+
+### v2.16
+(a pedido) el loop guardado del tema (GUIAS2.loop) ya se
+re-aplicaba solo (ver aplicarLoopGuardadoPractica, v2.0) pero
+ningún chip x1/x2/x4/.../x64 se encendía para mostrar cuál se
+usó — solo se veía en el texto "(N comp.)". Ahora, si
+loop.compases coincide con un preset fijo, se enciende ese chip
+(mismo estilo que al tocarlo en vivo); si NO coincide con ninguno
+(loop dibujado a mano en la onda), se muestra un placeholder "xN"
+en vez de dejar todo apagado. limpiarPresetsLoopPractica también
+apaga este placeholder al elegir un preset fijo en vivo.
+
+### v2.15
+(portado de ensayo.html v3.276) FIX real — el click
+sincronizado ahora se re-ancla al INICIO DE CADA TRAMO (sección),
+igual que ya hacía el contador visual. schedNextBeatIdx (índice fijo
+desde el offset) pasa a schedNextBeatAbs (tiempo absoluto de la
+canción) + proximoBeatClick(), que ancla el pulso 0 al inicio del
+tramo vigente en cada instante — así, al cruzar a una sección que
+empieza fuera de la grilla de compases, el click cae junto con el
+contador en vez de seguir su compás de siempre. Con secciones
+alineadas a la grilla, resultado idéntico a antes — mismo cambio
+exacto que ensayo.html v3.276, ver ese comentario para el detalle
+completo. El metrónomo LIBRE no se tocó.
+
+### v2.14
+(portado de ensayo.html v3.275) 3 ajustes de
+claridad/default en el bloque de metrónomo de práctica: (1) la
+clave arranca APAGADA y SIN acento por defecto (antes: encendida
+y con el golpe 1 en "fuerte") — ver claveActiva y
+acentosClavePorDefecto(); (2) el péndulo visual arranca en BLANCA
+(×2) por defecto en vez de redonda (×1) — ver PENDULO_VELOCIDAD_*
+y el botón pendvel-uid; (3) el botón "≡" de ajustes avanzados
+(ambiguo, flotaba suelto entre Vol y ⬆) pasa a "⚙️" con un
+separador visual propio, se enciende en dorado (.activo) mientras
+el panel está abierto, y hace scrollIntoView al abrirse — en
+mobile el panel queda lejos abajo y antes no había ninguna señal
+de que algo se había abierto.
+
+### v2.13
+(portado de ensayo.html v3.274) FIX — con el audio ya
+anclado al reloj de audioCtxPractica (v2.12) pero el tick visual
+(número/dots) todavía en performance.now(), quedaban desfasados
+ENTRE SÍ (antes iban desfasados los dos juntos, no se notaba). Se
+unifica: el tick visual también usa audioCtxPractica.currentTime -
+metroLibreInicioAudio, el MISMO cálculo que usa el scheduler de
+audio. est.metroLibreInicio (performance.now()) ya no se usa en
+ningún lado del metro libre, se deja de asignar.
+
+### v2.12
+(portado de ensayo.html v3.273) FIX raíz del "doble click /
+blur auditivo" del metro libre en mobile — anclado ahora a
+audioCtxPractica.currentTime (est.metroLibreInicioAudio) en vez de
+performance.now(), mismo reloj que usa el scheduler para agendar.
+
+### v2.11
+(portado de ensayo.html v3.272) FIX de estabilidad del
+click en mobile — SCHED_LOOKAHEAD_SEC sube de 0.1s a 0.35s (ver
+comentario junto a la constante).
+
+### v2.10
+(portado de ensayo.html v3.271) fix de definición del punto
+del péndulo en mobile — se veía "arrastrado, con halo" por el
+box-shadow difuminado sin borde propio. Blur 6px→3px (sin spread)
++ borde de 1px en tono más oscuro que el relleno, en las reglas
+normal/naranja y beat1/verde.
+
+### v2.9
+(portado de ensayo.html v3.270) mismos 3 ajustes al péndulo:
+riel full-width de la card (antes 140px fijo), destello de esquina
+como flashazo blanco (antes intensificaba el color propio), y
+verde en el beat 1 de cada compás (atado al beat real, no al
+"ciclo" del rebote).
+
+### v2.8
+(portado de ensayo.html v3.269, a pedido) en tema claro,
+fondo apenas más oscuro (#e3ddd0) detrás de los puntos de
+beat/clave y del péndulo — se perdían contra el fondo casi blanco.
+Solo tema claro, solo esos 3 contenedores puntuales, sin tocar
+--surf-light global ni tema oscuro.
+
+### v2.7
+FIX (a pedido, mismo fix que ensayo.html v3.268) — con un
+tema sin ninguna sección cargada, el velo oscuro de "zona sin
+sección" del waveform se pintaba sobre TODO el ancho, muy notorio
+en tema claro. Ahora, sin secciones, se salta el velo entero — se
+ve normal, como si todo estuviera "seleccionado". Con secciones
+cargadas, sin cambios.
+
+### v2.6
+(a pedido) se porta desde ensayo.html (v3.257-267) el péndulo
+visual del pulso: fila propia debajo del número de compás (riel de
+140px + punto que barre de un extremo a otro, sin saltar entre
+compases), botón único de velocidad (½/×1/×2/×4, SVG de figuras
+musicales) que cicla al tocarlo, y destello al tocar cada esquina
+del riel. Nuevo: la velocidad del péndulo (pendVelocidadOverride)
+viaja con el tema igual que BPM/compás/clave/tonalidad — quien abre
+el link ve la misma velocidad que dejó configurada quien comparte;
+si el propio visitante la cambia, ese cambio queda solo en su
+dispositivo (mismo criterio que ya aplicaba a los demás overrides
+en modo compartido). Se agregó también min-width:3ch al número de
+compás grande (ya lo tenía ensayo.html desde v3.260) para que el
+péndulo no se desplace al cambiar de 1 a 2-3 dígitos. Nada de esto
+toca el resto del archivo (waveform, loop, filtros de tono, guía
+PDF, tutorial, etc.).
+
+### v2.5
+(a pedido) (1) se QUITAN DEFINITIVAMENTE los botones de PDF de la hoja compartida:
+"📄 Exportar PDF" y "🥁 PDF Percusión" (fila pdfrow-), las funciones
+exportarEstructuraPracticaPDF / exportarEstructuraPracticaPDFPercusion, su CSS
+(.practica-pdf-row) y las 3 etiquetas de script que solo ellas usaban (jsPDF por CDN, pdf-armonias.js,
+pdf-percusion.js) — la hoja carga más liviana. La guía del ejercicio (📄 Guía, páginas como
+imagen) NO se toca. (2) el tutorial suma pasos: notas, guía del ejercicio, puntos de pulso y
+clave, BPM/tono/armadura, ajustes y filtros de tono (ahora 13 a 15 pasos según el tema).
+
+### v2.4
+(a pedido) tutorial interactivo tipo spotlight para el invitado — mismo patrón
+que vaca.html v1.52 / index.html v1.9.26 (overlay + anillo sobre el elemento + tarjeta
+con pasos, barra de progreso, ← Ant. / Siguiente → / ✕ Saltar; llave localStorage
+'compartir_tutorial_v1'; botón 🎓 para relanzarlo). Se abre solo la primera vez, cuando
+termina de cargar el audio. Colores con las variables del tema (claro/oscuro). Diferencia
+con vaca.html: los pasos con target oculto (p. ej. la onda antes de decodificar) se
+muestran centrados sin anillo, y los `opcional` se omiten si no hay elemento visible.
+
+### v2.3
+(a pedido) contraste de las barras de la onda en tema CLARO. Antes las
+barras sin reproducir (--faint) y las reproducidas (lila fijo) quedaban en ~2.4:1
+y ~2.5:1 sobre el fondo del canvas (--surf-light) y casi con la misma luminosidad
+entre sí (1.06:1). Ahora en claro: sin reproducir #8f897c (~3.1:1) y reproducidas
+con --lila #7d5fae (~4.5:1), separadas ~1.5:1 entre sí. El tema oscuro no cambia.
+Solo afecta las barras: colorFaint (etiquetas de sección) y colorProgreso (círculo
+del clic) siguen igual.
+
+### v2.2
+(a pedido) tema claro/oscuro para el invitado. Sin elección guardada, la
+vista arranca según el modo del dispositivo (prefers-color-scheme) en vez de
+siempre oscuro, y un botón ☀️/🌙 junto al rótulo "Tema compartido" permite
+cambiarlo. La elección se guarda en la misma clave del ecosistema
+('audiolink_tema'), así que coincide con el resto de Audiolink en ese
+dispositivo. No usa nav.js (sigue sin cargarse acá): funciones propias
+alternarTemaCompartido/actualizarIconoTemaCompartido. Los estilos claros ya
+eran idénticos a los de ensayo.html; no se tocaron.
+
+### v2.1
+(a pedido) el loop de SECCIÓN también se guarda con el tema (GUIAS2,
+campo `loopSeccion`: {idx, nombre} de la sección que se repetía al activarlo,
+o null si está apagado) y vuelve activo al abrir, en ensayo.html y en
+compartir.html: se activa el modo y la reproducción se coloca al inicio de
+esa sección (irASeccionPractica; no se usa el CUE para no dejar una marca
+rosa al apagar el loop). Si la sección ya no existe o cambió de nombre, no
+se aplica nada. No convive con `loop` (manual/xN): si vienen los dos, manda
+el manual. Solo ensayo.html escribe; compartir.html solo lee.
+
+### v2.0
+(a pedido) el loop puesto (manual o xN) se guarda con el tema en
+GUIAS2 (campo `loop`: {inicio, fin, compases}) y vuelve ACTIVO al abrir
+el tema, tanto en ensayo.html como en compartir.html. Cancelar el
+loop (✕) lo borra (loop:null). Solo ensayo.html escribe; compartir.html
+solo lee (el invitado no guarda nada). El loop de sección no se guarda
+(sale de las secciones). Sin cambios en el motor de loops ni en los
+tiempos: se reusa aplicarLoopNativoPractica.
+
+### v1.9
+(a pedido) el botón ↻ (loopbtn-) ya no arranca el loop en el segundo
+actual: queda OCULTO mientras no hay loop y solo aparece cuando hay
+uno en curso (⏹ marcar fin / ✕ cancelar). Los loops se arman con los
+presets xN y con el loop de sección; el botón queda como el ✕ para
+cancelar. Sin cambios en marcarLoopPractica ni en el motor de loops.
+
+### v1.8
+(a pedido) FIX del click al arrancar ANTES del offset. Antes,
+schedulerTickGlobalPractica() recortaba tRel a 0 mientras el tiempo
+estaba antes del offset, y el pulso 0 (golpe fuerte de inicio de
+compás) se agendaba al instante de dar play, NO en el offset. Ahora
+el bloque del click principal usa tRelClick (con signo antes del
+offset) y agenda el pulso 0 exactamente en el offset. Después del
+offset y en el metrónomo libre el comportamiento es idéntico. Sin
+cambios en clave, subdivisión ni anclaje de secciones.
+
+### v1.7
+a pedido, (1) sin botones de "subir/cambiar canción" en esta
+vista: el ⬆ chico (localpadmetro) se quita y el botón grande
+"Cargar canción del dispositivo" (localpadcta) arranca OCULTO — solo
+aparece si el audio no se puede cargar (Cloudinary caído, respuesta
+con error, o tema sin audio), por si el invitado tiene el archivo.
+toggleProminenciaBotonSubirLocal() ya no lo muestra sola: solo lo
+oculta al haber archivo cargado. (2) Guardar el audio en el
+dispositivo del invitado, por si Cloudinary falla: "📥 Guardar tema"
+(alterna con "🗑️ Quitar copia") y, en ?lista=, "📥 Guardar lista".
+Mismo Cache API (audiolink-audio-offline-v1) e índice localStorage
+(audiolink_offline_urls) que ensayo.html v3.248 — se comparten si
+ambos archivos están en el mismo sitio. Al abrir un tema se mira
+primero esa copia y recién después Cloudinary. (3) El fetch del
+audio ahora tira error si Cloudinary responde con status de error
+(antes convertía la página de error en "audio" y fallaba después).
+
+### v1.6
+a pedido, un link de tema suelto revocado ya no muestra
+"Ocurrió un error cargando el tema": Firestore responde
+permission-denied (no un doc inexistente) cuando compartido no es
+true, y el catch de iniciarVistaCompartida() ahora lo trata igual
+que el de listas — "No disponible". Cualquier otro error conserva
+el mensaje de siempre. Nada más cambió.
+
+### v1.5
+a pedido, soporta LISTAS compartidas: compartir.html?lista=ID
+(opcional &i=N, índice del tema). iniciarVistaCompartida() lee el
+doc de SETLISTS2 (get público, requiere firestore.rules v2.39 y
+compartido==true), toma temaIds[i] y sigue con el MISMO flujo de
+un tema suelto (?tema=ID sigue funcionando igual). Barra ‹ nombre ·
+n/total › (mismas clases que la de ensayo.html): navegar recarga la
+página con el índice nuevo (location.replace), a propósito — así
+cada tema arranca con motor/audio/estado limpios sin tocar el
+motor de reproducción. Sin login no hay edición de la lista.
+
+### v1.4
+a pedido, vuelve el bloque colapsable "📄 Guía" (revierte el
+punto (3) de v1.0). guiaPdfBloqueHtml() ya no busca el PDF en
+misCategorias (CATEGORIAS2 requiere login y acá no hay) — lee
+tema.guiaPdfPublicId, que ensayo.html v3.246 copia al doc del tema
+al compartirlo; las páginas siguen saliendo de tema.guiaPaginas.
+Sin ese dato (tema compartido antes de v3.246, o categoría sin PDF)
+el bloque no se muestra. Se quitó el botón "Ver PDF completo" de la
+guía (a propósito: abría el PDF entero de la categoría, no solo las
+páginas del tema). El resto del motor de la guía (navegación,
+swipe, zoom, precarga) queda idéntico a ensayo.html.
+
+### v1.3
+a pedido, dos recortes más sobre controlesPracticaHtml() para
+esta vista (ensayo.html sin cambios):
+(1) se quita la sección "Configuración" completa (label + los 5
+<details>: Secciones/Ajustar comienzo/Tempo-Tap/Ajuste rápido/
+Velocidad) — calibración fina para el dueño, no para el colega.
+"Filtros de tono" (details aparte) se deja intacto, visible.
+(2) se quitan del playerbar los botones de CUE (marcar/quitar/marcar
+con click) y de offset (‹, −0.01, +0.01, ›) — quedan ⏮/▶/↻(loop)/
+🧲(snap)/volumen/tiempo. Se verificó que el resto del motor referencia
+todos los ids quitados con guards if(el), así que nada se rompe por
+no encontrarlos.
+
+### v1.2
+FIX — se quita el sidebar/topbar compartido de todo el
+ecosistema (nav-mount + nav.js + link a nav.css), que se colaba acá
+desde la copia base de ensayo.html: mostraba el menú interno completo
+(Dashboard/Proyectos/Clientes/Cerrar sesión/etc.) a alguien externo
+sin cuenta. Se revisó que nada más en el archivo dependa de nav.js
+antes de quitarlo (ver comentario en <body>). Sin cambios en el resto.
+
+### v1.1
+FIX — iniciarVistaCompartida() armaba el HTML/estado pero nunca
+traía el audio real ni llamaba onArchivoLocalElegido() (lo que
+realmente dibuja la waveform y activa los controles) — la UI se veía
+pero quedaba inerte. Se agregó el mismo paso que usa abrirTema() en
+ensayo.html (fetch de tema.audioUrl → onArchivoLocalElegido), sin
+caché (no aplica en esta vista de un solo uso).
+
+### v1.0
+vista de práctica standalone para compartir UN tema con alguien
+externo (sin cuenta), a pedido del usuario. Derivada de ensayo.html
+v3.244 — reutiliza TAL CUAL todo el motor de reproducción/waveform/
+secciones/loops/clave/snap/offset (cero reescritura de esa lógica).
+Cambios sobre la copia base:
+(1) se reemplaza auth.onAuthStateChanged() por iniciarVistaCompartida():
+lee ?tema=ID de la URL y hace get() directo a GUIAS2 (sin login),
+permitido por la regla nueva `allow get: if resource.data.compartido
+== true` (firestore.rules v1.2) — si el doc no existe o compartido no
+es true, muestra mensaje de link no disponible.
+(2) se agrega MODO_COMPARTIDO=true y un guard temprano en las 4
+funciones que escriben a Firestore (guardarOffsetLocalEnStorage,
+guardarSeccionesLocalEnStorage, guardarAjustesPractica,
+guardarNotasTema) — cortan antes del db.collection(...).set(), el
+resto de cada función (guardado en localStorage, estado en memoria)
+sigue igual; ningún ajuste del colega toca el documento real del
+dueño.
+(3) bloquePracticaHtml() ya no llama guiaPdfBloqueHtml() (a pedido:
+sin guía PDF de Cloudinary en esta vista) — la función queda
+definida pero sin uso, no se borró.
+(4) top-actions de vista-practica sin "‹ Mis temas"/"⇄ Cambiar de
+tema"/barra de setlist (no aplican sin login).
+Las vistas login/lista/subir quedan en el HTML sin usar (mostrarVista
+las oculta) — no se tocaron ni sus funciones ni la lógica de subida/
+categorías/setlists del archivo original.
+Ver ensayo.html para el historial completo de versiones del motor.
 
 ## proyecto.html
 

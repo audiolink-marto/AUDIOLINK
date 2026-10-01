@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prueba — checkbox por familia de color</title>
+<style>
+:root{ --bg:#0b0b0d; --surf:#16161a; --txt:#f2f0eb; --muted:#9a978f; --gold:#c9a24b; }
+body{background:var(--bg);color:var(--txt);font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:20px;padding:28px 16px;}
+h2{font-size:0.95rem;color:var(--muted);font-weight:500;margin:0 0 8px;}
+.tarjeta{background:var(--surf);border-radius:12px;padding:18px 22px;display:flex;flex-direction:column;gap:12px;width:min(520px,100%);box-sizing:border-box;}
+.fila{display:flex;align-items:center;gap:14px;}
+.fam{font-size:0.78rem;color:var(--muted);width:150px;flex-shrink:0;}
+label.item{display:flex;align-items:center;gap:8px;font-size:0.88rem;cursor:pointer;}
+
+/* ===== checkbox al-chk — color por familia vía variables =====
+   --chk-on  = pista encendida (tono oscuro)
+   --chk-led = LED y brillo cuando está encendido
+   Sin clase de familia = dorado (default). */
+input[type="checkbox"].al-chk{
+  --h:24px; --chk-on:#8a6d2c; --chk-led:#f6c453; --chk-glow:rgba(246,196,83,.65);
+  -webkit-appearance:none; appearance:none;
+  position:relative; box-sizing:border-box;
+  width:calc(var(--h) * 1.8333); height:var(--h); margin:0; flex-shrink:0;
+  border-radius:999px; background:#3a382f; cursor:pointer; vertical-align:middle;
+  transition:background-color .2s ease;
+}
+input[type="checkbox"].al-chk:checked{background:var(--chk-on);}
+input[type="checkbox"].al-chk::before{
+  content:""; position:absolute; box-sizing:border-box;
+  top:calc(var(--h) * .125); left:calc(var(--h) * .125);
+  width:calc(var(--h) * .75); height:calc(var(--h) * .75);
+  border-radius:50%; background:#e9e6dc; border:1.1px solid #3a382f;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+input[type="checkbox"].al-chk::after{
+  content:""; position:absolute;
+  top:calc(var(--h) * .3958); left:calc(var(--h) * .3958);
+  width:calc(var(--h) * .2083); height:calc(var(--h) * .2083);
+  border-radius:50%; background:#6b6a63;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1), background-color .2s ease, box-shadow .2s ease;
+}
+input[type="checkbox"].al-chk:checked::before{transform:translateX(calc(var(--h) * .8333));}
+input[type="checkbox"].al-chk:checked::after{
+  transform:translateX(calc(var(--h) * .8333));
+  background:var(--chk-led); box-shadow:0 0 calc(var(--h) * .3) calc(var(--h) * .06) var(--chk-glow);
+}
+input[type="checkbox"].al-chk:focus-visible{outline:2px solid var(--chk-led);outline-offset:2px;}
+input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
+input[type="checkbox"].al-chk.s{--h:20px;}
+
+/* familias */
+input[type="checkbox"].al-chk.ok  {--chk-on:#2f6b4a; --chk-led:#6fe0a4; --chk-glow:rgba(111,224,164,.60);}
+input[type="checkbox"].al-chk.cli {--chk-on:#2d5a85; --chk-led:#7fbcf2; --chk-glow:rgba(127,188,242,.60);}
+input[type="checkbox"].al-chk.oculto{--chk-on:#8a3a32; --chk-led:#ff8a7a; --chk-glow:rgba(255,138,122,.60);}
+input[type="checkbox"].al-chk.sel {--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glow:rgba(185,162,240,.60);}
+</style>
+</head>
+<body>
+
+<div class="tarjeta">
+  <h2>Familias de color (apagado / encendido, 24 px y 20 px)</h2>
+  <div class="fila"><span class="fam">Dorado · ajustes</span>
+    <input type="checkbox" class="al-chk"><input type="checkbox" class="al-chk" checked>
+    <input type="checkbox" class="al-chk s"><input type="checkbox" class="al-chk s" checked></div>
+  <div class="fila"><span class="fam">Verde · hecho / entregado</span>
+    <input type="checkbox" class="al-chk ok"><input type="checkbox" class="al-chk ok" checked>
+    <input type="checkbox" class="al-chk ok s"><input type="checkbox" class="al-chk ok s" checked></div>
+  <div class="fila"><span class="fam">Azul · visible al cliente</span>
+    <input type="checkbox" class="al-chk cli"><input type="checkbox" class="al-chk cli" checked>
+    <input type="checkbox" class="al-chk cli s"><input type="checkbox" class="al-chk cli s" checked></div>
+  <div class="fila"><span class="fam">Rojo · ocultar / restringir</span>
+    <input type="checkbox" class="al-chk oculto"><input type="checkbox" class="al-chk oculto" checked>
+    <input type="checkbox" class="al-chk oculto s"><input type="checkbox" class="al-chk oculto s" checked></div>
+  <div class="fila"><span class="fam">Violeta · selección / filtro</span>
+    <input type="checkbox" class="al-chk sel"><input type="checkbox" class="al-chk sel" checked>
+    <input type="checkbox" class="al-chk sel s"><input type="checkbox" class="al-chk sel s" checked></div>
+</div>
+
+<div class="tarjeta">
+  <h2>En contexto</h2>
+  <label class="item"><input type="checkbox" class="al-chk ok s" checked> WAV Master</label>
+  <label class="item"><input type="checkbox" class="al-chk cli s" checked> Visible en menú público</label>
+  <label class="item"><input type="checkbox" class="al-chk oculto s"> Ocultar en ficha cliente</label>
+  <label class="item"><input type="checkbox" class="al-chk sel s" checked> Solo marcados</label>
+  <label class="item"><input type="checkbox" class="al-chk s"> Tiene tamaño alterno</label>
+</div>
+
+</body>
+</html>

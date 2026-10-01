@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Cocina (v1.99.26)</title>
-<!-- AUDIOLINK · cocina.html · v1.99.26
+<title>Audiolink — Cocina (v1.99.27)</title>
+<!-- AUDIOLINK · cocina.html · v1.99.27
+     v1.99.27: (a pedido) los 10 checkboxes de esta hoja pasan a verse como
+     el switch del dial (.al-chk), con familias de color: dorado = ajustes
+     (trackear stock, tamaño alterno, "sin bebida/adiciones"); azul =
+     visible al cliente/público (cantidades, menú público, lote); rojo =
+     ocultar (insumo en ficha, categoría); violeta = selección de recetas
+     para la compra (chico, 20px). Siguen siendo <input type="checkbox">
+     reales: ids, checked y todos los onchange sin cambios; se quitó el
+     width:auto en línea. La regla global input[type="checkbox"] (v1.10)
+     queda, pero .al-chk la pisa. Solo CSS + class en esos inputs.
      v1.99.26: (a pedido) reabrir ítems pendientes de una lista de
      compras ya cerrada/archivada (historialCompras), sin reabrir la
      lista completa ni tocar el registro del historial:
@@ -2302,6 +2311,47 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
   .receta-insumo-row .subtotal{ grid-area:sub; }
   .receta-insumo-row .btn-del{ grid-area:btn; justify-self:end; }
 }
+/* CHECKBOX ESTILO DIAL (.al-chk): <input type="checkbox"> REAL con aspecto de switch.
+   Misma lógica de siempre (.checked, onchange, disabled, id) — solo CSS.
+   Familias de color por clase: sin clase = dorado (ajustes) · .ok = verde (hecho/
+   entregado) · .cli = azul (visible al cliente) · .oculto = rojo (ocultar/restringir)
+   · .sel = violeta (selección/filtro). Tamaño: 24px por defecto, .s = 20px (listas). */
+input[type="checkbox"].al-chk{
+  --h:24px; --chk-on:#8a6d2c; --chk-led:#f6c453; --chk-glow:rgba(246,196,83,.65);
+  -webkit-appearance:none; appearance:none;
+  position:relative; box-sizing:border-box;
+  width:calc(var(--h) * 1.8333); height:var(--h); min-width:0; min-height:0;
+  margin:0; padding:0; border:0; box-shadow:none; flex-shrink:0;
+  border-radius:999px; background:#3a382f; cursor:pointer; vertical-align:middle;
+  transition:background-color .2s ease;
+}
+input[type="checkbox"].al-chk:checked{background:var(--chk-on);}
+input[type="checkbox"].al-chk::before{
+  content:""; position:absolute; box-sizing:border-box;
+  top:calc(var(--h) * .125); left:calc(var(--h) * .125);
+  width:calc(var(--h) * .75); height:calc(var(--h) * .75);
+  border-radius:50%; background:#e9e6dc; border:1.1px solid #3a382f;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+input[type="checkbox"].al-chk::after{
+  content:""; position:absolute;
+  top:calc(var(--h) * .3958); left:calc(var(--h) * .3958);
+  width:calc(var(--h) * .2083); height:calc(var(--h) * .2083);
+  border-radius:50%; background:#6b6a63;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1), background-color .2s ease, box-shadow .2s ease;
+}
+input[type="checkbox"].al-chk:checked::before{transform:translateX(calc(var(--h) * .8333));}
+input[type="checkbox"].al-chk:checked::after{
+  transform:translateX(calc(var(--h) * .8333));
+  background:var(--chk-led); box-shadow:0 0 calc(var(--h) * .3) calc(var(--h) * .06) var(--chk-glow);
+}
+input[type="checkbox"].al-chk:focus-visible{outline:2px solid var(--chk-led);outline-offset:2px;}
+input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
+input[type="checkbox"].al-chk.s{--h:20px;}
+input[type="checkbox"].al-chk.ok{--chk-on:#2f6b4a; --chk-led:#6fe0a4; --chk-glow:rgba(111,224,164,.60);}
+input[type="checkbox"].al-chk.cli{--chk-on:#2d5a85; --chk-led:#7fbcf2; --chk-glow:rgba(127,188,242,.60);}
+input[type="checkbox"].al-chk.oculto{--chk-on:#8a3a32; --chk-led:#ff8a7a; --chk-glow:rgba(255,138,122,.60);}
+input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glow:rgba(185,162,240,.60);}
 </style>
 </head>
 <body>
@@ -2491,10 +2541,10 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
           <input type="number" id="inputInsumoPrecio" min="0" step="1" placeholder="15">
         </div>
         <div class="field">
-          <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkInsumoTrackearStock" style="width:auto; margin:0;" onchange="alCambiarTrackearStockInsumo(this.checked)"> Trackear stock (para insumos que sobran: aluminio, guantes, huevos, etc.)</label>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" class="al-chk" id="chkInsumoTrackearStock" style="margin:0;" onchange="alCambiarTrackearStockInsumo(this.checked)"> Trackear stock (para insumos que sobran: aluminio, guantes, huevos, etc.)</label>
         </div>
         <div class="field">
-          <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkInsumoOcultoFicha" style="width:auto; margin:0;"> No mostrar en ficha del cliente (ej. ajo, cebolla — receta base que no quieres revelar)</label>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" class="al-chk oculto" id="chkInsumoOcultoFicha" style="margin:0;"> No mostrar en ficha del cliente (ej. ajo, cebolla — receta base que no quieres revelar)</label>
         </div>
         <div class="field" id="filaInsumoStockActual" style="display:none;">
           <label for="inputInsumoStockActual">Stock actual (en la misma unidad de arriba)</label>
@@ -2604,17 +2654,17 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
       </div>
 
       <div class="field" style="margin-bottom:14px;">
-        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkMostrarCantidadesCliente" checked style="width:auto; margin:0;"> Mostrar cantidades de ingredientes en la ficha del cliente</label>
+        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" class="al-chk cli" id="chkMostrarCantidadesCliente" checked style="margin:0;"> Mostrar cantidades de ingredientes en la ficha del cliente</label>
         <div class="hint-campo">Si lo desmarcas, la ficha del cliente lista los ingredientes sin cantidades (útil si no quieres revelar la proporción exacta de tu receta). La ficha interna de costeo siempre muestra las cantidades, sin importar esto.</div>
       </div>
 
       <div class="field" style="margin-bottom:14px;">
-        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkVisibleMenu" style="width:auto; margin:0;"> Visible en menú público</label>
+        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" class="al-chk cli" id="chkVisibleMenu" style="margin:0;"> Visible en menú público</label>
         <div class="hint-campo">Desmarcado por defecto. Si lo marcas, esta receta aparece en menu.html (portal público sin login). Solo se publican nombre, imagen, descripción, precio e ingredientes (según el checkbox de arriba) — nunca costo ni margen.</div>
       </div>
 
       <div class="field" style="margin-bottom:14px;">
-        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkMostrarLote" checked style="width:auto; margin:0;"> Mostrar "por lote de N unidades" en el menú público</label>
+        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" class="al-chk cli" id="chkMostrarLote" checked style="margin:0;"> Mostrar "por lote de N unidades" en el menú público</label>
         <div class="hint-campo">Si lo desmarcas, el menú público solo muestra el precio "c/u", sin mencionar el lote, aunque la receta maneje más de 1 unidad por lote. Útil cuando el lote es un dato de producción interno y no algo que el cliente compra.</div>
       </div>
 
@@ -2646,7 +2696,7 @@ table.hoja td.total{ color:var(--gold); font-weight:700; }
       </div>
 
       <div class="field" style="margin-bottom:14px;">
-        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" id="chkTamanoAlterno" style="width:auto; margin:0;" onchange="toggleCamposTamanoAlterno()"> Tiene tamaño alterno (mismo molde, distinto gramaje)</label>
+        <label style="display:flex; align-items:center; gap:8px; font-weight:400;"><input type="checkbox" class="al-chk" id="chkTamanoAlterno" style="margin:0;" onchange="toggleCamposTamanoAlterno()"> Tiene tamaño alterno (mismo molde, distinto gramaje)</label>
         <div class="hint-campo">Ej. la lasaña grande alcanza para 4 personas de 16oz, o el doble (8) si se sirve en porciones de 8oz. Independiente de "Unidades por lote" de arriba (ese es para cobrar; esto es para cuánto rinde).</div>
       </div>
       <div class="form-grid" id="camposTamanoAlterno" style="display:none; margin-bottom:14px;">
@@ -3568,7 +3618,7 @@ function renderListaCategorias(){
       <input type="text" value="${(c.nombre || '').toString().replace(/"/g,'&quot;')}"
         onchange="renombrarCategoria('${c.id}', this.value)">
       <label style="display:flex; align-items:center; gap:5px; font-size:0.78rem; color:var(--muted); font-weight:400; white-space:nowrap;">
-        <input type="checkbox" style="width:auto; margin:0;" ${c.ocultaEnFicha ? 'checked' : ''}
+        <input type="checkbox" class="al-chk oculto s" style="margin:0;" ${c.ocultaEnFicha ? 'checked' : ''}
           onchange="toggleCategoriaOcultaEnFicha('${c.id}', this.checked)"> Ocultar en ficha cliente
       </label>
       <button class="btn-del" title="Eliminar categoría" onclick="eliminarCategoria('${c.id}')">🗑️</button>
@@ -4923,7 +4973,7 @@ function agregarLineaPedido(tipo){
       </select>
       <input type="number" min="1" step="1" placeholder="cant." value="1" oninput="actualizarLineaPedido('${filaId}', 'cantidad', this.value)">
       <label id="${filaId}-sinExtrasLabel" style="display:none; align-items:center; gap:5px; font-size:0.82rem; color:var(--muted); flex:0 0 auto;">
-        <input type="checkbox" id="${filaId}-sinExtras" onchange="toggleSinExtrasLineaPedido('${filaId}', this.checked)"> Sin bebida/adiciones
+        <input type="checkbox" class="al-chk" id="${filaId}-sinExtras" onchange="toggleSinExtrasLineaPedido('${filaId}', this.checked)"> Sin bebida/adiciones
       </label>
       <div class="subtotal" id="${filaId}-subtotal">$0</div>
       <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
@@ -5254,7 +5304,7 @@ function habilitarEdicionPedido(id){
         ${l.tipo === 'insumo' ? `<input type="number" min="0" step="500" value="${l.precioUnitario}" oninput="actualizarLineaPedido('${filaId}', 'precioUnitario', this.value)">` : ''}
         ${l.tipo === 'receta' ? `
         <label id="${filaId}-sinExtrasLabel" style="display:${precioSinExtrasDisponible != null ? 'flex' : 'none'}; align-items:center; gap:5px; font-size:0.82rem; color:var(--muted); flex:0 0 auto;">
-          <input type="checkbox" id="${filaId}-sinExtras" ${l.sinExtras ? 'checked' : ''} onchange="toggleSinExtrasLineaPedido('${filaId}', this.checked)"> Sin bebida/adiciones
+          <input type="checkbox" class="al-chk" id="${filaId}-sinExtras" ${l.sinExtras ? 'checked' : ''} onchange="toggleSinExtrasLineaPedido('${filaId}', this.checked)"> Sin bebida/adiciones
         </label>` : ''}
         <div class="subtotal" id="${filaId}-subtotal">$0</div>
         <button type="button" class="btn-del" onclick="eliminarLineaPedido('${filaId}')">🗑️</button>`;
@@ -5515,7 +5565,7 @@ function renderListaRecetasParaCompra(){
     const lotes = recetasSeleccionParaCompra[r.id] || 0;
     return `
     <div class="receta-check-row">
-      <input type="checkbox" ${lotes > 0 ? 'checked' : ''}
+      <input type="checkbox" class="al-chk sel s" ${lotes > 0 ? 'checked' : ''}
         onchange="toggleRecetaSeleccionCompra('${r.id}', this.checked)">
       <span>${(r.nombre || '—').toString().replace(/</g,'&lt;')}</span>
       <input type="number" min="1" step="1" placeholder="lotes" value="${lotes > 0 ? lotes : ''}"

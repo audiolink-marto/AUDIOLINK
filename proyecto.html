@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.42
+<!-- AUDIOLINK · proyecto.html · v5.44
+     v5.44: (a pedido) el sprite grande de los 3 "Cargando..." queda con el
+     texto DEBAJO: .al-dial-grande pasa a display:block (antes era inline-block
+     y el texto quedaba al lado). Solo CSS, ninguna función cambia.
+     v5.43: (a pedido) mismo ícono del dial (disco en barrido, LED
+     fijo) ya usado en musico/ingeniero/ensayo, en los 3 lugares
+     "Cargando..." de esta página (todas listas grandes, .al-dial-
+     grande). Solo CSS + esos 3 textos, ninguna función.
      v5.42: (a pedido) se agrega el link "🎧 Guía de práctica" en las
      acciones de cada tema (modal de Temas, junto a Reactivar/
      Desactivar/Eliminar) — abre guia-practica.html?p={proyectoActualId}
@@ -1421,6 +1428,16 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
 .back-link:hover{color:var(--gold);}
 .empty{text-align:center;padding:60px 20px;color:var(--faint);}
+.al-dial{position:relative;display:inline-block;vertical-align:middle;}
+.al-dial img{display:block;width:100%;height:100%;}
+.al-dial .al-dial-knob{position:absolute;top:50%;left:50%;width:43.4%;height:43.4%;aspect-ratio:1;transform:translate(-50%,-50%) rotate(135deg);animation:alBarrido 1.8s ease-in-out infinite alternate;}
+.al-dial-mini{width:18px;height:18px;margin-right:6px;}
+.al-dial-grande{display:block;width:64px;height:64px;margin:0 auto 10px;}
+@keyframes alBarrido{
+  0%   { transform:translate(-50%,-50%) rotate(135deg); }
+  50%  { transform:translate(-50%,-50%) rotate(405deg); }
+  100% { transform:translate(-50%,-50%) rotate(360deg); }
+}
 </style>
 </head>
 <body>
@@ -3412,7 +3429,7 @@ function cerrarModalEquipoInterno(){
 
 async function cargarListaEquipoInterno(){
   const cont = document.getElementById('equipoLista');
-  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  cont.innerHTML = '<div class="empty" style="padding:16px;"><div class="al-dial al-dial-grande"><img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display=\'none\'"><img class="al-dial-knob" src="logo/logo-knob-192.png" alt=""></div>Cargando...</div>';
   try{
     const snap = await db.collection('equipoInterno').get();
     if(snap.empty){
@@ -3492,7 +3509,7 @@ function cerrarModalIngenieros(){
 
 async function cargarListaIngenieros(){
   const cont = document.getElementById('ingenieroLista');
-  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  cont.innerHTML = '<div class="empty" style="padding:16px;"><div class="al-dial al-dial-grande"><img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display=\'none\'"><img class="al-dial-knob" src="logo/logo-knob-192.png" alt=""></div>Cargando...</div>';
   try{
     // No hay forma de "where array-contains" sin índice si combinamos con
     // otros filtros, pero acá es el único filtro — where simple está bien.
@@ -3722,7 +3739,7 @@ function cerrarModalMusicos(){
 
 async function cargarListaMusicosPortal(){
   const cont = document.getElementById('musicoPortalLista');
-  cont.innerHTML = '<div class="empty" style="padding:16px;">Cargando...</div>';
+  cont.innerHTML = '<div class="empty" style="padding:16px;"><div class="al-dial al-dial-grande"><img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display=\'none\'"><img class="al-dial-knob" src="logo/logo-knob-192.png" alt=""></div>Cargando...</div>';
   try{
     const snap = await db.collection('musicosPortal')
       .where('proyectosAsignados', 'array-contains', proyectoActualId)

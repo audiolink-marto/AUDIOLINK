@@ -3,8 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V9.56</title>
-<!-- AUDIOLINK · cotizador.html · v9.57
+<title>AUDIOLINK - Central de Operaciones & Cotizador V9.58</title>
+<!-- AUDIOLINK · cotizador.html · v9.58
+     v9.58: (a pedido) los 14 checkboxes de selección de servicios (salas,
+     ensamble, músicos, maquetación, dirección, arreglos, edición, mezcla,
+     master) y los de backline pasan a verse como el switch del dial
+     (.al-chk, violeta = selección; los de backline en tamaño chico). Siguen
+     siendo <input type="checkbox"> reales: ids, .chk-backline, onchange y
+     validarYCalcular sin cambios. Solo CSS + class en esos inputs.
+     (El <title> estaba en V9.56; se alinea.)
      v9.58: el guard offline llamaba solo console.info() y nunca las
      3 funciones de carga (iniciarVinculoProyecto,
      cargarEstudiosDesdeFirestore, cargarBacklineCatalogoDesdeFirestore)
@@ -575,6 +582,47 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
   text-transform: uppercase; letter-spacing: 0.04em;
 }
 .modal-comparador-close:hover { border-color: var(--gold); color: var(--gold); }
+/* CHECKBOX ESTILO DIAL (.al-chk): <input type="checkbox"> REAL con aspecto de switch.
+   Misma lógica de siempre (.checked, onchange, disabled, id) — solo CSS.
+   Familias de color por clase: sin clase = dorado (ajustes) · .ok = verde (hecho/
+   entregado) · .cli = azul (visible al cliente) · .oculto = rojo (ocultar/restringir)
+   · .sel = violeta (selección/filtro). Tamaño: 24px por defecto, .s = 20px (listas). */
+input[type="checkbox"].al-chk{
+  --h:24px; --chk-on:#8a6d2c; --chk-led:#f6c453; --chk-glow:rgba(246,196,83,.65);
+  -webkit-appearance:none; appearance:none;
+  position:relative; box-sizing:border-box;
+  width:calc(var(--h) * 1.8333); height:var(--h); min-width:0; min-height:0;
+  margin:0; padding:0; border:0; box-shadow:none; flex-shrink:0;
+  border-radius:999px; background:#3a382f; cursor:pointer; vertical-align:middle;
+  transition:background-color .2s ease;
+}
+input[type="checkbox"].al-chk:checked{background:var(--chk-on);}
+input[type="checkbox"].al-chk::before{
+  content:""; position:absolute; box-sizing:border-box;
+  top:calc(var(--h) * .125); left:calc(var(--h) * .125);
+  width:calc(var(--h) * .75); height:calc(var(--h) * .75);
+  border-radius:50%; background:#e9e6dc; border:1.1px solid #3a382f;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+input[type="checkbox"].al-chk::after{
+  content:""; position:absolute;
+  top:calc(var(--h) * .3958); left:calc(var(--h) * .3958);
+  width:calc(var(--h) * .2083); height:calc(var(--h) * .2083);
+  border-radius:50%; background:#6b6a63;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1), background-color .2s ease, box-shadow .2s ease;
+}
+input[type="checkbox"].al-chk:checked::before{transform:translateX(calc(var(--h) * .8333));}
+input[type="checkbox"].al-chk:checked::after{
+  transform:translateX(calc(var(--h) * .8333));
+  background:var(--chk-led); box-shadow:0 0 calc(var(--h) * .3) calc(var(--h) * .06) var(--chk-glow);
+}
+input[type="checkbox"].al-chk:focus-visible{outline:2px solid var(--chk-led);outline-offset:2px;}
+input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
+input[type="checkbox"].al-chk.s{--h:20px;}
+input[type="checkbox"].al-chk.ok{--chk-on:#2f6b4a; --chk-led:#6fe0a4; --chk-glow:rgba(111,224,164,.60);}
+input[type="checkbox"].al-chk.cli{--chk-on:#2d5a85; --chk-led:#7fbcf2; --chk-glow:rgba(127,188,242,.60);}
+input[type="checkbox"].al-chk.oculto{--chk-on:#8a3a32; --chk-led:#ff8a7a; --chk-glow:rgba(255,138,122,.60);}
+input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glow:rgba(185,162,240,.60);}
 </style>
 </head>
 <body>
@@ -674,7 +722,7 @@ window.NAV_CONFIG = {
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
               <div class="input-main">
                 <div class="checkbox-container">
-                  <input type="checkbox" id="chk-sala-a" onchange="validarYCalcular()">
+                  <input type="checkbox" class="al-chk sel" id="chk-sala-a" onchange="validarYCalcular()">
                   <label for="chk-sala-a" id="label-sala-a">Estudio A</label>
                 </div>
               </div>
@@ -698,7 +746,7 @@ window.NAV_CONFIG = {
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
               <div class="input-main">
                 <div class="checkbox-container">
-                  <input type="checkbox" id="chk-sala-b" onchange="validarYCalcular()">
+                  <input type="checkbox" class="al-chk sel" id="chk-sala-b" onchange="validarYCalcular()">
                   <label for="chk-sala-b" id="label-sala-b">Estudio B</label>
                 </div>
               </div>
@@ -722,7 +770,7 @@ window.NAV_CONFIG = {
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
               <div class="input-main">
                 <div class="checkbox-container">
-                  <input type="checkbox" id="chk-sala-c" onchange="validarYCalcular()">
+                  <input type="checkbox" class="al-chk sel" id="chk-sala-c" onchange="validarYCalcular()">
                   <label for="chk-sala-c" id="label-sala-c">Estudio C</label>
                 </div>
               </div>
@@ -792,7 +840,7 @@ window.NAV_CONFIG = {
           <div class="row-input">
             <div class="input-main">
               <div class="checkbox-container">
-                <input type="checkbox" id="chk-ensamble" onchange="validarYCalcular()">
+                <input type="checkbox" class="al-chk sel" id="chk-ensamble" onchange="validarYCalcular()">
                 <label for="chk-ensamble">Etapa Ensamble</label>
               </div>
             </div>
@@ -826,7 +874,7 @@ window.NAV_CONFIG = {
             <div class="row-input">
               <div class="input-main">
                 <div class="checkbox-container">
-                  <input type="checkbox" id="chk-musicos-a" onchange="validarYCalcular()">
+                  <input type="checkbox" class="al-chk sel" id="chk-musicos-a" onchange="validarYCalcular()">
                   <label for="chk-musicos-a">Músicos de Sesión (Tarifa A)</label>
                 </div>
               </div>
@@ -845,7 +893,7 @@ window.NAV_CONFIG = {
             <div class="row-input">
               <div class="input-main">
                 <div class="checkbox-container">
-                  <input type="checkbox" id="chk-musicos-b" onchange="validarYCalcular()">
+                  <input type="checkbox" class="al-chk sel" id="chk-musicos-b" onchange="validarYCalcular()">
                   <label for="chk-musicos-b">Músicos de Sesión (Tarifa B)</label>
                 </div>
               </div>
@@ -864,7 +912,7 @@ window.NAV_CONFIG = {
             <div class="row-input">
               <div class="input-main">
                 <div class="checkbox-container">
-                  <input type="checkbox" id="chk-ensamble-percusion" onchange="validarYCalcular()">
+                  <input type="checkbox" class="al-chk sel" id="chk-ensamble-percusion" onchange="validarYCalcular()">
                   <label for="chk-ensamble-percusion">Ensamble de Percusión (3 Músicos)</label>
                 </div>
               </div>
@@ -913,7 +961,7 @@ window.NAV_CONFIG = {
           <div class="row-input">
             <div class="input-main">
               <div class="checkbox-container">
-                <input type="checkbox" id="chk-maquetacion" onchange="validarYCalcular()">
+                <input type="checkbox" class="al-chk sel" id="chk-maquetacion" onchange="validarYCalcular()">
                 <label for="chk-maquetacion">Pre-Producción / Maquetación</label>
               </div>
               <input type="text" id="name-maquetacion" placeholder="Asignar profesional" class="inline-name-input" list="lista-maquetacion" oninput="validarYCalcular()">
@@ -929,7 +977,7 @@ window.NAV_CONFIG = {
           <div class="row-input">
             <div class="input-main">
               <div class="checkbox-container">
-                <input type="checkbox" id="chk-dir-mus" onchange="validarYCalcular()">
+                <input type="checkbox" class="al-chk sel" id="chk-dir-mus" onchange="validarYCalcular()">
                 <label for="chk-dir-mus">Dirección Musical</label>
               </div>
               <input type="text" id="name-dir-mus" placeholder="Asignar profesional" class="inline-name-input" list="lista-dir-mus" oninput="validarYCalcular()">
@@ -945,7 +993,7 @@ window.NAV_CONFIG = {
           <div class="row-input">
             <div class="input-main">
               <div class="checkbox-container">
-                <input type="checkbox" id="chk-arreglos" onchange="validarYCalcular()">
+                <input type="checkbox" class="al-chk sel" id="chk-arreglos" onchange="validarYCalcular()">
                 <label for="chk-arreglos">Co-Arreglos / Apertura</label>
               </div>
               <input type="text" id="name-arreglos" placeholder="Asignar profesional" class="inline-name-input" list="lista-arreglos" oninput="validarYCalcular()">
@@ -961,7 +1009,7 @@ window.NAV_CONFIG = {
           <div class="row-input">
             <div class="input-main">
               <div class="checkbox-container">
-                <input type="checkbox" id="chk-edicion" onchange="validarYCalcular()">
+                <input type="checkbox" class="al-chk sel" id="chk-edicion" onchange="validarYCalcular()">
                 <label for="chk-edicion">Edición</label>
               </div>
               <input type="text" id="name-edicion" placeholder="Asignar profesional" class="inline-name-input" list="lista-edicion" value="German Albano" oninput="validarYCalcular()">
@@ -977,7 +1025,7 @@ window.NAV_CONFIG = {
           <div class="row-input">
             <div class="input-main">
               <div class="checkbox-container">
-                <input type="checkbox" id="chk-mezcla" onchange="validarYCalcular()">
+                <input type="checkbox" class="al-chk sel" id="chk-mezcla" onchange="validarYCalcular()">
                 <label for="chk-mezcla">Mezcla Profesional</label>
               </div>
               <input type="text" id="name-mezcla" placeholder="Asignar profesional" class="inline-name-input" list="lista-mezcla" oninput="validarYCalcular()">
@@ -994,7 +1042,7 @@ window.NAV_CONFIG = {
             <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
               <div class="input-main">
                 <div class="checkbox-container">
-                  <input type="checkbox" id="chk-master" onchange="validarYCalcular()">
+                  <input type="checkbox" class="al-chk sel" id="chk-master" onchange="validarYCalcular()">
                   <label for="chk-master">Masterización</label>
                 </div>
                 <input type="text" id="name-master" placeholder="Asignar profesional" class="inline-name-input" list="lista-master" oninput="validarYCalcular()">
@@ -1173,7 +1221,7 @@ function renderBacklineCatalogo(){
     <div class="row-input backline-row">
       <div class="input-main"><label>${escapeHtml(it.nombre)}</label></div>
       <div class="input-controls">
-        <input type="checkbox" class="chk-backline" data-num="num-${it.id}" data-rate="rate-${it.id}" onchange="validarYCalcular()">
+        <input type="checkbox" class="al-chk sel s chk-backline" data-num="num-${it.id}" data-rate="rate-${it.id}" onchange="validarYCalcular()">
         <div class="input-unit-group"><span class="input-unit-label">Días</span><input type="number" id="num-${it.id}" value="1" min="1" class="qty-input" onchange="validarYCalcular()"></div>
         <span class="mult">×</span>
         <div class="input-unit-group"><span class="input-unit-label">Tarifa COP</span><input type="number" id="rate-${it.id}" value="${it.tarifa}" min="0" class="rate-input" onchange="validarYCalcular()"></div>

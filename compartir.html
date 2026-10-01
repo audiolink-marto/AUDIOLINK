@@ -3,285 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Tema compartido v2.22</title>
-<!-- AUDIOLINK · compartir.html · v2.18
-     v2.22: (a pedido) 2 ajustes menores, sin tocar lógica de carga/tutorial:
-     (1) el botón 🎓 de relanzar el tutorial ahora tiene un pulso dorado
-     permanente (crece/decrece + glow, ver .tut-btn-llamativo /
-     @keyframes tutBtnRespira) para que se note más entre los demás
-     íconos del header — es solo CSS, no cambia _TUT_LLAVE ni cuándo se
-     abre el tutorial. (2) el paso 💾 del tutorial ("Guardar en este
-     dispositivo") ahora menciona también el botón "⬇️ Descargar
-     archivo" (v2.21) que vive justo al lado — antes solo hablaba del
-     caché interno, el visitante no se enteraba de que existe una
-     descarga real aparte.
-     v2.21: (a pedido) nuevo botón "⬇️ Descargar archivo" junto a
-     "📥 Guardar tema" — este último sigue igual (caché interno del
-     navegador, solo para que la app siga sonando offline). El nuevo
-     hace una descarga REAL: fetch(t.audioUrl) → blob → mismo patrón
-     de _descargarArchivoTexto (usado hoy para el respaldo JSON) pero
-     para binario (_descargarArchivoBinario, nueva), con <a download>
-     temporal y revoke diferido 4s (evita que se cancele la descarga en
-     algunos móviles). Nombre de archivo: "{nombre del tema}.{ext}",
-     extensión sacada de la propia URL de Cloudinary (secure_url ya la
-     trae). Aviso: en iOS Safari el comportamiento de "download" sobre
-     un blob es menos consistente (puede abrir una hoja de "Guardar en
-     Archivos" en vez de descargar directo) — limitación del navegador,
-     no de este código.
-     v2.20: (port de ensayo.html v3.281) reconoce BPM/tonalidad de
-     archivos .flac (antes solo ID3v2/mp3, ver leerTagsAudioVorbis()).
-     v2.19: HOTFIX — mismo caso que ensayo.html v3.280: estas versiones
-     venían de una base anterior al hotfix v2.16 de hoy mismo, con el
-     click sincronizado sonando 4 veces superpuesto. Se reaplica el
-     mismo fix de una línea, sin tocar nada de v2.17/v2.18.
-     v2.18: (a pedido) chip "compás actual/último de la sección" pegado
-     a la barra de seguimiento (ej. "12/16") — dato fijo, siempre
-     visible, separado del texto contextual de abajo (progtxt, que
-     sigue mostrando "Siguiente: ..." o quedando vacío). Numeración
-     absoluta, mismo criterio que ya usa "Compás X–Y" en la etiqueta de
-     sección. Sin sección activa, o en el hueco fuera de sección (loop
-     "en el aire"), el chip queda vacío — no hay un "total" claro ahí.
-     Mismo cambio en ensayo.html (v3.279).
-     v2.17: (a pedido) 3 ajustes en el bloque de práctica: (1) el
-     botón ✕ de cancelar loop activo se muda del playerbar (donde vivía
-     pegado a los botones tipo CUE) al renglón de "Loop rápido", donde
-     corresponde; (2) la línea de la regla de compás en el waveform
-     (marca el primer tiempo de cada compás visible) pasa de dorado a
-     rojo — solo la línea, el número/hora arriba sigue dorado; (3) la
-     barra de seguimiento sube de 5px a 9px (se lee mejor de reojo en
-     mobile), el tick de "mayor" (inicio de frase, cada 4 compases) ya
-     no se distingue solo por el grosor sino que además sobresale 2px
-     arriba/abajo de la barra, y el rango de loop marcado sube de 35%
-     a 50% de opacidad. Mismos 3 cambios en ensayo.html (v3.278).
-     v2.16: (a pedido) el loop guardado del tema (GUIAS2.loop) ya se
-     re-aplicaba solo (ver aplicarLoopGuardadoPractica, v2.0) pero
-     ningún chip x1/x2/x4/.../x64 se encendía para mostrar cuál se
-     usó — solo se veía en el texto "(N comp.)". Ahora, si
-     loop.compases coincide con un preset fijo, se enciende ese chip
-     (mismo estilo que al tocarlo en vivo); si NO coincide con ninguno
-     (loop dibujado a mano en la onda), se muestra un placeholder "xN"
-     en vez de dejar todo apagado. limpiarPresetsLoopPractica también
-     apaga este placeholder al elegir un preset fijo en vivo.
-     v2.15: (portado de ensayo.html v3.276) FIX real — el click
-     sincronizado ahora se re-ancla al INICIO DE CADA TRAMO (sección),
-     igual que ya hacía el contador visual. schedNextBeatIdx (índice fijo
-     desde el offset) pasa a schedNextBeatAbs (tiempo absoluto de la
-     canción) + proximoBeatClick(), que ancla el pulso 0 al inicio del
-     tramo vigente en cada instante — así, al cruzar a una sección que
-     empieza fuera de la grilla de compases, el click cae junto con el
-     contador en vez de seguir su compás de siempre. Con secciones
-     alineadas a la grilla, resultado idéntico a antes — mismo cambio
-     exacto que ensayo.html v3.276, ver ese comentario para el detalle
-     completo. El metrónomo LIBRE no se tocó.
-     v2.14: (portado de ensayo.html v3.275) 3 ajustes de
-     claridad/default en el bloque de metrónomo de práctica: (1) la
-     clave arranca APAGADA y SIN acento por defecto (antes: encendida
-     y con el golpe 1 en "fuerte") — ver claveActiva y
-     acentosClavePorDefecto(); (2) el péndulo visual arranca en BLANCA
-     (×2) por defecto en vez de redonda (×1) — ver PENDULO_VELOCIDAD_*
-     y el botón pendvel-uid; (3) el botón "≡" de ajustes avanzados
-     (ambiguo, flotaba suelto entre Vol y ⬆) pasa a "⚙️" con un
-     separador visual propio, se enciende en dorado (.activo) mientras
-     el panel está abierto, y hace scrollIntoView al abrirse — en
-     mobile el panel queda lejos abajo y antes no había ninguna señal
-     de que algo se había abierto.
-     v2.13: (portado de ensayo.html v3.274) FIX — con el audio ya
-     anclado al reloj de audioCtxPractica (v2.12) pero el tick visual
-     (número/dots) todavía en performance.now(), quedaban desfasados
-     ENTRE SÍ (antes iban desfasados los dos juntos, no se notaba). Se
-     unifica: el tick visual también usa audioCtxPractica.currentTime -
-     metroLibreInicioAudio, el MISMO cálculo que usa el scheduler de
-     audio. est.metroLibreInicio (performance.now()) ya no se usa en
-     ningún lado del metro libre, se deja de asignar.
-     v2.12: (portado de ensayo.html v3.273) FIX raíz del "doble click /
-     blur auditivo" del metro libre en mobile — anclado ahora a
-     audioCtxPractica.currentTime (est.metroLibreInicioAudio) en vez de
-     performance.now(), mismo reloj que usa el scheduler para agendar.
-     v2.11: (portado de ensayo.html v3.272) FIX de estabilidad del
-     click en mobile — SCHED_LOOKAHEAD_SEC sube de 0.1s a 0.35s (ver
-     comentario junto a la constante).
-     v2.10: (portado de ensayo.html v3.271) fix de definición del punto
-     del péndulo en mobile — se veía "arrastrado, con halo" por el
-     box-shadow difuminado sin borde propio. Blur 6px→3px (sin spread)
-     + borde de 1px en tono más oscuro que el relleno, en las reglas
-     normal/naranja y beat1/verde.
-     v2.9: (portado de ensayo.html v3.270) mismos 3 ajustes al péndulo:
-     riel full-width de la card (antes 140px fijo), destello de esquina
-     como flashazo blanco (antes intensificaba el color propio), y
-     verde en el beat 1 de cada compás (atado al beat real, no al
-     "ciclo" del rebote).
-     v2.8: (portado de ensayo.html v3.269, a pedido) en tema claro,
-     fondo apenas más oscuro (#e3ddd0) detrás de los puntos de
-     beat/clave y del péndulo — se perdían contra el fondo casi blanco.
-     Solo tema claro, solo esos 3 contenedores puntuales, sin tocar
-     --surf-light global ni tema oscuro.
-     v2.7: FIX (a pedido, mismo fix que ensayo.html v3.268) — con un
-     tema sin ninguna sección cargada, el velo oscuro de "zona sin
-     sección" del waveform se pintaba sobre TODO el ancho, muy notorio
-     en tema claro. Ahora, sin secciones, se salta el velo entero — se
-     ve normal, como si todo estuviera "seleccionado". Con secciones
-     cargadas, sin cambios.
-     v2.6: (a pedido) se porta desde ensayo.html (v3.257-267) el péndulo
-     visual del pulso: fila propia debajo del número de compás (riel de
-     140px + punto que barre de un extremo a otro, sin saltar entre
-     compases), botón único de velocidad (½/×1/×2/×4, SVG de figuras
-     musicales) que cicla al tocarlo, y destello al tocar cada esquina
-     del riel. Nuevo: la velocidad del péndulo (pendVelocidadOverride)
-     viaja con el tema igual que BPM/compás/clave/tonalidad — quien abre
-     el link ve la misma velocidad que dejó configurada quien comparte;
-     si el propio visitante la cambia, ese cambio queda solo en su
-     dispositivo (mismo criterio que ya aplicaba a los demás overrides
-     en modo compartido). Se agregó también min-width:3ch al número de
-     compás grande (ya lo tenía ensayo.html desde v3.260) para que el
-     péndulo no se desplace al cambiar de 1 a 2-3 dígitos. Nada de esto
-     toca el resto del archivo (waveform, loop, filtros de tono, guía
-     PDF, tutorial, etc.).
-     v2.5: (a pedido) (1) se QUITAN DEFINITIVAMENTE los botones de PDF de la hoja compartida:
-     "📄 Exportar PDF" y "🥁 PDF Percusión" (fila pdfrow-), las funciones
-     exportarEstructuraPracticaPDF / exportarEstructuraPracticaPDFPercusion, su CSS
-     (.practica-pdf-row) y las 3 etiquetas de script que solo ellas usaban (jsPDF por CDN, pdf-armonias.js,
-     pdf-percusion.js) — la hoja carga más liviana. La guía del ejercicio (📄 Guía, páginas como
-     imagen) NO se toca. (2) el tutorial suma pasos: notas, guía del ejercicio, puntos de pulso y
-     clave, BPM/tono/armadura, ajustes y filtros de tono (ahora 13 a 15 pasos según el tema).
-     v2.4: (a pedido) tutorial interactivo tipo spotlight para el invitado — mismo patrón
-     que vaca.html v1.52 / index.html v1.9.26 (overlay + anillo sobre el elemento + tarjeta
-     con pasos, barra de progreso, ← Ant. / Siguiente → / ✕ Saltar; llave localStorage
-     'compartir_tutorial_v1'; botón 🎓 para relanzarlo). Se abre solo la primera vez, cuando
-     termina de cargar el audio. Colores con las variables del tema (claro/oscuro). Diferencia
-     con vaca.html: los pasos con target oculto (p. ej. la onda antes de decodificar) se
-     muestran centrados sin anillo, y los `opcional` se omiten si no hay elemento visible.
-     v2.3: (a pedido) contraste de las barras de la onda en tema CLARO. Antes las
-     barras sin reproducir (--faint) y las reproducidas (lila fijo) quedaban en ~2.4:1
-     y ~2.5:1 sobre el fondo del canvas (--surf-light) y casi con la misma luminosidad
-     entre sí (1.06:1). Ahora en claro: sin reproducir #8f897c (~3.1:1) y reproducidas
-     con --lila #7d5fae (~4.5:1), separadas ~1.5:1 entre sí. El tema oscuro no cambia.
-     Solo afecta las barras: colorFaint (etiquetas de sección) y colorProgreso (círculo
-     del clic) siguen igual.
-     v2.2: (a pedido) tema claro/oscuro para el invitado. Sin elección guardada, la
-     vista arranca según el modo del dispositivo (prefers-color-scheme) en vez de
-     siempre oscuro, y un botón ☀️/🌙 junto al rótulo "Tema compartido" permite
-     cambiarlo. La elección se guarda en la misma clave del ecosistema
-     ('audiolink_tema'), así que coincide con el resto de Audiolink en ese
-     dispositivo. No usa nav.js (sigue sin cargarse acá): funciones propias
-     alternarTemaCompartido/actualizarIconoTemaCompartido. Los estilos claros ya
-     eran idénticos a los de ensayo.html; no se tocaron.
-     v2.1: (a pedido) el loop de SECCIÓN también se guarda con el tema (GUIAS2,
-     campo `loopSeccion`: {idx, nombre} de la sección que se repetía al activarlo,
-     o null si está apagado) y vuelve activo al abrir, en ensayo.html y en
-     compartir.html: se activa el modo y la reproducción se coloca al inicio de
-     esa sección (irASeccionPractica; no se usa el CUE para no dejar una marca
-     rosa al apagar el loop). Si la sección ya no existe o cambió de nombre, no
-     se aplica nada. No convive con `loop` (manual/xN): si vienen los dos, manda
-     el manual. Solo ensayo.html escribe; compartir.html solo lee.
-     v2.0: (a pedido) el loop puesto (manual o xN) se guarda con el tema en
-     GUIAS2 (campo `loop`: {inicio, fin, compases}) y vuelve ACTIVO al abrir
-     el tema, tanto en ensayo.html como en compartir.html. Cancelar el
-     loop (✕) lo borra (loop:null). Solo ensayo.html escribe; compartir.html
-     solo lee (el invitado no guarda nada). El loop de sección no se guarda
-     (sale de las secciones). Sin cambios en el motor de loops ni en los
-     tiempos: se reusa aplicarLoopNativoPractica.
-     v1.9: (a pedido) el botón ↻ (loopbtn-) ya no arranca el loop en el segundo
-     actual: queda OCULTO mientras no hay loop y solo aparece cuando hay
-     uno en curso (⏹ marcar fin / ✕ cancelar). Los loops se arman con los
-     presets xN y con el loop de sección; el botón queda como el ✕ para
-     cancelar. Sin cambios en marcarLoopPractica ni en el motor de loops.
-     v1.8: (a pedido) FIX del click al arrancar ANTES del offset. Antes,
-     schedulerTickGlobalPractica() recortaba tRel a 0 mientras el tiempo
-     estaba antes del offset, y el pulso 0 (golpe fuerte de inicio de
-     compás) se agendaba al instante de dar play, NO en el offset. Ahora
-     el bloque del click principal usa tRelClick (con signo antes del
-     offset) y agenda el pulso 0 exactamente en el offset. Después del
-     offset y en el metrónomo libre el comportamiento es idéntico. Sin
-     cambios en clave, subdivisión ni anclaje de secciones.
-     v1.7: a pedido, (1) sin botones de "subir/cambiar canción" en esta
-     vista: el ⬆ chico (localpadmetro) se quita y el botón grande
-     "Cargar canción del dispositivo" (localpadcta) arranca OCULTO — solo
-     aparece si el audio no se puede cargar (Cloudinary caído, respuesta
-     con error, o tema sin audio), por si el invitado tiene el archivo.
-     toggleProminenciaBotonSubirLocal() ya no lo muestra sola: solo lo
-     oculta al haber archivo cargado. (2) Guardar el audio en el
-     dispositivo del invitado, por si Cloudinary falla: "📥 Guardar tema"
-     (alterna con "🗑️ Quitar copia") y, en ?lista=, "📥 Guardar lista".
-     Mismo Cache API (audiolink-audio-offline-v1) e índice localStorage
-     (audiolink_offline_urls) que ensayo.html v3.248 — se comparten si
-     ambos archivos están en el mismo sitio. Al abrir un tema se mira
-     primero esa copia y recién después Cloudinary. (3) El fetch del
-     audio ahora tira error si Cloudinary responde con status de error
-     (antes convertía la página de error en "audio" y fallaba después).
-     v1.6: a pedido, un link de tema suelto revocado ya no muestra
-     "Ocurrió un error cargando el tema": Firestore responde
-     permission-denied (no un doc inexistente) cuando compartido no es
-     true, y el catch de iniciarVistaCompartida() ahora lo trata igual
-     que el de listas — "No disponible". Cualquier otro error conserva
-     el mensaje de siempre. Nada más cambió.
-     v1.5: a pedido, soporta LISTAS compartidas: compartir.html?lista=ID
-     (opcional &i=N, índice del tema). iniciarVistaCompartida() lee el
-     doc de SETLISTS2 (get público, requiere firestore.rules v2.39 y
-     compartido==true), toma temaIds[i] y sigue con el MISMO flujo de
-     un tema suelto (?tema=ID sigue funcionando igual). Barra ‹ nombre ·
-     n/total › (mismas clases que la de ensayo.html): navegar recarga la
-     página con el índice nuevo (location.replace), a propósito — así
-     cada tema arranca con motor/audio/estado limpios sin tocar el
-     motor de reproducción. Sin login no hay edición de la lista.
-     v1.4: a pedido, vuelve el bloque colapsable "📄 Guía" (revierte el
-     punto (3) de v1.0). guiaPdfBloqueHtml() ya no busca el PDF en
-     misCategorias (CATEGORIAS2 requiere login y acá no hay) — lee
-     tema.guiaPdfPublicId, que ensayo.html v3.246 copia al doc del tema
-     al compartirlo; las páginas siguen saliendo de tema.guiaPaginas.
-     Sin ese dato (tema compartido antes de v3.246, o categoría sin PDF)
-     el bloque no se muestra. Se quitó el botón "Ver PDF completo" de la
-     guía (a propósito: abría el PDF entero de la categoría, no solo las
-     páginas del tema). El resto del motor de la guía (navegación,
-     swipe, zoom, precarga) queda idéntico a ensayo.html.
-     v1.3: a pedido, dos recortes más sobre controlesPracticaHtml() para
-     esta vista (ensayo.html sin cambios):
-     (1) se quita la sección "Configuración" completa (label + los 5
-     <details>: Secciones/Ajustar comienzo/Tempo-Tap/Ajuste rápido/
-     Velocidad) — calibración fina para el dueño, no para el colega.
-     "Filtros de tono" (details aparte) se deja intacto, visible.
-     (2) se quitan del playerbar los botones de CUE (marcar/quitar/marcar
-     con click) y de offset (‹, −0.01, +0.01, ›) — quedan ⏮/▶/↻(loop)/
-     🧲(snap)/volumen/tiempo. Se verificó que el resto del motor referencia
-     todos los ids quitados con guards if(el), así que nada se rompe por
-     no encontrarlos.
-     v1.2: FIX — se quita el sidebar/topbar compartido de todo el
-     ecosistema (nav-mount + nav.js + link a nav.css), que se colaba acá
-     desde la copia base de ensayo.html: mostraba el menú interno completo
-     (Dashboard/Proyectos/Clientes/Cerrar sesión/etc.) a alguien externo
-     sin cuenta. Se revisó que nada más en el archivo dependa de nav.js
-     antes de quitarlo (ver comentario en <body>). Sin cambios en el resto.
-     v1.1: FIX — iniciarVistaCompartida() armaba el HTML/estado pero nunca
-     traía el audio real ni llamaba onArchivoLocalElegido() (lo que
-     realmente dibuja la waveform y activa los controles) — la UI se veía
-     pero quedaba inerte. Se agregó el mismo paso que usa abrirTema() en
-     ensayo.html (fetch de tema.audioUrl → onArchivoLocalElegido), sin
-     caché (no aplica en esta vista de un solo uso).
-     v1.0: vista de práctica standalone para compartir UN tema con alguien
-     externo (sin cuenta), a pedido del usuario. Derivada de ensayo.html
-     v3.244 — reutiliza TAL CUAL todo el motor de reproducción/waveform/
-     secciones/loops/clave/snap/offset (cero reescritura de esa lógica).
-     Cambios sobre la copia base:
-     (1) se reemplaza auth.onAuthStateChanged() por iniciarVistaCompartida():
-     lee ?tema=ID de la URL y hace get() directo a GUIAS2 (sin login),
-     permitido por la regla nueva `allow get: if resource.data.compartido
-     == true` (firestore.rules v1.2) — si el doc no existe o compartido no
-     es true, muestra mensaje de link no disponible.
-     (2) se agrega MODO_COMPARTIDO=true y un guard temprano en las 4
-     funciones que escriben a Firestore (guardarOffsetLocalEnStorage,
-     guardarSeccionesLocalEnStorage, guardarAjustesPractica,
-     guardarNotasTema) — cortan antes del db.collection(...).set(), el
-     resto de cada función (guardado en localStorage, estado en memoria)
-     sigue igual; ningún ajuste del colega toca el documento real del
-     dueño.
-     (3) bloquePracticaHtml() ya no llama guiaPdfBloqueHtml() (a pedido:
-     sin guía PDF de Cloudinary en esta vista) — la función queda
-     definida pero sin uso, no se borró.
-     (4) top-actions de vista-practica sin "‹ Mis temas"/"⇄ Cambiar de
-     tema"/barra de setlist (no aplican sin login).
-     Las vistas login/lista/subir quedan en el HTML sin usar (mostrarVista
-     las oculta) — no se tocaron ni sus funciones ni la lógica de subida/
-     categorías/setlists del archivo original.
-     Ver ensayo.html para el historial completo de versiones del motor. -->
+<title>Audiolink — Tema compartido v2.26</title>
+<!-- AUDIOLINK · compartir.html · v2.26
+     v2.26: (a pedido) el sprite del dial en los 3 "Cargando" queda centrado y
+     con el texto DEBAJO. Grande (lista de temas): .al-dial-grande pasa a
+     display:block y el aviso ocupa todas las columnas de la grilla
+     (.al-cargando-lista; antes quedaba en la 1.ª columna). Mini (los 2 avisos
+     "Cargando audio…" del reproductor): se envuelven en .al-cargando-col
+     (columna centrada); el span con id sigue siendo el que prende/apaga el
+     JS. Solo CSS + esas plantillas de HTML, ninguna función cambia.
+     v2.25: (a pedido) mismo ícono del dial ya usado en
+     musico/ingeniero/ensayo/proyecto: grande (.al-dial-grande) en el
+     "Cargando..." de la lista de temas, y mini (.al-dial-mini) junto
+     a los 2 avisos "Cargando audio…"/"...de la nube" de los
+     reproductores. Solo CSS + esos 3 textos, ninguna función.
+     v2.24: (a pedido) el dot de compás (.pcu-dot) tenía una transición
+     CSS de 0.08s en background/transform/opacity/box-shadow — el
+     instante matemático del beat es el mismo que usa el péndulo, pero
+     el dot tardaba 80ms en verse totalmente encendido, dando sensación
+     de atraso justo al lado del péndulo (sin transición, instantáneo
+     cuadro a cuadro). Se baja a 0.03s: por debajo del umbral de
+     simultaneidad percibida (~50ms), conservando un pelo de suavizado
+     para que el scale() no se sienta como salto seco.
+     Historial completo de versiones: ver CHANGELOG.md -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- v1.2: sin nav.css — el sidebar/topbar compartido se quitó abajo en <body>, ver comentario ahí. -->
@@ -699,11 +443,16 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    propio) diluía el canto del punto en movimiento. Se achica el blur
    (6px→3px, sin spread) y se agrega un borde de 1px en tono más oscuro
    que el relleno, en las 2 reglas que fijan su color (normal/beat1). */
-.practica-metro-pendulo .pendulo-punto{position:absolute;top:50%;left:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--warn);border:1px solid color-mix(in srgb, var(--warn) 60%, black 25%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--warn) 45%, transparent);will-change:transform;}
+/* v2.23: (a pedido) "un poco de definición" — borde más marcado
+   (1px→1.5px, mezcla más oscura, 55/35 en vez de 60/25) + gradiente
+   radial sutil (luz arriba-izquierda) para dar volumen sin volverla un
+   elemento "3D" que desentone con el resto de la UI, que es plana. El
+   blur/spread del glow exterior no se toca (ya ajustado en v2.10). */
+.practica-metro-pendulo .pendulo-punto{position:absolute;top:50%;left:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--warn) 65%, white 35%), var(--warn) 60%, color-mix(in srgb, var(--warn) 75%, black 15%) 100%);border:1.5px solid color-mix(in srgb, var(--warn) 55%, black 35%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--warn) 45%, transparent);will-change:transform;}
 /* v2.9: en el beat 1 de cada compás, el punto se pone verde (var(--ok)),
    atado al beat real (mismo bloque de flash del compás/dots), no al
    "ciclo" del rebote. */
-.practica-metro-pendulo .pendulo-punto.beat1{background:var(--ok);border-color:color-mix(in srgb, var(--ok) 60%, black 25%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--ok) 45%, transparent);}
+.practica-metro-pendulo .pendulo-punto.beat1{background:radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ok) 65%, white 35%), var(--ok) 60%, color-mix(in srgb, var(--ok) 75%, black 15%) 100%);border-color:color-mix(in srgb, var(--ok) 55%, black 35%);box-shadow:0 0 3px 0 color-mix(in srgb, var(--ok) 45%, transparent);}
 .practica-metro-pendulo .pendulo-punto.pendulo-rebote{animation:pendulo-rebote-anim 0.12s ease-out;}
 /* v2.9: el destello de esquina pasa a un flashazo blanco puro. */
 @keyframes pendulo-rebote-anim{
@@ -751,7 +500,13 @@ main{padding:28px;max-width:760px;margin:0 auto;}
    grande: la diferencia de margen es la mitad de la diferencia de
    tamaño) — .pcu-cell sube de 28px a 32px para que el acento entre
    completo sin recortarse. */
-.pcu-dot{margin-top:6px;width:18px;height:18px;border-radius:50%;background:var(--muted);opacity:0.4;transition:background 0.08s, transform 0.08s, opacity 0.08s, box-shadow 0.08s;}
+/* v-next: (a pedido) bajado de 0.08s a 0.03s — con 0.08s el dot se
+   veia "atrasado" respecto al click/pendulo (el instante matematico del
+   beat es el mismo, pero el dot tardaba 80ms en verse totalmente
+   encendido). 0.03s esta por debajo del umbral de simultaneidad
+   percibida (~50ms) pero conserva un pelo de suavizado para que el
+   scale() no se sienta como un salto seco. */
+.pcu-dot{margin-top:6px;width:18px;height:18px;border-radius:50%;background:var(--muted);opacity:0.4;transition:background 0.03s, transform 0.03s, opacity 0.03s, box-shadow 0.03s;}
 .pcu-dot.fuerte{width:28px;height:28px;margin-top:1px;}
 .pcu-dot.activo{background:var(--warn);opacity:1;transform:scale(1.15);box-shadow:0 0 8px 1px var(--warn);}
 .pcu-dot.fuerte.activo{background:var(--ok);transform:scale(1.25);box-shadow:0 0 18px 4px var(--ok);}
@@ -1256,6 +1011,19 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .subir-box{max-width:420px;margin:20px auto;}
 .subir-box label{display:block;font-size:0.8rem;color:var(--muted);margin:10px 0 4px;}
 .subir-box input,.subir-box select{width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid var(--brd);background:var(--bg);color:var(--txt);}
+.al-dial{position:relative;display:inline-block;vertical-align:middle;}
+.al-dial img{display:block;width:100%;height:100%;}
+.al-dial .al-dial-knob{position:absolute;top:50%;left:50%;width:43.4%;height:43.4%;aspect-ratio:1;transform:translate(-50%,-50%) rotate(135deg);animation:alBarrido 1.8s ease-in-out infinite alternate;}
+.al-dial-mini{width:18px;height:18px;margin-right:6px;}
+.al-dial-grande{display:block;width:64px;height:64px;margin:0 auto 10px;}
+.al-cargando-lista{grid-column:1 / -1;}
+.al-cargando-col{display:inline-flex;flex-direction:column;align-items:center;gap:3px;text-align:center;}
+.al-cargando-col .al-dial-mini{margin:0;}
+@keyframes alBarrido{
+  0%   { transform:translate(-50%,-50%) rotate(135deg); }
+  50%  { transform:translate(-50%,-50%) rotate(405deg); }
+  100% { transform:translate(-50%,-50%) rotate(360deg); }
+}
 </style>
 </head>
 <body>
@@ -3022,7 +2790,7 @@ function controlesPracticaHtml(uid, compasesPorBarra, bpm, compas, secciones, cl
           <button class="practica-click-btn practica-player-restartbtn" id="playerrestartbtn-${uid}" onclick="reiniciarPistaPractica('${uid}')" title="Volver al inicio de la pista">⏮</button>
           <button class="practica-click-btn practica-player-playbtn" id="playbtn-${uid}" onclick="togglePlayPractica('${uid}')" title="Reproducir / Pausar">▶</button>
           <button class="practica-click-btn practica-click-btn-etiqueta" id="snapmodo-${uid}" onclick="toggleModoSnapPractica('${uid}')">🧲 Compás</button>
-          <span class="practica-player-cargando" id="playercargando-${uid}" style="display:none;">Cargando audio…</span>
+          <span class="practica-player-cargando" id="playercargando-${uid}" style="display:none;"><span class="al-cargando-col"><span class="al-dial al-dial-mini"><img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display='none'"><img class="al-dial-knob" src="logo/logo-knob-192.png" alt=""></span>Cargando audio…</span></span>
           <span class="practica-player-tiempo" id="playertiempo-${uid}">0:00 / 0:00</span>
           <button class="practica-click-btn practica-player-volbtn" id="playervolbtn-${uid}" onclick="toggleMutePractica('${uid}')" title="Silenciar">🔊</button>
           <input type="range" class="practica-player-volslider" id="playervolslider-${uid}" min="0" max="100" step="1" value="100" oninput="setVolumenPistaPractica('${uid}', this.value)" title="Volumen de la pista">
@@ -5230,7 +4998,20 @@ function actualizarContadorPractica(uid, tiempoActual){
     // restan los 4px de insets del riel (left:2px + right:2px).
     const panelPendulo = elPendulo.parentElement;
     const anchoRiel = panelPendulo ? panelPendulo.clientWidth : 140;
-    const RECORRIDO_PX = Math.max(0, (anchoRiel - 4) / 2);
+    // v2.23: (a pedido) el cálculo de arriba movía el CENTRO de la
+    // esfera hasta el límite del riel — pero la esfera mide 11px
+    // (radio 5.5px) y el inset del riel es de solo 2px, así que su
+    // BORDE visible ya sobresalía del riel ~3.5px ANTES de que el
+    // centro llegara al extremo matemático (el instante real del
+    // beat/rebote). Como el movimiento es lineal, eso hacía que el
+    // borde "tocara" el límite un poco antes en el tiempo — se sentía
+    // como que el péndulo iba adelantado al click. Se resta el radio
+    // de la esfera (RADIO_ESFERA_PX, mismo valor que width/height/2 en
+    // .pendulo-punto) para que sea el BORDE, no el centro, el que
+    // llegue exacto al límite del riel en el instante del beat. No
+    // toca el click ni los dots, solo este cálculo geométrico visual.
+    const RADIO_ESFERA_PX = 5.5;
+    const RECORRIDO_PX = Math.max(0, (anchoRiel - 4) / 2 - RADIO_ESFERA_PX);
     elPendulo.style.transform = 'translateX(' + (pos * RECORRIDO_PX) + 'px)';
     // Destello al tocar cada esquina del riel. "ciclo" (de arriba)
     // cambia justo en el instante en que el punto llega al extremo y
@@ -9143,7 +8924,7 @@ let misTemasCargadosEn = 0;
 async function cargarMisTemas(){
   const cont = document.getElementById('listaTemas');
   const empty = document.getElementById('emptyTemas');
-  cont.innerHTML = '<div class="empty">Cargando...</div>';
+  cont.innerHTML = '<div class="empty al-cargando-lista"><div class="al-dial al-dial-grande"><img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display=\'none\'"><img class="al-dial-knob" src="logo/logo-knob-192.png" alt=""></div>Cargando...</div>';
   empty.style.display = 'none';
   try{
     const correo = auth.currentUser.email;
@@ -11360,7 +11141,7 @@ function bloquePracticaHtml(tema){
       ${tituloCancion}
       ${notasHtml}
       ${guiaPdfBloqueHtml(uid, tema)}
-      <span id="practicaCargandoAudio" style="display:none;color:var(--muted)">Cargando audio de la nube…</span>
+      <span id="practicaCargandoAudio" style="display:none;color:var(--muted)"><span class="al-cargando-col"><span class="al-dial al-dial-mini"><img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display='none'"><img class="al-dial-knob" src="logo/logo-knob-192.png" alt=""></span>Cargando audio de la nube…</span></span>
       ${controlesPracticaHtml(uid, compasesPorBarra, tema.bpm, tema.compas, tema.secciones || [], tema.clave)}
     </div>`;
 }

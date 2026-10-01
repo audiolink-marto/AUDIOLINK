@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacas · AUDIOLINK · v1.83</title>
+  <title>Vacas · AUDIOLINK · v1.85</title>
+  <!-- v1.85: (a pedido) los 5 checkboxes de esta hoja pasan a verse como el
+       switch del dial (.al-chk): "Mostrar quién ya aportó" y "Mostrar" de cada
+       método de pago en azul (visible); "Ordenar pendientes primero" en dorado;
+       "Ocultar libres" y "Ocultar montos" en rojo. Siguen siendo <input
+       type="checkbox"> reales: ids, checked y toda la lógica sin cambios.
+       Solo CSS + class en esos inputs. (El <title> estaba en v1.83; se alinea.)
+  -->
   <!-- v1.84: el guard offline llamaba solo console.info() y nunca
        cargarOrganizador()/cargarVacas() — la página quedaba en blanco
        en modo offline. Además creadoPor/registradoPor usaban
@@ -1154,7 +1161,48 @@
         will-change: transform;
       }
     }
-  </style>
+  /* CHECKBOX ESTILO DIAL (.al-chk): <input type="checkbox"> REAL con aspecto de switch.
+   Misma lógica de siempre (.checked, onchange, disabled, id) — solo CSS.
+   Familias de color por clase: sin clase = dorado (ajustes) · .ok = verde (hecho/
+   entregado) · .cli = azul (visible al cliente) · .oculto = rojo (ocultar/restringir)
+   · .sel = violeta (selección/filtro). Tamaño: 24px por defecto, .s = 20px (listas). */
+input[type="checkbox"].al-chk{
+  --h:24px; --chk-on:#8a6d2c; --chk-led:#f6c453; --chk-glow:rgba(246,196,83,.65);
+  -webkit-appearance:none; appearance:none;
+  position:relative; box-sizing:border-box;
+  width:calc(var(--h) * 1.8333); height:var(--h); min-width:0; min-height:0;
+  margin:0; padding:0; border:0; box-shadow:none; flex-shrink:0;
+  border-radius:999px; background:#3a382f; cursor:pointer; vertical-align:middle;
+  transition:background-color .2s ease;
+}
+input[type="checkbox"].al-chk:checked{background:var(--chk-on);}
+input[type="checkbox"].al-chk::before{
+  content:""; position:absolute; box-sizing:border-box;
+  top:calc(var(--h) * .125); left:calc(var(--h) * .125);
+  width:calc(var(--h) * .75); height:calc(var(--h) * .75);
+  border-radius:50%; background:#e9e6dc; border:1.1px solid #3a382f;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+input[type="checkbox"].al-chk::after{
+  content:""; position:absolute;
+  top:calc(var(--h) * .3958); left:calc(var(--h) * .3958);
+  width:calc(var(--h) * .2083); height:calc(var(--h) * .2083);
+  border-radius:50%; background:#6b6a63;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1), background-color .2s ease, box-shadow .2s ease;
+}
+input[type="checkbox"].al-chk:checked::before{transform:translateX(calc(var(--h) * .8333));}
+input[type="checkbox"].al-chk:checked::after{
+  transform:translateX(calc(var(--h) * .8333));
+  background:var(--chk-led); box-shadow:0 0 calc(var(--h) * .3) calc(var(--h) * .06) var(--chk-glow);
+}
+input[type="checkbox"].al-chk:focus-visible{outline:2px solid var(--chk-led);outline-offset:2px;}
+input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
+input[type="checkbox"].al-chk.s{--h:20px;}
+input[type="checkbox"].al-chk.ok{--chk-on:#2f6b4a; --chk-led:#6fe0a4; --chk-glow:rgba(111,224,164,.60);}
+input[type="checkbox"].al-chk.cli{--chk-on:#2d5a85; --chk-led:#7fbcf2; --chk-glow:rgba(127,188,242,.60);}
+input[type="checkbox"].al-chk.oculto{--chk-on:#8a3a32; --chk-led:#ff8a7a; --chk-glow:rgba(255,138,122,.60);}
+input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glow:rgba(185,162,240,.60);}
+</style>
 </head>
 <body>
 
@@ -1301,20 +1349,20 @@
         <label>Lista de integrantes (opcional, en vaca.html)</label>
         <div style="display:flex;flex-direction:column;gap:8px">
           <label style="font-weight:400;font-size:13px;display:flex;align-items:center;gap:8px">
-            <input type="checkbox" id="nvMostrarEstadoIntegrantes" /> Mostrar quién ya aportó (sin montos)
+            <input type="checkbox" class="al-chk cli" id="nvMostrarEstadoIntegrantes" /> Mostrar quién ya aportó (sin montos)
           </label>
           <label style="font-weight:400;font-size:13px;display:flex;align-items:center;gap:8px">
-            <input type="checkbox" id="nvOrdenarPorAporte" /> Ordenar pendientes primero
+            <input type="checkbox" class="al-chk" id="nvOrdenarPorAporte" /> Ordenar pendientes primero
           </label>
           <label style="font-weight:400;font-size:13px;display:flex;align-items:center;gap:8px">
-            <input type="checkbox" id="nvOcultarLibresDeLista" /> Ocultar colaboradores libres de la lista
+            <input type="checkbox" class="al-chk oculto" id="nvOcultarLibresDeLista" /> Ocultar colaboradores libres de la lista
           </label>
           <!-- v1.49: a pedido del usuario — oculta el monto exacto en el
                feed de "Actividad de la vaca" (portal público), quedando
                solo "Fulano aportó" sin cifra. Mismo patrón que los otros
                3 flags de esta sección. -->
           <label style="font-weight:400;font-size:13px;display:flex;align-items:center;gap:8px">
-            <input type="checkbox" id="nvOcultarMontosActividad" /> Ocultar montos en el feed de actividad
+            <input type="checkbox" class="al-chk oculto" id="nvOcultarMontosActividad" /> Ocultar montos en el feed de actividad
           </label>
         </div>
       </div>
@@ -2420,7 +2468,7 @@ function renderMetodosPagoInputs(metodos) {
       <div style="display:flex;gap:8px;align-items:center">
         <input type="text" id="nvMetodoLabel${i}" placeholder="Nombre (ej: Nequi)" value="${(m.label || '').replace(/"/g, '&quot;')}" style="flex:1" />
         <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;white-space:nowrap">
-          <input type="checkbox" id="nvMetodoActivo${i}" ${m.activo !== false ? 'checked' : ''} /> Mostrar
+          <input type="checkbox" class="al-chk cli s" id="nvMetodoActivo${i}" ${m.activo !== false ? 'checked' : ''} /> Mostrar
         </label>
       </div>
       <input type="text" id="nvMetodoNumero${i}" placeholder="Número (opcional)" value="${(m.numero || '').replace(/"/g, '&quot;')}" />

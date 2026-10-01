@@ -3,8 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.129)</title>
-<!-- AUDIOLINK · logistica.html · v2.130
+<title>Audiolink — Logística (v2.131)</title>
+<!-- AUDIOLINK · logistica.html · v2.131
+     v2.131: (a pedido) los 5 checkboxes de esta hoja pasan a verse como el
+     switch del dial (.al-chk): "Modo interno" del PDF en dorado; "Visible
+     para el cliente" en azul; "Solo marcados", las piezas de sesión y el
+     "individual" de cada grupo en violeta (estos dos últimos chicos, 20px).
+     Siguen siendo <input type="checkbox"> reales: ids, disabled, checked,
+     onchange y el stopPropagation de las piezas sin cambios. Solo CSS +
+     class en esos inputs. (El <title> estaba en v2.129; se alinea.)
      v2.130: FIX — las imágenes ocultas #hdrDiffuser/#hdrLogo se hacían
      visibles y gigantes al final de la página: header-config.js resetea
      su `style.display` a '' (no 'none') cada vez que LOGO_SIN_LOGO/
@@ -1954,6 +1961,47 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 }
 .link-add{color:var(--gold);font-size:0.8rem;cursor:pointer;display:inline-block;margin-top:4px;}
 .pdf-actions{display:flex;gap:10px;margin-top:20px;}
+/* CHECKBOX ESTILO DIAL (.al-chk): <input type="checkbox"> REAL con aspecto de switch.
+   Misma lógica de siempre (.checked, onchange, disabled, id) — solo CSS.
+   Familias de color por clase: sin clase = dorado (ajustes) · .ok = verde (hecho/
+   entregado) · .cli = azul (visible al cliente) · .oculto = rojo (ocultar/restringir)
+   · .sel = violeta (selección/filtro). Tamaño: 24px por defecto, .s = 20px (listas). */
+input[type="checkbox"].al-chk{
+  --h:24px; --chk-on:#8a6d2c; --chk-led:#f6c453; --chk-glow:rgba(246,196,83,.65);
+  -webkit-appearance:none; appearance:none;
+  position:relative; box-sizing:border-box;
+  width:calc(var(--h) * 1.8333); height:var(--h); min-width:0; min-height:0;
+  margin:0; padding:0; border:0; box-shadow:none; flex-shrink:0;
+  border-radius:999px; background:#3a382f; cursor:pointer; vertical-align:middle;
+  transition:background-color .2s ease;
+}
+input[type="checkbox"].al-chk:checked{background:var(--chk-on);}
+input[type="checkbox"].al-chk::before{
+  content:""; position:absolute; box-sizing:border-box;
+  top:calc(var(--h) * .125); left:calc(var(--h) * .125);
+  width:calc(var(--h) * .75); height:calc(var(--h) * .75);
+  border-radius:50%; background:#e9e6dc; border:1.1px solid #3a382f;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+input[type="checkbox"].al-chk::after{
+  content:""; position:absolute;
+  top:calc(var(--h) * .3958); left:calc(var(--h) * .3958);
+  width:calc(var(--h) * .2083); height:calc(var(--h) * .2083);
+  border-radius:50%; background:#6b6a63;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1), background-color .2s ease, box-shadow .2s ease;
+}
+input[type="checkbox"].al-chk:checked::before{transform:translateX(calc(var(--h) * .8333));}
+input[type="checkbox"].al-chk:checked::after{
+  transform:translateX(calc(var(--h) * .8333));
+  background:var(--chk-led); box-shadow:0 0 calc(var(--h) * .3) calc(var(--h) * .06) var(--chk-glow);
+}
+input[type="checkbox"].al-chk:focus-visible{outline:2px solid var(--chk-led);outline-offset:2px;}
+input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
+input[type="checkbox"].al-chk.s{--h:20px;}
+input[type="checkbox"].al-chk.ok{--chk-on:#2f6b4a; --chk-led:#6fe0a4; --chk-glow:rgba(111,224,164,.60);}
+input[type="checkbox"].al-chk.cli{--chk-on:#2d5a85; --chk-led:#7fbcf2; --chk-glow:rgba(127,188,242,.60);}
+input[type="checkbox"].al-chk.oculto{--chk-on:#8a3a32; --chk-led:#ff8a7a; --chk-glow:rgba(255,138,122,.60);}
+input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glow:rgba(185,162,240,.60);}
 </style>
 </head>
 <body>
@@ -2064,7 +2112,7 @@ window.NAV_CONFIG = { activo: 'logistica' };
            ahora lo decide el checkbox #chkPdfSesionInterno de al lado. -->
       <button class="btn btn-ghost" style="display:none;" id="btnPdfSesionPiloto" onclick="exportarPDFSesionHTML(sesionActualId, document.getElementById('chkPdfSesionInterno').checked ? 'interno' : 'cliente')" title="Genera el PDF de la sesión (HTML/CSS + impresión del navegador)">🧪 PDF Sesión</button>
       <label class="chk-pdf-modo" style="display:none;" id="wrapChkPdfSesionInterno" title="Marca esta opción para incluir tarifas y notas internas en el PDF">
-        <input type="checkbox" id="chkPdfSesionInterno"> Modo interno
+        <input type="checkbox" class="al-chk" id="chkPdfSesionInterno"> Modo interno
       </label>
       <button class="btn btn-ghost" style="color:var(--err);border-color:var(--err);display:none;" id="btnEliminar" onclick="eliminarSesion()">Eliminar</button>
     </div>
@@ -2211,7 +2259,7 @@ window.NAV_CONFIG = { activo: 'logistica' };
         <textarea id="fNotasInternas" placeholder="No visible para el cliente..."></textarea>
       </div>
       <div class="checkbox-field">
-        <input type="checkbox" id="fVisibleCliente" checked>
+        <input type="checkbox" class="al-chk cli" id="fVisibleCliente" checked>
         <label for="fVisibleCliente">Visible para el cliente</label>
       </div>
     </details>
@@ -3500,7 +3548,7 @@ function renderChecklistInstrumentacion(){
   if(wrapSwitch){
     wrapSwitch.innerHTML = `
       <label class="instr-solo-marcados-switch">
-        <input type="checkbox" id="instrSoloMarcadosChk" ${instrSoloMarcados ? 'checked' : ''} ${hayMarcados ? '' : 'disabled'} onchange="toggleInstrSoloMarcados(this.checked)">
+        <input type="checkbox" class="al-chk sel" id="instrSoloMarcadosChk" ${instrSoloMarcados ? 'checked' : ''} ${hayMarcados ? '' : 'disabled'} onchange="toggleInstrSoloMarcados(this.checked)">
         <span>Ver solo los que van a intervenir</span>
       </label>`;
   }
@@ -3524,7 +3572,7 @@ function renderChecklistInstrumentacion(){
           const sel = !instrSesionPiezasSel[key] || instrSesionPiezasSel[key].includes(p.nombre);
           const pid = `instrPieza_${key}_${idx}`;
           return `<div class="instr-pieza-row">
-            <input type="checkbox" id="${pid}" ${sel ? 'checked' : ''} onchange="togglePiezaSesion('${key}', ${idx}, this.checked)" onclick="event.stopPropagation()">
+            <input type="checkbox" class="al-chk sel s" id="${pid}" ${sel ? 'checked' : ''} onchange="togglePiezaSesion('${key}', ${idx}, this.checked)" onclick="event.stopPropagation()">
             <label for="${pid}" onclick="event.stopPropagation()">${escapeHtml(p.nombre || '(sin nombre)')}</label>
           </div>`;
         }).join('')}
@@ -3543,7 +3591,7 @@ function renderChecklistInstrumentacion(){
         </div>
         ${marcado && !colapsada ? `
         <div class="instr-individual-row" id="instrIndivRow_${key}">
-          <input type="checkbox" id="instrIndiv_${key}" ${indivChecked} onchange="toggleGrupoIndividual('${key}', this.checked)">
+          <input type="checkbox" class="al-chk sel s" id="instrIndiv_${key}" ${indivChecked} onchange="toggleGrupoIndividual('${key}', this.checked)">
           <label for="instrIndiv_${key}">Grabar por pieza individual</label>
         </div>
         ${piezasHtml}` : ''}

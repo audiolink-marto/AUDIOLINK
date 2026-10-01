@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Acceso</title>
-<!-- AUDIOLINK · login.html · v1.10
+<!-- AUDIOLINK · login.html · v1.11
+     v1.11: (a pedido) se agrega el dial del logo (logo-circular-192.png)
+     solo y grande (72px) arriba de .brand, como logo de la pantalla de
+     acceso. Si el PNG no carga, se oculta sola (onerror). No se tocó
+     .brand, las barritas vu, el fondo animado de neuronas, el formulario
+     ni ninguna otra lógica o estilo existente.
+
+     AUDIOLINK · login.html · v1.10
      v1.10: se agrega un link discreto "¿Atascado en modo offline?" bajo
      el formulario — parte de la Fase 1 de modo offline (ver
      ARQUITECTURA.md sección 5). Antes, si alguien activaba el switch
@@ -146,6 +153,7 @@ body::after{
   box-shadow:0 8px 40px rgba(0,0,0,0.4);
 }
 .brand{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:8px;}
+.login-dial{display:block;width:72px;height:72px;margin:0 auto 18px;border-radius:50%;box-shadow:0 0 0 1px var(--brd);}
 .vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
 .vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
 .vu span:nth-child(1){height:40%;animation-delay:0s;}
@@ -198,6 +206,7 @@ h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;c
 <div class="login-bg-shimmer" id="login-bg-shimmer"></div>
 
 <div class="box">
+  <img class="login-dial" src="logo/logo-circular-192.png" alt="AUDIOLINK" width="72" height="72" decoding="async" onerror="this.style.display='none'">
   <div class="brand">
     <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
     <h1>AUDIOLINK</h1>

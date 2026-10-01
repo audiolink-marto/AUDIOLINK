@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Dashboard</title>
-<!-- AUDIOLINK · index.html · v2.29
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="logo/apple-touch-icon.png">
+<meta property="og:image" content="https://audiolink-marto.github.io/AUDIOLINK/logo/logo-circular-512.png">
+<!-- AUDIOLINK · index.html · v2.30
+     v2.30: (a pedido) se agregan 3 líneas al <head>: <link rel="manifest">,
+     <link rel="apple-touch-icon"> (logo/apple-touch-icon.png, fondo crema
+     porque iOS pinta negra la transparencia) y <meta property="og:image">
+     con URL absoluta del dial, para la vista previa al compartir el link
+     del dashboard. No se tocó ninguna otra línea ni función.
+
+     AUDIOLINK · index.html · v2.29
      v2.29: descargarCatalogosOffline() y descargarTodoOffline() ahora
      también traen categoriasCocina (mismo patrón array que
      cocinaInsumos/etc. de v2.28) y checkCompras (cocina.html v1.7).

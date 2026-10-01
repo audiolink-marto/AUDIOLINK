@@ -1,31 +1,188 @@
-/* AUDIOLINK · nav.js · v1.31
-   V1.31: (a pedido) sin cambios de código. El historial V1.1–V1.28 se
-   traslada de la cabecera a CHANGELOG.md (sección nav.js); en la
-   cabecera queda la versión vigente, las 2 entradas previas (V1.30 y V1.29)
-   y la descripción de uso. Todo lo que sigue después de la cabecera es
-   idéntico a v1.30.
-   V1.30: (a pedido) los íconos pasan de "temblor" (filtro de v1.29) a
-   dibujo tipo HOJA TÉCNICA hecho a mano en el propio SVG, en la línea del
-   dial (cruz de ejes, marcas, aros dobles): trazo principal con
-   sobre-trazo en las esquinas, líneas finas de detalle (clase al-k) y
-   ejes de construcción punteados (clase al-c). Se redibujan los 17 de
-   ITEMS (campo svg) y luna/sol/encendido de los botones del dial y del
-   panel (los tres con un aro punteado de órbita). Se ELIMINA el filtro
-   alPen de v1.29 (penDefs y los <g filter>), ya no hace falta. Las clases
-   al-k / al-c se definen en nav.css v1.26 (sin ese CSS los detalles se
-   verían con el trazo principal). No cambian ids, hrefs, labels, grupos,
-   tema, sesión, sync, ni el emoji de respaldo (`icon`).
-   V1.29: (a pedido) los íconos SVG (17 de ITEMS + luna/sol/encendido de
-   los botones del dial y del panel) se ven dibujados a mano, como el
-   dial: cada SVG envuelve sus trazos en <g filter="url(#alPen)"> y se
-   inyecta una sola vez, junto al sidebar, un <svg> de 0x0 con ese filtro
-   (feTurbulence + feDisplacementMap: un temblor leve del trazo, en
-   unidades del viewBox de 24, así escala igual en todos los tamaños).
-   Solo cambia el dibujo: estructura, ids, onclick, ITEMS, tema, sesión,
-   sync y el emoji de respaldo no se tocaron. Intensidad = atributo
-   scale del filtro (1.4; 0 = trazo limpio). El filtro NO usa
-   display:none (algunos navegadores lo ignoran). Scrollbar: nav.css v1.25.
-   Historial anterior (V1.28 hacia atrás): CHANGELOG.md, sección nav.js.
+/* AUDIOLINK · nav.js · v1.20
+   V1.20: se agrega el ítem "Ensayo" (ensayo.html) a ITEMS, en el grupo
+   'Operación' — módulo standalone de práctica (login propio, "Mis
+   temas", metrónomo/waveform) que hasta ahora vivía fuera del sidebar
+   compartido, con su propio header. Se suma también a
+   idsFueraBottomnav (mismo criterio que Vacas/Eventos/Cocina) para no
+   saturar la barra inferior móvil. No se tocó ninguna otra función,
+   ítem existente ni la lógica de inyección/colapsar/tema.
+   V1.19: _navForzarSincronizacion() ahora también avisa cuando
+   sincronizarColaOffline() devuelve `no_reconocidos > 0` (offline-mock.js
+   v1.10) — antes, un cambio de una colección no soportada offline (ej.
+   clientes/egresos antes de v1.10) se quedaba atascado en la cola sin
+   ningún aviso: el botón no mostraba error ni éxito, "no pasaba nada".
+   Además, actualizarBadgeSync() ahora actualiza TODAS las copias de
+   .sync-badge (antes usaba getElementById, que solo tocaba la copia
+   del sidebar — en mobile la copia visible del topbar nunca se
+   actualizaba ni mostraba/ocultaba el número real, así que el badge
+   podía quedar visible pero "muerto"). No se tocó el resto del flujo
+   de sync ni el resto de actualizarEstadoConexion().
+   V1.18: se agrega el ítem "Cocina" (cocina.html) a ITEMS, en el grupo
+   'Operación' junto a Vacas/Eventos — sistema de costeo interno
+   (insumos→recetas→ventas) migrado a la navegación estándar. Se suma
+   también a idsFueraBottomnav para no saturar la barra inferior móvil
+   (queda accesible por sidebar desktop y panel "···" móvil). No se
+   tocó ninguna otra función, ítem existente ni la lógica de
+   inyección/colapsar/tema.
+   V1.17: nuevo grupo colapsable "Ajustes" en el acordeón (sidebar
+   desktop + panel "···" móvil), junto a Gestión/Catálogos/Operación/
+   Finanzas. Se agrega el ítem "Header PDF" (header-config.html, panel
+   centralizado de logo/diffuser/color/opacidades — ver header-config.js
+   v1.0) y se mueve "Avatar / Icono" (antes grupo:null, suelto al
+   final) a este mismo grupo nuevo. Ambos se suman a idsFueraBottomnav
+   (avatares ya estaba) para no saturar la barra inferior móvil de 4
+   accesos — quedan accesibles por sidebar desktop y panel "···" móvil.
+   No se tocó ninguna otra función, ítem ni la lógica de
+   inyección/colapsar/tema existente.
+   V1.16: badge de "N cambios pendientes" (Fase 2 offline), junto al
+   conn-dot en sidebar y topbar. Lee obtenerColaCambiosOffline() +
+   obtenerConflictosOffline() de offline-mock.js (si no está cargado en
+   la página, se asume 0, sin romper nada). Tocar el badge fuerza
+   sincronizarColaOffline() manualmente (botón de respaldo); además, al
+   detectar el evento 'online' del navegador se intenta sincronizar
+   solo, salvo que el modo offline manual esté activo a propósito. No
+   se tocó actualizarEstadoConexion() ni la lógica de conn-dot/banner
+   ya existente.
+
+   V1.15: el indicador de conexión (.conn-dot) ahora distingue DOS
+   casos que antes se mezclaban en uno solo ("sin conexión"): (1) sin
+   internet real (navigator.onLine), y (2) modo offline ACTIVADO A
+   PROPÓSITO por el usuario (switch de index.html v2.22), aunque SÍ
+   haya internet real — antes el punto quedaba verde en este segundo
+   caso, confuso al verificar en qué modo está la app. Nueva clase
+   `conn-modo-offline` en <body> (además de la ya existente
+   `conn-offline`), CSS define el color/animación de cada estado (ver
+   nav.css v1.12). El banner inferior también distingue el mensaje
+   según el caso. No se tocó ninguna otra función existente.
+
+   V1.14: fix — el banner de sin conexión a veces no desaparecía solo
+   al recuperar señal (había que recargar la página), mientras el punto
+   de estado (v1.13) sí se actualizaba. Los eventos nativos 'online'/
+   'offline' del navegador son conocidos por no dispararse siempre de
+   forma confiable (varía según navegador/SO/red). Se agrega un chequeo
+   de respaldo cada 5s (setInterval) y también al volver a la pestaña
+   (evento 'visibilitychange') — ambos llaman la misma
+   actualizarEstadoConexion() de siempre, así que aunque el evento nativo
+   falle, en máximo 5s (o al volver a mirar la pestaña) se corrige solo,
+   sin depender de un recargado manual. No se tocó la lógica interna de
+   la función ni el resto del archivo.
+   V1.13: dos mejoras al indicador de conexión (v1.11/v1.12), a pedido
+   del usuario. (1) Punto de estado (🟢/🔴) junto al logo "AUDIOLINK",
+   tanto en el sidebar de escritorio como en la topbar móvil. (2) Las
+   barritas del ícono `vu` JUNTO AL LOGO cambian de dorado a rojo cuando
+   se pierde conexión — se le agrega la clase extra .vu-brand solo a
+   esas dos instancias (sidebar + topbar), el ícono `vu` del botón de
+   menú móvil (⋮) queda igual que siempre, sin tocar, para no confundir
+   "conexión" con "hay opciones nuevas en el menú". Todo controlado por
+   una sola clase en <body> ('conn-offline'/quitarla si online), que
+   actualizarEstadoConexion() ya calculaba — no se agregó ningún
+   listener nuevo, solo se extendió esa misma función. No se tocó
+   ninguna otra lógica.
+   V1.12: fix — el banner de sin conexión (v1.11) nunca se creaba en la
+   práctica. Dependía solo de 'DOMContentLoaded' para dispararse la
+   primera vez, pero nav.js normalmente se carga DESPUÉS de que ese
+   evento ya ocurrió (se inyecta en #nav-mount, que ya existe en el
+   DOM) — el listener se registraba tarde y nunca se disparaba. Se
+   agrega una llamada directa a actualizarEstadoConexion() al cargar el
+   script (sin esperar el evento), y se deja 'DOMContentLoaded' como
+   respaldo por si algún módulo cargara nav.js antes de tiempo. No se
+   tocó la lógica de show/hide ni los listeners online/offline.
+   V1.11: se agrega el indicador global de "sin conexión" — banner fijo
+   arriba de la pantalla ("🔴 Sin conexión — los cambios se guardarán al
+   recuperar señal"), que aparece/desaparece con los eventos nativos
+   online/offline del navegador. Se centraliza acá (no en cada HTML) para
+   que quede disponible automáticamente en todos los módulos apenas
+   carguen nav.js — pensado para acompañar el piloto de Firestore offline
+   persistence (proyecto.html v5.26) sin tener que repetir el indicador
+   archivo por archivo cuando se replique a logistica.html/bitacora.html/
+   etc. No depende de Firestore directamente: es solo navigator.onLine +
+   los eventos del navegador, así que funciona igual en cualquier módulo,
+   tenga o no enablePersistence() activado. No se tocó ninguna otra
+   función existente.
+   V1.10: se agrega el ítem "Recordatorios" (recordatorios.html) a ITEMS,
+   en el grupo 'Gestión' (junto a Proyectos/Clientes) — módulo nuevo de
+   notas/recordatorios personales o de equipo (ver index.html v2.8 y
+   firestore.rules v2.29). Se suma también a idsFueraBottomnav para no
+   saturar la barra inferior móvil (queda accesible por sidebar desktop
+   y panel "···" móvil). No se tocó ninguna otra función, ítem existente
+   ni la lógica de inyección/colapsar/tema.
+   V1.9: fix — "Cotizador" nunca aparecía en el panel "···" móvil.
+   Estaba en ITEMS con grupo:'Finanzas' (por eso sí se veía en el
+   sidebar desktop, que recorre ITEMS completo), pero se excluía de la
+   bottomnav con una condición aparte (it.id !== 'cotizador') en vez de
+   vía idsFueraBottomnav — y como masMobileGroupedHtml() solo muestra
+   lo que está en esa lista, Cotizador quedaba inalcanzable desde el
+   menú móvil. Se agrega 'cotizador' a idsFueraBottomnav; la condición
+   `it.id !== 'cotizador'` en el filtro de la bottomnav queda igual
+   (redundante pero inofensiva, no se tocó para minimizar el diff). No
+   se tocó ningún otro ítem, grupo ni lógica.
+   V1.8: acordeón por grupo. Cada .sb-grupo-label (desktop) y su
+   equivalente en el panel "···" móvil ahora son clickeables: pliegan/
+   expanden los ítems de ese grupo (Gestión/Catálogos/Operación/
+   Finanzas). Estado por grupo persistido en localStorage, clave
+   `audiolink_sb_grupo_<nombre>` — compartida entre desktop y mobile,
+   así que cerrar un grupo en uno lo cierra en el otro. Si el sidebar
+   desktop está en modo colapsado (solo íconos), el acordeón por grupo
+   se ignora vía CSS (.sidebar.collapsed fuerza todos los grupos
+   visibles) — no tiene sentido plegar grupos cuando ya solo se ven
+   íconos. También: el botón de menú móvil (antes "⋮" / .btn-icon,
+   suelto en cada página) ahora lo genera nav.js con el mismo ícono
+   `vu` (barritas animadas) que ya vive junto al título "AUDIOLINK" —
+   se reutiliza el mismo markup/CSS del vu de marca, sin duplicar
+   nada. Páginas viejas con su propio botón "⋮"/.btn-icon van a mostrar
+   temporalmente los dos botones superpuestos hasta que se les quite
+   ese bloque manualmente (pendiente, uno por uno).
+   V1.7: sidebar de escritorio agrupado por categoría (Gestión/
+   Catálogos/Operación/Finanzas), separado por encabezados de sección
+   (.sb-grupo-label, ver nav.css). Cada ítem de ITEMS ahora tiene un
+   campo `grupo` (o null para los que van sueltos: Dashboard arriba,
+   Avatar/Icono abajo). Nueva función sbNavGroupedHtml() reemplaza el
+   antiguo ITEMS.map(sbItemHtml) SOLO en el sidebar desktop — el orden
+   real del array ITEMS no cambió, así que el mobile-bottomnav y el
+   panel "···" (que seguían usando ITEMS.filter/.map directo hasta
+   v1.7) quedaban exactamente igual que antes, sin reordenarse.
+   V1.6: se agrega el ítem "Avatar / Icono" (avatares-iconos.html) a
+   ITEMS, después de "Vacas" — catálogo de avatars/iconos del ecosistema
+   (Cloudinary, folder ICONOS + Firestore colección avataresIconos). Se
+   suma también a idsFueraBottomnav para no saturar la barra inferior
+   móvil (queda accesible por sidebar desktop y panel "···" móvil). No
+   se tocó ninguna otra función, ítem existente ni la lógica de
+   inyección/colapsar/tema.
+   V1.5: se agrega el ítem "Vacas" (vacas.html) a ITEMS, después de
+   "Cotizador" — módulo de vaca colectiva (crowdfunding interno). Se suma
+   también a idsFueraBottomnav para no saturar la barra inferior móvil
+   (queda accesible por sidebar desktop y panel "···" móvil). No se tocó
+   ninguna otra función, ítem existente ni la lógica de
+   inyección/colapsar/tema.
+   V1.4: se agrega el ítem "Eventos" (eventos.html) a ITEMS, después de
+   "Equipo Técnico" — módulo Live (sonido en vivo), mismo criterio que
+   V1.3 (página nueva del ecosistema que aún no estaba en el menú). Se
+   suma también a idsFueraBottomnav para no saturar la barra inferior
+   móvil (queda accesible por sidebar desktop y panel "···" móvil). No
+   se tocó ninguna otra función, ítem existente ni la lógica de
+   inyección/colapsar/tema.
+   V1.3: se agregan los ítems "Egresos" (egresos.html) y "Equipo Técnico"
+   (equipo-tecnico.html) a ITEMS, después de "Pagos" — mismo criterio que
+   V1.2 (páginas nuevas del ecosistema que aún no estaban en el menú).
+   Ambos se suman también a idsFueraBottomnav para no saturar la barra
+   inferior móvil (quedan accesibles por sidebar desktop y panel "···"
+   móvil). No se tocó ninguna otra función, ítem existente ni la lógica
+   de inyección/colapsar/tema.
+   V1.2: se agregan los ítems "Estudios" (estudios.html) y "Músicos"
+   (musicos.html) a ITEMS, entre Clientes y Logística — mismos catálogos
+   maestros que antes vivían como modales dentro de proyecto.html (ver
+   plan de migración acordado). Como ya son ítems reales de ITEMS[], se
+   retiraron de proyecto.html los accesos duplicados que tenía en su
+   sbFootExtra (abrirModalEstudios()/abrirModalMusicos()) — ahora entran
+   por acá, con href real, disponibles en TODO el ecosistema (antes solo
+   se podían abrir desde Proyectos). Se agregan también al filtro del
+   mobile-bottomnav (junto a cotizador y clientes) para que la barra
+   inferior mobile no crezca de 4 accesos — quedan disponibles ahí vía
+   sidebar desktop y panel "···" mobile. No se tocó ninguna otra función,
+   ítem existente ni la lógica de inyección/colapsar/tema.
+   V1.1: se agrega el ítem "Clientes" (clientes.html) a ITEMS, entre
+   Proyectos y Logística. No se tocó ninguna otra función, ítem existente
+   ni la lógica de inyección/colapsar/tema.
    Navegación compartida (sidebar desktop + mobile topbar + panel "···" +
    bottomnav) para todo el ecosistema. Antes este bloque de HTML/CSS/JS
    estaba copiado y pegado en cada página (index/cotizador/logistica/
@@ -59,49 +216,24 @@
   const masMobileExtra = cfg.masMobileExtra || [];
   const soportaTema = cfg.soportaTema !== false; // default true; false = página aún sin CSS de modo claro (ej. cotizador)
 
-  // v1.21: favicon compartido (solo si la página no declara uno propio).
-  // rel~="icon" NO coincide con apple-touch-icon (token distinto).
-  const LOGO_DIR = 'logo/'; // carpeta (relativa a las páginas) con los archivos del logo
-  try{
-    if(document.head && !document.querySelector('link[rel~="icon"]')){
-      const lnkIco = document.createElement('link');
-      lnkIco.rel = 'icon';
-      lnkIco.href = LOGO_DIR + 'favicon.ico';
-      lnkIco.setAttribute('sizes', 'any');
-      document.head.appendChild(lnkIco);
-      const lnkPng = document.createElement('link');
-      lnkPng.rel = 'icon';
-      lnkPng.type = 'image/png';
-      lnkPng.setAttribute('sizes', '32x32');
-      lnkPng.href = LOGO_DIR + 'logo-circular-32.png';
-      document.head.appendChild(lnkPng);
-    }
-  }catch(e){ /* el favicon nunca debe romper la navegación */ }
-
-  // v1.27: atributos comunes de todos los SVG de trazo (ítems + botones del dial).
-  const _svgAttr = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
-  function iconoItem(it){
-    return it.svg ? `<svg ${_svgAttr}>${it.svg}</svg>` : it.icon;
-  }
-
   const ITEMS = [
-    { id:'dashboard', href:'index.html',     icon:'🏠', label:'Dashboard', grupo:null, svg:'<path class="al-c" d="M12 1.5v21"/><path d="M2.6 11.6 12 3.6l9.4 8"/><path d="M5.5 10.2V21M18.5 10.2V21"/><path d="M3 21h18"/><path class="al-k" d="M10 21v-6h4v6"/>' },
-    { id:'proyecto',  href:'proyecto.html',  icon:'📁', label:'Proyectos', grupo:'Gestión', svg:'<path class="al-c" d="M1.5 14.2h21"/><path d="M2.6 8.5h18.8"/><path d="M3.5 5h6l2 3.5"/><path d="M3.5 5v15.3M20.5 7.7v12.6"/><path d="M2.6 19.5h18.8"/><path class="al-k" d="M6.5 12.2h11"/>' },
-    { id:'clientes',  href:'clientes.html',  icon:'👤', label:'Clientes',  grupo:'Gestión', svg:'<path class="al-c" d="M12 1.5v21"/><circle cx="12" cy="8.2" r="3.4"/><path d="M4.6 20.5c.7-3.9 3.4-6.1 7.4-6.1s6.7 2.2 7.4 6.1"/><path d="M2.8 20.5h18.4"/><path class="al-k" d="M9 14.9l3 2.6 3-2.6"/>' },
-    { id:'recordatorios', href:'recordatorios.html', icon:'📝', label:'Recordatorios', grupo:'Gestión', svg:'<path d="M5.5 2.8v18.9"/><path d="M4.8 3.5h9.7"/><path d="M4.8 21h14.9"/><path d="M19 8v13.7"/><path d="M14.5 3.5 19 8"/><path class="al-k" d="M14.5 3.5V8H19"/><path class="al-k" d="M8.5 12.5h7M8.5 15.5h7M8.5 18.5h4"/>' },
-    { id:'estudios',  href:'estudios.html',  icon:'🏢', label:'Estudios',  grupo:'Catálogos', svg:'<path d="M2.8 21h18.4"/><path d="M5.5 21.6V3.8M4.8 4.5h9.9M14.5 3.8v17.8"/><path d="M14 9.5h4.9M18.5 8.8v12.8"/><path class="al-k" d="M8 8h3M8 11.5h3M8 15h3"/><path class="al-k" d="M8.3 21v-3h3.4v3"/><path class="al-k" d="M15 12.8l2.9-2.9M15 16.2l3.1-3.1M15 19.6l3.1-3.1"/>' },
-    { id:'musicos',   href:'musicos.html',   icon:'🎻', label:'Músicos',   grupo:'Catálogos', svg:'<path class="al-c" d="M1.5 20.8h21"/><path d="M9.2 17.2V5.4M18.2 15.2V3.4"/><path d="M9.2 5.4l9-2"/><path class="al-k" d="M9.2 8.4l9-2"/><circle cx="6.9" cy="17.6" r="2.3"/><circle cx="15.9" cy="15.6" r="2.3"/>' },
-    { id:'logistica', href:'logistica.html', icon:'🎚️', label:'Logística', grupo:'Operación', svg:'<path class="al-k" d="M6 3.5v9.3M6 16.4v4.1M12 3.5v3.3M12 10.4v10.1M18 3.5v7.3M18 14.4v6.1"/><path class="al-k" d="M4.5 3.5h3M4.5 20.5h3M10.5 3.5h3M10.5 20.5h3M16.5 3.5h3M16.5 20.5h3"/><rect x="3.8" y="12.8" width="4.4" height="3.6" rx="0.4"/><rect x="9.8" y="6.8" width="4.4" height="3.6" rx="0.4"/><rect x="15.8" y="10.8" width="4.4" height="3.6" rx="0.4"/>' },
-    { id:'pagos',     href:'pagos.html',     icon:'💳', label:'Pagos',      grupo:'Finanzas', svg:'<path d="M2.6 5.5h18.8M2.6 18.5h18.8M3.5 4.6v14.8M20.5 4.6v14.8"/><path class="al-k" d="M3.5 9.2h17M3.5 11.3h17"/><path class="al-k" d="M6.5 15.2h3.6M12.2 15.2h1.8"/>' },
-    { id:'egresos',   href:'egresos.html',   icon:'📤', label:'Egresos',    grupo:'Finanzas', svg:'<path d="M4 13.2v6.3M20 13.2v6.3M2.8 19.5h18.4"/><path class="al-k" d="M2.8 13.2h3M18.2 13.2h3"/><path d="M12 15.2V3"/><path d="M8 7l4-4 4 4"/>' },
-    { id:'equipo-tecnico', href:'equipo-tecnico.html', icon:'🛠️', label:'Equipo Técnico', grupo:'Catálogos', svg:'<path class="al-c" d="M1.8 22.2 22.2 1.8"/><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/><circle class="al-k" cx="5.2" cy="18.8" r="1"/>' },
-    { id:'eventos',   href:'eventos.html',   icon:'🎤', label:'Eventos',   grupo:'Operación', svg:'<path class="al-c" d="M12 1.5v21"/><rect x="9" y="3" width="6" height="11" rx="3"/><path class="al-k" d="M9.4 7h5.2M9.4 9.2h5.2M9.4 11.4h5.2"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/><path d="M8 21h8"/>' },
-    { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador',  grupo:'Finanzas', svg:'<path d="M4.8 3.5h14.4M4.8 20.5h14.4M5.5 2.8v18.4M18.5 2.8v18.4"/><rect class="al-k" x="8" y="6.5" width="8" height="3.2"/><path d="M8.5 13.2h.01M12 13.2h.01M15.5 13.2h.01M8.5 16.8h.01M12 16.8h.01M15.5 16.8h.01"/>' },
-    { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas',     grupo:'Operación', svg:'<path class="al-c" d="M12 1.5v21"/><ellipse cx="12" cy="6.5" rx="7" ry="2.7"/><path d="M5 6.5v5c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7v-5"/><path d="M5 11.5v5c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7v-5"/>' },
-    { id:'cocina',    href:'cocina.html',    icon:'🍱', label:'Cocina',    grupo:'Operación', svg:'<path class="al-c" d="M12 1.5v21"/><path d="M5 10.5V17a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6.5"/><path d="M3.6 10.5h16.8"/><path d="M5 12.6H2.6M19 12.6h2.4"/><path class="al-k" d="M9.5 7c0-1.2 1-1.4 1-2.6M14 7c0-1.2 1-1.4 1-2.6"/>' },
-    { id:'ensayo',    href:'ensayo.html',    icon:'🎼', label:'Ensayo',    grupo:'Operación', svg:'<path class="al-c" d="M12 1.5v21"/><path d="M9.2 3.5h5.6M9.2 3.5 5.5 20.5M14.8 3.5l3.7 17"/><path d="M3.8 20.5h16.4"/><path d="M12 17 15.2 8"/><circle class="al-k" cx="12" cy="17" r="1"/>' },
-    { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono', grupo:'Ajustes', svg:'<path class="al-c" d="M12 1.3v21.4M1.3 12h21.4"/><circle cx="12" cy="12" r="8.5"/><path d="M9 10.2h.01M15 10.2h.01"/><path d="M8.7 14.3a4 4 0 0 0 6.6 0"/>' },
-    { id:'header-config', href:'header-config.html', icon:'🖼️', label:'Header PDF', grupo:'Ajustes', svg:'<path d="M2.6 4.5h18.8M2.6 19.5h18.8M3.5 3.6v16.8M20.5 3.6v16.8"/><circle class="al-k" cx="8.5" cy="9.5" r="1.5"/><path d="M4 17l4.5-4.5 3.5 3.5 3-3 5 5"/>' }
+    { id:'dashboard', href:'index.html',     icon:'🏠', label:'Dashboard', grupo:null },
+    { id:'proyecto',  href:'proyecto.html',  icon:'📁', label:'Proyectos', grupo:'Gestión' },
+    { id:'clientes',  href:'clientes.html',  icon:'👤', label:'Clientes',  grupo:'Gestión' },
+    { id:'recordatorios', href:'recordatorios.html', icon:'📝', label:'Recordatorios', grupo:'Gestión' },
+    { id:'estudios',  href:'estudios.html',  icon:'🏢', label:'Estudios',  grupo:'Catálogos' },
+    { id:'musicos',   href:'musicos.html',   icon:'🎻', label:'Músicos',   grupo:'Catálogos' },
+    { id:'logistica', href:'logistica.html', icon:'🎚️', label:'Logística', grupo:'Operación' },
+    { id:'pagos',     href:'pagos.html',     icon:'💳', label:'Pagos',      grupo:'Finanzas' },
+    { id:'egresos',   href:'egresos.html',   icon:'📤', label:'Egresos',    grupo:'Finanzas' },
+    { id:'equipo-tecnico', href:'equipo-tecnico.html', icon:'🛠️', label:'Equipo Técnico', grupo:'Catálogos' },
+    { id:'eventos',   href:'eventos.html',   icon:'🎤', label:'Eventos',   grupo:'Operación' },
+    { id:'cotizador', href:'cotizador.html', icon:'🧮', label:'Cotizador',  grupo:'Finanzas' },
+    { id:'vacas',     href:'vacas.html',     icon:'🐄', label:'Vacas',     grupo:'Operación' },
+    { id:'cocina',    href:'cocina.html',    icon:'🍱', label:'Cocina',    grupo:'Operación' },
+    { id:'ensayo',    href:'ensayo.html',    icon:'🎼', label:'Ensayo',    grupo:'Operación' },
+    { id:'avatares',  href:'avatares-iconos.html', icon:'🤓', label:'Avatar / Icono', grupo:'Ajustes' },
+    { id:'header-config', href:'header-config.html', icon:'🖼️', label:'Header PDF', grupo:'Ajustes' }
   ];
 
   // Ítems que se sacan del mobile-bottomnav (para no saturar la barra de 4
@@ -117,8 +249,6 @@
   // secas, arriba).
   const vuBrand = `<div class="vu vu-brand"><span></span><span></span><span></span><span></span><span></span></div>`;
   const connDot = `<span class="conn-dot" title="Estado de conexión"></span>`;
-  // v1.23: dial del logo junto a la marca. Si falla la carga, se oculta.
-  const dialBrand = `<img class="brand-dial" src="${LOGO_DIR}logo-circular-192.png" alt="AUDIOLINK" width="28" height="28" decoding="async" onerror="this.style.display='none'">`;
   // v1.16: badge de cambios pendientes de sincronizar (Fase 2 offline).
   // Oculto por defecto (display:none inline, ver actualizarBadgeSync());
   // onclick fuerza sincronizarColaOffline() manualmente.
@@ -135,9 +265,9 @@
   function sbItemHtml(it){
     const esActivo = it.id === activo;
     if(esActivo){
-      return `<a href="#" class="sb-item active" style="pointer-events:none;"><i>${iconoItem(it)}</i><span>${it.label}</span></a>`;
+      return `<a href="#" class="sb-item active" style="pointer-events:none;"><i>${it.icon}</i><span>${it.label}</span></a>`;
     }
-    return `<a href="${it.href}" class="sb-item"><i>${iconoItem(it)}</i><span>${it.label}</span></a>`;
+    return `<a href="${it.href}" class="sb-item"><i>${it.icon}</i><span>${it.label}</span></a>`;
   }
 
   // v1.7: sidebar agrupado por categoría (grupo:null = sin sección,
@@ -184,12 +314,12 @@
       html += `<div class="mas-mobile-grupo-label" onclick="toggleSbGrupo('${nombreGrupo}')"><span>${nombreGrupo}</span><i class="sb-grupo-arrow">▾</i></div>\n    `;
       html += `<div class="mas-mobile-grupo-body">\n      `;
       itemsGrupo.forEach(it => {
-        html += `<a href="${it.href}" class="mas-mobile-item" style="text-decoration:none;"><i>${iconoItem(it)}</i>${it.label}</a>\n      `;
+        html += `<a href="${it.href}" class="mas-mobile-item" style="text-decoration:none;"><i>${it.icon}</i>${it.label}</a>\n      `;
       });
       html += `</div>\n  </div>\n  `;
     });
     sinGrupo.forEach(it => {
-      html += `<a href="${it.href}" class="mas-mobile-item" style="text-decoration:none;"><i>${iconoItem(it)}</i>${it.label}</a>\n  `;
+      html += `<a href="${it.href}" class="mas-mobile-item" style="text-decoration:none;"><i>${it.icon}</i>${it.label}</a>\n  `;
     });
     return html;
   }
@@ -206,21 +336,8 @@
     ).join('');
   }
 
-  // v1.25: íconos de trazo para los botones junto al dial (currentColor,
-  // así siguen el color/tema del botón sin reglas extra).
-  const SVG_MOON = `<svg ${_svgAttr}><circle class="al-c" cx="12" cy="12" r="10.4"/><path d="M20 14.2A8 8 0 1 1 9.8 4a6.4 6.4 0 0 0 10.2 10.2z"/></svg>`;
-  const SVG_SUN = `<svg ${_svgAttr}><circle class="al-c" cx="12" cy="12" r="10.4"/><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></svg>`;
-  const SVG_POWER = `<svg ${_svgAttr}><circle class="al-c" cx="12" cy="12" r="10.4"/><path d="M12 3v8.5"/><path d="M6.6 6.9a7.8 7.8 0 1 0 10.8 0"/></svg>`;
-  function iconoTemaSvg(tema){ return tema === 'dark' ? SVG_MOON : SVG_SUN; }
-  const temaInicial = localStorage.getItem('audiolink_tema') || 'dark';
-
   const sidebarHtml = `
 <aside class="sidebar" id="sidebar">
-  <div class="sb-dial">
-    ${soportaTema ? `<button type="button" class="sb-dial-btn" id="btnTemaSb" onclick="toggleTema()" title="Cambiar tema" aria-label="Cambiar tema">${iconoTemaSvg(temaInicial)}</button>` : '<span class="sb-dial-btn sb-dial-ghost" aria-hidden="true"></span>'}
-    <div class="sb-dial-face" id="sbDial" title="Colapsar/expandir menú">${dialBrand}</div>
-    <button type="button" class="sb-dial-btn" onclick="cerrarSesion()" title="Cerrar sesión" aria-label="Cerrar sesión">${SVG_POWER}</button>
-  </div>
   <div class="sb-brand">
     ${vuBrand}
     <h1>AUDIOLINK</h1>
@@ -232,6 +349,8 @@
   </nav>
   <div class="sb-foot">
     ${extraSbFootHtml()}
+    ${soportaTema ? '<div class="sb-item" onclick="toggleTema()" id="btnTemaSb"><i>🌙</i><span>Tema</span></div>' : ''}
+    <div class="sb-item" onclick="cerrarSesion()"><i>⏻</i><span>Cerrar sesión</span></div>
     <div class="sb-toggle" id="sidebarToggle"><i>«</i><span>Colapsar</span></div>
     <div class="sb-credit">Marto 🧠 · martowave@gmail.com</div>
   </div>
@@ -239,7 +358,6 @@
 
 <div class="mobile-topbar">
   <div class="brand">
-    ${dialBrand}
     ${vuBrand}
     <h1>AUDIOLINK</h1>
     ${connDot}
@@ -253,14 +371,14 @@
 <div class="mas-mobile-panel" id="masMobilePanel">
   ${masMobileGroupedHtml()}
   ${extraMasMobileHtml()}
-  ${soportaTema ? `<div class="mas-mobile-item" onclick="toggleTema()"><i id="iconoTemaMas">${iconoTemaSvg(temaInicial)}</i>Cambiar tema</div>` : ''}
-  <div class="mas-mobile-item" onclick="cerrarSesion()"><i>${SVG_POWER}</i>Cerrar sesión</div>
+  ${soportaTema ? '<div class="mas-mobile-item" onclick="toggleTema()"><i>🌙</i>Cambiar tema</div>' : ''}
+  <div class="mas-mobile-item" onclick="cerrarSesion()"><i>⏻</i>Cerrar sesión</div>
   <div class="mas-mobile-credit">Marto 🧠 · martowave@gmail.com</div>
 </div>
 
 <nav class="mobile-bottomnav">
   ${ITEMS.filter(it => it.id !== 'cotizador' && !idsFueraBottomnav.includes(it.id)).map(it =>
-    `<a href="${it.href}"${it.id === activo ? ' class="active"' : ''}><i>${iconoItem(it)}</i>${it.label}</a>`
+    `<a href="${it.href}"${it.id === activo ? ' class="active"' : ''}><i>${it.icon}</i>${it.label}</a>`
   ).join('\n  ')}
 </nav>`;
 
@@ -289,10 +407,9 @@
 
   // ============ TEMA ============
   window.actualizarIconoTema = function(tema){
-    const sbBtn = document.getElementById('btnTemaSb');
-    if(sbBtn) sbBtn.innerHTML = iconoTemaSvg(tema);
-    const masIcon = document.getElementById('iconoTemaMas');
-    if(masIcon) masIcon.innerHTML = iconoTemaSvg(tema);
+    const icono = tema === 'dark' ? '🌙' : '☀️';
+    const sbIcon = document.querySelector('#btnTemaSb i');
+    if(sbIcon) sbIcon.textContent = icono;
   };
   window.toggleTema = function(){
     const actual = document.documentElement.getAttribute('data-tema') || 'dark';
@@ -327,9 +444,6 @@
       mainWrap.classList.toggle('expanded', ahora);
       localStorage.setItem('audiolink_sb_colapsado', ahora ? '1' : '0');
     });
-    // v1.24: el dial del logo dispara el mismo botón, sin duplicar lógica.
-    const sbDial = document.getElementById('sbDial');
-    if(sbDial) sbDial.addEventListener('click', () => toggle.click());
     const t = localStorage.getItem('audiolink_tema') || 'dark';
     actualizarIconoTema(t);
   });

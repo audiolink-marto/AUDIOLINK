@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Header PDF (v1.5)</title>
-<!-- AUDIOLINK · header-config.html · v1.5
+<title>Audiolink — Header PDF (v1.6)</title>
+<!-- AUDIOLINK · header-config.html · v1.6
+     v1.6: (a pedido) los 4 checkboxes pasan a verse como el switch del dial
+     (.al-chk): "Sin fondo" y "Sin logo" en rojo (ocultar); las 2 sombras en
+     dorado (ajustes). Siguen siendo <input type="checkbox"> reales: ids,
+     title, onchange y lógica sin cambios. Solo CSS + class en esos inputs.
      v1.5: nuevo checkbox "Sin logo" (logoSinLogoInput) junto a Posición Y
      del logo — oculta el logo por completo (display:none) para evitar el
      ícono "alt" roto si la ruta queda vacía/inválida. También se aclaró
@@ -215,6 +219,47 @@ main{max-width:1180px;}
 }
 .galeria-thumb:hover{border-color:var(--gold);transform:scale(1.05);}
 .galeria-vacia{font-size:0.78rem;color:var(--faint);}
+/* CHECKBOX ESTILO DIAL (.al-chk): <input type="checkbox"> REAL con aspecto de switch.
+   Misma lógica de siempre (.checked, onchange, disabled, id) — solo CSS.
+   Familias de color por clase: sin clase = dorado (ajustes) · .ok = verde (hecho/
+   entregado) · .cli = azul (visible al cliente) · .oculto = rojo (ocultar/restringir)
+   · .sel = violeta (selección/filtro). Tamaño: 24px por defecto, .s = 20px (listas). */
+input[type="checkbox"].al-chk{
+  --h:24px; --chk-on:#8a6d2c; --chk-led:#f6c453; --chk-glow:rgba(246,196,83,.65);
+  -webkit-appearance:none; appearance:none;
+  position:relative; box-sizing:border-box;
+  width:calc(var(--h) * 1.8333); height:var(--h); min-width:0; min-height:0;
+  margin:0; padding:0; border:0; box-shadow:none; flex-shrink:0;
+  border-radius:999px; background:#3a382f; cursor:pointer; vertical-align:middle;
+  transition:background-color .2s ease;
+}
+input[type="checkbox"].al-chk:checked{background:var(--chk-on);}
+input[type="checkbox"].al-chk::before{
+  content:""; position:absolute; box-sizing:border-box;
+  top:calc(var(--h) * .125); left:calc(var(--h) * .125);
+  width:calc(var(--h) * .75); height:calc(var(--h) * .75);
+  border-radius:50%; background:#e9e6dc; border:1.1px solid #3a382f;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+input[type="checkbox"].al-chk::after{
+  content:""; position:absolute;
+  top:calc(var(--h) * .3958); left:calc(var(--h) * .3958);
+  width:calc(var(--h) * .2083); height:calc(var(--h) * .2083);
+  border-radius:50%; background:#6b6a63;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1), background-color .2s ease, box-shadow .2s ease;
+}
+input[type="checkbox"].al-chk:checked::before{transform:translateX(calc(var(--h) * .8333));}
+input[type="checkbox"].al-chk:checked::after{
+  transform:translateX(calc(var(--h) * .8333));
+  background:var(--chk-led); box-shadow:0 0 calc(var(--h) * .3) calc(var(--h) * .06) var(--chk-glow);
+}
+input[type="checkbox"].al-chk:focus-visible{outline:2px solid var(--chk-led);outline-offset:2px;}
+input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
+input[type="checkbox"].al-chk.s{--h:20px;}
+input[type="checkbox"].al-chk.ok{--chk-on:#2f6b4a; --chk-led:#6fe0a4; --chk-glow:rgba(111,224,164,.60);}
+input[type="checkbox"].al-chk.cli{--chk-on:#2d5a85; --chk-led:#7fbcf2; --chk-glow:rgba(127,188,242,.60);}
+input[type="checkbox"].al-chk.oculto{--chk-on:#8a3a32; --chk-led:#ff8a7a; --chk-glow:rgba(255,138,122,.60);}
+input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glow:rgba(185,162,240,.60);}
 </style>
 </head>
 <body>
@@ -279,7 +324,7 @@ window.NAV_CONFIG = { activo: 'header-config' };
     </div>
     <div class="field-row">
       <label for="headerSinFondoInput">Sin fondo (ahorra tinta)</label>
-      <input type="checkbox" id="headerSinFondoInput" title="Exporta el header de ambos PDF sin el fondo de color ni el diffuser (queda blanco sólido) — ahorra tinta al imprimir y evita que aparezca el ícono roto si la ruta del diffuser está vacía. Logo, línea dorada y textos se mantienen igual." onchange="actualizarHeaderSinFondo(this.checked)">
+      <input type="checkbox" class="al-chk oculto" id="headerSinFondoInput" title="Exporta el header de ambos PDF sin el fondo de color ni el diffuser (queda blanco sólido) — ahorra tinta al imprimir y evita que aparezca el ícono roto si la ruta del diffuser está vacía. Logo, línea dorada y textos se mantienen igual." onchange="actualizarHeaderSinFondo(this.checked)">
     </div>
   </div>
 
@@ -305,7 +350,7 @@ window.NAV_CONFIG = { activo: 'header-config' };
     </div>
     <div class="field-row">
       <label for="logoSinLogoInput">Sin logo</label>
-      <input type="checkbox" id="logoSinLogoInput" title="Oculta el logo por completo en el header (preview y PDF). Útil si el campo de ruta queda vacío: evita que aparezca el ícono roto de imagen." onchange="actualizarLogoSinLogo(this.checked)">
+      <input type="checkbox" class="al-chk oculto" id="logoSinLogoInput" title="Oculta el logo por completo en el header (preview y PDF). Útil si el campo de ruta queda vacío: evita que aparezca el ícono roto de imagen." onchange="actualizarLogoSinLogo(this.checked)">
     </div>
 
     <button type="button" class="btn" style="margin-top:6px;" title="Restablece color, opacidades, tamaño y posición del logo a sus valores por defecto (no toca las rutas de logo/diffuser)." onclick="resetearHeaderDefaults()">↺ Restablecer</button>
@@ -337,7 +382,7 @@ window.NAV_CONFIG = { activo: 'header-config' };
     </div>
     <div class="field-row">
       <label for="logoSombraInput">Sombra suave</label>
-      <input type="checkbox" id="logoSombraInput" title="Agrega una sombra sutil detrás del logo, para darle un poco de profundidad sobre el diffuser. Solo modo piloto/preview." onchange="actualizarLogoSombra(this.checked)">
+      <input type="checkbox" class="al-chk" id="logoSombraInput" title="Agrega una sombra sutil detrás del logo, para darle un poco de profundidad sobre el diffuser. Solo modo piloto/preview." onchange="actualizarLogoSombra(this.checked)">
     </div>
     <div class="field-row">
       <label for="logoHueInput">Matiz de color</label>
@@ -375,7 +420,7 @@ window.NAV_CONFIG = { activo: 'header-config' };
     </div>
     <div class="field-row">
       <label for="diffuserSombraInput">Sombra suave</label>
-      <input type="checkbox" id="diffuserSombraInput" title="Agrega una sombra sutil sobre la imagen de fondo. Solo modo piloto/preview." onchange="actualizarDiffuserSombra(this.checked)">
+      <input type="checkbox" class="al-chk" id="diffuserSombraInput" title="Agrega una sombra sutil sobre la imagen de fondo. Solo modo piloto/preview." onchange="actualizarDiffuserSombra(this.checked)">
     </div>
   </div>
 
