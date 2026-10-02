@@ -10,8 +10,39 @@
 <meta name="apple-mobile-web-app-title" content="AUDIOLINK Ensayo">
 <link rel="apple-touch-icon" href="logo/apple-touch-icon.png">
 <meta property="og:image" content="https://audiolink-marto.github.io/AUDIOLINK/logo/logo-circular-512.png">
-<title>Audiolink — Ensayo v3.295</title>
-<!-- AUDIOLINK · ensayo.html · v3.295
+<title>Audiolink — Ensayo v3.297</title>
+<!-- AUDIOLINK · ensayo.html · v3.297
+     v3.297: (a pedido) (1) Reordenar arrastrando: cada fila del editor de
+     lista tiene un asa (≡) a la izquierda; SOLO el asa inicia el arrastre
+     (touch-action:none), asi el scroll de la hoja no se confunde con el
+     gesto. Mientras arrastras, la fila sigue al dedo y las demas se
+     abren un hueco; al soltar el orden cambia al instante y se guarda UNA
+     vez (_programarGuardadoOrdenSetlist, igual que ↑↓, que se conservan
+     como respaldo). Autoscroll de la lista cerca de los bordes. Si llega
+     un redibujado mientras arrastras, se pospone hasta soltar.
+     (2) Compartir / copiar link en celular: el link se copiaba DESPUES de
+     esperar la escritura a Firestore; en iOS (y a veces Android) eso ya no
+     cuenta como gesto del usuario, el portapapeles fallaba, caia al catch
+     y mostraba "No se pudo compartir" aunque la lista SI quedaba
+     compartida (y sin forma de recuperar el link). Ahora, tras compartir,
+     se abre un cuadro con el link ya seleccionado y boton "Copiar" (un
+     toque nuevo, que si funciona); el copiado automatico queda como
+     intento extra que ya no puede marcar error. El boton "Copiar link"
+     intenta copiar directo y, si el portapapeles falla, abre el mismo
+     cuadro. Se quita el prompt() que no sirve bien en celular. El modelo
+     de compartido/revocado no cambia.
+     v3.296: (a pedido) editor de lista, mobile first. (1) El editor muestra
+     SOLO los temas de la lista; agregar se hace desde un selector nuevo
+     ("+ Agregar temas"): buscador, filtro por categoria, seleccion multiple
+     y UNA sola escritura al confirmar. (2) Reordenar con ↑↓ ahora es
+     optimista: el orden cambia al instante y se guarda en Firestore UNA vez
+     tras 700 ms sin mover (tambien al cerrar el editor o al ocultar la
+     pagina). (3) Cada fila muestra categoria, BPM, tonalidad y si el audio
+     esta guardado en el dispositivo; botones de 44 px; inputs a 16 px
+     (iOS no hace zoom); la hoja del selector usa dvh. Se conserva el scroll
+     al reordenar. _guardarTemaIdsSetlist() ahora devuelve true/false (los
+     llamadores existentes lo ignoran). agregarTemaASetlist() y el CSS
+     .fuera quedan en el archivo sin cambios, ya sin uso desde la UI.
      v3.295: (a pedido) los botones del editor de lista pasan al lenguaje
      visual del resto del panel: cuadrados 44x44 solo-icono (.practica-click-btn),
      SVG de trazo (currentColor, igual que los pads de CUE/loop) y estado
@@ -377,6 +408,32 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .setlist-fila button:disabled{opacity:0.3;cursor:default;}
 .setlist-fila button.agregar{width:auto;padding:0 12px;color:var(--gold);border-color:var(--gold);}
 .setlist-fila button.quitar{color:#e05a5a;}
+/* v3.296: editor de lista y selector de temas - mobile first (tactil 44px,
+   inputs a 16px para que iOS no haga zoom, hoja con dvh, sin hover). */
+.setlist-fila.incluido{padding:6px 8px;gap:4px;}
+.setlist-fila.incluido button{width:44px;height:44px;border-radius:10px;font-size:1.05rem;}
+.setlist-fila-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.setlist-fila-info .setlist-fila-nombre{flex:none;}
+.setlist-fila-meta{font-size:0.72rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* v3.297: asa de arrastre (solo ella inicia el gesto) y estados del arrastre */
+.setlist-asa{flex:0 0 auto;width:36px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.4rem;line-height:1;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-radius:8px;}
+.setlist-asa:active{color:var(--gold);}
+.sheet-lista.arrastrando-lista{user-select:none;-webkit-user-select:none;}
+.sheet-lista.arrastrando-lista .setlist-fila:not(.arrastrando){transition:transform .15s ease;}
+.setlist-fila.arrastrando{position:relative;z-index:5;border-color:var(--gold);background:var(--gold-bg);box-shadow:0 6px 16px rgba(0,0,0,0.35);transition:none;}
+.setlist-fila.arrastrando .setlist-asa{color:var(--gold);cursor:grabbing;}
+.link-lista-aviso{font-size:0.8rem;color:var(--muted);margin:0 0 10px;}
+.setlist-agregar-btn{width:100%;min-height:44px;margin-bottom:10px;border-color:var(--gold);color:var(--gold);font-size:0.9rem;}
+#sheetSetlistSelectorOverlay .sheet-box{max-height:85vh;max-height:85dvh;}
+.sel-setlist-input{width:100%;box-sizing:border-box;min-height:44px;padding:0 12px;margin-bottom:8px;border-radius:10px;border:1px solid var(--brd);background:var(--surf-light);color:var(--txt);font-size:16px;}
+.sel-setlist-barra{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:0.78rem;color:var(--muted);}
+.sel-setlist-barra button{min-height:44px;padding:0 12px;border-radius:10px;font-size:0.82rem;flex:0 0 auto;}
+.sel-setlist-fila{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:6px 10px;border-radius:10px;border:1px solid var(--brd);background:var(--surf-light);color:var(--txt);text-align:left;cursor:pointer;font:inherit;}
+.sel-setlist-fila.activo{border-color:var(--gold);background:var(--gold-bg);}
+.sel-setlist-check{flex:0 0 auto;width:26px;height:26px;border-radius:7px;border:1.5px solid var(--brd);display:flex;align-items:center;justify-content:center;color:var(--bg);}
+.sel-setlist-check svg{display:none;}
+.sel-setlist-fila.activo .sel-setlist-check{background:var(--gold);border-color:var(--gold);}
+.sel-setlist-fila.activo .sel-setlist-check svg{display:block;}
 /* v3.188: fila del selector rápido de tema (sheet ⇄). Mismo lenguaje
    que .sheet-opcion, con una segunda línea de metadatos apagada. */
 .sheet-tema-opcion{width:100%;text-align:left;min-height:52px;padding:8px 14px;border-radius:10px;border:1px solid var(--brd);background:var(--surf-light);color:var(--txt);font-size:0.92rem;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;}
@@ -1566,6 +1623,7 @@ body{min-height:100dvh;}
 <div class="sheet-overlay" id="sheetSetlistEditorOverlay" onclick="if(event.target===this) cerrarEditorSetlist()">
   <div class="sheet-box" onclick="event.stopPropagation()">
     <h3 id="sheetSetlistEditorTitulo">Editar lista</h3>
+    <button type="button" class="btn-ghost setlist-agregar-btn" id="sheetSetlistAgregarBtn" onclick="abrirSelectorTemasSetlist()">+ Agregar temas</button>
     <div class="sheet-lista" id="sheetSetlistEditorLista"></div>
     <!-- v3.295: acciones del editor de lista - pads cuadrados solo-icono (.practica-click-btn) -->
     <div class="sheet-acciones lista-acciones">
@@ -1574,6 +1632,37 @@ body{min-height:100dvh;}
       <button type="button" class="practica-click-btn" id="sheetSetlistCompartirBtn" onclick="compartirSetlistActual()" title="Compartir esta lista con alguien sin cuenta" aria-label="Compartir esta lista"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg></button>
       <button type="button" class="practica-click-btn" id="sheetSetlistCopiarLinkBtn" style="display:none;" onclick="copiarLinkSetlistActual()" title="Copiar el link de esta lista compartida (no la revoca)" aria-label="Copiar el link de la lista"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg></button>
       <button type="button" class="practica-click-btn" onclick="cerrarEditorSetlist()" title="Cerrar" aria-label="Cerrar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<!-- v3.297: cuadro con el link de la lista compartida (copiar a mano si el portapapeles falla en el celular) -->
+<div class="sheet-overlay" id="sheetSetlistLinkOverlay" onclick="if(event.target===this) cerrarLinkSetlist()">
+  <div class="sheet-box" onclick="event.stopPropagation()">
+    <h3>Link de la lista</h3>
+    <p class="link-lista-aviso" id="linkListaAviso">Toca «Copiar». Si no se copia, mantén pulsado el link y elige Copiar.</p>
+    <input type="text" id="linkListaInput" class="sel-setlist-input" readonly aria-label="Link de la lista" onfocus="this.select()">
+    <div class="sheet-acciones">
+      <button type="button" class="btn-ghost" style="min-height:44px;padding:0 16px;border-radius:10px;" onclick="cerrarLinkSetlist()">Cerrar</button>
+      <button type="button" class="btn" style="min-height:44px;" onclick="copiarDesdeCuadroLinkSetlist()">Copiar</button>
+    </div>
+  </div>
+</div>
+
+<!-- v3.296: selector para agregar varios temas a la lista de una sola vez -->
+<div class="sheet-overlay" id="sheetSetlistSelectorOverlay" onclick="if(event.target===this) cerrarSelectorTemasSetlist()">
+  <div class="sheet-box" onclick="event.stopPropagation()">
+    <h3>Agregar temas</h3>
+    <input type="search" id="selSetlistBuscar" class="sel-setlist-input" placeholder="Buscar tema…" autocomplete="off" aria-label="Buscar tema" oninput="renderizarSelectorTemasSetlist()">
+    <select id="selSetlistCategoria" class="sel-setlist-input" aria-label="Filtrar por categoría" onchange="renderizarSelectorTemasSetlist()"></select>
+    <div class="sel-setlist-barra">
+      <span id="selSetlistConteo"></span>
+      <button type="button" class="btn-ghost" id="selSetlistVisiblesBtn" onclick="elegirVisiblesSelectorSetlist()">Elegir visibles</button>
+    </div>
+    <div class="sheet-lista" id="selSetlistLista" onclick="onClickSelectorTemasSetlist(event)"></div>
+    <div class="sheet-acciones">
+      <button type="button" class="btn-ghost" style="min-height:44px;padding:0 16px;border-radius:10px;" onclick="cerrarSelectorTemasSetlist()">Cancelar</button>
+      <button type="button" class="btn" id="selSetlistConfirmarBtn" onclick="confirmarSelectorTemasSetlist()" disabled>Agregar</button>
     </div>
   </div>
 </div>
@@ -9372,12 +9461,17 @@ function abrirEditorSetlist(setlistId){
   if(ov) ov.classList.add('abierto');
 }
 function cerrarEditorSetlist(){
+  _guardarOrdenSetlistPendiente(); // v3.296: no perder un reorden recien hecho
   const ov = document.getElementById('sheetSetlistEditorOverlay');
   if(ov) ov.classList.remove('abierto');
   setlistEditorId = null;
   renderizarSheetSetlists();
 }
+// v3.297: arrastre en curso (null si no hay). Declarado antes de su primer uso.
+let _arrastreSetlist = null;
 function renderizarEditorSetlist(){
+  // v3.297: no redibujar mientras se arrastra (se redibuja al soltar)
+  if(_arrastreSetlist) return;
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
   const lista = document.getElementById('sheetSetlistEditorLista');
   const titulo = document.getElementById('sheetSetlistEditorTitulo');
@@ -9396,25 +9490,32 @@ function renderizarEditorSetlist(){
   // v3.294: el boton de copiar link solo aparece cuando la lista ya esta compartida
   const btnCopiarLinkLista = document.getElementById('sheetSetlistCopiarLinkBtn');
   if(btnCopiarLinkLista) btnCopiarLinkLista.style.display = sl.compartido === true ? '' : 'none';
-  // incluidos, en el orden guardado (con reorden ↑↓); después, los que
-  // faltan agregar, alfabético (mismo orden que ya usa misTemas).
+  // v3.296: el editor muestra SOLO los temas de la lista, en el orden guardado
+  // (reorden con ↑↓). Agregar se hace desde el selector (abrirSelectorTemasSetlist).
   const incluidos = idsIncluidos.map(id => (misTemas || []).find(t => t.id === id)).filter(Boolean);
-  const fueraIds = new Set(idsIncluidos);
-  const fuera = (misTemas || []).filter(t => !fueraIds.has(t.id));
-  const filasIncluidos = incluidos.map((t, i) => `
-    <div class="setlist-fila">
-      <button onclick="moverTemaEnSetlist(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
-      <button onclick="moverTemaEnSetlist(${i}, 1)" ${i === incluidos.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
-      <span class="setlist-fila-nombre">${i + 1}. ${escapeHtml(t.nombre || 'Tema')}</span>
-      <button class="quitar" onclick="quitarTemaDeSetlist('${t.id}')" title="Quitar de la lista">✕</button>
-    </div>`).join('');
-  const filasFuera = fuera.map(t => `
-    <div class="setlist-fila fuera">
-      <span class="setlist-fila-nombre">${escapeHtml(t.nombre || 'Tema')}</span>
-      <button class="agregar" onclick="agregarTemaASetlist('${t.id}')">+ Agregar</button>
-    </div>`).join('');
-  lista.innerHTML = (filasIncluidos || '') + (incluidos.length && fuera.length ? '<div style="height:8px;"></div>' : '') + filasFuera
-    || '<div class="sheet-opcion-vacia">Todavía no subiste ningún tema.</div>';
+  const idsEnLista = new Set(idsIncluidos);
+  const hayFuera = (misTemas || []).some(t => !idsEnLista.has(t.id));
+  const btnAgregar = document.getElementById('sheetSetlistAgregarBtn');
+  if(btnAgregar){
+    btnAgregar.disabled = !hayFuera;
+    btnAgregar.title = hayFuera ? '' : 'Todos tus temas ya están en esta lista';
+  }
+  const scrollPrev = lista.scrollTop;
+  lista.innerHTML = incluidos.map((t, i) => `
+    <div class="setlist-fila incluido">
+      <span class="setlist-asa" role="button" aria-label="Arrastrar para reordenar" title="Arrastrar para reordenar" onpointerdown="iniciarArrastreSetlist(event, ${i})">≡</span>
+      <button onclick="moverTemaEnSetlist(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Subir" aria-label="Subir">↑</button>
+      <button onclick="moverTemaEnSetlist(${i}, 1)" ${i === incluidos.length - 1 ? 'disabled' : ''} title="Bajar" aria-label="Bajar">↓</button>
+      <span class="setlist-fila-info">
+        <span class="setlist-fila-nombre">${i + 1}. ${escapeHtml(t.nombre || 'Tema')}</span>
+        <span class="setlist-fila-meta">${escapeHtml(_metaTemaSetlist(t))}</span>
+      </span>
+      <button class="quitar" onclick="quitarTemaDeSetlist('${t.id}')" title="Quitar de la lista" aria-label="Quitar de la lista">✕</button>
+    </div>`).join('')
+    || (!(misTemas || []).length
+      ? '<div class="sheet-opcion-vacia">Todavía no subiste ningún tema.</div>'
+      : '<div class="sheet-opcion-vacia">Esta lista está vacía. Toca «+ Agregar temas».</div>');
+  lista.scrollTop = scrollPrev;
 }
 async function _guardarTemaIdsSetlist(nuevosIds, extra){
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
@@ -9424,9 +9525,11 @@ async function _guardarTemaIdsSetlist(nuevosIds, extra){
     sl.temaIds = nuevosIds;
     if(extra) Object.assign(sl, extra);
     renderizarEditorSetlist();
+    return true;
   }catch(err){
     console.error('No se pudo actualizar la lista:', err);
     mostrarToast('No se pudo guardar el cambio en la lista. Intenta de nuevo.', 'error');
+    return false;
   }
 }
 async function agregarTemaASetlist(temaId){
@@ -9449,6 +9552,135 @@ async function agregarTemaASetlist(temaId){
   }
   _guardarTemaIdsSetlist(ids, extra);
 }
+// ============ v3.296: selector para agregar varios temas a la lista ============
+function _metaTemaSetlist(t){
+  const p = [];
+  if(t.categoria) p.push(t.categoria);
+  if(t.bpm === 0 || t.bpm) p.push(t.bpm + ' BPM');
+  if(t.tonalidad) p.push(t.tonalidad);
+  if(temaEstaOffline(t)) p.push('offline ✓');
+  return p.join(' · ');
+}
+let _selSetlistTemas = new Set();
+function _temasDisponiblesSelectorSetlist(){
+  const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
+  if(!sl) return [];
+  const enLista = new Set(sl.temaIds || []);
+  const q = normalizarTxtPractica((document.getElementById('selSetlistBuscar') || {}).value);
+  const cat = (document.getElementById('selSetlistCategoria') || {}).value || '';
+  return (misTemas || []).filter(t =>
+    !enLista.has(t.id)
+    && (!cat || (t.categoria || '') === cat)
+    && (!q || normalizarTxtPractica(t.nombre).includes(q)));
+}
+function abrirSelectorTemasSetlist(){
+  const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
+  if(!sl) return;
+  _selSetlistTemas = new Set();
+  const buscar = document.getElementById('selSetlistBuscar');
+  if(buscar) buscar.value = '';
+  const enLista = new Set(sl.temaIds || []);
+  const cats = Array.from(new Set((misTemas || []).filter(t => !enLista.has(t.id)).map(t => (t.categoria || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const sel = document.getElementById('selSetlistCategoria');
+  if(sel) sel.innerHTML = '<option value="">Todas las categorías</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  renderizarSelectorTemasSetlist();
+  const ov = document.getElementById('sheetSetlistSelectorOverlay');
+  if(ov) ov.classList.add('abierto');
+}
+function cerrarSelectorTemasSetlist(){
+  const ov = document.getElementById('sheetSetlistSelectorOverlay');
+  if(ov) ov.classList.remove('abierto');
+  _selSetlistTemas = new Set();
+}
+function renderizarSelectorTemasSetlist(){
+  const lista = document.getElementById('selSetlistLista');
+  if(!lista) return;
+  const visibles = _temasDisponiblesSelectorSetlist();
+  const check = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+  lista.innerHTML = visibles.map(t => {
+    const activo = _selSetlistTemas.has(t.id);
+    return `<button type="button" class="sel-setlist-fila${activo ? ' activo' : ''}" data-tema="${t.id}" aria-pressed="${activo}">
+      <span class="setlist-fila-info">
+        <span class="setlist-fila-nombre">${escapeHtml(t.nombre || 'Tema')}</span>
+        <span class="setlist-fila-meta">${escapeHtml(_metaTemaSetlist(t))}</span>
+      </span>
+      <span class="sel-setlist-check" aria-hidden="true">${check}</span>
+    </button>`;
+  }).join('') || `<div class="sheet-opcion-vacia">${
+    (misTemas || []).some(t => !((misSetlists || []).find(s => s.id === setlistEditorId) || {temaIds: []}).temaIds.includes(t.id))
+      ? 'Ningún tema coincide con la búsqueda.'
+      : 'Todos tus temas ya están en esta lista.'}</div>`;
+  lista.scrollTop = 0;
+  _actualizarBarraSelectorSetlist();
+}
+function _actualizarBarraSelectorSetlist(){
+  const visibles = _temasDisponiblesSelectorSetlist();
+  const n = _selSetlistTemas.size;
+  const conteo = document.getElementById('selSetlistConteo');
+  if(conteo) conteo.textContent = `${visibles.length} disponible${visibles.length === 1 ? '' : 's'}` + (n ? ` · ${n} elegido${n === 1 ? '' : 's'}` : '');
+  const btn = document.getElementById('selSetlistConfirmarBtn');
+  if(btn){
+    btn.disabled = n === 0;
+    btn.textContent = n ? `Agregar (${n})` : 'Agregar';
+  }
+  const bv = document.getElementById('selSetlistVisiblesBtn');
+  if(bv){
+    const todosElegidos = visibles.length > 0 && visibles.every(t => _selSetlistTemas.has(t.id));
+    bv.textContent = todosElegidos ? 'Quitar visibles' : 'Elegir visibles';
+    bv.disabled = visibles.length === 0;
+  }
+}
+function onClickSelectorTemasSetlist(ev){
+  const el = ev.target.closest('[data-tema]');
+  if(!el) return;
+  const id = el.dataset.tema;
+  if(_selSetlistTemas.has(id)) _selSetlistTemas.delete(id); else _selSetlistTemas.add(id);
+  const activo = _selSetlistTemas.has(id);
+  el.classList.toggle('activo', activo);
+  el.setAttribute('aria-pressed', String(activo));
+  _actualizarBarraSelectorSetlist();
+}
+function elegirVisiblesSelectorSetlist(){
+  const visibles = _temasDisponiblesSelectorSetlist();
+  if(!visibles.length) return;
+  const todosElegidos = visibles.every(t => _selSetlistTemas.has(t.id));
+  visibles.forEach(t => { if(todosElegidos) _selSetlistTemas.delete(t.id); else _selSetlistTemas.add(t.id); });
+  const lista = document.getElementById('selSetlistLista');
+  const scrollPrev = lista ? lista.scrollTop : 0;
+  renderizarSelectorTemasSetlist();
+  if(lista) lista.scrollTop = scrollPrev;
+}
+async function confirmarSelectorTemasSetlist(){
+  const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
+  if(!sl) return;
+  const yaEnLista = new Set(sl.temaIds || []);
+  const nuevos = Array.from(_selSetlistTemas).filter(id => !yaEnLista.has(id) && (misTemas || []).some(t => t.id === id));
+  if(!nuevos.length) return;
+  const btn = document.getElementById('selSetlistConfirmarBtn');
+  if(btn) btn.disabled = true;
+  const ids = (sl.temaIds || []).concat(nuevos);
+  // misma regla que agregarTemaASetlist: en una lista compartida, los temas
+  // nuevos se comparten solos (un solo registro para todos los nuevos).
+  let extra = null;
+  if(sl.compartido === true){
+    try{
+      const registrados = await _compartirTemasParaLista(sl, nuevos);
+      extra = { temasCompartidosPorLista: Array.from(new Set((sl.temasCompartidosPorLista || []).concat(registrados))) };
+    }catch(err){
+      console.error('No se pudieron compartir los temas agregados a la lista:', err);
+      mostrarToast('No se pudieron compartir los temas nuevos de la lista. Intenta de nuevo.', 'error');
+      _actualizarBarraSelectorSetlist();
+      return;
+    }
+  }
+  const ok = await _guardarTemaIdsSetlist(ids, extra);
+  if(ok){
+    cerrarSelectorTemasSetlist();
+    mostrarToast(`${nuevos.length} tema${nuevos.length === 1 ? '' : 's'} agregado${nuevos.length === 1 ? '' : 's'} a la lista.`, 'info');
+  }else{
+    _actualizarBarraSelectorSetlist();
+  }
+}
 async function quitarTemaDeSetlist(temaId){
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
   if(!sl) return;
@@ -9467,6 +9699,102 @@ async function quitarTemaDeSetlist(temaId){
   }
   _guardarTemaIdsSetlist((sl.temaIds || []).filter(id => id !== temaId), extra);
 }
+// ============ v3.297: arrastrar con asa (≡) para reordenar ============
+// Solo el asa (touch-action:none) inicia el gesto. La fila arrastrada sigue
+// al dedo con transform; las demas se desplazan un paso para abrir el hueco.
+// No se toca el DOM ni sl.temaIds hasta soltar: ahi se aplica UN movimiento
+// y se programa UN guardado (igual que ↑↓).
+function iniciarArrastreSetlist(ev, indice){
+  if(_arrastreSetlist) return;
+  if(ev.pointerType === 'mouse' && ev.button !== 0) return;
+  const lista = document.getElementById('sheetSetlistEditorLista');
+  const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
+  if(!lista || !sl) return;
+  const filas = Array.from(lista.querySelectorAll('.setlist-fila.incluido'));
+  const fila = filas[indice];
+  if(!fila || filas.length < 2) return;
+  ev.preventDefault();
+  const asa = ev.currentTarget;
+  try{ asa.setPointerCapture(ev.pointerId); }catch(e){}
+  const step = filas[1].offsetTop - filas[0].offsetTop;
+  _arrastreSetlist = {
+    asa, pointerId: ev.pointerId, lista, filas, fila, slId: sl.id, desde: indice, hasta: indice,
+    step: step > 0 ? step : fila.offsetHeight + 6,
+    startY: ev.clientY, startScroll: lista.scrollTop, y: ev.clientY, raf: 0
+  };
+  fila.classList.add('arrastrando');
+  lista.classList.add('arrastrando-lista');
+  asa.addEventListener('pointermove', _moverArrastreSetlist);
+  asa.addEventListener('pointerup', _soltarArrastreSetlist);
+  asa.addEventListener('pointercancel', _cancelarArrastreSetlist);
+  _arrastreSetlist.raf = requestAnimationFrame(_autoscrollArrastreSetlist);
+}
+function _aplicarArrastreSetlist(){
+  const a = _arrastreSetlist;
+  if(!a) return;
+  const n = a.filas.length;
+  let dy = (a.y - a.startY) + (a.lista.scrollTop - a.startScroll);
+  dy = Math.max(-a.desde * a.step, Math.min((n - 1 - a.desde) * a.step, dy));
+  a.fila.style.transform = 'translateY(' + dy + 'px)';
+  const hasta = Math.max(0, Math.min(n - 1, Math.round(a.desde + dy / a.step)));
+  a.hasta = hasta;
+  a.filas.forEach((f, j) => {
+    if(j === a.desde) return;
+    let t = 0;
+    if(a.desde < hasta && j > a.desde && j <= hasta) t = -a.step;
+    else if(a.desde > hasta && j >= hasta && j < a.desde) t = a.step;
+    f.style.transform = t ? 'translateY(' + t + 'px)' : '';
+  });
+}
+function _moverArrastreSetlist(ev){
+  const a = _arrastreSetlist;
+  if(!a || ev.pointerId == null) return;
+  a.y = ev.clientY;
+  _aplicarArrastreSetlist();
+}
+// autoscroll de la lista cuando el dedo se acerca al borde superior/inferior
+function _autoscrollArrastreSetlist(){
+  const a = _arrastreSetlist;
+  if(!a) return;
+  const r = a.lista.getBoundingClientRect();
+  const borde = 48;
+  let v = 0;
+  if(a.y < r.top + borde) v = -Math.min(18, Math.ceil((r.top + borde - a.y) / 5));
+  else if(a.y > r.bottom - borde) v = Math.min(18, Math.ceil((a.y - (r.bottom - borde)) / 5));
+  if(v){
+    const antes = a.lista.scrollTop;
+    a.lista.scrollTop = antes + v;
+    if(a.lista.scrollTop !== antes) _aplicarArrastreSetlist();
+  }
+  a.raf = requestAnimationFrame(_autoscrollArrastreSetlist);
+}
+function _terminarArrastreSetlist(aplicar){
+  const a = _arrastreSetlist;
+  if(!a) return;
+  _arrastreSetlist = null;
+  cancelAnimationFrame(a.raf);
+  a.asa.removeEventListener('pointermove', _moverArrastreSetlist);
+  a.asa.removeEventListener('pointerup', _soltarArrastreSetlist);
+  a.asa.removeEventListener('pointercancel', _cancelarArrastreSetlist);
+  try{ a.asa.releasePointerCapture(a.pointerId); }catch(e){}
+  a.fila.classList.remove('arrastrando');
+  a.lista.classList.remove('arrastrando-lista');
+  a.filas.forEach(f => { f.style.transform = ''; });
+  if(aplicar && a.hasta !== a.desde){
+    const sl = (misSetlists || []).find(s => s.id === a.slId);
+    if(sl && sl.id === setlistEditorId){
+      const ids = (sl.temaIds || []).slice();
+      const movido = ids.splice(a.desde, 1)[0];
+      ids.splice(a.hasta, 0, movido);
+      sl.temaIds = ids;
+      _programarGuardadoOrdenSetlist(sl.id);
+    }
+  }
+  renderizarEditorSetlist();
+}
+function _soltarArrastreSetlist(){ _terminarArrastreSetlist(true); }
+function _cancelarArrastreSetlist(){ _terminarArrastreSetlist(false); }
+
 function moverTemaEnSetlist(indice, delta){
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
   if(!sl) return;
@@ -9474,8 +9802,38 @@ function moverTemaEnSetlist(indice, delta){
   const destino = indice + delta;
   if(destino < 0 || destino >= ids.length) return;
   [ids[indice], ids[destino]] = [ids[destino], ids[indice]];
-  _guardarTemaIdsSetlist(ids);
+  // v3.296: optimista - el orden cambia al instante y se guarda UNA vez al
+  // dejar de mover (antes: una escritura + redibujado por cada toque).
+  sl.temaIds = ids;
+  renderizarEditorSetlist();
+  _programarGuardadoOrdenSetlist(sl.id);
 }
+let _timerGuardarOrdenSetlist = null;
+let _ordenSetlistPendienteId = null;
+function _programarGuardadoOrdenSetlist(setlistId){
+  _ordenSetlistPendienteId = setlistId;
+  clearTimeout(_timerGuardarOrdenSetlist);
+  _timerGuardarOrdenSetlist = setTimeout(_guardarOrdenSetlistPendiente, 700);
+}
+async function _guardarOrdenSetlistPendiente(){
+  clearTimeout(_timerGuardarOrdenSetlist);
+  _timerGuardarOrdenSetlist = null;
+  const id = _ordenSetlistPendienteId;
+  if(!id) return;
+  _ordenSetlistPendienteId = null;
+  const sl = (misSetlists || []).find(s => s.id === id);
+  if(!sl) return;
+  try{
+    await db.collection('SETLISTS2').doc(id).set({ temaIds: sl.temaIds || [] }, { merge: true });
+  }catch(err){
+    console.error('No se pudo guardar el nuevo orden de la lista:', err);
+    mostrarToast('No se pudo guardar el nuevo orden. Intenta de nuevo.', 'error');
+  }
+}
+// si la pagina se oculta con un orden sin guardar, se intenta guardar ya
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'hidden') _guardarOrdenSetlistPendiente();
+});
 function practicarDesdeSetlist(){
   const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
   if(!sl || !(sl.temaIds || []).length) return;
@@ -9558,12 +9916,12 @@ async function compartirSetlistActual(){
     sl.compartido = true;
     sl.temasCompartidosPorLista = registro;
     renderizarEditorSetlist();
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      await navigator.clipboard.writeText(link);
-      mostrarToast('Lista compartida. Link copiado al portapapeles.', 'info');
-    }else{
-      prompt('Lista compartida. Copia este link:', link);
-    }
+    // v3.297: la lista YA quedo compartida. Copiar es un extra: si el
+    // portapapeles falla (celular, gesto perdido tras el await) no es error;
+    // el cuadro con el link siempre se abre para copiar con un toque nuevo.
+    const copiado = await _copiarLinkIntentar(link);
+    mostrarToast(copiado ? 'Lista compartida. Link copiado.' : 'Lista compartida.', 'info');
+    mostrarLinkSetlist(link);
   }catch(err){
     console.error('No se pudo compartir la lista:', err);
     mostrarToast('No se pudo compartir la lista. Intenta de nuevo.', 'error');
@@ -9577,7 +9935,61 @@ function copiarLinkSetlistActual(){
   if(!sl || sl.compartido !== true) return;
   const base = location.href.replace(/ensayo\.html.*$/, 'compartir.html');
   const link = base + '?lista=' + encodeURIComponent(sl.id);
-  _copiarTextoPendiente(link, 'Link copiado al portapapeles.');
+  // v3.297: copiar directo (el toque es inmediato); si falla, cuadro con el link
+  _copiarLinkIntentar(link).then(ok => {
+    if(ok) mostrarToast('Link copiado al portapapeles.');
+    else mostrarLinkSetlist(link);
+  });
+}
+
+// ---- v3.297: helpers de copiado y cuadro del link ----
+function _copiarLinkLegacy(texto){
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = texto;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0'; ta.style.fontSize = '16px';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{ ta.setSelectionRange(0, texto.length); }catch(e){}
+    const hecho = document.execCommand('copy');
+    ta.remove();
+    return !!hecho;
+  }catch(e){ return false; }
+}
+function _copiarLinkIntentar(texto){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(texto).then(() => true, () => _copiarLinkLegacy(texto));
+    }
+  }catch(e){}
+  return Promise.resolve(_copiarLinkLegacy(texto));
+}
+function mostrarLinkSetlist(link){
+  const ov = document.getElementById('sheetSetlistLinkOverlay');
+  const inp = document.getElementById('linkListaInput');
+  if(!ov || !inp){ prompt('Copia este link:', link); return; }
+  inp.value = link;
+  ov.classList.add('abierto');
+  setTimeout(() => {
+    try{ inp.focus(); inp.select(); inp.setSelectionRange(0, link.length); }catch(e){}
+  }, 60);
+}
+function cerrarLinkSetlist(){
+  const ov = document.getElementById('sheetSetlistLinkOverlay');
+  if(ov) ov.classList.remove('abierto');
+}
+async function copiarDesdeCuadroLinkSetlist(){
+  const inp = document.getElementById('linkListaInput');
+  if(!inp || !inp.value) return;
+  const ok = await _copiarLinkIntentar(inp.value);
+  if(ok){
+    mostrarToast('Link copiado al portapapeles.');
+    cerrarLinkSetlist();
+  }else{
+    try{ inp.focus(); inp.select(); inp.setSelectionRange(0, inp.value.length); }catch(e){}
+    mostrarToast('No se pudo copiar solo. El link quedó seleccionado: cópialo con el menú del teléfono.', 'error');
+  }
 }
 
 // ---- integración con la práctica: ◀ ▶ dentro de una lista activa ----
