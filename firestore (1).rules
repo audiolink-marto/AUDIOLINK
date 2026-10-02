@@ -501,6 +501,27 @@ rules_version = '2';
 // hace un where('dueño','==',correo). No se tocó ninguna otra regla,
 // colección, match ni condición existente — todavía NO se abre lectura
 // pública para compartir listas (eso va en una entrega aparte).
+//
+// v2.39 (compartir listas — ensayo.html v3.247 / compartir.html v1.5): se
+// agrega a /SETLISTS2 una lectura pública PUNTUAL (solo `get`, nunca
+// `list`, así no se pueden enumerar listas) cuando el doc tiene
+// compartido == true — mismo patrón y misma idea de "el ID hace de
+// secreto" que ya usa /GUIAS2 (v1.2) para compartir un tema. Las reglas
+// de dueño de v2.38 quedan intactas; esta es una condición adicional en
+// paralelo (OR). Los temas de la lista se leen con la regla que ya
+// existe en GUIAS2 (compartido == true): ensayo.html los marca al
+// compartir la lista.
+//
+// v2.40 (ensayo.html v3.293 — pendientes de Cloudinary): se agrega el
+// bloque /CLOUDINARY_PENDIENTES/{pendienteId} — colección nueva donde
+// ensayo.html anota los audios y PDFs de guía que quedan huérfanos en
+// Cloudinary (tema borrado, categoría borrada con PDF, PDF reemplazado),
+// para limpiarlos a mano desde la consola de Cloudinary. MISMO PATRÓN
+// EXACTO de dueño que GUIAS2/CATEGORIAS2/SETLISTS2 (correo de Firebase
+// Auth contra el campo 'dueño', notación de corchetes por la 'ñ').
+// `read` cubre get+list porque el modal hace un where('dueño','==',correo).
+// Sin componente público. No se tocó ninguna otra regla, función,
+// condición, match ni colección existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -1391,6 +1412,19 @@ service cloud.firestore {
     // Listas ordenadas de temas de práctica por usuario: {dueño, nombre,
     // temaIds:[...], creado}. Mismo patrón de dueño que GUIAS2/CATEGORIAS2.
     match /SETLISTS2/{setlistId} {
+      allow read: if request.auth != null && request.auth.token.email == resource.data['dueño'];
+      allow create: if request.auth != null && request.auth.token.email == request.resource.data['dueño'];
+      allow update, delete: if request.auth != null && request.auth.token.email == resource.data['dueño'];
+      // v2.39: lectura pública puntual para compartir.html?lista=ID
+      allow get: if resource.data.compartido == true;
+    }
+
+    // ---------- CLOUDINARY_PENDIENTES (v2.40 — ensayo.html v3.293) ----------
+    // Archivos de Cloudinary que quedaron huérfanos y esperan limpieza
+    // manual: {dueño, tipo ('audio'|'pdf'), publicId, resourceType, url,
+    // nombre, motivo, limpiado, creado}. Mismo patrón de dueño que
+    // GUIAS2/CATEGORIAS2/SETLISTS2; sin lectura pública.
+    match /CLOUDINARY_PENDIENTES/{pendienteId} {
       allow read: if request.auth != null && request.auth.token.email == resource.data['dueño'];
       allow create: if request.auth != null && request.auth.token.email == request.resource.data['dueño'];
       allow update, delete: if request.auth != null && request.auth.token.email == resource.data['dueño'];

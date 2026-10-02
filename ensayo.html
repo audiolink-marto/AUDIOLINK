@@ -10,8 +10,41 @@
 <meta name="apple-mobile-web-app-title" content="AUDIOLINK Ensayo">
 <link rel="apple-touch-icon" href="logo/apple-touch-icon.png">
 <meta property="og:image" content="https://audiolink-marto.github.io/AUDIOLINK/logo/logo-circular-512.png">
-<title>Audiolink — Ensayo v3.292</title>
-<!-- AUDIOLINK · ensayo.html · v3.292
+<title>Audiolink — Ensayo v3.295</title>
+<!-- AUDIOLINK · ensayo.html · v3.295
+     v3.295: (a pedido) los botones del editor de lista pasan al lenguaje
+     visual del resto del panel: cuadrados 44x44 solo-icono (.practica-click-btn),
+     SVG de trazo (currentColor, igual que los pads de CUE/loop) y estado
+     .activo dorado. Practicar, Guardar en dispositivo, Compartir, Copiar link
+     (solo si la lista esta compartida) y Cerrar; Compartir queda .activo
+     cuando la lista esta compartida. El nombre completo pasa a title y
+     aria-label. El progreso de 'Guardar lista' (antes texto) ahora muestra
+     'i/n' dentro del cuadrado y restaura el icono al terminar. Los ids y
+     los onclick no cambian: solo markup, un CSS escopeado (.lista-acciones)
+     y 2 retoques en renderizarEditorSetlist() y guardarSetlistOffline().
+     v3.294: (a pedido) boton "Copiar link" en el editor de lista. Antes, para
+     volver a obtener el link de una lista ya compartida habia que revocarla
+     y compartirla de nuevo (con 'Compartida' solo se ofrece revocar). Ahora,
+     cuando la lista esta compartida, aparece un boton "Copiar link" a ancho
+     completo (mismo estilo que "Guardar lista en este dispositivo"), que
+     copia el mismo link compartir.html?lista=ID sin tocar el estado de
+     compartido. Solo aditivo: compartirSetlistActual() (compartir/revocar)
+     queda exactamente igual.
+     v3.293: (a pedido) pendientes de Cloudinary. Al borrar un tema, borrar
+     una categoria con PDF de guia o reemplazar el PDF de una categoria,
+     el archivo queda huerfano en Cloudinary (desde el navegador no se
+     puede borrar: hace falta la API secret). Ahora cada caso deja un
+     registro en la coleccion nueva CLOUDINARY_PENDIENTES (dueno,
+     tipo, publicId, resourceType, motivo, fecha, limpiado) y un modal
+     nuevo, abierto desde Respaldo > "Pendientes de Cloudinary", los
+     lista con "Copiar ID", "Marcar limpiado", "Copiar todos los
+     pendientes" y "Vaciar limpiados". El audio solo se registra si
+     ningun otro tema usa la misma URL (los duplicados la comparten).
+     El registro NUNCA bloquea ni retrasa el borrado: si falla, queda en
+     consola. Solo aditivo: borrarTema, borrarCategoriaDesdeSheet y
+     guardarGuiaPdfEnCategoria conservan su logica y suman una llamada.
+     Lo borrado antes de esta version no se puede recuperar. Requiere
+     regla nueva en firestore.rules para CLOUDINARY_PENDIENTES.
      v3.292: (a pedido) el sprite del dial en los 3 lugares "Cargando"
      queda centrado y con el texto DEBAJO (antes el texto quedaba al
      lado porque .al-dial es inline-block y margin:auto no lo centra).
@@ -347,6 +380,17 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 /* v3.188: fila del selector rápido de tema (sheet ⇄). Mismo lenguaje
    que .sheet-opcion, con una segunda línea de metadatos apagada. */
 .sheet-tema-opcion{width:100%;text-align:left;min-height:52px;padding:8px 14px;border-radius:10px;border:1px solid var(--brd);background:var(--surf-light);color:var(--txt);font-size:0.92rem;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;}
+/* v3.293: modal de pendientes de Cloudinary (reusa .sheet-*) */
+.pend-fila{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:10px;border:1px solid var(--brd);background:var(--surf-light);}
+.pend-fila.limpiado{opacity:.5;}
+.pend-fila.limpiado .pend-nombre{text-decoration:line-through;}
+.pend-nombre{font-size:.9rem;color:var(--txt);word-break:break-word;}
+.pend-meta{font-size:.74rem;color:var(--muted);}
+.pend-id{font-family:ui-monospace,Consolas,monospace;font-size:.74rem;color:var(--muted);word-break:break-all;}
+.pend-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+.pend-btns button{min-height:34px;padding:4px 10px;font-size:.78rem;border-radius:8px;}
+.pend-vacio{color:var(--muted);font-size:.85rem;padding:14px 4px;text-align:center;}
+.pend-aviso{color:var(--muted);font-size:.74rem;padding:2px 4px 8px;}
 .sheet-tema-opcion .sheet-tema-meta{font-size:0.74rem;color:var(--muted);}
 .sheet-tema-opcion.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);cursor:default;}
 .sheet-tema-opcion.activo .sheet-tema-meta{color:var(--gold);opacity:0.8;}
@@ -661,6 +705,13 @@ main{padding:28px;max-width:760px;margin:0 auto;}
 .practica-click-btn.tono-offset-btn:disabled{opacity:.4;cursor:not-allowed;}
 .practica-click-btn:active{transform:scale(0.94);}
 .practica-click-btn.activo{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+/* v3.295: fila de acciones del editor de lista - mismos pads cuadrados solo-icono
+   (.practica-click-btn) con SVG de trazo; escopeado para no tocar otros usos. */
+.lista-acciones .practica-click-btn{display:flex;align-items:center;justify-content:center;padding:0;width:44px;height:44px;flex:0 0 auto;}
+.lista-acciones .practica-click-btn svg{display:block;}
+.lista-acciones .practica-click-btn:disabled{opacity:.4;cursor:not-allowed;}
+.lista-acciones .lista-btn-primario{border-color:var(--gold);color:var(--gold);}
+.lista-btn-prog{font-size:0.68rem;font-weight:700;font-family:var(--M);}
 /* v3.275: (a pedido) separa visualmente el botón de ajustes avanzados
    (⚙️) del grupo click/clave/Vol — antes se leía como "un botón más"
    de la fila, sin nada que indicara que abre un panel aparte. */
@@ -1516,11 +1567,13 @@ body{min-height:100dvh;}
   <div class="sheet-box" onclick="event.stopPropagation()">
     <h3 id="sheetSetlistEditorTitulo">Editar lista</h3>
     <div class="sheet-lista" id="sheetSetlistEditorLista"></div>
-    <button type="button" class="btn-ghost" id="sheetSetlistOfflineBtn" style="width:100%;margin-top:10px;" onclick="guardarSetlistOffline()" title="Guarda el audio de todos los temas de la lista en este dispositivo">📥 Guardar lista en este dispositivo</button>
-    <div class="sheet-acciones">
-      <button type="button" class="btn" id="sheetSetlistPracticarBtn" onclick="practicarDesdeSetlist()">▶ Practicar</button>
-      <button type="button" class="btn-ghost" id="sheetSetlistCompartirBtn" onclick="compartirSetlistActual()" title="Compartir esta lista con alguien sin cuenta">🔗 Compartir</button>
-      <button type="button" class="btn-ghost" onclick="cerrarEditorSetlist()">Cerrar</button>
+    <!-- v3.295: acciones del editor de lista - pads cuadrados solo-icono (.practica-click-btn) -->
+    <div class="sheet-acciones lista-acciones">
+      <button type="button" class="practica-click-btn lista-btn-primario" id="sheetSetlistPracticarBtn" onclick="practicarDesdeSetlist()" title="Practicar la lista" aria-label="Practicar la lista"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="7,4 20,12 7,20" fill="currentColor"/></svg></button>
+      <button type="button" class="practica-click-btn" id="sheetSetlistOfflineBtn" onclick="guardarSetlistOffline()" title="Guardar la lista en este dispositivo (audio de todos los temas)" aria-label="Guardar la lista en este dispositivo"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg></button>
+      <button type="button" class="practica-click-btn" id="sheetSetlistCompartirBtn" onclick="compartirSetlistActual()" title="Compartir esta lista con alguien sin cuenta" aria-label="Compartir esta lista"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg></button>
+      <button type="button" class="practica-click-btn" id="sheetSetlistCopiarLinkBtn" style="display:none;" onclick="copiarLinkSetlistActual()" title="Copiar el link de esta lista compartida (no la revoca)" aria-label="Copiar el link de la lista"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg></button>
+      <button type="button" class="practica-click-btn" onclick="cerrarEditorSetlist()" title="Cerrar" aria-label="Cerrar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
   </div>
 </div>
@@ -1543,12 +1596,33 @@ body{min-height:100dvh;}
         <span>⬆️ Importar JSON</span>
         <span class="sheet-tema-meta">Crea los temas que falten y actualiza (BPM/secciones/offset/categoría) los que ya existan por nombre. No pisa el audio ya subido.</span>
       </button>
+      <!-- v3.293: abre el modal de archivos huerfanos de Cloudinary -->
+      <button type="button" class="sheet-tema-opcion" onclick="cerrarSheetRespaldo(); abrirSheetPendientesCloudinary()">
+        <span>🧹 Pendientes de Cloudinary</span>
+        <span class="sheet-tema-meta">Audios y PDFs de lo que borraste o reemplazaste, para limpiarlos a mano en Cloudinary.</span>
+      </button>
       <input type="file" id="inputImportarRespaldo" accept="application/json,.json" style="display:none;" onchange="onArchivoImportarElegido(this.files)">
       <div id="importarRespaldoEstado" style="display:none;color:var(--muted);font-size:0.82rem;padding:6px 4px;"></div>
     </div>
     <div class="sheet-acciones">
       <span></span>
       <button type="button" class="btn-ghost" onclick="cerrarSheetRespaldo()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- v3.293: pendientes de Cloudinary (archivos que quedaron huerfanos) -->
+<div class="sheet-overlay" id="sheetPendientesCloudOverlay" onclick="if(event.target===this) cerrarSheetPendientesCloudinary()">
+  <div class="sheet-box" onclick="event.stopPropagation()">
+    <h3>🧹 Pendientes de Cloudinary</h3>
+    <div class="pend-aviso">Estos archivos ya no los usa ningún tema, pero siguen en Cloudinary. Copia el ID, búscalo en la consola de Cloudinary y bórralo; luego márcalo como limpiado. Si un tema que compartiste usaba un PDF de aquí, dejará de mostrarlo.</div>
+    <div class="sheet-lista" id="pendientesCloudLista" onclick="onClickPendientesCloud(event)"></div>
+    <div class="sheet-acciones">
+      <span style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button type="button" class="btn-ghost" onclick="copiarTodosPendientesCloud()">Copiar todos los pendientes</button>
+        <button type="button" class="btn-ghost" onclick="vaciarLimpiadosCloud()">Vaciar limpiados</button>
+      </span>
+      <button type="button" class="btn-ghost" onclick="cerrarSheetPendientesCloudinary()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -9313,7 +9387,15 @@ function renderizarEditorSetlist(){
   const idsIncluidos = sl.temaIds || [];
   if(btnPracticar) btnPracticar.disabled = !idsIncluidos.length;
   const btnCompartirLista = document.getElementById('sheetSetlistCompartirBtn');
-  if(btnCompartirLista) btnCompartirLista.textContent = sl.compartido === true ? '🔗 Compartida' : '🔗 Compartir';
+  if(btnCompartirLista){
+    // v3.295: pad solo-icono - el estado va en .activo y en el tooltip, no en texto
+    const yaCompartida = sl.compartido === true;
+    btnCompartirLista.classList.toggle('activo', yaCompartida);
+    btnCompartirLista.title = yaCompartida ? 'Lista compartida (toca para revocar el acceso)' : 'Compartir esta lista con alguien sin cuenta';
+  }
+  // v3.294: el boton de copiar link solo aparece cuando la lista ya esta compartida
+  const btnCopiarLinkLista = document.getElementById('sheetSetlistCopiarLinkBtn');
+  if(btnCopiarLinkLista) btnCopiarLinkLista.style.display = sl.compartido === true ? '' : 'none';
   // incluidos, en el orden guardado (con reorden ↑↓); después, los que
   // faltan agregar, alfabético (mismo orden que ya usa misTemas).
   const incluidos = idsIncluidos.map(id => (misTemas || []).find(t => t.id === id)).filter(Boolean);
@@ -9488,6 +9570,16 @@ async function compartirSetlistActual(){
   }
 }
 
+// v3.294: copia el link de una lista que YA esta compartida, sin tocar su
+// estado (compartirSetlistActual() solo ofrece revocar en ese caso).
+function copiarLinkSetlistActual(){
+  const sl = (misSetlists || []).find(s => s.id === setlistEditorId);
+  if(!sl || sl.compartido !== true) return;
+  const base = location.href.replace(/ensayo\.html.*$/, 'compartir.html');
+  const link = base + '?lista=' + encodeURIComponent(sl.id);
+  _copiarTextoPendiente(link, 'Link copiado al portapapeles.');
+}
+
 // ---- integración con la práctica: ◀ ▶ dentro de una lista activa ----
 // v3.191: setlistActivaId se limpia cada vez que se abre un tema por
 // fuera de una lista (grilla, menú ⋮, restaurar tema al recargar) —
@@ -9617,6 +9709,163 @@ function abrirSheetRespaldo(){
 function cerrarSheetRespaldo(){
   const ov = document.getElementById('sheetRespaldoOverlay');
   if(ov) ov.classList.remove('abierto');
+}
+
+// ============ v3.293: PENDIENTES DE CLOUDINARY ============
+// Desde el navegador no se puede borrar en Cloudinary (hace falta la API
+// secret), asi que cada archivo que queda huerfano se anota en
+// CLOUDINARY_PENDIENTES y se limpia a mano desde la consola. El registro
+// es "fire and forget": nunca bloquea ni hace fallar el borrado.
+let _pendientesCloud = [];
+
+// public_id desde la URL de Cloudinary: lo que sigue a /upload/, sin el
+// segmento de version (v123...) y sin la extension.
+function _publicIdDesdeUrlCloudinary(url){
+  if(!url) return '';
+  try{
+    const sinQuery = String(url).split('?')[0];
+    const i = sinQuery.indexOf('/upload/');
+    if(i < 0) return '';
+    let resto = sinQuery.slice(i + 8).replace(/^v\d+\//, '');
+    resto = resto.replace(/\.[a-zA-Z0-9]{2,5}$/, '');
+    return decodeURIComponent(resto);
+  }catch(e){ return ''; }
+}
+
+// tipo: 'audio' | 'pdf'. Devuelve una promesa que nunca rechaza.
+function registrarHuerfanoCloudinary({ tipo, publicId, url, nombre, motivo }){
+  try{
+    if(!publicId) return Promise.resolve();
+    const correo = auth && auth.currentUser && auth.currentUser.email;
+    if(!correo) return Promise.resolve();
+    return db.collection('CLOUDINARY_PENDIENTES').add({
+      'dueño': correo,
+      tipo,
+      publicId,
+      resourceType: tipo === 'audio' ? 'video' : 'image',
+      url: url || '',
+      nombre: nombre || '',
+      motivo: motivo || '',
+      limpiado: false,
+      creado: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => { console.error('No se pudo registrar el pendiente de Cloudinary:', err); });
+  }catch(err){
+    console.error('No se pudo registrar el pendiente de Cloudinary:', err);
+    return Promise.resolve();
+  }
+}
+
+function abrirSheetPendientesCloudinary(){
+  const ov = document.getElementById('sheetPendientesCloudOverlay');
+  if(ov) ov.classList.add('abierto');
+  cargarPendientesCloud();
+}
+function cerrarSheetPendientesCloudinary(){
+  const ov = document.getElementById('sheetPendientesCloudOverlay');
+  if(ov) ov.classList.remove('abierto');
+}
+async function cargarPendientesCloud(){
+  const lista = document.getElementById('pendientesCloudLista');
+  if(lista) lista.innerHTML = '<div class="pend-vacio">Cargando…</div>';
+  try{
+    const correo = auth.currentUser && auth.currentUser.email;
+    const snap = await db.collection('CLOUDINARY_PENDIENTES').where('dueño', '==', correo).get();
+    _pendientesCloud = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _pendientesCloud.sort((a, b) => {
+      if(!!a.limpiado !== !!b.limpiado) return a.limpiado ? 1 : -1;
+      const ta = a.creado && a.creado.toMillis ? a.creado.toMillis() : 0;
+      const tb = b.creado && b.creado.toMillis ? b.creado.toMillis() : 0;
+      return tb - ta;
+    });
+    renderizarPendientesCloud();
+  }catch(err){
+    console.error('No se pudieron leer los pendientes de Cloudinary:', err);
+    if(lista) lista.innerHTML = '<div class="pend-vacio">No se pudieron cargar los pendientes. Revisa tu conexión y que la regla de CLOUDINARY_PENDIENTES esté publicada.</div>';
+  }
+}
+function renderizarPendientesCloud(){
+  const lista = document.getElementById('pendientesCloudLista');
+  if(!lista) return;
+  if(!_pendientesCloud.length){
+    lista.innerHTML = '<div class="pend-vacio">No hay nada pendiente. 🎉</div>';
+    return;
+  }
+  lista.innerHTML = _pendientesCloud.map(p => {
+    const fecha = (p.creado && p.creado.toDate) ? p.creado.toDate().toLocaleDateString() : '';
+    const icono = p.tipo === 'pdf' ? '📄' : '🎵';
+    const tipoTxt = p.tipo === 'pdf' ? 'PDF de guía (image)' : 'Audio (video)';
+    return `<div class="pend-fila${p.limpiado ? ' limpiado' : ''}">
+      <div class="pend-nombre">${icono} ${escapeHtml(p.nombre || '(sin nombre)')}</div>
+      <div class="pend-meta">${escapeHtml(tipoTxt)} · ${escapeHtml(p.motivo || '')}${fecha ? ' · ' + escapeHtml(fecha) : ''}</div>
+      <div class="pend-id">${escapeHtml(p.publicId || '')}</div>
+      <div class="pend-btns">
+        <button type="button" class="btn-ghost" data-pend="copiar" data-id="${p.id}">Copiar ID</button>
+        ${p.limpiado ? '' : `<button type="button" class="btn-ghost" data-pend="limpiado" data-id="${p.id}">✓ Marcar limpiado</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+function onClickPendientesCloud(ev){
+  const el = ev.target.closest('[data-pend]');
+  if(!el) return;
+  const p = _pendientesCloud.find(x => x.id === el.dataset.id);
+  if(!p) return;
+  if(el.dataset.pend === 'copiar') _copiarTextoPendiente(p.publicId, 'ID copiado');
+  else if(el.dataset.pend === 'limpiado') marcarPendienteLimpiado(p.id);
+}
+function _copiarTextoPendiente(texto, mensajeOk){
+  const ok = () => mostrarToast(mensajeOk || 'Copiado');
+  const falla = () => mostrarToast('No se pudo copiar. Selecciona el texto a mano.', 'error');
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(texto).then(ok, falla);
+      return;
+    }
+  }catch(e){}
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = texto; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    const hecho = document.execCommand('copy');
+    ta.remove();
+    hecho ? ok() : falla();
+  }catch(e){ falla(); }
+}
+function copiarTodosPendientesCloud(){
+  const ids = _pendientesCloud.filter(p => !p.limpiado).map(p => p.publicId).filter(Boolean);
+  if(!ids.length){ mostrarToast('No hay pendientes para copiar'); return; }
+  _copiarTextoPendiente(ids.join('\n'), `${ids.length} ID(s) copiados`);
+}
+async function marcarPendienteLimpiado(id){
+  try{
+    await db.collection('CLOUDINARY_PENDIENTES').doc(id).set({ limpiado: true }, { merge: true });
+    const p = _pendientesCloud.find(x => x.id === id);
+    if(p) p.limpiado = true;
+    _pendientesCloud.sort((a, b) => (a.limpiado === b.limpiado) ? 0 : (a.limpiado ? 1 : -1));
+    renderizarPendientesCloud();
+  }catch(err){
+    console.error('No se pudo marcar como limpiado:', err);
+    mostrarToast('No se pudo marcar como limpiado. Intenta de nuevo.', 'error');
+  }
+}
+async function vaciarLimpiadosCloud(){
+  const limpiados = _pendientesCloud.filter(p => p.limpiado);
+  if(!limpiados.length){ mostrarToast('No hay limpiados para vaciar'); return; }
+  const ok = await pedirConfirmacion({
+    titulo: `¿Vaciar ${limpiados.length} limpiado(s)?`,
+    mensaje: 'Se quitan de esta lista. No toca nada en Cloudinary.',
+    okTexto: 'Vaciar',
+    peligro: true
+  });
+  if(!ok) return;
+  try{
+    await Promise.all(limpiados.map(p => db.collection('CLOUDINARY_PENDIENTES').doc(p.id).delete()));
+    _pendientesCloud = _pendientesCloud.filter(p => !p.limpiado);
+    renderizarPendientesCloud();
+  }catch(err){
+    console.error('No se pudieron vaciar los limpiados:', err);
+    mostrarToast('No se pudieron vaciar los limpiados. Intenta de nuevo.', 'error');
+  }
 }
 function _descargarArchivoTexto(nombre, contenido, mime){
   try{
@@ -10054,6 +10303,15 @@ async function borrarTema(temaId){
   try{
     await db.collection('GUIAS2').doc(temaId).delete();
     misTemas = (misTemas || []).filter(t => t.id !== temaId);
+    // v3.293: si ningun otro tema usa el mismo audio (los duplicados lo
+    // comparten), queda huerfano en Cloudinary -> se anota como pendiente.
+    // No se espera ni bloquea el borrado.
+    if(tema.audioUrl && !misTemas.some(t => t.audioUrl === tema.audioUrl)){
+      registrarHuerfanoCloudinary({
+        tipo: 'audio', publicId: _publicIdDesdeUrlCloudinary(tema.audioUrl),
+        url: tema.audioUrl, nombre: tema.nombre, motivo: 'Tema borrado'
+      });
+    }
     // v3.248: si tenía copia en el dispositivo y ningún otro tema usa el
     // mismo audio (los duplicados lo comparten), se libera el espacio.
     if(tema.audioUrl && temaEstaOffline(tema) && !misTemas.some(t => t.audioUrl === tema.audioUrl)){
@@ -10226,6 +10484,14 @@ async function borrarCategoriaDesdeSheet(categoriaId){
   try{
     await db.collection('CATEGORIAS2').doc(categoriaId).delete();
     misCategorias = (misCategorias || []).filter(c => c.id !== categoriaId);
+    // v3.293: el PDF de guia vive en la categoria; al borrarla queda
+    // huerfano en Cloudinary -> se anota como pendiente.
+    if(cat.guiaPdfPublicId){
+      registrarHuerfanoCloudinary({
+        tipo: 'pdf', publicId: cat.guiaPdfPublicId,
+        nombre: 'Guía de ' + (cat.nombre || 'categoría'), motivo: 'Categoría borrada'
+      });
+    }
     // Los temas que tenían esta categoría quedan "Sin categoría" (a
     // pedido) — categoria:'' en GUIAS2, mismo campo/esquema de siempre.
     await Promise.all(temasAfectados.map(t =>
@@ -10846,11 +11112,20 @@ function guardarGuiaPdfEnCategoria(nombreCategoria, file, onEstado){
   const cat = (misCategorias || []).find(c => c.nombre === nombreCategoria);
   if(!cat || !file) return;
   if(onEstado) onEstado('Subiendo PDF de guía...');
+  // v3.293: se recuerda el PDF anterior; si la subida nueva termina bien,
+  // el anterior queda huerfano en Cloudinary y se anota como pendiente.
+  const publicIdAnterior = cat.guiaPdfPublicId || null;
   subirPdfACloudinary(file, pct => { if(onEstado) onEstado(`Subiendo PDF de guía ${pct}%…`); })
     .then(({ publicId, paginas, formato }) => db.collection('CATEGORIAS2').doc(cat.id)
       .set({ guiaPdfPublicId: publicId, guiaPdfPaginas: paginas, guiaPdfFormato: formato }, { merge: true })
       .then(() => ({ publicId, paginas, formato })))
     .then(({ publicId, paginas, formato }) => {
+      if(publicIdAnterior && publicIdAnterior !== publicId){
+        registrarHuerfanoCloudinary({
+          tipo: 'pdf', publicId: publicIdAnterior,
+          nombre: 'Guía de ' + (cat.nombre || 'categoría'), motivo: 'PDF reemplazado'
+        });
+      }
       cat.guiaPdfPublicId = publicId;
       cat.guiaPdfPaginas = paginas;
       // v3.283: formato real ('pdf' o 'jpg'/'png'/etc.) — decide en
@@ -11005,13 +11280,15 @@ async function guardarSetlistOffline(){
   const pendientes = temas.filter(t => !temaEstaOffline(t));
   if(!pendientes.length){ mostrarToast('Todos los temas de la lista ya están guardados en este dispositivo.', 'info'); return; }
   const btn = document.getElementById('sheetSetlistOfflineBtn');
+  const htmlBtnOriginal = btn ? btn.innerHTML : '';
   if(btn) btn.disabled = true;
   let ok = 0;
   for(let i = 0; i < pendientes.length; i++){
-    if(btn) btn.textContent = `📥 Guardando ${i + 1}/${pendientes.length}…`;
+    // v3.295: pad cuadrado solo-icono - el progreso va como "i/n" adentro del boton
+    if(btn) btn.innerHTML = `<span class="lista-btn-prog">${i + 1}/${pendientes.length}</span>`;
     if(await guardarTemaOffline(pendientes[i].id)) ok++;
   }
-  if(btn){ btn.disabled = false; btn.textContent = '📥 Guardar lista en este dispositivo'; }
+  if(btn){ btn.disabled = false; btn.innerHTML = htmlBtnOriginal; }
   filtrarYRenderizarTemas();
   mostrarToast(ok === pendientes.length
     ? `Listo: ${ok} tema(s) guardados en este dispositivo.`
