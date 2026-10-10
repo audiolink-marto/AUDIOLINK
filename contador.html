@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Contador de tiempo</title>
+<!-- AUDIOLINK · contador.html · v1.3
+     v1.3: (a pedido) (1) Toast: ahora es verde activo con texto blanco (más contraste) y se queda
+     en pantalla hasta que se hace clic en él (antes desaparecía a los 4,5 s). (2) Los avisos de
+     bolsa (80 % y 100 %) ahora respetan el sonido elegido en el pomodoro (antes siempre sonaban
+     "campana"). (3) La siembra de tipos reintenta hasta 3 veces si falla una escritura, sin
+     esperar a recargar la página. Requiere reglas v2.42 (contadorTipos). Sin otros cambios.
+     v1.2: (a pedido) (1) Tipos de tarea editables POR PROYECTO: colección nueva contadorTipos
+     (proyectoId, nombre, orden); panel nuevo para agregar/renombrar/borrar; cada proyecto se
+     siembra una sola vez con los 4 tipos de antes (ids fijos, sin duplicados) y la marca
+     tiposSembrados en el proyecto; las sesiones siguen guardando el nombre como texto, así que
+     renombrar o borrar no daña el historial. (2) Pomodoro: notificación del sistema (solo con la
+     pestaña oculta), sonido elegible (4 tonos), alarma repetida opcional hasta confirmar, título
+     parpadeando y vibración; el reloj corre en un Web Worker (mejor esfuerzo en segundo plano).
+     (3) Modo del ciclo: Manual / Semi (por defecto, igual que v1.1) / Automático con freno de
+     seguridad configurable (bloques sin tocar nada). (4) Botón "Copiar datos del día" (sin tarifas
+     ni costos). pitido() ahora cierra su AudioContext. Requiere reglas v2.42 (contadorTipos).
+     Sin cambios en cronómetro, bolsa, avisos 80/100 %, bitácora, resumen, CSV ni guard de sesión.
+     v1.1: (a pedido) pasa a trabajar en local con audiolink-local.js v1.1: Firestore
+     real con persistencia (lo que ya se leyó queda en el dispositivo; lo que se
+     escribe sin señal queda en cola y sube solo al volver), sesión restaurada sin
+     red y respaldo de solo lectura (offline-mock) únicamente si el SDK no carga o
+     Firebase no confirma sesión. Ya no depende de la lista de escritura de
+     offline-mock.js. Si audiolink-local.js no está desplegado, la hoja cae al
+     comportamiento de v1.0 (crearDB() + guard offline). Aviso de conexión dinámico
+     y seguro() devuelve un objeto cuando la escritura se acepta (antes undefined
+     en escrituras en cola, lo que dejaba el formulario sin limpiar). Se suma al
+     menú (nav.js v1.32), al service worker (sw.js v1.2) y a las reglas (v2.41).
+     Sin cambios en cronómetro, pomodoro, bolsa, bitácora ni resumen.
+     v1.0: módulo nuevo. Contador de tiempo de trabajo por proyecto (pensado para
+     las dos investigaciones del cliente: videos cortos con IA y tienda de repuestos
+     para vehículos eléctricos). Mismo esqueleto que recordatorios.html v1.11
+     (Oro Profundo, nav.js/nav.css, crearDB(), guard de sesión con equipoInterno,
+     guard offline, .al-chk). Funciones: cronómetro por proyecto que no pierde el
+     tiempo al cerrar la pestaña (se guarda la hora de inicio, no un contador),
+     bolsa de horas con barra y avisos al 80 % y 100 %, modo pomodoro (los
+     descansos NO cuentan en la bolsa), bitácora de sesiones (editar, borrar, tiempo
+     manual), resumen por día/proyecto, CSV e impresión, tarifa por hora opcional.
+     Colecciones nuevas (planas): contadorProyectos, contadorSesiones, contadorActivo
+     (un doc por usuario, id = uid). Requieren reglas en firestore.rules.
+     No se tocó ningún otro archivo. Historial futuro: CHANGELOG.md. -->
+<link rel="stylesheet" href="nav.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="audiolink-local.js"></script>
+<script>
+// Copia local de vendor/ si existe, si no CDN. Sin audiolink-local.js: CDN como siempre.
+if(window.AudiolinkLocal){ AudiolinkLocal.cargarFirebase(); }
+else{ ['app','auth','firestore'].forEach(function(n){ document.write('<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-' + n + '-compat.js"><\/script>'); }); }
+</script>
+<script src="offline-mock.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;--surf:#151517;--surf-light:#1d1d20;--brd:#2a2a2e;
+  --gold:#c9a24b;--gold-bg:rgba(201,162,75,0.12);--txt:#f0ede6;--muted:#9a978f;--faint:#5c5a55;
+  --ok:#4caf7d;--warn:#d9a441;--err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;--surf:#ffffff;--surf-light:#f3f0e8;--brd:#e2ddd0;
+  --gold:#a8823a;--gold-bg:rgba(168,130,58,0.10);--txt:#2a2620;--muted:#7a756a;--faint:#a39d8f;
+  --ok:#3a8f63;--warn:#b8842f;--err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;}
+header, main{position:relative;z-index:1;}
+main{padding:28px;max-width:900px;margin:0 auto;}
+h2.titulo{font-family:var(--T);font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
+.sub-titulo{color:var(--muted);font-size:0.85rem;margin-bottom:22px;}
+.panel{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:22px;margin-bottom:22px;}
+.panel h3{font-size:0.85rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;margin-bottom:14px;text-transform:uppercase;}
+.panel-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.form-row label{font-size:0.75rem;color:var(--muted);}
+.form-row textarea,.form-row input,.form-row select{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:7px;
+  padding:10px 12px;color:var(--txt);font-family:var(--S);font-size:0.9rem;min-height:44px;
+}
+.form-row textarea{min-height:70px;resize:vertical;}
+.form-row-inline{display:flex;gap:12px;flex-wrap:wrap;}
+.form-row-inline .form-row{flex:1;min-width:130px;}
+.btn{background:var(--gold);color:#1a1509;border:none;border-radius:8px;padding:11px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;min-height:44px;}
+.btn:hover{opacity:0.9;}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);border-radius:8px;padding:8px 14px;font-size:0.8rem;cursor:pointer;min-height:38px;}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+.nota-item{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:14px;border-radius:8px;background:var(--surf-light);margin-bottom:8px;border:1px solid var(--brd);}
+.nota-item .cuerpo{flex:1;min-width:0;}
+.nota-item .texto{font-size:0.9rem;word-break:break-word;}
+.nota-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:0.72rem;color:var(--muted);}
+.nota-meta .fecha{color:var(--gold);}
+.nota-acciones{display:flex;gap:6px;flex-shrink:0;}
+.icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:6px;border-radius:6px;min-width:36px;min-height:36px;}
+.icon-btn:hover{background:var(--surf);color:var(--gold);}
+.icon-btn.borrar:hover{color:var(--err);}
+.badge-estado{font-size:0.65rem;padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;}
+.badge-estado.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.badge-estado.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge-estado.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.empty{text-align:center;padding:30px 10px;color:var(--faint);font-size:0.85rem;}
+.aviso{background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:10px 14px;font-size:0.8rem;margin-bottom:18px;}
+/* reloj */
+.reloj{font-family:var(--M);font-size:3.2rem;color:var(--gold);text-align:center;margin:6px 0 2px;letter-spacing:0.02em;}
+.fase-info{text-align:center;color:var(--muted);font-size:0.85rem;margin-bottom:16px;min-height:1.2em;}
+.controles{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+/* barra de bolsa */
+.barra{height:8px;background:var(--surf);border-radius:6px;overflow:hidden;margin:10px 0 6px;}
+.barra i{display:block;height:100%;background:var(--ok);transition:width .4s;}
+.barra i.warn{background:var(--warn);}
+.barra i.err{background:var(--err);}
+.pomo-grid{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
+.pomo-grid .form-row{flex:1;min-width:90px;margin-bottom:0;}
+.sw-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-size:0.9rem;}
+table.res{width:100%;border-collapse:collapse;font-size:0.82rem;}
+table.res th{text-align:left;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--brd);}
+table.res td{padding:8px 6px;border-bottom:1px dashed var(--brd);}
+table.res td.num,table.res th.num{text-align:right;font-family:var(--M);}
+.scroll-x{overflow-x:auto;}
+#toastC{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1f7a4a;border:2px solid #4caf7d;color:#fff;font-weight:600;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.45);padding:12px 18px;border-radius:8px;font-size:0.9rem;z-index:9999;display:none;max-width:90vw;}
+@media (max-width:768px){main{padding:16px;}.reloj{font-size:2.6rem;}}
+@media print{
+  #nav-mount,.no-print{display:none !important;}
+  .main-wrap{margin-left:0 !important;}
+  body{background:#fff;color:#000;}
+  .panel{border:1px solid #bbb;break-inside:avoid;}
+}
+/* CHECKBOX ESTILO DIAL (.al-chk) — mismo bloque que recordatorios.html v1.11 */
+input[type="checkbox"].al-chk{
+  --h:24px; --chk-on:#8a6d2c; --chk-led:#f6c453; --chk-glow:rgba(246,196,83,.65);
+  -webkit-appearance:none; appearance:none;
+  position:relative; box-sizing:border-box;
+  width:calc(var(--h) * 1.8333); height:var(--h); min-width:0; min-height:0;
+  margin:0; padding:0; border:0; box-shadow:none; flex-shrink:0;
+  border-radius:999px; background:#3a382f; cursor:pointer; vertical-align:middle;
+  transition:background-color .2s ease;
+}
+input[type="checkbox"].al-chk:checked{background:var(--chk-on);}
+input[type="checkbox"].al-chk::before{
+  content:""; position:absolute; box-sizing:border-box;
+  top:calc(var(--h) * .125); left:calc(var(--h) * .125);
+  width:calc(var(--h) * .75); height:calc(var(--h) * .75);
+  border-radius:50%; background:#e9e6dc; border:1.1px solid #3a382f;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+input[type="checkbox"].al-chk::after{
+  content:""; position:absolute;
+  top:calc(var(--h) * .3958); left:calc(var(--h) * .3958);
+  width:calc(var(--h) * .2083); height:calc(var(--h) * .2083);
+  border-radius:50%; background:#6b6a63;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1), background-color .2s ease, box-shadow .2s ease;
+}
+input[type="checkbox"].al-chk:checked::before{transform:translateX(calc(var(--h) * .8333));}
+input[type="checkbox"].al-chk:checked::after{
+  transform:translateX(calc(var(--h) * .8333));
+  background:var(--chk-led); box-shadow:0 0 calc(var(--h) * .3) calc(var(--h) * .06) var(--chk-glow);
+}
+input[type="checkbox"].al-chk:focus-visible{outline:2px solid var(--chk-led);outline-offset:2px;}
+input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
+</style>
+</head>
+<body>
+
+<script>
+window.NAV_CONFIG = { activo: 'contador' };
+</script>
+<div id="nav-mount"></div>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<header style="display:none;"></header>
+
+<main>
+  <h2 class="titulo">⏱️ Contador de tiempo</h2>
+  <div class="sub-titulo">Tiempo de trabajo por proyecto, con bolsa de horas y modo pomodoro.</div>
+  <div class="aviso no-print" id="avisoOffline" style="display:none;"></div>
+  <div class="aviso no-print" id="alarmaBox" style="display:none;"><span id="alarmaTxt"></span> <button class="btn-ghost" style="margin-left:10px;" onclick="confirmarAlarma()">✓ Entendido</button></div>
+
+  <div class="panel no-print">
+    <h3>Cronómetro</h3>
+    <div class="form-row-inline">
+      <div class="form-row"><label>Proyecto</label><select id="selProy" onchange="llenarTipos()"></select></div>
+      <div class="form-row"><label>Tipo de tarea</label><select id="selEtq"></select></div>
+    </div>
+    <div class="form-row"><label>Nota de la sesión (opcional)</label><textarea id="inputNota" placeholder="¿En qué estás trabajando?"></textarea></div>
+    <div class="reloj" id="reloj">00:00:00</div>
+    <div class="fase-info" id="faseInfo"></div>
+    <div class="controles" id="controles"></div>
+  </div>
+
+  <div class="panel no-print">
+    <h3>Modo pomodoro</h3>
+    <div class="sw-row"><input type="checkbox" class="al-chk" id="chkPomo" onchange="guardarCfgPomo()"><label for="chkPomo">Activar (se aplica al iniciar la próxima sesión)</label></div>
+    <div class="pomo-grid">
+      <div class="form-row"><label>Bloque (min)</label><input type="number" id="pTrab" min="1" onchange="guardarCfgPomo()"></div>
+      <div class="form-row"><label>Descanso (min)</label><input type="number" id="pCorto" min="1" onchange="guardarCfgPomo()"></div>
+      <div class="form-row"><label>Descanso largo (min)</label><input type="number" id="pLargo" min="1" onchange="guardarCfgPomo()"></div>
+      <div class="form-row"><label>Largo cada (bloques)</label><input type="number" id="pCada" min="1" onchange="guardarCfgPomo()"></div>
+    </div>
+    <div class="pomo-grid" style="margin-top:14px;">
+      <div class="form-row"><label>Modo del ciclo</label><select id="pModo" onchange="guardarCfgPomo()">
+        <option value="manual">Manual — tú decides qué sigue</option>
+        <option value="semi">Semi — el descanso arranca solo</option>
+        <option value="auto">Automático — con freno</option></select></div>
+      <div class="form-row"><label>Freno automático (bloques sin tocar nada)</label><input type="number" id="pFreno" min="1" onchange="guardarCfgPomo()"></div>
+      <div class="form-row"><label>Sonido del aviso</label><select id="pSonido" onchange="guardarCfgPomo()">
+        <option value="campana">Campana</option><option value="suave">Suave</option>
+        <option value="digital">Digital</option><option value="grave">Grave</option></select></div>
+      <div class="form-row"><label>&nbsp;</label><button class="btn-ghost" onclick="probarSonido()">🔊 Probar</button></div>
+    </div>
+    <div class="sw-row" style="margin-top:14px;"><input type="checkbox" class="al-chk" id="chkNotif" onchange="cambioNotif()"><label for="chkNotif">Notificación del sistema (con la pestaña oculta)</label></div>
+    <div class="sw-row"><input type="checkbox" class="al-chk" id="chkRepetir" onchange="guardarCfgPomo()"><label for="chkRepetir">Repetir la alarma hasta que la confirmes</label></div>
+  </div>
+
+  <div class="panel">
+    <h3>Proyectos y bolsa de horas</h3>
+    <div id="listaProyectos"></div>
+    <div class="empty" id="emptyProyectos" style="display:none;">Aún no hay proyectos. Crea el primero abajo.</div>
+    <div class="no-print" style="margin-top:16px;border-top:1px dashed var(--brd);padding-top:16px;">
+      <div class="form-row-inline">
+        <div class="form-row"><label>Nombre del proyecto</label><input type="text" id="npNombre"></div>
+        <div class="form-row"><label>Bolsa (horas)</label><input type="number" id="npHoras" value="2" min="0.5" step="0.5"></div>
+        <div class="form-row"><label>Tarifa por hora (opcional)</label><input type="number" id="npTarifa" min="0" inputmode="numeric"></div>
+      </div>
+      <button class="btn" onclick="crearProyecto()">Crear proyecto</button>
+    </div>
+  </div>
+
+  <div class="panel no-print">
+    <h3>Tipos de tarea por proyecto</h3>
+    <div class="form-row"><label>Proyecto</label><select id="tProy" onchange="renderTipos()"></select></div>
+    <div id="listaTipos"></div>
+    <div class="form-row-inline" style="margin-top:12px;">
+      <div class="form-row"><label>Nuevo tipo</label><input type="text" id="tNuevo" placeholder="Ej.: Prompts de video"></div>
+    </div>
+    <button class="btn" onclick="agregarTipo()">Agregar tipo</button>
+  </div>
+
+  <div class="panel no-print">
+    <h3>Registrar tiempo manual</h3>
+    <div class="form-row-inline">
+      <div class="form-row"><label>Proyecto</label><select id="mProy" onchange="llenarTipos()"></select></div>
+      <div class="form-row"><label>Fecha</label><input type="date" id="mFecha"></div>
+      <div class="form-row"><label>Minutos</label><input type="number" id="mMin" min="1" inputmode="numeric"></div>
+      <div class="form-row"><label>Tipo de tarea</label><select id="mEtq"></select></div>
+    </div>
+    <div class="form-row"><label>Nota (opcional)</label><input type="text" id="mNota"></div>
+    <button class="btn" onclick="registrarManual()">Añadir tiempo</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header-row">
+      <h3 style="margin-bottom:0;">Bitácora y resumen</h3>
+      <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="filtroProy" class="btn-ghost" onchange="renderBitacora()"></select>
+        <button class="btn-ghost" onclick="exportarCSV()">⬇️ CSV</button>
+        <input type="date" id="diaDatos" class="btn-ghost" title="Día para copiar">
+        <button class="btn-ghost" onclick="copiarDatosDia()">📋 Copiar datos del día</button>
+        <button class="btn-ghost" onclick="window.print()">🖨️ Imprimir</button>
+      </div>
+    </div>
+    <div class="scroll-x"><table class="res" id="tablaResumen"></table></div>
+    <h3 style="margin:22px 0 12px;">Sesiones</h3>
+    <div id="listaSesiones"></div>
+    <div class="empty" id="emptySesiones" style="display:none;">No hay sesiones registradas.</div>
+  </div>
+</main>
+</div><!-- /main-wrap -->
+<div id="toastC" onclick="cerrarToast()" title="Clic para cerrar"></div>
+
+<script>
+const sdkOk = typeof firebase !== 'undefined';
+if(sdkOk) firebase.initializeApp(firebaseConfig);
+// Trabajo en local (audiolink-local.js v1.1). Debe ir antes de cualquier otra operación de Firestore.
+const loc = window.AudiolinkLocal ? AudiolinkLocal.iniciar({
+  modoLocal: true,
+  sdkOk: sdkOk,
+  authReal: sdkOk ? firebase.auth() : null,
+  crearDBNormal: () => crearDB(),
+  // Respaldo (solo si el SDK no carga o no se confirma sesión): copia de solo lectura del mock.
+  crearDBRespaldo: () => (typeof crearDBOffline === 'function' ? crearDBOffline() : null),
+  crearAuthRespaldo: email => {
+    const u = { email: email, uid: 'offline-' + email };
+    return { currentUser: u, onAuthStateChanged: cb => { setTimeout(() => cb(u), 0); return () => {}; },
+             signOut: () => Promise.resolve(), signInWithEmailAndPassword: () => Promise.reject(new Error('Sin conexión')) };
+  }
+}) : null;
+const auth = loc ? loc.auth : firebase.auth();
+const db = loc ? loc.db : crearDB();
+const refProy = db.collection('contadorProyectos');
+const refSes = db.collection('contadorSesiones');
+const refAct = db.collection('contadorActivo');
+const refTipos = db.collection('contadorTipos');
+
+const $ = id => document.getElementById(id);
+const ETQ = ['Investigación','Redacción','Reunión','Revisión'];
+const POMO_DEF = { on:false, trab:25, corto:5, largo:15, cada:4, modo:'semi', sonido:'campana', repetir:false, notif:false, freno:4 };
+const TONOS = { campana:{ f:880, t:'sine', v:0.15 }, suave:{ f:523, t:'triangle', v:0.2 }, digital:{ f:1320, t:'square', v:0.06 }, grave:{ f:330, t:'sine', v:0.2 } };
+let usuarioActual = null, proyectos = [], sesiones = [], activo = null;
+let ocupado = false, umbral = {}, toastT = null, iniciado = false;
+let tipos = [], tiposListos = false, sembrando = {}, intentosSiembra = {};
+let alarma = { on:false, msg:'', rep:null };
+
+// ============ GUARD DE SESIÓN (mismo patrón que recordatorios.html v1.11) ============
+if(!loc && estaModoOfflineActivo()){
+  // Respaldo de v1.0: sin audiolink-local.js se conserva el guard con el mock.
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  usuarioActual = { uid: 'offline', email: 'offline@audiolink', nombre: 'Modo offline' };
+  iniciar();
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){ window.location.href = 'login.html'; return; }
+    try{
+      // En la copia de solo lectura no se puede validar equipoInterno contra el servidor.
+      if(loc && loc.usarCopiaLocal()){
+        usuarioActual = { uid: user.uid, email: user.email, nombre: user.email };
+        iniciar(); return;
+      }
+      const doc = await db.collection('equipoInterno').doc(user.email).get();
+      if(!doc.exists || doc.data().activo !== true){
+        await auth.signOut();
+        window.location.href = 'login.html';
+        return;
+      }
+      usuarioActual = { uid: user.uid, email: user.email, nombre: (doc.data().nombre || user.email) };
+      iniciar();
+    } catch(e){
+      console.error('Error validando sesión:', e);
+      window.location.href = 'login.html';
+    }
+  });
+}
+
+// ============ UTILIDADES ============
+// Fecha LOCAL (no hoyISO() de utils.js, que usa UTC y cambia de día a las 7 p. m. en Colombia).
+function fechaLocal(ms){
+  const d = new Date(ms);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function reloj(seg){
+  seg = Math.max(0, Math.round(seg));
+  const h = Math.floor(seg/3600), m = Math.floor(seg%3600/60), s = seg%60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+const txtDur = seg => minutosATexto(Math.round(seg/60)) || '0min';
+// El toast queda visible hasta que se le da clic.
+function avisar(msg){
+  const t = $('toastC'); t.textContent = msg + '  ✕'; t.style.display = 'block';
+}
+function cerrarToast(){ $('toastC').style.display = 'none'; }
+// Envuelve operaciones de Firestore. Devuelve { ok, valor } si la escritura se acepta (aunque quede en cola sin señal) o null si falla.
+async function seguro(fn){
+  try{ return { ok: true, valor: await fn() }; }
+  catch(e){ console.error('Contador:', e); avisar('No se pudo guardar (¿sin conexión?).'); return null; }
+}
+function pitido(n, tono){
+  try{
+    const t = TONOS[tono] || TONOS.campana, c = new (window.AudioContext || window.webkitAudioContext)();
+    if(c.state === 'suspended') c.resume();
+    for(let i = 0; i < n; i++){
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = t.t; o.connect(g); g.connect(c.destination); o.frequency.value = t.f; g.gain.value = t.v;
+      o.start(c.currentTime + i*0.3); o.stop(c.currentTime + i*0.3 + 0.15);
+    }
+    setTimeout(() => { try{ c.close(); }catch(e){} }, n * 300 + 500);
+  }catch(e){}
+}
+
+// ============ POMODORO: CONFIG (por dispositivo, localStorage) ============
+function cfgPomo(){
+  try{ return Object.assign({}, POMO_DEF, JSON.parse(localStorage.getItem('contador_pomo_cfg') || '{}')); }
+  catch(e){ return Object.assign({}, POMO_DEF); }
+}
+function pintarCfgPomo(){
+  const c = cfgPomo();
+  $('chkPomo').checked = c.on; $('pTrab').value = c.trab; $('pCorto').value = c.corto;
+  $('pLargo').value = c.largo; $('pCada').value = c.cada;
+  $('pModo').value = c.modo; $('pSonido').value = c.sonido; $('pFreno').value = c.freno;
+  $('chkRepetir').checked = !!c.repetir;
+  $('chkNotif').checked = !!c.notif && ('Notification' in window) && Notification.permission === 'granted';
+}
+function guardarCfgPomo(){
+  const c = { on: $('chkPomo').checked, trab: +$('pTrab').value || POMO_DEF.trab, corto: +$('pCorto').value || POMO_DEF.corto,
+              largo: +$('pLargo').value || POMO_DEF.largo, cada: Math.round(+$('pCada').value) || POMO_DEF.cada,
+              modo: $('pModo').value || POMO_DEF.modo, sonido: $('pSonido').value || POMO_DEF.sonido,
+              repetir: $('chkRepetir').checked, notif: $('chkNotif').checked, freno: Math.round(+$('pFreno').value) || POMO_DEF.freno };
+  try{ localStorage.setItem('contador_pomo_cfg', JSON.stringify(c)); }catch(e){}
+}
+function probarSonido(){ pitido(2, $('pSonido').value); }
+function cambioNotif(){
+  if($('chkNotif').checked){
+    if(!('Notification' in window)){ $('chkNotif').checked = false; avisar('Este navegador no admite notificaciones del sistema.'); }
+    else if(Notification.permission === 'denied'){ $('chkNotif').checked = false; avisar('Las notificaciones están bloqueadas en el navegador.'); }
+    else if(Notification.permission !== 'granted'){
+      Notification.requestPermission().then(p => {
+        if(p !== 'granted'){ $('chkNotif').checked = false; avisar('Permiso de notificaciones no concedido.'); }
+        guardarCfgPomo();
+      });
+    }
+  }
+  guardarCfgPomo();
+}
+
+// ============ AVISOS DEL POMODORO (sonido, notificación, vibración, título, repetición) ============
+function notificar(msg, c){
+  if(!c.notif || !document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const op = { body: msg, tag: 'audiolink-contador', renotify: true, vibrate: [300, 150, 300] };
+  const plano = () => { try{ new Notification('Audiolink · Contador', op); }catch(e){} };
+  try{
+    if(navigator.serviceWorker && navigator.serviceWorker.getRegistration){
+      navigator.serviceWorker.getRegistration().then(r => { if(r) r.showNotification('Audiolink · Contador', op); else plano(); }).catch(plano);
+    } else plano();
+  }catch(e){ plano(); }
+}
+function pintarAlarma(){
+  $('alarmaBox').style.display = alarma.on ? 'block' : 'none';
+  $('alarmaTxt').textContent = alarma.msg;
+}
+function alertar(msg, n){
+  const c = cfgPomo();
+  avisar(msg); pitido(n, c.sonido); notificar(msg, c);
+  try{ if(navigator.vibrate) navigator.vibrate([300, 150, 300]); }catch(e){}
+  clearInterval(alarma.rep); alarma.rep = null;
+  alarma.on = true; alarma.msg = '🔔 ' + msg;
+  if(c.repetir) alarma.rep = setInterval(() => pitido(n, c.sonido), 8000);
+  pintarAlarma();
+}
+function confirmarAlarma(){
+  clearInterval(alarma.rep); alarma.rep = null;
+  if(!alarma.on) return;
+  alarma.on = false; pintarAlarma(); renderReloj();
+}
+// Reloj en un Web Worker (los navegadores frenan menos los temporizadores de un worker con la pestaña oculta). Mejor esfuerzo.
+function iniciarReloj(){
+  try{
+    const w = new Worker(URL.createObjectURL(new Blob(['setInterval(function(){postMessage(1)},1000)'], { type: 'text/javascript' })));
+    w.onmessage = () => tick();
+    return;
+  }catch(e){}
+  setInterval(tick, 1000);
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden) return;
+  if(alarma.on && !cfgPomo().repetir) confirmarAlarma();
+  if(iniciado) tick();
+});
+
+// ============ INICIO ============
+async function iniciar(){
+  if(iniciado) return; iniciado = true;
+  llenarTipos();
+  $('mFecha').value = fechaLocal(Date.now()); $('diaDatos').value = fechaLocal(Date.now());
+  pintarCfgPomo();
+  refProy.onSnapshot(snap => {
+    proyectos = []; snap.forEach(d => proyectos.push({ id: d.id, ...d.data() }));
+    proyectos.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    llenarSelects(); renderProyectos(); renderBitacora();
+  }, err => console.error('Error cargando proyectos:', err));
+  refSes.onSnapshot(snap => {
+    sesiones = []; snap.forEach(d => sesiones.push({ id: d.id, ...d.data() }));
+    sesiones.sort((a, b) => (b.inicioMs || 0) - (a.inicioMs || 0));
+    renderProyectos(); renderBitacora();
+  }, err => console.error('Error cargando sesiones:', err));
+  refTipos.onSnapshot(snap => {
+    tipos = []; snap.forEach(d => tipos.push({ id: d.id, ...d.data() }));
+    tipos.sort((a, b) => (a.orden || 0) - (b.orden || 0) || (a.nombre || '').localeCompare(b.nombre || ''));
+    tiposListos = !(snap.metadata && snap.metadata.fromCache);
+    llenarTipos(); renderTipos(); sembrarTipos();
+  }, err => console.error('Error cargando tipos de tarea:', err));
+  // Temporizador en curso: nube primero, copia del dispositivo como respaldo.
+  try{ const d = await refAct.doc(usuarioActual.uid).get(); if(d.exists) activo = d.data(); }catch(e){}
+  if(!activo){
+    try{ const l = localStorage.getItem('contador_activo_' + usuarioActual.uid); if(l) activo = JSON.parse(l); }catch(e){}
+  }
+  if(activo){ $('selProy').value = activo.proyectoId; $('selEtq').value = activo.etiqueta; }
+  iniciarReloj();
+  tick();
+}
+
+function llenarSelects(){
+  const opts = proyectos.map(p => `<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
+  [['selProy', opts], ['mProy', opts], ['filtroProy', '<option value="todos">Todos los proyectos</option>' + opts], ['tProy', opts]].forEach(([id, h]) => {
+    const el = $(id), v = el.value; el.innerHTML = h;
+    if(v && [...el.options].some(o => o.value === v)) el.value = v;
+  });
+  if(activo) $('selProy').value = activo.proyectoId;
+  llenarTipos(); renderTipos(); sembrarTipos();
+}
+
+// ============ TEMPORIZADOR ============
+function segActual(){
+  if(!activo) return 0;
+  let s = activo.acumuladoSeg || 0;
+  if(activo.estado === 'corriendo') s += (Date.now() - activo.inicioTramoMs) / 1000;
+  return s;
+}
+async function guardarActivo(){
+  try{ localStorage.setItem('contador_activo_' + usuarioActual.uid, JSON.stringify(activo)); }catch(e){}
+  await seguro(() => refAct.doc(usuarioActual.uid).set(activo));
+}
+async function borrarActivo(){
+  try{ localStorage.removeItem('contador_activo_' + usuarioActual.uid); }catch(e){}
+  await seguro(() => refAct.doc(usuarioActual.uid).delete());
+}
+async function guardarSesion(s){
+  return seguro(() => refSes.add({ ...s, autorId: usuarioActual.uid, autorNombre: usuarioActual.nombre, creadoEn: firebase.firestore.Timestamp.now() }));
+}
+async function iniciarTimer(){
+  const proyectoId = $('selProy').value;
+  if(!proyectoId){ alert('Crea o elige un proyecto primero.'); return; }
+  const c = cfgPomo(), ahora = Date.now();
+  activo = { proyectoId, etiqueta: $('selEtq').value, estado: 'corriendo', inicioTramoMs: ahora, acumuladoSeg: 0,
+             inicioSesionMs: ahora, pomodoro: c.on, ciclos: 0, fase: 'trabajo',
+             cfg: { trab: c.trab, corto: c.corto, largo: c.largo, cada: c.cada, modo: c.modo, freno: c.freno }, sinToque: 0 };
+  await guardarActivo(); tick();
+}
+async function pausarTimer(){
+  confirmarAlarma(); activo.sinToque = 0;
+  activo.acumuladoSeg = segActual(); activo.estado = 'pausado';
+  await guardarActivo(); tick();
+}
+async function reanudarTimer(){
+  confirmarAlarma(); activo.sinToque = 0;
+  activo.estado = 'corriendo'; activo.inicioTramoMs = Date.now();
+  await guardarActivo(); tick();
+}
+async function terminarTimer(){
+  if(!activo) return;
+  confirmarAlarma();
+  const a = activo, seg = Math.round(segActual());
+  if(seg >= 1 && (a.estado === 'corriendo' || a.estado === 'pausado')){
+    await guardarSesion({ proyectoId: a.proyectoId, etiqueta: a.etiqueta, nota: $('inputNota').value.trim(), segundos: seg,
+                          inicioMs: a.inicioSesionMs, fecha: fechaLocal(a.inicioSesionMs), pomodoros: 0, manual: false });
+  }
+  activo = null; $('inputNota').value = '';
+  await borrarActivo(); tick();
+}
+// Pomodoro: al cumplirse el bloque se registra la sesión (máximo el largo del bloque; si la
+// pestaña estuvo cerrada, el tiempo sobrante no se cuenta) y arranca el descanso.
+async function completarBloque(){
+  if(ocupado) return; ocupado = true;
+  const a = activo, seg = Math.min(Math.round(segActual()), a.cfg.trab * 60), modo = a.cfg.modo || 'semi';
+  await guardarSesion({ proyectoId: a.proyectoId, etiqueta: a.etiqueta, nota: $('inputNota').value.trim(), segundos: seg,
+                        inicioMs: a.inicioSesionMs, fecha: fechaLocal(a.inicioSesionMs), pomodoros: 1, manual: false });
+  a.ciclos = (a.ciclos || 0) + 1;
+  if(modo === 'auto') a.sinToque = (a.sinToque || 0) + 1;
+  if(modo === 'manual'){
+    a.estado = 'espera'; a.acumuladoSeg = 0;
+    await guardarActivo(); alertar('Bloque completado — elige qué sigue', 3);
+  } else {
+    prepararDescanso(a);
+    await guardarActivo(); alertar('Bloque completado — descanso ' + (a.fase === 'largo' ? 'largo' : 'corto'), 3);
+  }
+  ocupado = false;
+}
+function prepararDescanso(a){
+  const largo = a.ciclos % a.cfg.cada === 0;
+  a.estado = 'descanso'; a.fase = largo ? 'largo' : 'corto';
+  a.descansoSeg = (largo ? a.cfg.largo : a.cfg.corto) * 60; a.descansoInicioMs = Date.now(); a.acumuladoSeg = 0;
+}
+async function iniciarDescanso(){
+  confirmarAlarma(); activo.sinToque = 0; prepararDescanso(activo);
+  await guardarActivo(); tick();
+}
+function arrancarBloque(){
+  const ahora = Date.now();
+  Object.assign(activo, { estado: 'corriendo', fase: 'trabajo', acumuladoSeg: 0, inicioTramoMs: ahora, inicioSesionMs: ahora });
+}
+async function finDescanso(){
+  if(ocupado) return; ocupado = true;
+  const a = activo;
+  if((a.cfg.modo || 'semi') === 'auto'){
+    if((a.sinToque || 0) >= (a.cfg.freno || POMO_DEF.freno)){
+      a.estado = 'listo'; await guardarActivo();
+      alertar('Freno de seguridad: ' + a.sinToque + ' bloques seguidos sin tocar nada. El ciclo se detuvo.', 2);
+    } else {
+      arrancarBloque(); await guardarActivo();
+      alertar('Descanso terminado — empieza el bloque ' + ((a.ciclos || 0) + 1), 2);
+    }
+  } else {
+    a.estado = 'listo'; await guardarActivo(); alertar('Descanso terminado', 2);
+  }
+  ocupado = false;
+}
+async function empezarBloque(){
+  confirmarAlarma(); activo.sinToque = 0; arrancarBloque();
+  await guardarActivo(); tick();
+}
+function usadoSeg(id){
+  let s = 0; sesiones.forEach(x => { if(x.proyectoId === id) s += x.segundos || 0; });
+  if(activo && activo.proyectoId === id) s += segActual();
+  return s;
+}
+function chequearUmbral(){
+  const p = proyectos.find(x => x.id === activo.proyectoId); if(!p || !p.bolsaMin) return;
+  const pct = usadoSeg(p.id) / (p.bolsaMin * 60) * 100, n = pct >= 100 ? 2 : pct >= 80 ? 1 : 0;
+  if(umbral[p.id] === undefined){ umbral[p.id] = n; return; }
+  if(n > umbral[p.id]){ pitido(n === 2 ? 4 : 2, cfgPomo().sonido); avisar(n === 2 ? 'Bolsa agotada: ' + p.nombre : 'Vas al 80 % de la bolsa: ' + p.nombre); }
+  umbral[p.id] = n;
+}
+function pintarAviso(){
+  let t = '';
+  if(loc && loc.usarCopiaLocal()) t = 'Copia local de solo lectura: guardar requiere conexión.';
+  else if(!navigator.onLine) t = 'Sin conexión: lo que registres se guarda en este dispositivo y se sincroniza al volver la señal.';
+  else if(!loc && estaModoOfflineActivo()) t = 'Modo offline: puedes ver el contador, pero guardar proyectos y sesiones requiere conexión.';
+  const el = $('avisoOffline'); el.textContent = t; el.style.display = t ? 'block' : 'none';
+}
+function tick(){
+  if(activo && activo.pomodoro){
+    if(activo.estado === 'corriendo' && segActual() >= activo.cfg.trab * 60) completarBloque();
+    else if(activo.estado === 'descanso' && Date.now() - activo.descansoInicioMs >= activo.descansoSeg * 1000) finDescanso();
+  }
+  if(activo) chequearUmbral();
+  renderReloj(); renderProyectos(); pintarAviso();
+}
+
+// ============ RENDER: RELOJ Y CONTROLES ============
+function renderReloj(){
+  const a = activo; let t = 0, info = 'Listo para iniciar', btn = '';
+  const b = (txt, fn, ghost) => `<button class="${ghost ? 'btn-ghost' : 'btn'}" onclick="${fn}()">${txt}</button>`;
+  if(!a){
+    btn = b('▶ Iniciar', 'iniciarTimer');
+  } else if(a.estado === 'corriendo' || a.estado === 'pausado'){
+    t = a.pomodoro ? a.cfg.trab * 60 - segActual() : segActual();
+    const base = a.pomodoro ? 'Bloque ' + ((a.ciclos || 0) + 1) + ' · quedan' : 'Trabajando';
+    info = a.estado === 'pausado' ? 'En pausa' : base;
+    btn = (a.estado === 'corriendo' ? b('⏸ Pausar', 'pausarTimer') : b('▶ Reanudar', 'reanudarTimer')) + b('⏹ Terminar', 'terminarTimer', true);
+  } else if(a.estado === 'descanso'){
+    t = a.descansoSeg - (Date.now() - a.descansoInicioMs) / 1000;
+    info = 'Descanso ' + (a.fase === 'largo' ? 'largo' : 'corto') + ' — no cuenta en la bolsa';
+    btn = b('⏭ Saltar descanso', 'empezarBloque') + b('⏹ Terminar', 'terminarTimer', true);
+  } else if(a.estado === 'espera'){
+    info = 'Bloque completado — elige qué sigue';
+    btn = b('☕ Tomar descanso', 'iniciarDescanso') + b('▶ Iniciar bloque', 'empezarBloque') + b('⏹ Terminar', 'terminarTimer', true);
+  } else {
+    info = 'Descanso terminado';
+    btn = b('▶ Iniciar bloque', 'empezarBloque') + b('⏹ Terminar', 'terminarTimer', true);
+  }
+  $('reloj').textContent = reloj(t);
+  $('faseInfo').textContent = info;
+  if($('controles').dataset.h !== btn){ $('controles').innerHTML = btn; $('controles').dataset.h = btn; }
+  $('selProy').disabled = $('selEtq').disabled = !!a; $('chkPomo').disabled = false;
+  let tit = a && (a.estado === 'corriendo' || a.estado === 'descanso') ? '⏱ ' + reloj(t) + ' — Audiolink' : 'Audiolink — Contador de tiempo';
+  if(alarma.on && document.hidden && Math.floor(Date.now() / 1000) % 2) tit = alarma.msg;
+  document.title = tit;
+}
+
+// ============ PROYECTOS ============
+function renderProyectos(){
+  $('emptyProyectos').style.display = proyectos.length ? 'none' : 'block';
+  $('listaProyectos').innerHTML = proyectos.map(p => {
+    const bolsa = (p.bolsaMin || 0) * 60, usado = usadoSeg(p.id);
+    const pct = bolsa ? usado / bolsa * 100 : 0, cl = pct >= 100 ? 'err' : pct >= 80 ? 'warn' : 'ok';
+    const rest = bolsa - usado;
+    const costo = p.tarifaHora ? ' · ' + formatCOP(usado / 3600 * p.tarifaHora) : '';
+    const est = { ok: 'En margen', warn: 'Casi agotada', err: 'Bolsa agotada' }[cl];
+    return `<div class="nota-item"><div class="cuerpo">
+      <div class="texto"><strong>${escapeHtml(p.nombre)}</strong> <span class="badge-estado ${cl}">${est}</span></div>
+      <div class="barra"><i class="${cl}" style="width:${Math.min(100, pct).toFixed(1)}%"></i></div>
+      <div class="nota-meta"><span>${txtDur(usado)} de ${txtDur(bolsa)} (${pct.toFixed(0)} %)</span>
+      <span>${rest >= 0 ? 'quedan ' + txtDur(rest) : 'excedida en ' + txtDur(-rest)}</span>${costo ? '<span class="fecha">' + costo.slice(3) + '</span>' : ''}</div>
+      </div><div class="nota-acciones no-print">
+      <button class="icon-btn" title="+30 min de bolsa" onclick="ampliarBolsa('${p.id}')">➕</button>
+      <button class="icon-btn" title="Editar bolsa y tarifa" onclick="editarProyecto('${p.id}')">✏️</button></div></div>`;
+  }).join('');
+}
+async function crearProyecto(){
+  const nombre = $('npNombre').value.trim(), horas = parseFloat($('npHoras').value);
+  if(!nombre || !(horas > 0)){ alert('Escribe el nombre y las horas de la bolsa.'); return; }
+  const r = await seguro(() => refProy.add({ nombre, bolsaMin: Math.round(horas * 60), tarifaHora: +$('npTarifa').value || null,
+                                              creadoEn: firebase.firestore.Timestamp.now() }));
+  if(r){ $('npNombre').value = ''; $('npTarifa').value = ''; $('npHoras').value = 2; }
+}
+function ampliarBolsa(id){
+  const p = proyectos.find(x => x.id === id);
+  seguro(() => refProy.doc(id).update({ bolsaMin: (p.bolsaMin || 0) + 30 }));
+}
+function editarProyecto(id){
+  const p = proyectos.find(x => x.id === id);
+  const h = prompt('Bolsa en horas:', (p.bolsaMin || 0) / 60); if(h === null) return;
+  const t = prompt('Tarifa por hora (vacío = sin tarifa):', p.tarifaHora || ''); if(t === null) return;
+  const horas = parseFloat(h); if(!(horas > 0)){ alert('Horas no válidas.'); return; }
+  seguro(() => refProy.doc(id).update({ bolsaMin: Math.round(horas * 60), tarifaHora: +t || null }));
+}
+
+// ============ TIPOS DE TAREA POR PROYECTO ============
+function tiposDe(pid){
+  const l = tipos.filter(t => t.proyectoId === pid).map(t => t.nombre);
+  return l.length ? l : ETQ;
+}
+function llenarTipos(){
+  [['selProy', 'selEtq'], ['mProy', 'mEtq']].forEach(([pp, ee]) => {
+    const el = $(ee), l = tiposDe($(pp).value).slice();
+    const sel = (activo && ee === 'selEtq') ? activo.etiqueta : el.value;
+    if(activo && ee === 'selEtq' && sel && !l.includes(sel)) l.push(sel);
+    el.innerHTML = l.map(e => `<option>${escapeHtml(e)}</option>`).join('');
+    if(sel && l.includes(sel)) el.value = sel;
+  });
+}
+// Siembra única: cada proyecto recibe los 4 tipos de inicio (ids fijos: sin duplicados aunque se repita) y queda marcado.
+async function sembrarTipos(){
+  if(!tiposListos || !proyectos.length || (loc && loc.usarCopiaLocal())) return;
+  for(const p of proyectos){
+    if(p.tiposSembrados || sembrando[p.id] || (intentosSiembra[p.id] || 0) >= 3) continue;
+    sembrando[p.id] = true; intentosSiembra[p.id] = (intentosSiembra[p.id] || 0) + 1;
+    let fallo = false;
+    if(!tipos.some(t => t.proyectoId === p.id)){
+      for(let i = 0; i < ETQ.length; i++){
+        const r = await seguro(() => refTipos.doc(p.id + '_inicio' + i).set({ proyectoId: p.id, nombre: ETQ[i], orden: i + 1, creadoEn: firebase.firestore.Timestamp.now() }));
+        if(!r) fallo = true;
+      }
+    }
+    const r2 = await seguro(() => refProy.doc(p.id).update({ tiposSembrados: true }));
+    if(!r2) fallo = true;
+    if(fallo) sembrando[p.id] = false; // permite reintentar (máx. 3 veces por carga de página)
+  }
+}
+function renderTipos(){
+  const pid = $('tProy').value, l = tipos.filter(t => t.proyectoId === pid);
+  $('listaTipos').innerHTML = !pid ? '<div class="empty">Crea un proyecto para definir sus tipos de tarea.</div>'
+    : l.length ? l.map(t => `<div class="nota-item"><div class="cuerpo"><div class="texto">${escapeHtml(t.nombre)}</div></div>
+      <div class="nota-acciones"><button class="icon-btn" title="Renombrar" onclick="renombrarTipo('${t.id}')">✏️</button>
+      <button class="icon-btn borrar" title="Borrar" onclick="borrarTipo('${t.id}')">🗑️</button></div></div>`).join('')
+    : '<div class="empty">Este proyecto usa los tipos de inicio hasta que agregues los suyos.</div>';
+}
+const existeTipo = (pid, n, excepto) => tipos.some(t => t.proyectoId === pid && t.id !== excepto && (t.nombre || '').toLowerCase() === n.toLowerCase());
+async function agregarTipo(){
+  const pid = $('tProy').value, n = $('tNuevo').value.trim();
+  if(!pid || !n){ alert('Elige el proyecto y escribe el nombre del tipo.'); return; }
+  if(existeTipo(pid, n)){ alert('Ese tipo ya existe en el proyecto.'); return; }
+  const orden = tipos.filter(t => t.proyectoId === pid).reduce((m, t) => Math.max(m, t.orden || 0), 0) + 1;
+  const r = await seguro(() => refTipos.add({ proyectoId: pid, nombre: n, orden, creadoEn: firebase.firestore.Timestamp.now() }));
+  if(r) $('tNuevo').value = '';
+}
+function renombrarTipo(id){
+  const t = tipos.find(x => x.id === id); if(!t) return;
+  const n = prompt('Nuevo nombre del tipo:', t.nombre); if(n === null) return;
+  const nombre = n.trim();
+  if(!nombre){ alert('El nombre no puede quedar vacío.'); return; }
+  if(existeTipo(t.proyectoId, nombre, id)){ alert('Ese tipo ya existe en el proyecto.'); return; }
+  seguro(() => refTipos.doc(id).update({ nombre })).then(r => { if(r) avisar('Las sesiones anteriores conservan el nombre antiguo.'); });
+}
+function borrarTipo(id){
+  const t = tipos.find(x => x.id === id); if(!t) return;
+  if(!confirm('¿Borrar el tipo "' + t.nombre + '"? Las sesiones ya registradas no cambian.')) return;
+  seguro(() => refTipos.doc(id).delete());
+}
+
+// ============ COPIAR DATOS DEL DÍA (sin tarifas ni costos) ============
+async function copiarDatosDia(){
+  const dia = $('diaDatos').value || fechaLocal(Date.now());
+  const lista = sesionesFiltradas().filter(s => s.fecha === dia).sort((a, b) => (a.inicioMs || 0) - (b.inicioMs || 0));
+  if(!lista.length){ avisar('No hay sesiones el ' + dia + '.'); return; }
+  const por = {}; lista.forEach(s => { (por[s.proyectoId] = por[s.proyectoId] || []).push(s); });
+  let t = 'DATOS DEL DÍA — ' + dia + '\n';
+  Object.keys(por).forEach(pid => {
+    const l = por[pid], tp = {}; let tot = 0;
+    l.forEach(s => { const k = s.etiqueta || 'Sin tipo'; tp[k] = (tp[k] || 0) + (s.segundos || 0); tot += s.segundos || 0; });
+    t += '\nProyecto: ' + nombreProy(pid) + '\nTiempo total: ' + txtDur(tot) + ' en ' + l.length + (l.length === 1 ? ' sesión' : ' sesiones') +
+         '\nPor tipo: ' + Object.keys(tp).map(k => k + ' ' + txtDur(tp[k])).join(' · ') + '\nSesiones:\n';
+    l.forEach(s => {
+      const h = s.manual ? 'manual' : new Date(s.inicioMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      t += '- ' + h + ' · ' + (s.etiqueta || 'Sin tipo') + ' · ' + txtDur(s.segundos || 0) + (s.nota ? ' — ' + s.nota : '') + '\n';
+    });
+  });
+  try{ await navigator.clipboard.writeText(t); avisar('Datos del día copiados.'); }
+  catch(e){
+    const x = document.createElement('textarea'); x.value = t; x.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(x); x.select(); let ok = false;
+    try{ ok = document.execCommand('copy'); }catch(_){}
+    x.remove(); avisar(ok ? 'Datos del día copiados.' : 'No se pudo copiar.');
+  }
+}
+
+// ============ TIEMPO MANUAL Y BITÁCORA ============
+async function registrarManual(){
+  const id = $('mProy').value, min = parseFloat($('mMin').value), f = $('mFecha').value || fechaLocal(Date.now());
+  if(!id || !(min > 0)){ alert('Elige el proyecto y los minutos.'); return; }
+  const r = await guardarSesion({ proyectoId: id, etiqueta: $('mEtq').value, nota: $('mNota').value.trim(), segundos: Math.round(min * 60),
+                                  inicioMs: new Date(f + 'T12:00').getTime(), fecha: f, pomodoros: 0, manual: true });
+  if(r){ $('mMin').value = ''; $('mNota').value = ''; }
+}
+function sesionesFiltradas(){
+  const f = $('filtroProy').value;
+  return sesiones.filter(s => !f || f === 'todos' || s.proyectoId === f);
+}
+const nombreProy = id => { const p = proyectos.find(x => x.id === id); return p ? p.nombre : '(proyecto borrado)'; };
+function renderBitacora(){
+  const lista = sesionesFiltradas();
+  // resumen por día y proyecto
+  const g = {};
+  lista.forEach(s => {
+    const k = s.fecha + '|' + s.proyectoId; g[k] = g[k] || { fecha: s.fecha, pid: s.proyectoId, n: 0, seg: 0 };
+    g[k].n++; g[k].seg += s.segundos || 0;
+  });
+  const filas = Object.values(g).sort((a, b) => b.fecha.localeCompare(a.fecha) || nombreProy(a.pid).localeCompare(nombreProy(b.pid)));
+  $('tablaResumen').innerHTML = '<tr><th>Fecha</th><th>Proyecto</th><th class="num">Sesiones</th><th class="num">Tiempo</th><th class="num">Costo</th></tr>' +
+    filas.map(r => {
+      const p = proyectos.find(x => x.id === r.pid);
+      return `<tr><td>${r.fecha}</td><td>${escapeHtml(nombreProy(r.pid))}</td><td class="num">${r.n}</td><td class="num">${txtDur(r.seg)}</td>
+        <td class="num">${p && p.tarifaHora ? formatCOP(r.seg / 3600 * p.tarifaHora) : '—'}</td></tr>`;
+    }).join('');
+  $('emptySesiones').style.display = lista.length ? 'none' : 'block';
+  $('listaSesiones').innerHTML = lista.slice(0, 100).map(s => `<div class="nota-item"><div class="cuerpo">
+    <div class="texto">${escapeHtml(nombreProy(s.proyectoId))} · ${txtDur(s.segundos || 0)}</div>
+    <div class="nota-meta"><span class="fecha">${s.fecha}</span><span>${escapeHtml(s.etiqueta || '')}</span>
+    ${s.pomodoros ? '<span>🍅 ' + s.pomodoros + '</span>' : ''}${s.manual ? '<span>manual</span>' : ''}<span>${escapeHtml(s.autorNombre || '')}</span></div>
+    ${s.nota ? '<div class="texto" style="margin-top:6px;color:var(--muted)">' + escapeHtml(s.nota) + '</div>' : ''}
+    </div><div class="nota-acciones no-print">
+    <button class="icon-btn" title="Editar" onclick="editarSesion('${s.id}')">✏️</button>
+    <button class="icon-btn borrar" title="Borrar" onclick="borrarSesion('${s.id}')">🗑️</button></div></div>`).join('');
+}
+function editarSesion(id){
+  const s = sesiones.find(x => x.id === id);
+  const m = prompt('Minutos de la sesión:', Math.round((s.segundos || 0) / 60)); if(m === null) return;
+  const n = prompt('Nota:', s.nota || ''); if(n === null) return;
+  const min = parseFloat(m); if(!(min >= 0)){ alert('Minutos no válidos.'); return; }
+  seguro(() => refSes.doc(id).update({ segundos: Math.round(min * 60), nota: n.trim() }));
+}
+function borrarSesion(id){
+  if(!confirm('¿Borrar esta sesión?')) return;
+  seguro(() => refSes.doc(id).delete());
+}
+
+// ============ EXPORTAR CSV ============
+function exportarCSV(){
+  const c = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const filas = [['Fecha','Proyecto','Tarea','Minutos','Pomodoros','Manual','Autor','Nota'].map(c).join(',')];
+  sesionesFiltradas().forEach(s => filas.push([s.fecha, nombreProy(s.proyectoId), s.etiqueta, ((s.segundos || 0) / 60).toFixed(1),
+    s.pomodoros || 0, s.manual ? 'sí' : 'no', s.autorNombre, s.nota].map(c).join(',')));
+  const blob = new Blob(['\ufeff' + filas.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'contador-' + fechaLocal(Date.now()) + '.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+</script>
+</body>
+</html>

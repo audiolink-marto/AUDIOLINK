@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0d">
+<meta name="color-scheme" content="dark light">
+<meta name="robots" content="noindex,nofollow">
+<title>Audiolink — CompartirInfo</title>
+<!-- compartirinfo.html v1.3
+     v1.3: (a pedido) botón "📄 Resumen PDF" SOLO en la vista del cliente (no en el editor ni en la vista
+     previa), en la cabecera del reporte. Mismo patrón que vaca.html v1.54: abre una ventana nueva con un
+     documento claro e independiente del tema (header AUDIOLINK con acento dorado, datos del proyecto y
+     del día, tiempo por tipo, sesiones, bloques con sus links visibles, respuesta del cliente si existe y
+     footer de crédito) y su propio botón "🖨️ Imprimir / Guardar como PDF", que espera a que carguen las
+     imágenes antes de imprimir. Mobile first dentro del documento. El título del reporte queda como
+     nombre sugerido del archivo. Sin cambios en datos, reglas (siguen v2.43), editor, subida, guardado,
+     historial ni respuesta del cliente. No se tocó el menú (nav.js).
+     v1.2: (a pedido) (1) MOBILE FIRST: el CSS parte de teléfono (360 px) y crece con min-width (560/700 px);
+     botones y campos de 44-48 px, campos a 16 px (iOS no hace zoom), grupos de botones en 2 columnas,
+     modales como hoja inferior con dvh y cabecera fija, barra de guardado fija con zona segura, :hover
+     solo en dispositivos con puntero, toggles más grandes, lightbox con botón ✕, viewport-fit=cover.
+     (2) Imágenes responsivas en la vista del cliente (srcset 480/900/1400 de Cloudinary) y póster de
+     video más liviano. (3) Impresión/PDF: siempre en colores claros (antes, en tema oscuro, el título
+     salía casi blanco sobre blanco), barras y tarjetas con colores forzados, imágenes cargadas antes de
+     imprimir, YouTube/video como texto con su link y bloques que no se parten entre hojas.
+     Sin cambios en datos, reglas (siguen v2.43), subida a Cloudinary, guardado, historial ni lógica del
+     cliente. No se tocó el menú (nav.js).
+     v1.1: (a pedido) (1) "✉ Marcar como enviado": guarda cuándo y quién (enviadoEn/enviadoPor), sin tocar
+     el contenido ni el aviso de "editado después de aprobar"; permite registrar un nuevo envío.
+     (2) Panel "📚 Historial" en el editor: todos los reportes, del más reciente al más antiguo, con
+     estado (visible/oculto, enviado, aprobado/comentario/sin respuesta, editado tras aprobar o tras
+     enviar), filtros por proyecto y estado, "Abrir" y "📋 Copiar link" por fila. (3) Vista del cliente:
+     "Mis reportes anteriores", guardado SOLO en el dispositivo del cliente (título, proyecto, día y link;
+     máx. 30; se puede quitar cada uno); también aparece si el link abierto ya no está disponible.
+     Sin reglas nuevas: sigue valiendo firestore.rules v2.43. Sin cambios en bloques, subida a Cloudinary,
+     verificador de pendientes, guardado ni respuesta del cliente.
+     v1.0 (primera versión)
+     Hoja nueva, aparte del contador. Una sola página con dos modos:
+       - Editor (con login de equipoInterno): compartirinfo.html
+       - Vista del cliente (sin login, solo el link): compartirinfo.html?r=TOKEN
+     Un reporte por proyecto y día (el editor busca si ya existe y lo abre).
+     Se precargan los datos del contador (sesiones, tiempo total, tipos y notas; SIN tarifas ni costos).
+     Bloques: texto, imagen, video subido, video de YouTube, PDF y enlace (reordenar y borrar).
+     Cliente: aprueba con un clic ("Todo bien, aprobado") y/o deja un comentario (máx. 1.000 caracteres).
+     Si editas después de aprobar, la aprobación se conserva y se avisa "editado después de aprobar".
+     Subida a Cloudinary sin firma: cloud mqwgjh3u, preset COMPARTIRINFO, carpeta COMPARTIRINFO
+       (mismo mecanismo XHR con progreso de ensayo.html v3.293).
+     Verificador de pendientes de Cloudinary (portado de ensayo.html v3.293): al GUARDAR se compara
+       lo guardado contra lo nuevo y los archivos huérfanos se anotan en la colección
+       compartirInfoPendientes, para borrarlos a mano en la consola de Cloudinary.
+     Colecciones nuevas: compartirInfo (id = token de 32 caracteres) y compartirInfoPendientes.
+     Requiere firestore.rules v2.43.
+     Soporta ?p=PROYECTOID&d=AAAA-MM-DD en el editor (para el botón del contador v1.4).
+     No se tocó ningún otro archivo. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+window.CI_TOKEN = (new URLSearchParams(location.search).get('r') || '').trim();
+window.CI_CLIENTE = !!window.CI_TOKEN;
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<script>
+// Editor: carga la misma pila del contador. Cliente: solo Firebase app + firestore (sin login, sin nav).
+if(window.CI_CLIENTE){
+  ['app','firestore'].forEach(function(n){ document.write('<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-' + n + '-compat.js"><\/script>'); });
+  document.write('<script src="firebase-config.js"><\/script>');
+}else{
+  document.write('<link rel="stylesheet" href="nav.css">');
+  document.write('<script src="audiolink-local.js"><\/script>');
+}
+</script>
+<script>
+if(!window.CI_CLIENTE){
+  if(window.AudiolinkLocal){ AudiolinkLocal.cargarFirebase(); }
+  else{ ['app','auth','firestore'].forEach(function(n){ document.write('<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-' + n + '-compat.js"><\/script>'); }); }
+  document.write('<script src="offline-mock.js"><\/script>');
+  document.write('<script src="firebase-config.js"><\/script>');
+  document.write('<script src="utils.js"><\/script>');
+}
+</script>
+<style>
+/* ============ MOBILE-FIRST: base = teléfono (360 px); mejoras con min-width ============ */
+:root{
+  --bg:#0b0b0d;--surf:#151517;--surf-light:#1d1d20;--brd:#2a2a2e;
+  --gold:#c9a24b;--gold-bg:rgba(201,162,75,0.12);--txt:#f0ede6;--muted:#9a978f;--faint:#5c5a55;
+  --ok:#4caf7d;--warn:#d9a441;--err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+  --pad:14px;
+  color-scheme:dark;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;--surf:#ffffff;--surf-light:#f3f0e8;--brd:#e2ddd0;
+  --gold:#a8823a;--gold-bg:rgba(168,130,58,0.10);--txt:#2a2620;--muted:#7a756a;--faint:#a39d8f;
+  --ok:#3a8f63;--warn:#b8842f;--err:#b8453a;
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;min-height:100dvh;line-height:1.45;overflow-x:hidden;}
+button,input,select,textarea,label{touch-action:manipulation;}
+img,video{max-width:100%;}
+main{padding:14px var(--pad) 28px;max-width:900px;margin:0 auto;position:relative;z-index:1;}
+#vistaCliente{padding-left:max(var(--pad),env(safe-area-inset-left));padding-right:max(var(--pad),env(safe-area-inset-right));padding-bottom:calc(28px + env(safe-area-inset-bottom));}
+h2.titulo{font-family:var(--T);font-size:1.3rem;color:var(--gold);margin-bottom:6px;}
+.sub-titulo{color:var(--muted);font-size:0.85rem;margin-bottom:18px;}
+.panel{background:var(--surf);border:1px solid var(--brd);border-radius:12px;padding:16px;margin-bottom:16px;}
+.panel h3{font-size:0.8rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;margin-bottom:12px;text-transform:uppercase;}
+.panel-header-row{display:flex;flex-direction:column;align-items:stretch;margin-bottom:12px;gap:10px;}
+.panel-header-row h3{margin-bottom:0 !important;}
+.form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+.form-row label{font-size:0.78rem;color:var(--muted);}
+/* 16 px en campos: iOS no hace zoom al enfocar */
+.form-row textarea,.form-row input,.form-row select{
+  background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;
+  padding:11px 12px;color:var(--txt);font-family:var(--S);font-size:16px;min-height:48px;width:100%;
+}
+.form-row input[type="date"]{display:block;-webkit-appearance:none;appearance:none;}
+.form-row textarea{min-height:110px;resize:vertical;}
+.form-row-inline{display:flex;flex-direction:column;gap:0;}
+.btn{background:var(--gold);color:#1a1509;border:none;border-radius:10px;padding:12px 18px;font-size:0.95rem;font-weight:600;cursor:pointer;min-height:48px;font-family:var(--S);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+.btn:active{transform:scale(.98);}
+.btn:disabled{opacity:0.45;cursor:not-allowed;}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);border-radius:10px;padding:10px 14px;font-size:0.88rem;cursor:pointer;min-height:44px;font-family:var(--S);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;}
+.btn-ghost:active{border-color:var(--gold);color:var(--gold);}
+.icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:6px;border-radius:8px;min-width:44px;min-height:44px;}
+.icon-btn:active{background:var(--surf);color:var(--gold);}
+.icon-btn:disabled{opacity:.3;cursor:default;}
+.badge-estado{font-size:0.65rem;padding:3px 9px;border-radius:20px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;}
+.badge-estado.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.badge-estado.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge-estado.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.empty{text-align:center;padding:26px 10px;color:var(--faint);font-size:0.88rem;}
+.aviso{background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:10px 14px;font-size:0.82rem;margin-bottom:16px;}
+.aviso.warn{background:rgba(217,164,65,0.12);border-color:var(--warn);color:var(--warn);}
+.sw-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;font-size:0.92rem;min-height:48px;}
+.sw-row label{flex:1;}
+#toastC{position:fixed;bottom:calc(84px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 24px);background:#1f7a4a;border:2px solid #4caf7d;color:#fff;font-weight:600;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.45);padding:12px 18px;border-radius:10px;font-size:0.9rem;z-index:9999;display:none;}
+#toastC.err{background:#8a2f27;border-color:#d4574a;}
+.mini{font-size:0.78rem;color:var(--muted);}
+.mono{font-family:var(--M);}
+.print-only{display:none;}
+/* ---- checkbox estilo dial (.al-chk), mismo bloque que contador.html ---- */
+input[type="checkbox"].al-chk{
+  --h:24px; --chk-on:#8a6d2c; --chk-led:#f6c453; --chk-glow:rgba(246,196,83,.65);
+  -webkit-appearance:none; appearance:none;
+  position:relative; box-sizing:border-box;
+  width:calc(var(--h) * 1.8333); height:var(--h); min-width:0; min-height:0;
+  margin:0; padding:0; border:0; box-shadow:none; flex-shrink:0;
+  border-radius:999px; background:#3a382f; cursor:pointer; vertical-align:middle;
+  transition:background-color .2s ease;
+}
+input[type="checkbox"].al-chk:checked{background:var(--chk-on);}
+input[type="checkbox"].al-chk::before{
+  content:""; position:absolute; box-sizing:border-box;
+  top:calc(var(--h) * .125); left:calc(var(--h) * .125);
+  width:calc(var(--h) * .75); height:calc(var(--h) * .75);
+  border-radius:50%; background:#e9e6dc; border:1.1px solid #3a382f;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1);
+}
+input[type="checkbox"].al-chk::after{
+  content:""; position:absolute;
+  top:calc(var(--h) * .3958); left:calc(var(--h) * .3958);
+  width:calc(var(--h) * .2083); height:calc(var(--h) * .2083);
+  border-radius:50%; background:#6b6a63;
+  transition:transform .2s cubic-bezier(.34,1.4,.64,1), background-color .2s ease, box-shadow .2s ease;
+}
+input[type="checkbox"].al-chk:checked::before{transform:translateX(calc(var(--h) * .8333));}
+input[type="checkbox"].al-chk:checked::after{
+  transform:translateX(calc(var(--h) * .8333));
+  background:var(--chk-led); box-shadow:0 0 calc(var(--h) * .3) calc(var(--h) * .06) var(--chk-glow);
+}
+input[type="checkbox"].al-chk:focus-visible{outline:2px solid var(--chk-led);outline-offset:2px;}
+input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
+.sw-row input.al-chk{--h:28px;}
+/* ---- editor: grupos de botones (2 columnas en móvil) ---- */
+.hdr-btns,.link-btns,.barra-btns,.fila-btns,.add-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.hdr-btns .btn-ghost,.link-btns .btn-ghost,.fila-btns .btn-ghost,.add-row .btn-ghost{width:100%;}
+.add-row{margin-top:14px;padding-top:14px;border-top:1px dashed var(--brd);}
+.link-box{display:flex;flex-direction:column;gap:8px;}
+.link-box input{width:100%;background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;padding:10px 11px;color:var(--txt);font-family:var(--M);font-size:16px;min-height:48px;}
+.link-box > .btn-ghost{width:100%;}
+/* ---- editor: bloques ---- */
+.bq{background:var(--surf-light);border:1px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:10px;}
+.bq-cab{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;}
+.bq-tipo{font-size:0.85rem;color:var(--gold);font-weight:600;}
+.bq-acc{display:flex;gap:0;}
+.bq input[type=text],.bq input[type=url],.bq textarea{width:100%;background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:10px 11px;color:var(--txt);font-family:var(--S);font-size:16px;margin-bottom:8px;min-height:48px;}
+.bq textarea{min-height:120px;resize:vertical;}
+.bq label.btn-ghost{width:100%;}
+.bq-prev{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px;}
+.bq-prev img,.bq-prev video{max-width:100%;max-height:150px;border-radius:8px;border:1px solid var(--brd);background:#000;}
+.prog{height:10px;background:var(--surf);border-radius:6px;overflow:hidden;margin:8px 0 4px;}
+.prog i{display:block;height:100%;background:var(--gold);width:0;transition:width .2s;}
+/* barra de guardado fija abajo, respeta la zona segura del teléfono */
+.barra-guardar{position:sticky;bottom:0;z-index:20;background:var(--surf);border:1px solid var(--brd);border-radius:12px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;box-shadow:0 -4px 18px rgba(0,0,0,.25);}
+.barra-btns .btn,.barra-btns .btn-ghost{width:100%;}
+.resp-ed{border:1px solid var(--brd);border-radius:10px;padding:14px;background:var(--surf-light);}
+.resp-ed .coment{margin-top:8px;font-size:0.92rem;white-space:pre-wrap;word-break:break-word;}
+/* ---- modales: hoja inferior en móvil ---- */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9000;display:none;align-items:flex-end;justify-content:center;}
+.modal-ov.on{display:flex;}
+.modal{background:var(--bg);border:1px solid var(--brd);border-radius:16px 16px 0 0;width:100%;max-width:100%;max-height:92vh;max-height:92dvh;overflow-y:auto;overscroll-behavior:contain;padding:8px 14px calc(16px + env(safe-area-inset-bottom));}
+.modal-cab{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;justify-content:space-between;align-items:center;padding:8px 0 12px;gap:10px;}
+.modal-cab h3{font-family:var(--T);color:var(--gold);font-size:1.1rem;}
+.pend,.hrow{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--brd);border-radius:10px;background:var(--surf);margin-bottom:8px;}
+.pend.limpio{opacity:.55;}
+.pend .id{font-family:var(--M);font-size:0.78rem;word-break:break-all;color:var(--txt);}
+.pend .meta,.hrow .meta{font-size:0.76rem;color:var(--muted);margin-top:4px;}
+.hrow .tit{font-weight:600;word-break:break-word;}
+.hrow .bds{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.hrow .coment{font-size:0.82rem;color:var(--muted);margin-top:6px;word-break:break-word;}
+/* ---- REPORTE (vista previa del editor y vista del cliente) ---- */
+.rp{max-width:760px;margin:0 auto;}
+.rp-cab{padding:6px 0 18px;border-bottom:1px solid var(--brd);margin-bottom:18px;}
+.rp-marca{font-family:var(--M);font-size:0.72rem;letter-spacing:0.18em;color:var(--gold);margin-bottom:8px;}
+.rp-cab h1{font-family:var(--T);font-size:1.45rem;line-height:1.25;color:var(--txt);font-weight:700;overflow-wrap:anywhere;}
+.rp-meta{color:var(--muted);font-size:0.88rem;margin-top:8px;}
+.rp-acc{margin-top:14px;}
+.rp-acc .btn-ghost{width:100%;}
+.rp-sec{margin-bottom:22px;}
+.rp-sec h3{font-size:0.8rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:10px;}
+.rs-stats{display:flex;gap:10px;margin-bottom:14px;}
+.rs-stat{flex:1;min-width:0;background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;}
+.rs-stat b{display:block;font-family:var(--M);font-size:1.15rem;color:var(--gold);font-weight:500;overflow-wrap:anywhere;}
+.rs-stat span{font-size:0.76rem;color:var(--muted);}
+.rs-fila{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;margin-bottom:10px;font-size:0.88rem;}
+.rs-barra{grid-column:1 / -1;order:3;height:8px;background:var(--surf);border-radius:6px;overflow:hidden;border:1px solid var(--brd);}
+.rs-barra i{display:block;height:100%;background:var(--gold);}
+.rs-v{font-family:var(--M);font-size:0.8rem;color:var(--muted);}
+.rs-ses{display:flex;gap:12px;padding:10px 0;border-top:1px dashed var(--brd);font-size:0.9rem;}
+.rs-h{font-family:var(--M);font-size:0.78rem;color:var(--gold);min-width:52px;}
+.rs-n{color:var(--muted);font-size:0.84rem;margin-top:3px;white-space:pre-wrap;word-break:break-word;}
+.rp-bloque{margin-bottom:20px;}
+.rp-bt{font-weight:600;margin-bottom:8px;font-size:0.98rem;}
+.rp-texto{font-size:1.02rem;line-height:1.65;word-break:break-word;}
+.rp-img{width:100%;height:auto;max-height:70vh;object-fit:contain;background:var(--surf);border:1px solid var(--brd);border-radius:10px;cursor:zoom-in;display:block;}
+.rp-video{width:100%;max-height:70vh;background:#000;border-radius:10px;display:block;}
+.rp-yt{position:relative;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden;cursor:pointer;}
+.rp-yt img{width:100%;height:100%;object-fit:cover;display:block;opacity:.85;}
+.rp-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+.rp-yt .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72px;height:52px;border-radius:12px;background:rgba(201,162,75,.95);display:flex;align-items:center;justify-content:center;}
+.rp-yt .play::after{content:"";border-left:18px solid #1a1509;border-top:11px solid transparent;border-bottom:11px solid transparent;margin-left:4px;}
+.rp-tarjeta{display:flex;gap:12px;align-items:center;background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:12px;flex-wrap:wrap;}
+.rp-tarjeta img{width:84px;height:106px;object-fit:cover;border-radius:6px;border:1px solid var(--brd);background:var(--surf-light);}
+.rp-tarjeta .ico{font-size:1.8rem;width:48px;text-align:center;}
+.rp-tarjeta .tx{flex:1;min-width:0;}
+.rp-tarjeta .tx b{display:block;word-break:break-word;}
+.rp-tarjeta .tx span{font-size:0.78rem;color:var(--muted);word-break:break-all;}
+.rp-tarjeta .btn{width:100%;}
+.rp-edit-aviso{margin-bottom:18px;}
+.rp-pl{font-size:0.82rem;word-break:break-all;margin-top:6px;}
+/* ---- respuesta del cliente ---- */
+.resp-box{background:var(--surf);border:1px solid var(--brd);border-radius:14px;padding:16px;}
+.resp-box h3{font-family:var(--T);font-size:1.15rem;color:var(--txt);text-transform:none;letter-spacing:0;font-weight:700;margin-bottom:12px;}
+.resp-box .form-row{margin-bottom:12px;}
+.btn-aprobar{display:flex;align-items:center;justify-content:center;gap:14px;width:100%;min-height:72px;border-radius:14px;border:2px solid var(--ok);background:rgba(76,175,125,.12);color:var(--ok);font-size:1.1rem;font-weight:700;cursor:pointer;font-family:var(--S);transition:background .2s,color .2s,transform .1s;}
+.btn-aprobar:active{background:var(--ok);color:#fff;transform:scale(.985);}
+.btn-aprobar:disabled{opacity:.5;cursor:not-allowed;}
+.chk-circ{width:36px;height:36px;border-radius:50%;border:2.5px solid currentColor;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.chk-circ svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:30;stroke-dashoffset:30;}
+.btn-aprobar:active .chk-circ svg,.hecho .chk-circ svg{animation:dib .45s ease forwards;}
+@keyframes dib{to{stroke-dashoffset:0;}}
+.o-sep{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:0.8rem;margin:16px 0;}
+.o-sep::before,.o-sep::after{content:"";flex:1;height:1px;background:var(--brd);}
+.cuenta{font-size:0.74rem;color:var(--muted);text-align:right;}
+.resp-acc{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+.resp-acc .btn,.resp-acc .btn-ghost{width:100%;}
+.hecho{text-align:center;padding:6px 0;}
+.hecho .chk-circ{width:68px;height:68px;color:var(--ok);margin-bottom:12px;background:rgba(76,175,125,.12);}
+.hecho .chk-circ svg{width:34px;height:34px;}
+.hecho.solo-coment .chk-circ{color:var(--gold);background:var(--gold-bg);}
+.hecho h4{font-family:var(--T);font-size:1.25rem;margin-bottom:4px;}
+.hecho .quien{color:var(--muted);font-size:0.84rem;}
+.hecho .coment{margin:14px auto 0;max-width:560px;text-align:left;background:var(--surf-light);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;font-size:0.92rem;white-space:pre-wrap;word-break:break-word;}
+.hist-cl{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:6px 6px 6px 14px;margin-bottom:8px;min-height:56px;}
+.hist-cl a{flex:1;text-decoration:none;color:var(--txt);min-width:0;padding:6px 0;}
+.hist-cl a b{display:block;word-break:break-word;}
+.hist-cl a span{font-size:0.78rem;color:var(--muted);}
+/* lightbox */
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9500;display:none;align-items:center;justify-content:center;padding:12px;cursor:zoom-out;}
+.lb.on{display:flex;}
+.lb img{max-width:100%;max-height:100%;border-radius:6px;}
+.lb-x{position:absolute;top:max(10px,env(safe-area-inset-top));right:12px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;}
+.cl-pie{text-align:center;color:var(--faint);font-size:0.72rem;padding:26px 0 10px;}
+/* ---- tablet y escritorio ---- */
+@media (min-width:560px){
+  main{padding-top:22px;}
+  .form-row-inline{flex-direction:row;gap:12px;flex-wrap:wrap;}
+  .form-row-inline .form-row{flex:1;min-width:150px;}
+  .panel-header-row{flex-direction:row;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+  .hdr-btns,.link-btns,.barra-btns,.fila-btns,.add-row{display:flex;flex-wrap:wrap;}
+  .hdr-btns .btn-ghost,.link-btns .btn-ghost,.fila-btns .btn-ghost,.add-row .btn-ghost,.bq label.btn-ghost,.link-box > .btn-ghost,.barra-btns .btn,.barra-btns .btn-ghost{width:auto;}
+  .link-box{flex-direction:row;flex-wrap:wrap;align-items:center;}
+  .link-box input{flex:1;min-width:220px;width:auto;}
+  .barra-guardar{flex-direction:row;justify-content:space-between;align-items:center;padding:12px 16px;}
+  .rs-fila{grid-template-columns:minmax(90px,1.2fr) 2fr auto;}
+  .rs-barra{grid-column:auto;order:0;}
+  .rp-tarjeta .btn{width:auto;}
+  .rp-acc .btn-ghost{width:auto;}
+  .rp-tarjeta img{width:96px;height:120px;}
+  .resp-acc{flex-direction:row;flex-wrap:wrap;justify-content:center;}
+  .resp-acc .btn,.resp-acc .btn-ghost{width:auto;}
+  .pend,.hrow{flex-direction:row;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;}
+}
+@media (min-width:700px){
+  :root{--pad:28px;}
+  .panel{padding:22px;margin-bottom:22px;}
+  .rp-cab{padding:8px 0 22px;margin-bottom:22px;}
+  .rp-cab h1{font-size:1.8rem;}
+  .rs-stat b{font-size:1.35rem;}
+  .resp-box{padding:22px;}
+  .modal-ov{align-items:flex-start;overflow-y:auto;padding:24px 12px;}
+  .modal{border-radius:12px;max-width:760px;max-height:none;overflow:visible;padding:20px;}
+  .modal-cab{position:static;padding:0 0 14px;}
+  .btn{font-size:0.88rem;}
+}
+@media (hover:hover){
+  .btn:hover{opacity:0.9;}
+  .btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+  .btn-ghost.peligro:hover,.icon-btn.borrar:hover{border-color:var(--err);color:var(--err);}
+  .icon-btn:hover{background:var(--surf);color:var(--gold);}
+  .btn-aprobar:hover{background:var(--ok);color:#fff;}
+  .btn-aprobar:hover .chk-circ svg{animation:dib .45s ease forwards;}
+}
+@media (prefers-reduced-motion:reduce){.chk-circ svg{animation:none !important;stroke-dashoffset:0;}*{transition:none !important;}}
+/* ---- impresión / PDF: siempre en claro, sin recortes ---- */
+@page{margin:14mm;}
+@media print{
+  :root,:root[data-tema="dark"],:root[data-tema="light"]{
+    --bg:#fff;--surf:#fff;--surf-light:#f6f4ee;--brd:#cfc9b8;--gold:#8a6a1f;--gold-bg:#f5eedb;
+    --txt:#1a1a1a;--muted:#555;--faint:#777;--ok:#2e7d52;--warn:#9a6b12;--err:#a83a30;
+  }
+  html,body{background:#fff !important;color:#1a1a1a;}
+  #nav-mount,.no-print,#clHist{display:none !important;}
+  .main-wrap{margin-left:0 !important;}
+  main,#vistaCliente{padding:0 !important;max-width:none;}
+  .rs-barra,.rs-barra i,.rs-stat,.rp-tarjeta{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .rp-yt,.rp-video{display:none !important;}
+  .print-only{display:block;}
+  .rp-img{max-height:none;cursor:auto;}
+  .rp-cab,.rp-bloque,.rs-stat,.rs-ses,.rp-tarjeta,.rs-fila,.rp-bt{break-inside:avoid;page-break-inside:avoid;}
+  .rp-bt{break-after:avoid;}
+  .rp-tarjeta .btn{display:none;}
+}
+</style>
+</head>
+<body>
+
+<script>
+if(!window.CI_CLIENTE){
+  window.NAV_CONFIG = { activo: 'compartirinfo' };
+  document.write('<div id="nav-mount"></div><script src="nav.js"><\/script>');
+}
+</script>
+
+<!-- ================= EDITOR (con login) ================= -->
+<div class="main-wrap" id="vistaEditor" style="display:none;">
+<main>
+  <h2 class="titulo">📤 CompartirInfo</h2>
+  <div class="sub-titulo">Arma un reporte por proyecto y día, con los datos del contador, y compártelo con el cliente por link.</div>
+  <div class="aviso no-print" id="avisoOffline" style="display:none;"></div>
+
+  <div class="panel no-print">
+    <div class="panel-header-row">
+      <h3 style="margin-bottom:0;">Reporte</h3>
+      <div class="hdr-btns">
+        <button class="btn-ghost" onclick="ciAbrirHistorial()">📚 Historial</button>
+        <button class="btn-ghost" onclick="ciAbrirPendientes()">🧹 Pendientes de Cloudinary</button>
+      </div>
+    </div>
+    <div class="form-row-inline">
+      <div class="form-row"><label>Proyecto</label><select id="selProy"></select></div>
+      <div class="form-row"><label>Día</label><input type="date" id="selFecha"></div>
+    </div>
+    <button class="btn" onclick="ciAbrirReporte()">Abrir o crear reporte</button>
+    <div class="mini" style="margin-top:10px;">Si ya existe un reporte de ese proyecto y día, se abre para editarlo; si no, se arma uno nuevo con los datos del contador.</div>
+  </div>
+
+  <div id="edWrap" style="display:none;">
+    <div class="panel no-print">
+      <div class="panel-header-row">
+        <h3 style="margin-bottom:0;">Datos del contador</h3>
+        <button class="btn-ghost" onclick="ciActualizarContador()">↻ Actualizar desde el contador</button>
+      </div>
+      <div id="edDatos"></div>
+    </div>
+
+    <div class="panel no-print">
+      <h3>Título y link para el cliente</h3>
+      <div class="form-row"><label>Título del reporte</label><input type="text" id="rTitulo" maxlength="140" oninput="ciTitulo(this.value)"></div>
+      <div class="sw-row"><input type="checkbox" class="al-chk" id="chkVis" onchange="ciVisible(this.checked)"><label for="chkVis">Visible para el cliente (sin esto el link no abre)</label></div>
+      <div class="link-box">
+        <input type="text" id="rLink" readonly onfocus="this.select()">
+        <div class="link-btns">
+          <button class="btn-ghost" onclick="ciCopiarLink()">📋 Copiar link</button>
+          <button class="btn-ghost" onclick="ciAbrirLink()">↗ Abrir link</button>
+        </div>
+      </div>
+      <div class="mini" id="rLinkNota" style="margin-top:8px;"></div>
+      <div class="link-box" style="margin-top:12px;"><button class="btn-ghost" id="btnEnviado" onclick="ciMarcarEnviado()">✉ Marcar como enviado</button><span class="mini" id="rEnviado"></span></div>
+    </div>
+
+    <div class="panel no-print">
+      <h3>Bloques</h3>
+      <div id="listaBloques"></div>
+      <div class="add-row">
+        <button class="btn-ghost" onclick="ciAgregar('texto')">📝 Texto</button>
+        <button class="btn-ghost" onclick="ciAgregar('imagen')">🖼 Imagen</button>
+        <button class="btn-ghost" onclick="ciAgregar('video')">🎬 Video</button>
+        <button class="btn-ghost" onclick="ciAgregar('youtube')">▶️ YouTube</button>
+        <button class="btn-ghost" onclick="ciAgregar('pdf')">📄 PDF</button>
+        <button class="btn-ghost" onclick="ciAgregar('enlace')">🔗 Enlace</button>
+      </div>
+    </div>
+
+    <div class="panel no-print">
+      <div class="panel-header-row">
+        <h3 style="margin-bottom:0;">Respuesta del cliente</h3>
+        <button class="btn-ghost" onclick="ciRecargarRespuesta()">↻ Recargar</button>
+      </div>
+      <div id="edRespuesta"></div>
+    </div>
+
+    <div class="panel no-print" style="border-color:var(--brd);">
+      <h3>Zona delicada</h3>
+      <button class="btn-ghost peligro" onclick="ciBorrarReporte()">🗑 Borrar reporte</button>
+      <div class="mini" style="margin-top:8px;">Borra el reporte y anota sus archivos en Pendientes de Cloudinary (desde el navegador no se pueden borrar de Cloudinary).</div>
+    </div>
+
+    <div class="barra-guardar no-print" id="barraGuardar">
+      <div id="estadoGuardado" class="mini"></div>
+      <div class="barra-btns">
+        <button class="btn-ghost" onclick="ciVistaPrevia()">👁 Vista previa</button>
+        <button class="btn" id="btnGuardar" onclick="ciGuardar()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- ================= VISTA DEL CLIENTE (sin login) ================= -->
+<main id="vistaCliente" style="display:none;">
+  <div id="clCuerpo"><div class="empty">Cargando reporte…</div></div>
+  <div id="rpRespuesta" class="no-print" style="max-width:760px;margin:0 auto;"></div>
+  <div id="clHist" class="no-print"></div>
+  <div class="cl-pie no-print">Audiolink</div>
+</main>
+
+<!-- modales -->
+<div class="modal-ov" id="modPrev" onclick="if(event.target===this)ciCerrarModal('modPrev')">
+  <div class="modal" style="max-width:820px;">
+    <div class="modal-cab"><h3>Vista previa (así lo ve el cliente)</h3><button class="btn-ghost" onclick="ciCerrarModal('modPrev')">✕ Cerrar</button></div>
+    <div id="prevCuerpo"></div>
+  </div>
+</div>
+<div class="modal-ov" id="modHist" onclick="if(event.target===this)ciCerrarModal('modHist')">
+  <div class="modal" style="max-width:860px;">
+    <div class="modal-cab"><h3>Historial de reportes</h3><button class="btn-ghost" onclick="ciCerrarModal('modHist')">✕ Cerrar</button></div>
+    <div class="form-row-inline">
+      <div class="form-row"><label>Proyecto</label><select id="hfProy" onchange="ciPintarHistorial()"></select></div>
+      <div class="form-row"><label>Estado</label><select id="hfEst" onchange="ciPintarHistorial()">
+        <option value="">Todos</option><option value="sinenviar">Sin enviar</option><option value="sinrespuesta">Sin respuesta del cliente</option>
+        <option value="aprobado">Aprobados</option><option value="comentario">Con comentario sin aprobar</option><option value="editado">Editados tras aprobar</option></select></div>
+    </div>
+    <div class="mini" id="histConteo" style="margin-bottom:10px;"></div>
+    <div id="histLista"></div>
+  </div>
+</div>
+<div class="modal-ov" id="modPend" onclick="if(event.target===this)ciCerrarModal('modPend')">
+  <div class="modal">
+    <div class="modal-cab"><h3>Pendientes de Cloudinary</h3><button class="btn-ghost" onclick="ciCerrarModal('modPend')">✕ Cerrar</button></div>
+    <div class="mini" style="margin-bottom:12px;">Archivos que quedaron sin uso en un reporte. Copia el ID, búscalo en la consola de Cloudinary (Media Library, carpeta COMPARTIRINFO), bórralo allá y marca aquí "Limpiado".</div>
+    <div class="hdr-btns" style="margin-bottom:14px;">
+      <button class="btn-ghost" onclick="ciCopiarTodosPend()">📋 Copiar todos los pendientes</button>
+      <button class="btn-ghost peligro" onclick="ciVaciarLimpiados()">🗑 Vaciar limpiados</button>
+    </div>
+    <div id="pendLista"></div>
+  </div>
+</div>
+<div class="lb" id="lb" onclick="this.classList.remove('on')"><span class="lb-x">✕</span><img id="lbImg" alt=""></div>
+<div id="toastC" onclick="cerrarToast()" title="Clic para cerrar"></div>
+
+<script>
+// ============================================================
+// CONSTANTES
+// ============================================================
+const CLOUD_NAME = 'mqwgjh3u';
+const PRESET = 'COMPARTIRINFO';
+const CARPETA = 'COMPARTIRINFO';
+const COL = 'compartirInfo';
+const COL_PEND = 'compartirInfoPendientes';
+// ESTIMADO: topes por archivo de los planes gratuitos de Cloudinary según mi conocimiento; confirma en tu cuenta.
+const LIM_MB = { imagen: 10, pdf: 10, video: 100 };
+const TIPOS_BLOQUE = {
+  texto:   { ico: '📝', nom: 'Texto' },
+  imagen:  { ico: '🖼', nom: 'Imagen' },
+  video:   { ico: '🎬', nom: 'Video subido' },
+  youtube: { ico: '▶️', nom: 'Video de YouTube' },
+  pdf:     { ico: '📄', nom: 'PDF' },
+  enlace:  { ico: '🔗', nom: 'Enlace' }
+};
+const $ = id => document.getElementById(id);
+
+// ============================================================
+// UTILIDADES (prefijo ci: no chocan con utils.js)
+// ============================================================
+function ciEsc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function ciMs(x){
+  if(!x) return 0;
+  if(typeof x.toMillis === 'function') return x.toMillis();
+  if(x instanceof Date) return x.getTime();
+  if(typeof x === 'number') return x;
+  return 0;
+}
+function ciDur(seg){
+  seg = Math.max(0, Math.round(seg || 0));
+  const tm = Math.round(seg / 60), h = Math.floor(tm / 60), m = tm % 60;
+  if(!tm) return seg > 0 ? '<1 min' : '0 min';
+  return [h ? h + ' h' : '', m ? m + ' min' : ''].filter(Boolean).join(' ');
+}
+function ciHora(ms){ return new Date(ms).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }); }
+function ciFechaLarga(f){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || '');
+  if(!m) return f || '';
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+function ciFechaHora(x){
+  const ms = ciMs(x); if(!ms) return '';
+  return new Date(ms).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+}
+function fechaLocal(ms){
+  const d = new Date(ms);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+// Token de 32 caracteres aleatorios (a-z, A-Z, 0-9) con crypto; sin sesgo de módulo.
+function ciToken(){
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let t = '';
+  while(t.length < 32){
+    const b = new Uint8Array(48); crypto.getRandomValues(b);
+    for(const x of b){ if(x < 248 && t.length < 32) t += A[x % 62]; }
+  }
+  return t;
+}
+function ciIdBloque(){ return 'b' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3); }
+function ciUrlHttp(u){
+  try{ const x = new URL(String(u || '').trim()); return (x.protocol === 'http:' || x.protocol === 'https:') ? x.toString() : ''; }
+  catch(e){ return ''; }
+}
+function ciUrlCloud(u){ return /^https:\/\/res\.cloudinary\.com\//.test(u || ''); }
+function ciYtId(u){
+  u = String(u || '').trim(); if(!u) return '';
+  let m = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/))([A-Za-z0-9_-]{11})/.exec(u);
+  return m ? m[1] : '';
+}
+// Miniaturas por transformación de Cloudinary (a partir de la URL guardada).
+function ciThumb(b, w){
+  const u = b.url || ''; if(!ciUrlCloud(u)) return '';
+  w = w || 900;
+  if(b.tipo === 'imagen') return u.replace('/image/upload/', '/image/upload/c_limit,w_' + w + ',q_auto,f_auto/');
+  if(b.tipo === 'video')  return u.replace('/video/upload/', '/video/upload/so_0,c_limit,w_' + w + ',q_auto/').replace(/\.[A-Za-z0-9]+$/, '.jpg');
+  if(b.tipo === 'pdf')    return u.replace('/image/upload/', '/image/upload/pg_1,c_limit,w_500,f_jpg/').replace(/\.pdf$/i, '.jpg');
+  return '';
+}
+function avisar(msg, err){
+  const t = $('toastC'); t.textContent = msg + '  ✕'; t.className = err ? 'err' : ''; t.style.display = 'block';
+}
+function cerrarToast(){ $('toastC').style.display = 'none'; }
+function ciCerrarModal(id){ $(id).classList.remove('on'); }
+function ciConTimeout(p, ms){
+  return new Promise((res, rej) => {
+    const t = setTimeout(() => rej(new Error('TIMEOUT')), ms);
+    p.then(v => { clearTimeout(t); res(v); }, e => { clearTimeout(t); rej(e); });
+  });
+}
+async function ciCopiar(texto, okMsg){
+  try{ await navigator.clipboard.writeText(texto); avisar(okMsg || 'Copiado.'); }
+  catch(e){
+    const x = document.createElement('textarea'); x.value = texto; x.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(x); x.select(); let ok = false;
+    try{ ok = document.execCommand('copy'); }catch(_){}
+    x.remove(); avisar(ok ? (okMsg || 'Copiado.') : 'No se pudo copiar.', !ok);
+  }
+}
+
+// ============================================================
+// RENDER COMPARTIDO DEL REPORTE (vista previa del editor y vista del cliente)
+// ============================================================
+function ciEditadoDespues(rep){
+  const rc = rep.respuestaCliente;
+  return !!(rc && rc.aprobado && ciMs(rep.editadoEn) && ciMs(rc.fecha) && ciMs(rep.editadoEn) > ciMs(rc.fecha));
+}
+function ciResumenHTML(dc, esEditor){
+  if(!dc) return '';
+  if(!dc.nSesiones){
+    return esEditor ? '<div class="empty">No hay sesiones en el contador para este proyecto y día.</div>' : '';
+  }
+  const tot = dc.totalSeg || 0;
+  const filas = (dc.porTipo || []).map(t => {
+    const pct = tot ? Math.round(t.seg / tot * 100) : 0;
+    return `<div class="rs-fila"><div>${ciEsc(t.tipo)}</div><div class="rs-barra"><i style="width:${pct}%"></i></div><div class="rs-v">${ciDur(t.seg)}</div></div>`;
+  }).join('');
+  const ses = (dc.sesiones || []).map(s =>
+    `<div class="rs-ses"><div class="rs-h">${(s.manual || !s.inicioMs) ? 'Manual' : ciHora(s.inicioMs)}</div><div><b>${ciEsc(s.tipo)}</b> · ${ciDur(s.seg)}${s.nota ? `<div class="rs-n">${ciEsc(s.nota)}</div>` : ''}</div></div>`
+  ).join('');
+  return `<div class="rs-stats">
+      <div class="rs-stat"><b>${ciDur(tot)}</b><span>Tiempo total</span></div>
+      <div class="rs-stat"><b>${dc.nSesiones}</b><span>${dc.nSesiones === 1 ? 'Sesión' : 'Sesiones'}</span></div>
+    </div>
+    <div style="margin-bottom:14px;">${filas}</div>
+    <div>${ses}</div>`;
+}
+function ciBloqueHTML(b){
+  const t = b.titulo ? `<div class="rp-bt">${ciEsc(b.titulo)}</div>` : '';
+  switch(b.tipo){
+    case 'texto':
+      return b.texto ? `<div class="rp-bloque rp-texto">${ciEsc(b.texto).replace(/\n/g, '<br>')}</div>` : '';
+    case 'imagen': {
+      if(!ciUrlCloud(b.url)) return '';
+      return `<div class="rp-bloque">${t}<img class="rp-img" loading="lazy" decoding="async" src="${ciEsc(ciThumb(b, 900))}" srcset="${ciEsc(ciThumb(b, 480))} 480w, ${ciEsc(ciThumb(b, 900))} 900w, ${ciEsc(ciThumb(b, 1400))} 1400w" sizes="(max-width:760px) 100vw, 760px" data-zoom="${ciEsc(b.url)}" alt="${ciEsc(b.titulo || 'Imagen')}"></div>`;
+    }
+    case 'video': {
+      if(!ciUrlCloud(b.url)) return '';
+      return `<div class="rp-bloque">${t}<video class="rp-video" controls preload="metadata" playsinline poster="${ciEsc(ciThumb(b, 640))}" src="${ciEsc(b.url)}"></video><div class="print-only rp-pl">🎬 Video: ${ciEsc(b.url)}</div></div>`;
+    }
+    case 'youtube': {
+      const id = ciYtId(b.url) || b.videoId; if(!/^[A-Za-z0-9_-]{11}$/.test(id || '')) return '';
+      return `<div class="rp-bloque">${t}<div class="rp-yt" data-yt="${ciEsc(id)}"><img loading="lazy" src="https://i.ytimg.com/vi/${ciEsc(id)}/hqdefault.jpg" alt="Video de YouTube"><span class="play"></span></div><div class="print-only rp-pl">▶ Video de YouTube: https://youtu.be/${ciEsc(id)}</div></div>`;
+    }
+    case 'pdf': {
+      if(!ciUrlCloud(b.url)) return '';
+      return `<div class="rp-bloque">${t}<div class="rp-tarjeta"><img loading="lazy" src="${ciEsc(ciThumb(b))}" alt="" onerror="this.outerHTML='<div class=&quot;ico&quot;>📄</div>'"><div class="tx"><b>${ciEsc(b.nombre || 'Documento PDF')}</b><span>${b.paginas ? b.paginas + (b.paginas === 1 ? ' página' : ' páginas') : 'PDF'}</span></div><a class="btn" href="${ciEsc(b.url)}" target="_blank" rel="noopener">Abrir PDF</a></div></div>`;
+    }
+    case 'enlace': {
+      const u = ciUrlHttp(b.url); if(!u) return '';
+      let host = ''; try{ host = new URL(u).hostname.replace(/^www\./, ''); }catch(e){}
+      return `<div class="rp-bloque"><div class="rp-tarjeta"><div class="ico">🔗</div><div class="tx"><b>${ciEsc(b.titulo || host)}</b><span>${ciEsc(host)}</span></div><a class="btn" href="${ciEsc(u)}" target="_blank" rel="noopener noreferrer">Abrir</a></div></div>`;
+    }
+  }
+  return '';
+}
+function ciReporteHTML(rep, esEditor, conPdf){
+  const avisoEd = ciEditadoDespues(rep)
+    ? '<div class="aviso warn rp-edit-aviso">Este reporte fue actualizado después de tu aprobación. Revísalo y confirma de nuevo si todo sigue bien.</div>' : '';
+  const resumen = ciResumenHTML(rep.datosContador, esEditor);
+  const bl = (rep.bloques || []).map(ciBloqueHTML).join('');
+  return `<div class="rp">
+    <div class="rp-cab"><div class="rp-marca">AUDIOLINK</div><h1>${ciEsc(rep.titulo || 'Reporte')}</h1>
+      <div class="rp-meta">${ciEsc(rep.proyectoNombre || '')} · ${ciEsc(ciFechaLarga(rep.fecha))}</div>
+      ${conPdf ? '<div class="rp-acc no-print"><button class="btn-ghost" onclick="ciGenerarPDF()" title="Descargar resumen en PDF">📄 Resumen PDF</button></div>' : ''}</div>
+    ${avisoEd}
+    ${resumen ? `<div class="rp-sec"><h3>Tiempo trabajado</h3>${resumen}</div>` : ''}
+    ${bl}
+  </div>`;
+}
+// Impresión/PDF: las imágenes diferidas fuera de pantalla no se cargarían; se fuerzan antes de imprimir.
+window.addEventListener('beforeprint', () => { document.querySelectorAll('img[loading="lazy"]').forEach(i => { i.loading = 'eager'; }); });
+// Clics delegados: ampliar imagen y cargar YouTube solo al tocar (no carga nada de YouTube antes).
+document.addEventListener('click', e => {
+  const z = e.target.closest && e.target.closest('[data-zoom]');
+  if(z){ $('lbImg').src = z.getAttribute('data-zoom'); $('lb').classList.add('on'); return; }
+  const y = e.target.closest && e.target.closest('[data-yt]');
+  if(y && !y.querySelector('iframe')){
+    const id = y.getAttribute('data-yt');
+    if(!/^[A-Za-z0-9_-]{11}$/.test(id)) return;
+    y.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="Video de YouTube"></iframe>';
+  }
+});
+
+// ============================================================
+// INICIALIZACIÓN DE FIREBASE (según modo)
+// ============================================================
+const sdkOk = typeof firebase !== 'undefined';
+let db = null, auth = null, loc = null;
+if(sdkOk){ firebase.initializeApp(firebaseConfig); }
+if(window.CI_CLIENTE){
+  if(sdkOk) db = firebase.firestore();
+}else{
+  // Trabajo en local (audiolink-local.js). Mismo bloque que contador.html v1.3.
+  loc = window.AudiolinkLocal ? AudiolinkLocal.iniciar({
+    modoLocal: true,
+    sdkOk: sdkOk,
+    authReal: sdkOk ? firebase.auth() : null,
+    crearDBNormal: () => crearDB(),
+    crearDBRespaldo: () => (typeof crearDBOffline === 'function' ? crearDBOffline() : null),
+    crearAuthRespaldo: email => {
+      const u = { email: email, uid: 'offline-' + email };
+      return { currentUser: u, onAuthStateChanged: cb => { setTimeout(() => cb(u), 0); return () => {}; },
+               signOut: () => Promise.resolve(), signInWithEmailAndPassword: () => Promise.reject(new Error('Sin conexión')) };
+    }
+  }) : null;
+  auth = loc ? loc.auth : firebase.auth();
+  db = loc ? loc.db : crearDB();
+}
+const colInfo = () => db.collection(COL);
+const colPend = () => db.collection(COL_PEND);
+
+// ============================================================
+// ============  VISTA DEL CLIENTE (sin login)  ===============
+// ============================================================
+const CL = { rep: null, editando: false, enviando: false, borr: { nombre: '', comentario: '' } };
+// Historial del cliente: SOLO en su dispositivo (localStorage). Guarda título, proyecto, día y token; nada más.
+const CI_HIST_KEY = 'ci_hist_v1';
+function ciHistLeer(){
+  try{ const a = JSON.parse(localStorage.getItem(CI_HIST_KEY) || '[]'); return Array.isArray(a) ? a.filter(x => x && /^[A-Za-z0-9]{32}$/.test(x.t)) : []; }
+  catch(e){ return []; }
+}
+function ciHistGuardar(a){ try{ localStorage.setItem(CI_HIST_KEY, JSON.stringify(a.slice(0, 30))); }catch(e){} }
+function ciHistRegistrar(rep){
+  const a = ciHistLeer().filter(x => x.t !== CI_TOKEN);
+  a.unshift({ t: CI_TOKEN, ti: String(rep.titulo || 'Reporte').slice(0, 140), p: String(rep.proyectoNombre || '').slice(0, 100), f: rep.fecha || '', v: Date.now() });
+  ciHistGuardar(a);
+}
+function ciHistQuitar(t){ ciHistGuardar(ciHistLeer().filter(x => x.t !== t)); ciPintarHist(); }
+function ciPintarHist(){
+  const el = $('clHist'), l = ciHistLeer().filter(x => x.t !== CI_TOKEN);
+  if(!l.length){ el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="rp-sec" style="max-width:760px;margin:30px auto 0;"><h3>Mis reportes anteriores</h3>' +
+    l.map(x => `<div class="hist-cl"><a href="?r=${ciEsc(x.t)}"><b>${ciEsc(x.ti)}</b><span>${ciEsc(x.p)}${x.p && x.f ? ' · ' : ''}${ciEsc(ciFechaLarga(x.f))}</span></a><button class="icon-btn" title="Quitar de esta lista" onclick="ciHistQuitar('${x.t}')">✕</button></div>`).join('') +
+    '<div class="mini">Esta lista se guarda solo en este dispositivo.</div></div>';
+}
+
+async function ciInitCliente(){
+  $('vistaCliente').style.display = '';
+  document.title = 'Reporte — Audiolink';
+  const noDisp = () => { $('clCuerpo').innerHTML = '<div class="empty" style="padding:60px 10px;">Este reporte no está disponible.<br><span class="mini">Pide a Audiolink que te reenvíe el link.</span></div>'; $('rpRespuesta').innerHTML = ''; ciPintarHist(); };
+  if(!db || !/^[A-Za-z0-9]{32}$/.test(CI_TOKEN)){ noDisp(); return; }
+  try{
+    const d = await colInfo().doc(CI_TOKEN).get();
+    if(!d.exists){ noDisp(); return; }
+    CL.rep = d.data();
+    document.title = (CL.rep.titulo || 'Reporte') + ' — Audiolink';
+    ciPintarCliente();
+    ciHistRegistrar(CL.rep); ciPintarHist();
+  }catch(e){ console.error('CompartirInfo cliente:', e); noDisp(); }
+}
+function ciPintarCliente(){
+  $('clCuerpo').innerHTML = ciReporteHTML(CL.rep, false, true);
+  ciPintarRespuesta();
+}
+const CHK_SVG = '<span class="chk-circ"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>';
+function ciPintarRespuesta(){
+  const box = $('rpRespuesta'), rc = CL.rep && CL.rep.respuestaCliente;
+  if(rc && !CL.editando){
+    const quien = (rc.nombre ? ciEsc(rc.nombre) + ' · ' : '') + ciEsc(ciFechaHora(rc.fecha));
+    box.innerHTML = `<div class="resp-box"><div class="hecho ${rc.aprobado ? '' : 'solo-coment'}">${CHK_SVG}
+      <h4>${rc.aprobado ? 'Aprobado' : 'Comentario enviado'}</h4><div class="quien">${quien}</div>
+      ${rc.comentario ? `<div class="coment">${ciEsc(rc.comentario)}</div>` : ''}
+      <div class="resp-acc">
+        ${rc.aprobado ? '' : '<button class="btn" onclick="ciEnviar(true)">✓ Aprobar ahora</button>'}
+        <button class="btn-ghost" onclick="ciEditarRespuesta()">Cambiar mi respuesta</button></div></div></div>`;
+    return;
+  }
+  const b = CL.borr;
+  box.innerHTML = `<div class="resp-box"><h3>¿Todo bien con este reporte?</h3>
+    <div class="form-row"><label>Tu nombre (opcional)</label><input type="text" id="rsNombre" maxlength="100" value="${ciEsc(b.nombre)}" oninput="CL.borr.nombre=this.value"></div>
+    <button class="btn-aprobar" ${CL.enviando ? 'disabled' : ''} onclick="ciEnviar(true)">${CHK_SVG}<span>Todo bien, aprobado</span></button>
+    <div class="o-sep">o deja un comentario</div>
+    <div class="form-row" style="margin-bottom:4px;"><textarea id="rsComentario" maxlength="1000" placeholder="Escribe aquí lo que quieras ajustar o aclarar (opcional)" oninput="CL.borr.comentario=this.value;ciCuenta()">${ciEsc(b.comentario)}</textarea></div>
+    <div class="cuenta" id="rsCuenta">${b.comentario.length} / 1000</div>
+    <div class="resp-acc">
+      <button class="btn-ghost" ${CL.enviando ? 'disabled' : ''} onclick="ciEnviar(false)">Enviar solo el comentario</button>
+      ${rc ? '<button class="btn-ghost" onclick="CL.editando=false;ciPintarRespuesta()">Cancelar</button>' : ''}
+    </div>
+    <div class="mini" style="margin-top:12px;">Si no quieres escribir nada, aprueba con un solo clic.</div></div>`;
+}
+function ciCuenta(){ const c = $('rsCuenta'); if(c) c.textContent = CL.borr.comentario.length + ' / 1000'; }
+function ciEditarRespuesta(){
+  const rc = CL.rep.respuestaCliente || {};
+  CL.borr = { nombre: rc.nombre || '', comentario: rc.comentario || '' };
+  CL.editando = true; ciPintarRespuesta();
+}
+// v1.3: resumen imprimible / PDF en ventana nueva (mismo patrón que vaca.html v1.54: window.open + document.write,
+// sin jsPDF). Documento claro e independiente del tema; solo se ofrece en la vista del cliente.
+function ciGenerarPDF(){
+  const rep = CL.rep; if(!rep) return;
+  const ac = '#c9a24b', acTxt = '#1a1509', acOsc = '#8a6a1f';
+  const dc = rep.datosContador || null, tot = dc ? (dc.totalSeg || 0) : 0, hayTiempo = !!(dc && dc.nSesiones);
+  const hoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+  const td = 'padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top;';
+  let resumen = '';
+  if(hayTiempo){
+    const filasTipo = (dc.porTipo || []).map(t =>
+      `<tr><td style="${td}">${ciEsc(t.tipo)}</td><td style="${td}text-align:right;font-weight:bold;white-space:nowrap;">${ciDur(t.seg)}</td><td style="${td}text-align:right;color:#64748b;">${tot ? Math.round(t.seg / tot * 100) : 0}%</td></tr>`).join('');
+    const filasSes = (dc.sesiones || []).map(s =>
+      `<tr><td style="${td}white-space:nowrap;">${(s.manual || !s.inicioMs) ? 'Manual' : ciHora(s.inicioMs)}</td><td style="${td}">${ciEsc(s.tipo)}</td><td style="${td}white-space:nowrap;">${ciDur(s.seg)}</td><td style="${td}color:#475569;">${s.nota ? ciEsc(s.nota).replace(/\n/g, '<br>') : '—'}</td></tr>`).join('');
+    resumen = `<h3 class="st">Tiempo por tipo</h3><div class="tw"><table><thead><tr><th>Tipo</th><th style="text-align:right;">Tiempo</th><th style="text-align:right;">%</th></tr></thead><tbody>${filasTipo}</tbody></table></div>
+      <h3 class="st">Sesiones</h3><div class="tw"><table><thead><tr><th>Hora</th><th>Tipo</th><th>Tiempo</th><th>Nota</th></tr></thead><tbody>${filasSes}</tbody></table></div>`;
+  }
+  const bloques = (rep.bloques || []).map(b => {
+    const t = b.titulo ? `<div class="bt">${ciEsc(b.titulo)}</div>` : '';
+    if(b.tipo === 'texto') return b.texto ? `<div class="bl"><p>${ciEsc(b.texto).replace(/\n/g, '<br>')}</p></div>` : '';
+    if(b.tipo === 'imagen' && ciUrlCloud(b.url)) return `<div class="bl">${t}<img src="${ciEsc(ciThumb(b, 1200))}" alt="${ciEsc(b.titulo || 'Imagen')}"></div>`;
+    if(b.tipo === 'video' && ciUrlCloud(b.url)) return `<div class="bl">${t}<img src="${ciEsc(ciThumb(b, 800))}" alt="" onerror="this.style.display='none'"><div class="lk">🎬 Video: <a href="${ciEsc(b.url)}">${ciEsc(b.url)}</a></div></div>`;
+    if(b.tipo === 'youtube'){
+      const id = ciYtId(b.url) || b.videoId; if(!/^[A-Za-z0-9_-]{11}$/.test(id || '')) return '';
+      return `<div class="bl">${t}<img src="https://i.ytimg.com/vi/${ciEsc(id)}/hqdefault.jpg" alt="" onerror="this.style.display='none'"><div class="lk">▶ Video de YouTube: <a href="https://youtu.be/${ciEsc(id)}">https://youtu.be/${ciEsc(id)}</a></div></div>`;
+    }
+    if(b.tipo === 'pdf' && ciUrlCloud(b.url)) return `<div class="bl">${t}<div class="lk">📄 <b>${ciEsc(b.nombre || 'Documento PDF')}</b>${b.paginas ? ' (' + b.paginas + (b.paginas === 1 ? ' página' : ' páginas') + ')' : ''}<br><a href="${ciEsc(b.url)}">${ciEsc(b.url)}</a></div></div>`;
+    if(b.tipo === 'enlace'){ const u = ciUrlHttp(b.url); if(!u) return ''; return `<div class="bl"><div class="lk">🔗 <b>${ciEsc(b.titulo || u)}</b><br><a href="${ciEsc(u)}">${ciEsc(u)}</a></div></div>`; }
+    return '';
+  }).join('');
+  const rc = rep.respuestaCliente;
+  const resp = rc ? `<div class="resp ${rc.aprobado ? 'ok' : ''}"><b>${rc.aprobado ? '✓ Aprobado' : 'Comentario enviado'}</b> <span class="mt">${rc.nombre ? ciEsc(rc.nombre) + ' · ' : ''}${ciEsc(ciFechaHora(rc.fecha))}</span>${rc.comentario ? `<div class="rc">${ciEsc(rc.comentario).replace(/\n/g, '<br>')}</div>` : ''}</div>` : '';
+  const aviso = ciEditadoDespues(rep) ? '<div class="avs">Este reporte se actualizó después de la aprobación.</div>' : '';
+  const info = `<div><div class="k">Proyecto</div><div class="v">${ciEsc(rep.proyectoNombre || '—')}</div></div>
+    <div><div class="k">Día</div><div class="v">${ciEsc(ciFechaLarga(rep.fecha))}</div></div>` +
+    (hayTiempo ? `<div><div class="k">Tiempo total</div><div class="v">${ciDur(tot)}</div></div><div><div class="k">Sesiones</div><div class="v">${dc.nSesiones}</div></div>` : '');
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reporte — ${ciEsc(rep.titulo || 'Audiolink')}</title>
+<style>
+*{box-sizing:border-box;}
+body{font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;margin:0 auto;padding:16px;max-width:850px;color:#0f172a;background:#fff;line-height:1.5;}
+.btnp{display:block;width:100%;min-height:52px;padding:12px;background:${ac};color:${acTxt};border:none;border-radius:10px;cursor:pointer;font-weight:bold;font-size:1rem;margin-bottom:18px;font-family:inherit;}
+.header{display:flex;flex-direction:column;gap:6px;border-bottom:4px solid ${ac};padding-bottom:16px;}
+.header h1{margin:0;letter-spacing:2px;font-size:1.4rem;}
+.sub{color:${acOsc};font-weight:bold;letter-spacing:1px;font-size:0.78rem;}
+.gen{font-size:0.85rem;color:#475569;}
+h2.t{margin:18px 0 0;font-size:1.3rem;line-height:1.3;overflow-wrap:anywhere;}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#f8fafc;padding:16px;border-radius:8px;margin:14px 0;border:1px solid #e2e8f0;}
+.k{font-size:0.72rem;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;}
+.v{font-size:1rem;font-weight:700;overflow-wrap:anywhere;}
+.st{margin:22px 0 8px;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;}
+.tw{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.9rem;}
+th{background:${ac};color:${acTxt};padding:10px;text-align:left;font-size:0.82rem;}
+.bl{margin:16px 0;break-inside:avoid;page-break-inside:avoid;}
+.bl p{margin:0;font-size:1rem;line-height:1.65;overflow-wrap:anywhere;}
+.bt{font-weight:700;margin-bottom:6px;}
+.bl img{display:block;max-width:100%;height:auto;max-height:640px;object-fit:contain;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;}
+.lk{font-size:0.88rem;color:#334155;overflow-wrap:anywhere;word-break:break-word;}
+.lk a{color:${acOsc};}
+.resp{border:1px solid #e2e8f0;border-left:5px solid #94a3b8;border-radius:8px;padding:14px;margin-top:22px;background:#f8fafc;break-inside:avoid;}
+.resp.ok{border-left-color:#2e7d52;}
+.resp .mt{color:#64748b;font-size:0.85rem;}
+.resp .rc{margin-top:8px;white-space:normal;overflow-wrap:anywhere;}
+.avs{margin-top:14px;padding:10px 14px;border:1px solid #d9a441;background:#fdf6e3;color:#7a5a12;border-radius:8px;font-size:0.88rem;}
+.pie{text-align:center;margin-top:36px;font-size:0.75rem;color:#94a3b8;}
+@media (min-width:700px){
+  body{padding:40px;}
+  .header{flex-direction:row;justify-content:space-between;align-items:flex-end;}
+  .info{grid-template-columns:repeat(4,1fr);}
+}
+@page{margin:14mm;}
+@media print{
+  .no-print{display:none !important;}
+  body{padding:0;max-width:none;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  tr{break-inside:avoid;page-break-inside:avoid;}
+  .bl img{max-height:230mm;}
+  .info{grid-template-columns:repeat(4,1fr);}
+  .header{flex-direction:row;justify-content:space-between;align-items:flex-end;}
+  a{color:inherit;text-decoration:none;}
+}
+</style></head><body>
+<button class="btnp no-print" id="bp" onclick="imprimir()">🖨️ Imprimir / Guardar como PDF</button>
+<div class="header"><div><h1>AUDIOLINK</h1><div class="sub">REPORTE DE TRABAJO</div></div><div class="gen">Generado: ${hoy}</div></div>
+<h2 class="t">${ciEsc(rep.titulo || 'Reporte')}</h2>
+<div class="info">${info}</div>
+${aviso}${resumen}${bloques}${resp}
+<p class="pie">Marto 🧠 · martowave@gmail.com</p>
+<script>
+function imprimir(){
+  var b = document.getElementById('bp'), t = b.textContent;
+  var pend = [].slice.call(document.images).filter(function(i){ return !i.complete; });
+  if(!pend.length){ window.print(); return; }
+  b.textContent = 'Cargando imágenes…'; b.disabled = true;
+  Promise.all(pend.map(function(i){ return new Promise(function(r){ i.onload = i.onerror = r; }); })).then(function(){ b.textContent = t; b.disabled = false; window.print(); });
+}
+<\/script></body></html>`;
+  const win = window.open('', '_blank', 'width=900,height=800');
+  if(!win){ avisar('El navegador bloqueó la ventana. Permite ventanas emergentes para este sitio e inténtalo de nuevo.', true); return; }
+  win.document.write(html);
+  win.document.close();
+}
+async function ciEnviar(aprobado){
+  if(CL.enviando) return;
+  const nombre = (CL.borr.nombre || '').trim().slice(0, 100), comentario = (CL.borr.comentario || '').trim();
+  if(!aprobado && !comentario){ avisar('Escribe un comentario o toca "Todo bien, aprobado".', true); return; }
+  if(comentario.length > 1000){ avisar('El comentario pasa de 1.000 caracteres.', true); return; }
+  CL.enviando = true; ciPintarRespuesta();
+  try{
+    const ref = colInfo().doc(CI_TOKEN);
+    await ref.update({ respuestaCliente: { aprobado: !!aprobado, nombre: nombre, comentario: comentario, fecha: firebase.firestore.FieldValue.serverTimestamp() } });
+    const d = await ref.get(); CL.rep = d.data();
+    CL.editando = false; CL.borr = { nombre: nombre, comentario: '' };
+    ciPintarCliente();
+    avisar(aprobado ? '¡Gracias! Quedó aprobado.' : 'Comentario enviado. ¡Gracias!');
+  }catch(e){
+    console.error('CompartirInfo respuesta:', e);
+    avisar('No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.', true);
+  }
+  CL.enviando = false; ciPintarRespuesta();
+}
+
+// ============================================================
+// ==================  EDITOR (con login)  ====================
+// ============================================================
+let usuarioActual = null, proyectos = [], iniciado = false;
+let R = null;                 // reporte en edición
+let sucio = false, subiendo = 0, guardando = false;
+let _hashGuardado = '';
+const _conocidos = new Map(); // publicId -> { publicId, resourceType, tipo, url, nombre, guardado }
+let _colaHuerfanos = [];      // pendientes por registrar (se reintentan en el siguiente guardado)
+let _pendCache = [];
+
+// ---- guard de sesión (mismo patrón que contador.html) ----
+if(!window.CI_CLIENTE){
+  $('vistaEditor').style.display = '';
+  if(!loc && typeof estaModoOfflineActivo === 'function' && estaModoOfflineActivo()){
+    console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+    usuarioActual = { uid: 'offline', email: 'offline@audiolink', nombre: 'Modo offline' };
+    ciIniciarEditor();
+  }else{
+    auth.onAuthStateChanged(async (user) => {
+      if(!user){ window.location.href = 'login.html'; return; }
+      try{
+        if(loc && loc.usarCopiaLocal()){
+          usuarioActual = { uid: user.uid, email: user.email, nombre: user.email };
+          ciIniciarEditor(); return;
+        }
+        const doc = await db.collection('equipoInterno').doc(user.email).get();
+        if(!doc.exists || doc.data().activo !== true){
+          await auth.signOut(); window.location.href = 'login.html'; return;
+        }
+        usuarioActual = { uid: user.uid, email: user.email, nombre: (doc.data().nombre || user.email) };
+        ciIniciarEditor();
+      }catch(e){
+        console.error('Error validando sesión:', e);
+        window.location.href = 'login.html';
+      }
+    });
+  }
+}else{
+  ciInitCliente();
+}
+
+async function ciIniciarEditor(){
+  if(iniciado) return; iniciado = true;
+  $('selFecha').value = fechaLocal(Date.now());
+  pintarAviso();
+  window.addEventListener('online', pintarAviso); window.addEventListener('offline', pintarAviso);
+  try{
+    const snap = await db.collection('contadorProyectos').get();
+    proyectos = []; snap.forEach(d => proyectos.push({ id: d.id, ...d.data() }));
+    proyectos.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+  }catch(e){ console.error('Error cargando proyectos:', e); avisar('No se pudieron cargar los proyectos del contador.', true); }
+  $('selProy').innerHTML = proyectos.length
+    ? proyectos.map(p => `<option value="${ciEsc(p.id)}">${ciEsc(p.nombre)}</option>`).join('')
+    : '<option value="">(sin proyectos en el contador)</option>';
+  // Parámetros del botón del contador: ?p=PROYECTOID&d=AAAA-MM-DD
+  const q = new URLSearchParams(location.search), p = q.get('p'), d = q.get('d');
+  if(p && proyectos.some(x => x.id === p)) $('selProy').value = p;
+  if(d && /^\d{4}-\d{2}-\d{2}$/.test(d)) $('selFecha').value = d;
+  if(p && d && proyectos.some(x => x.id === p)) ciAbrirReporte();
+}
+function pintarAviso(){
+  let t = '';
+  if(loc && loc.usarCopiaLocal()) t = 'Copia local de solo lectura: guardar requiere conexión.';
+  else if(!navigator.onLine) t = 'Sin conexión: subir archivos y guardar requiere conexión.';
+  const el = $('avisoOffline'); el.textContent = t; el.style.display = t ? 'block' : 'none';
+}
+window.addEventListener('beforeunload', e => { if(!window.CI_CLIENTE && (sucio || subiendo)){ e.preventDefault(); e.returnValue = ''; } });
+
+// ---- datos del contador (sin tarifas ni costos) ----
+async function ciLeerContador(pid, fecha){
+  const snap = await db.collection('contadorSesiones').where('proyectoId', '==', pid).where('fecha', '==', fecha).get();
+  const l = []; snap.forEach(d => l.push(d.data()));
+  l.sort((a, b) => (a.inicioMs || 0) - (b.inicioMs || 0));
+  const por = {}; let tot = 0;
+  l.forEach(s => { const k = s.etiqueta || 'Sin tipo'; por[k] = (por[k] || 0) + (s.segundos || 0); tot += s.segundos || 0; });
+  return {
+    totalSeg: tot, nSesiones: l.length,
+    porTipo: Object.keys(por).map(k => ({ tipo: k, seg: por[k] })).sort((a, b) => b.seg - a.seg),
+    sesiones: l.map(s => ({ inicioMs: s.manual ? null : (s.inicioMs || null), manual: !!s.manual, tipo: s.etiqueta || 'Sin tipo', seg: s.segundos || 0, nota: s.nota || '' })),
+    actualizadoMs: Date.now()
+  };
+}
+
+// ---- abrir / crear ----
+async function ciAbrirReporte(){
+  const pid = $('selProy').value, fecha = $('selFecha').value;
+  if(!pid || !fecha){ avisar('Elige el proyecto y el día.', true); return; }
+  if(subiendo){ avisar('Espera a que termine la subida en curso.', true); return; }
+  if(sucio && !confirm('Hay cambios sin guardar en el reporte abierto. ¿Descartarlos?')) return;
+  const p = proyectos.find(x => x.id === pid);
+  try{
+    await ciDescartarBorrador();
+    const snap = await colInfo().where('proyectoId', '==', pid).where('fecha', '==', fecha).limit(1).get();
+    _conocidos.clear();
+    if(!snap.empty){
+      ciArmarDesdeDoc(snap.docs[0]);
+      avisar('Reporte existente abierto.');
+    }else{
+      const dc = await ciLeerContador(pid, fecha);
+      R = { token: ciToken(), existe: false, proyectoId: pid, proyectoNombre: p ? p.nombre : '', fecha: fecha,
+            titulo: 'Reporte de trabajo — ' + (p ? p.nombre : '') + ' — ' + fecha, visibleCliente: false,
+            datosContador: dc, bloques: [], respuestaCliente: null, editadoEn: null, enviadoEn: null, enviadoPor: '' };
+      _hashGuardado = '';
+      avisar('Reporte nuevo armado con los datos del contador.');
+    }
+    sucio = false;
+    pintarEditor();
+  }catch(e){ console.error('CompartirInfo abrir:', e); avisar('No se pudo abrir el reporte.', true); }
+}
+function ciArmarDesdeDoc(d){
+  const x = d.data(), p = proyectos.find(q => q.id === x.proyectoId);
+  R = { token: d.id, existe: true, proyectoId: x.proyectoId, proyectoNombre: x.proyectoNombre || (p ? p.nombre : ''), fecha: x.fecha,
+        titulo: x.titulo || '', visibleCliente: x.visibleCliente === true, datosContador: x.datosContador || null,
+        bloques: (x.bloques || []).map(b => Object.assign({}, b)), respuestaCliente: x.respuestaCliente || null, editadoEn: x.editadoEn || null,
+        enviadoEn: x.enviadoEn || null, enviadoPor: x.enviadoPor || '' };
+  R.bloques.forEach(b => { if(b.publicId) _conocidos.set(b.publicId, { publicId: b.publicId, resourceType: b.resourceType || '', tipo: b.tipo, url: b.url || '', nombre: b.nombre || '', guardado: true }); });
+  _hashGuardado = ciHash();
+}
+// Abre un reporte por su token (desde el Historial), aunque su proyecto ya no esté en el contador.
+async function ciAbrirPorToken(token){
+  if(!/^[A-Za-z0-9]{32}$/.test(token)) return;
+  if(subiendo){ avisar('Espera a que termine la subida en curso.', true); return; }
+  if(sucio && !confirm('Hay cambios sin guardar en el reporte abierto. ¿Descartarlos?')) return;
+  try{
+    await ciDescartarBorrador();
+    const d = await colInfo().doc(token).get();
+    if(!d.exists){ avisar('Ese reporte ya no existe.', true); return; }
+    _conocidos.clear(); ciArmarDesdeDoc(d); sucio = false;
+    if(proyectos.some(p => p.id === R.proyectoId)) $('selProy').value = R.proyectoId;
+    $('selFecha').value = R.fecha;
+    ciCerrarModal('modHist'); pintarEditor(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  }catch(e){ console.error('CompartirInfo abrir por token:', e); avisar('No se pudo abrir el reporte.', true); }
+}
+// Al abandonar un borrador nuevo, los archivos subidos y no guardados quedan huérfanos: se anotan antes de cambiar.
+async function ciDescartarBorrador(){
+  if(!R) return;
+  _conocidos.forEach((info, pid) => { if(!info.guardado){ _colaHuerfanos.push(Object.assign({}, info, { motivo: 'Subido y descartado sin guardar' })); _conocidos.delete(pid); } });
+  await ciFlushHuerfanos();
+}
+async function ciActualizarContador(){
+  if(!R) return;
+  if(!confirm('Se reemplazan los datos del contador de este reporte por los actuales. ¿Continuar?')) return;
+  try{
+    R.datosContador = await ciLeerContador(R.proyectoId, R.fecha);
+    marcarSucio(); pintarDatos(); avisar('Datos del contador actualizados (falta guardar).');
+  }catch(e){ console.error(e); avisar('No se pudo leer el contador.', true); }
+}
+
+// ---- pintado del editor ----
+function pintarEditor(){
+  const w = $('edWrap');
+  if(!R){ w.style.display = 'none'; return; }
+  w.style.display = '';
+  $('rTitulo').value = R.titulo; $('chkVis').checked = !!R.visibleCliente;
+  pintarDatos(); pintarLink(); pintarBloques(); pintarRespuestaEd(); pintarBarra();
+}
+function pintarDatos(){ $('edDatos').innerHTML = ciResumenHTML(R.datosContador, true); }
+function ciLinkDe(token){
+  const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('r', token); return u.toString();
+}
+function ciLink(){ return ciLinkDe(R.token); }
+function ciEditadoTrasEnvio(x){ return !!(ciMs(x.enviadoEn) && ciMs(x.editadoEn) && ciMs(x.editadoEn) > ciMs(x.enviadoEn)); }
+function pintarLink(){
+  $('rLink').value = R.existe ? ciLink() : '';
+  $('rLinkNota').textContent = !R.existe ? 'El link se activa cuando guardes el reporte por primera vez.'
+    : (R.visibleCliente ? 'Cualquiera con este link puede ver el reporte y responder.' : 'El reporte NO es visible: el link no abrirá hasta que lo actives y guardes.');
+  $('btnEnviado').textContent = R.enviadoEn ? '✉ Registrar un nuevo envío' : '✉ Marcar como enviado';
+  $('rEnviado').textContent = !R.existe ? '' : R.enviadoEn
+    ? 'Enviado el ' + ciFechaHora(R.enviadoEn) + (R.enviadoPor ? ' por ' + R.enviadoPor : '') + (ciEditadoTrasEnvio(R) ? ' · editado después de enviar' : '')
+    : 'Aún sin marcar como enviado.';
+}
+async function ciMarcarEnviado(){
+  if(!R || !R.existe){ avisar('Guarda el reporte primero.', true); return; }
+  if(sucio){ avisar('Guarda los cambios antes de marcar como enviado.', true); return; }
+  if(!R.visibleCliente && !confirm('Este reporte está oculto: el cliente no podrá abrir el link. ¿Marcarlo como enviado de todos modos?')) return;
+  if(R.enviadoEn && !confirm('Ya figura enviado el ' + ciFechaHora(R.enviadoEn) + '. ¿Registrar un nuevo envío?')) return;
+  try{
+    const ref = colInfo().doc(R.token);
+    await ciConTimeout(ref.update({ enviadoEn: firebase.firestore.FieldValue.serverTimestamp(), enviadoPor: usuarioActual.email }), 20000);
+    const d = await ref.get();
+    if(d.exists){ R.enviadoEn = d.data().enviadoEn || null; R.enviadoPor = d.data().enviadoPor || ''; }
+    pintarLink(); avisar('Marcado como enviado.');
+  }catch(e){ console.error(e); avisar(e.message === 'TIMEOUT' ? 'Sin confirmación del servidor; revisa la conexión.' : 'No se pudo marcar como enviado.', true); }
+}
+function ciCopiarLink(){ if(!R || !R.existe){ avisar('Guarda el reporte primero.', true); return; } ciCopiar(ciLink(), 'Link copiado.'); }
+function ciAbrirLink(){ if(!R || !R.existe){ avisar('Guarda el reporte primero.', true); return; } window.open(ciLink(), '_blank', 'noopener'); }
+function ciTitulo(v){ R.titulo = v; marcarSucio(); }
+function ciVisible(v){ R.visibleCliente = !!v; marcarSucio(); pintarLink(); }
+function marcarSucio(){ sucio = true; pintarBarra(); }
+function pintarBarra(){
+  const e = $('estadoGuardado'); if(!e || !R) return;
+  e.textContent = guardando ? 'Guardando…' : subiendo ? 'Subiendo archivo…' : sucio ? '● Cambios sin guardar' : R.existe ? '✓ Guardado' : 'Reporte nuevo, sin guardar';
+  $('btnGuardar').disabled = guardando || subiendo > 0;
+}
+function pintarRespuestaEd(){
+  const rc = R.respuestaCliente, el = $('edRespuesta');
+  if(!R.existe){ el.innerHTML = '<div class="empty">Aún no se ha compartido. Guarda el reporte y copia el link.</div>'; return; }
+  if(!rc){ el.innerHTML = '<div class="empty">El cliente todavía no ha respondido.</div>'; return; }
+  el.innerHTML = `${ciEditadoDespues(R) ? '<div class="aviso warn">⚠ Editado después de aprobar: el cliente ve el mismo aviso hasta que responda de nuevo.</div>' : ''}
+    <div class="resp-ed"><span class="badge-estado ${rc.aprobado ? 'ok' : 'warn'}">${rc.aprobado ? 'Aprobado' : 'Solo comentario'}</span>
+    <span class="mini" style="margin-left:8px;">${ciEsc(rc.nombre || 'Sin nombre')} · ${ciEsc(ciFechaHora(rc.fecha))}</span>
+    ${rc.comentario ? `<div class="coment">${ciEsc(rc.comentario)}</div>` : ''}</div>`;
+}
+async function ciRecargarRespuesta(){
+  if(!R || !R.existe){ return; }
+  try{
+    const d = await colInfo().doc(R.token).get();
+    if(d.exists){ R.respuestaCliente = d.data().respuestaCliente || null; R.editadoEn = d.data().editadoEn || R.editadoEn; pintarRespuestaEd(); avisar('Respuesta recargada.'); }
+  }catch(e){ avisar('No se pudo recargar.', true); }
+}
+
+// ---- bloques ----
+function ciNuevoBloque(tipo){
+  return { id: ciIdBloque(), tipo: tipo, titulo: '', texto: '', url: '', publicId: '', resourceType: '', nombre: '', formato: '', bytes: 0, paginas: 0 };
+}
+function ciAgregar(tipo){ R.bloques.push(ciNuevoBloque(tipo)); marcarSucio(); pintarBloques(); }
+function ciBuscar(id){ return R.bloques.find(b => b.id === id); }
+function ciMover(id, d){
+  const i = R.bloques.findIndex(b => b.id === id), j = i + d;
+  if(i < 0 || j < 0 || j >= R.bloques.length) return;
+  const t = R.bloques[i]; R.bloques[i] = R.bloques[j]; R.bloques[j] = t;
+  marcarSucio(); pintarBloques();
+}
+function ciQuitar(id){
+  const b = ciBuscar(id); if(!b) return;
+  if(b._sub != null){ avisar('Espera a que termine la subida de ese bloque.', true); return; }
+  const msg = b.publicId ? 'Quitar este bloque. El archivo se anotará en Pendientes de Cloudinary al guardar. ¿Continuar?' : '¿Quitar este bloque?';
+  if(!confirm(msg)) return;
+  R.bloques = R.bloques.filter(x => x.id !== id);
+  marcarSucio(); pintarBloques();
+}
+function ciCampo(id, campo, valor, repintar){
+  const b = ciBuscar(id); if(!b) return;
+  if(campo === 'url' && b.tipo === 'enlace' && repintar && valor.trim() && !/^[a-z][a-z0-9+.-]*:/i.test(valor.trim())) valor = 'https://' + valor.trim();
+  b[campo] = valor; marcarSucio();
+  if(repintar) pintarBloques();
+}
+function ciBloqueEditorHTML(b, i, n){
+  const T = TIPOS_BLOQUE[b.tipo];
+  const cab = `<div class="bq-cab"><span class="bq-tipo">${T.ico} ${T.nom}</span><span class="bq-acc">
+    <button class="icon-btn" title="Subir" ${i === 0 ? 'disabled' : ''} onclick="ciMover('${b.id}',-1)">▲</button>
+    <button class="icon-btn" title="Bajar" ${i === n - 1 ? 'disabled' : ''} onclick="ciMover('${b.id}',1)">▼</button>
+    <button class="icon-btn borrar" title="Quitar bloque" onclick="ciQuitar('${b.id}')">🗑</button></span></div>`;
+  const titulo = `<input type="text" maxlength="140" placeholder="Título (opcional)" value="${ciEsc(b.titulo)}" oninput="ciCampo('${b.id}','titulo',this.value)">`;
+  let cuerpo = '';
+  if(b.tipo === 'texto'){
+    cuerpo = `<textarea placeholder="Escribe el texto para el cliente" oninput="ciCampo('${b.id}','texto',this.value)">${ciEsc(b.texto)}</textarea>`;
+  }else if(b.tipo === 'imagen' || b.tipo === 'video' || b.tipo === 'pdf'){
+    const accept = b.tipo === 'imagen' ? 'image/*' : b.tipo === 'video' ? 'video/*' : 'application/pdf,.pdf';
+    let zona = '';
+    if(b._sub != null){
+      zona = `<div class="mini">Subiendo… <span id="pgt-${b.id}">${b._sub}%</span></div><div class="prog"><i id="pg-${b.id}" style="width:${b._sub}%"></i></div>`;
+    }else{
+      let prev = '';
+      if(b.url){
+        const th = ciThumb(b);
+        prev = b.tipo === 'imagen' ? `<img src="${ciEsc(th)}" alt="">`
+             : b.tipo === 'video' ? `<video controls preload="metadata" poster="${ciEsc(th)}" src="${ciEsc(b.url)}"></video>`
+             : `<img src="${ciEsc(th)}" alt="" onerror="this.style.display='none'">`;
+        prev = `<div class="bq-prev">${prev}<span class="mini">${ciEsc(b.nombre || '')}${b.bytes ? ' · ' + (b.bytes / 1048576).toFixed(1) + ' MB' : ''}</span></div>`;
+      }
+      zona = `${prev}<div style="margin-top:8px;"><label class="btn-ghost">📎 ${b.url ? 'Reemplazar archivo' : 'Elegir archivo'}<input type="file" hidden accept="${accept}" onchange="ciElegirArchivo('${b.id}',this)"></label>
+        <span class="mini" style="margin-left:8px;">Máx. ${LIM_MB[b.tipo]} MB</span></div>`;
+    }
+    cuerpo = titulo + zona;
+  }else if(b.tipo === 'youtube'){
+    const id = ciYtId(b.url);
+    cuerpo = titulo + `<input type="url" placeholder="Pega el link de YouTube" value="${ciEsc(b.url)}" onchange="ciCampo('${b.id}','url',this.value,true)">
+      <div class="mini">${b.url ? (id ? '✓ Video detectado: ' + ciEsc(id) : '⚠ No reconozco ese link de YouTube.') : 'Acepta youtube.com/watch, youtu.be, shorts y embed.'}</div>
+      ${id ? `<div class="bq-prev"><img src="https://i.ytimg.com/vi/${ciEsc(id)}/mqdefault.jpg" alt=""></div>` : ''}`;
+  }else if(b.tipo === 'enlace'){
+    cuerpo = titulo + `<input type="url" placeholder="https://…" value="${ciEsc(b.url)}" onchange="ciCampo('${b.id}','url',this.value,true)">
+      <div class="mini">${b.url ? (ciUrlHttp(b.url) ? '✓ Enlace válido' : '⚠ El enlace no es válido.') : 'Se mostrará como tarjeta con el botón "Abrir".'}</div>`;
+  }
+  return `<div class="bq">${cab}${cuerpo}</div>`;
+}
+function pintarBloques(){
+  const el = $('listaBloques');
+  el.innerHTML = R.bloques.length ? R.bloques.map((b, i) => ciBloqueEditorHTML(b, i, R.bloques.length)).join('')
+    : '<div class="empty">Aún no hay bloques. Agrega el primero abajo.</div>';
+}
+
+// ---- subida a Cloudinary (sin firma) — mismo mecanismo XHR con progreso de ensayo.html ----
+function ciSubir(file, kind, onProgress){
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.cloudinary.com/v1_1/' + CLOUD_NAME + '/' + (kind === 'video' ? 'video' : 'image') + '/upload');
+    xhr.upload.onprogress = e => { if(e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100)); };
+    xhr.onload = () => {
+      let d = null; try{ d = JSON.parse(xhr.responseText); }catch(_){}
+      if(xhr.status >= 200 && xhr.status < 300 && d && d.secure_url && d.public_id){
+        resolve({ url: d.secure_url, publicId: d.public_id, resourceType: d.resource_type || (kind === 'video' ? 'video' : 'image'),
+                  format: d.format || '', bytes: d.bytes || 0, pages: d.pages || 0 });
+      }else reject(new Error((d && d.error && d.error.message) || ('Error de Cloudinary (código ' + xhr.status + ')')));
+    };
+    xhr.onerror = () => reject(new Error('Error de red al subir a Cloudinary'));
+    const fd = new FormData();
+    fd.append('file', file); fd.append('upload_preset', PRESET); fd.append('folder', CARPETA);
+    xhr.send(fd);
+  });
+}
+async function ciElegirArchivo(id, input){
+  const file = input.files && input.files[0]; input.value = '';
+  const b = ciBuscar(id); if(!file || !b) return;
+  const okTipo = b.tipo === 'imagen' ? /^image\//.test(file.type) : b.tipo === 'video' ? /^video\//.test(file.type) : (file.type === 'application/pdf' || /\.pdf$/i.test(file.name));
+  if(!okTipo){ avisar('Ese archivo no corresponde a un bloque de ' + TIPOS_BLOQUE[b.tipo].nom.toLowerCase() + '.', true); return; }
+  if(file.size > LIM_MB[b.tipo] * 1048576){ avisar('El archivo pesa ' + (file.size / 1048576).toFixed(1) + ' MB; el tope aquí es ' + LIM_MB[b.tipo] + ' MB.', true); return; }
+  b._sub = 0; subiendo++; pintarBloques(); pintarBarra();
+  try{
+    const r = await ciSubir(file, b.tipo === 'video' ? 'video' : 'image', pct => {
+      b._sub = pct; const bar = $('pg-' + id), t = $('pgt-' + id);
+      if(bar) bar.style.width = pct + '%'; if(t) t.textContent = pct + '%';
+    });
+    b.url = r.url; b.publicId = r.publicId; b.resourceType = r.resourceType; b.nombre = file.name; b.formato = r.format; b.bytes = r.bytes; b.paginas = r.pages || 0;
+    _conocidos.set(r.publicId, { publicId: r.publicId, resourceType: r.resourceType, tipo: b.tipo, url: r.url, nombre: file.name, guardado: false });
+    marcarSucio();
+  }catch(e){ console.error('Subida:', e); avisar('No se pudo subir: ' + e.message, true); }
+  b._sub = null; subiendo--; pintarBloques(); pintarBarra();
+}
+
+// ---- guardar ----
+function ciLimpiarBloque(b){
+  const o = { id: b.id, tipo: b.tipo };
+  if(b.tipo === 'texto'){ o.texto = (b.texto || '').trim(); return o; }
+  o.titulo = (b.titulo || '').trim();
+  if(b.tipo === 'imagen' || b.tipo === 'video' || b.tipo === 'pdf'){
+    Object.assign(o, { url: b.url || '', publicId: b.publicId || '', resourceType: b.resourceType || '', nombre: b.nombre || '', formato: b.formato || '', bytes: b.bytes || 0 });
+    if(b.tipo === 'pdf') o.paginas = b.paginas || 0;
+  }else if(b.tipo === 'youtube'){ o.url = (b.url || '').trim(); o.videoId = ciYtId(o.url) || ''; }
+  else if(b.tipo === 'enlace'){ o.url = ciUrlHttp(b.url) || (b.url || '').trim(); }
+  return o;
+}
+function ciHash(){ return JSON.stringify({ t: (R.titulo || '').trim(), b: R.bloques.map(ciLimpiarBloque), d: R.datosContador }); }
+function ciValidar(){
+  if(!(R.titulo || '').trim()) return 'Falta el título del reporte.';
+  for(let i = 0; i < R.bloques.length; i++){
+    const b = R.bloques[i], n = 'Bloque ' + (i + 1) + ' (' + TIPOS_BLOQUE[b.tipo].nom + '): ';
+    if(b.tipo === 'texto' && !(b.texto || '').trim()) return n + 'está vacío.';
+    if((b.tipo === 'imagen' || b.tipo === 'video' || b.tipo === 'pdf') && !b.url) return n + 'falta el archivo.';
+    if(b.tipo === 'youtube' && !ciYtId(b.url)) return n + 'el link de YouTube no es válido.';
+    if(b.tipo === 'enlace' && !ciUrlHttp(b.url)) return n + 'el enlace no es válido.';
+  }
+  return '';
+}
+async function ciGuardar(){
+  if(!R || guardando) return;
+  if(subiendo){ avisar('Espera a que terminen las subidas.', true); return; }
+  const err = ciValidar(); if(err){ avisar(err, true); return; }
+  guardando = true; pintarBarra();
+  const bloques = R.bloques.map(ciLimpiarBloque);
+  const hash = ciHash();
+  const cambioContenido = !R.existe || hash !== _hashGuardado;
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+  const base = { proyectoId: R.proyectoId, proyectoNombre: R.proyectoNombre, fecha: R.fecha, titulo: R.titulo.trim(),
+                 visibleCliente: !!R.visibleCliente, datosContador: R.datosContador, bloques: bloques, editadoPor: usuarioActual.email };
+  if(cambioContenido) base.editadoEn = ts;   // solo el contenido cuenta como "editado" (no el cambio de visibilidad)
+  const ref = colInfo().doc(R.token);
+  let ok = false;
+  try{
+    if(!R.existe) await ciConTimeout(ref.set(Object.assign({}, base, { editadoEn: ts, creadoEn: ts, creadoPor: usuarioActual.email })), 20000);
+    else await ciConTimeout(ref.update(base), 20000);   // update: nunca toca respuestaCliente
+    ok = true;
+  }catch(e){
+    console.error('CompartirInfo guardar:', e);
+    avisar(e.message === 'TIMEOUT' ? 'Sin confirmación del servidor. Revisa la conexión y vuelve a guardar; los archivos quitados se anotan solo tras un guardado confirmado.' : 'No se pudo guardar el reporte.', true);
+  }
+  if(ok){
+    R.existe = true; _hashGuardado = hash; sucio = false;
+    // Verificador de pendientes: lo que se conocía y ya no está en los bloques es huérfano.
+    const vivos = new Set(bloques.filter(b => b.publicId).map(b => b.publicId));
+    _conocidos.forEach((info, pid) => {
+      if(vivos.has(pid)){ info.guardado = true; }
+      else{ _colaHuerfanos.push(Object.assign({}, info, { motivo: info.guardado ? 'Bloque quitado o archivo reemplazado' : 'Subido y no usado en el reporte guardado' })); _conocidos.delete(pid); }
+    });
+    try{ const d = await ref.get(); if(d.exists){ R.editadoEn = d.data().editadoEn || null; R.respuestaCliente = d.data().respuestaCliente || null; } }catch(_){}
+    avisar('Reporte guardado.');
+    pintarLink(); pintarRespuestaEd();
+    await ciFlushHuerfanos();
+  }
+  guardando = false; pintarBarra();
+}
+// Registra los huérfanos en compartirInfoPendientes. Nunca lanza error ni bloquea el guardado: lo fallido se reintenta.
+async function ciFlushHuerfanos(){
+  if(!_colaHuerfanos.length) return;
+  const resto = [];
+  for(const h of _colaHuerfanos){
+    try{
+      await colPend().add({ tipo: h.tipo || '', publicId: h.publicId, resourceType: h.resourceType || '', url: h.url || '', nombre: h.nombre || '',
+        motivo: h.motivo || '', reporteToken: R ? R.token : (h.reporteToken || ''), proyectoNombre: R ? R.proyectoNombre : '', fecha: R ? R.fecha : '',
+        limpiado: false, creadoPor: usuarioActual ? usuarioActual.email : '', creado: firebase.firestore.FieldValue.serverTimestamp() });
+    }catch(e){ console.warn('No se pudo anotar el pendiente de Cloudinary:', h.publicId, e); resto.push(h); }
+  }
+  _colaHuerfanos = resto;
+  if(resto.length) avisar('No se pudieron anotar ' + resto.length + ' archivo(s) en Pendientes; se reintentará al guardar de nuevo.', true);
+}
+
+// ---- borrar reporte ----
+async function ciBorrarReporte(){
+  if(!R) return;
+  if(subiendo){ avisar('Espera a que termine la subida en curso.', true); return; }
+  if(!confirm('¿Borrar este reporte? El link del cliente dejará de funcionar y sus archivos se anotarán en Pendientes de Cloudinary.')) return;
+  try{
+    if(R.existe) await colInfo().doc(R.token).delete();
+    _conocidos.forEach(info => _colaHuerfanos.push(Object.assign({}, info, { motivo: R.existe ? 'Reporte borrado' : 'Subido y descartado sin guardar', reporteToken: R.token })));
+    _conocidos.clear();
+    await ciFlushHuerfanos();
+    R = null; sucio = false; pintarEditor(); avisar('Reporte borrado.');
+  }catch(e){ console.error(e); avisar('No se pudo borrar el reporte.', true); }
+}
+
+// ---- vista previa (render idéntico al del cliente, con lo que hay en pantalla) ----
+function ciVistaPrevia(){
+  if(!R) return;
+  const rep = { titulo: R.titulo, proyectoNombre: R.proyectoNombre, fecha: R.fecha, datosContador: R.datosContador,
+                bloques: R.bloques.map(ciLimpiarBloque), respuestaCliente: R.respuestaCliente, editadoEn: R.editadoEn };
+  $('prevCuerpo').innerHTML = ciReporteHTML(rep, false) +
+    '<div class="resp-box" style="max-width:760px;margin:22px auto 0;text-align:center;"><div class="mini">Aquí el cliente verá el botón “Todo bien, aprobado” y el campo de comentario.</div></div>';
+  $('modPrev').classList.add('on');
+}
+
+// ============================================================
+// HISTORIAL DE REPORTES (editor)
+// ============================================================
+let _histCache = [];
+async function ciAbrirHistorial(){
+  $('modHist').classList.add('on');
+  $('histLista').innerHTML = '<div class="empty">Cargando…</div>';
+  try{
+    const snap = await colInfo().get();
+    _histCache = []; snap.forEach(d => _histCache.push({ id: d.id, ...d.data() }));
+    _histCache.sort((a, b) => (ciMs(b.editadoEn) || ciMs(b.creadoEn)) - (ciMs(a.editadoEn) || ciMs(a.creadoEn)));
+    const nom = {}; _histCache.forEach(h => { nom[h.proyectoId] = h.proyectoNombre || h.proyectoId; });
+    const v = $('hfProy').value;
+    $('hfProy').innerHTML = '<option value="">Todos los proyectos</option>' + Object.keys(nom).sort((a, b) => nom[a].localeCompare(nom[b]))
+      .map(id => `<option value="${ciEsc(id)}">${ciEsc(nom[id])}</option>`).join('');
+    if(v && nom[v]) $('hfProy').value = v;
+    ciPintarHistorial();
+  }catch(e){ console.error(e); $('histLista').innerHTML = '<div class="empty">No se pudo cargar el historial.</div>'; }
+}
+function ciPintarHistorial(){
+  const fp = $('hfProy').value, fe = $('hfEst').value;
+  const l = _histCache.filter(h => {
+    if(fp && h.proyectoId !== fp) return false;
+    const rc = h.respuestaCliente;
+    if(fe === 'sinenviar') return !h.enviadoEn;
+    if(fe === 'sinrespuesta') return !rc;
+    if(fe === 'aprobado') return !!(rc && rc.aprobado);
+    if(fe === 'comentario') return !!(rc && !rc.aprobado);
+    if(fe === 'editado') return ciEditadoDespues(h);
+    return true;
+  });
+  $('histConteo').textContent = l.length + (l.length === 1 ? ' reporte' : ' reportes') + (l.length !== _histCache.length ? ' (de ' + _histCache.length + ')' : '');
+  if(!l.length){ $('histLista').innerHTML = '<div class="empty">No hay reportes con ese filtro.</div>'; return; }
+  $('histLista').innerHTML = l.map(h => {
+    const rc = h.respuestaCliente;
+    const bd = [
+      `<span class="badge-estado ${h.visibleCliente === true ? 'ok' : 'err'}">${h.visibleCliente === true ? 'Visible' : 'Oculto'}</span>`,
+      h.enviadoEn ? `<span class="badge-estado ok">Enviado ${ciEsc(ciFechaHora(h.enviadoEn))}</span>` : '<span class="badge-estado warn">Sin enviar</span>',
+      rc ? (rc.aprobado ? '<span class="badge-estado ok">Aprobado</span>' : '<span class="badge-estado warn">Comentario</span>') : '<span class="badge-estado warn">Sin respuesta</span>',
+      ciEditadoDespues(h) ? '<span class="badge-estado err">Editado tras aprobar</span>' : '',
+      ciEditadoTrasEnvio(h) ? '<span class="badge-estado warn">Editado tras enviar</span>' : ''
+    ].join('');
+    const ok = /^[A-Za-z0-9]{32}$/.test(h.id);
+    return `<div class="hrow"><div style="flex:1;min-width:220px;">
+      <div class="tit">${ciEsc(h.titulo || 'Reporte')}</div>
+      <div class="meta">${ciEsc(h.proyectoNombre || '')} · ${ciEsc(ciFechaLarga(h.fecha))}</div>
+      <div class="bds">${bd}</div>
+      ${rc && rc.comentario ? `<div class="coment">“${ciEsc(rc.comentario.length > 140 ? rc.comentario.slice(0, 140) + '…' : rc.comentario)}”${rc.nombre ? ' — ' + ciEsc(rc.nombre) : ''}</div>` : ''}
+      </div>${ok ? `<div class="fila-btns"><button class="btn-ghost" onclick="ciAbrirPorToken('${h.id}')">Abrir</button><button class="btn-ghost" onclick="ciCopiarLinkHist('${h.id}')">📋 Copiar link</button></div>` : ''}</div>`;
+  }).join('');
+}
+function ciCopiarLinkHist(id){
+  const h = _histCache.find(x => x.id === id); if(!h) return;
+  ciCopiar(ciLinkDe(id), h.visibleCliente === true ? 'Link copiado.' : 'Link copiado, pero el reporte está oculto: no abrirá hasta que lo actives.');
+}
+
+// ============================================================
+// PENDIENTES DE CLOUDINARY (portado de ensayo.html v3.293; lista compartida del equipo)
+// ============================================================
+async function ciAbrirPendientes(){
+  $('modPend').classList.add('on');
+  $('pendLista').innerHTML = '<div class="empty">Cargando…</div>';
+  try{
+    const snap = await colPend().get();
+    _pendCache = []; snap.forEach(d => _pendCache.push({ id: d.id, ...d.data() }));
+    _pendCache.sort((a, b) => (a.limpiado === b.limpiado ? ciMs(b.creado) - ciMs(a.creado) : (a.limpiado ? 1 : -1)));
+    ciPintarPendientes();
+  }catch(e){ console.error(e); $('pendLista').innerHTML = '<div class="empty">No se pudo cargar la lista.</div>'; }
+}
+function ciPintarPendientes(){
+  const el = $('pendLista');
+  if(!_pendCache.length){ el.innerHTML = '<div class="empty">No hay archivos pendientes. 🎉</div>'; return; }
+  el.innerHTML = _pendCache.map(p => {
+    const tipoTxt = p.tipo === 'video' ? 'Video' : p.tipo === 'pdf' ? 'PDF' : p.tipo === 'imagen' ? 'Imagen' : 'Archivo';
+    return `<div class="pend ${p.limpiado ? 'limpio' : ''}"><div style="flex:1;min-width:200px;">
+      <div class="id">${ciEsc(p.publicId)}</div>
+      <div class="meta">${tipoTxt} (${ciEsc(p.resourceType || '')}) · ${ciEsc(p.motivo || '')} · ${ciEsc(p.proyectoNombre || '')} ${ciEsc(p.fecha || '')} · ${ciEsc(ciFechaHora(p.creado))}</div></div>
+      <div class="fila-btns">
+        <button class="btn-ghost" onclick="ciCopiarPend('${p.id}')">Copiar ID</button>
+        ${p.limpiado ? '<span class="badge-estado ok">Limpiado</span>' : `<button class="btn-ghost" onclick="ciMarcarLimpiado('${p.id}')">✓ Marcar limpiado</button>`}
+      </div></div>`;
+  }).join('');
+}
+function ciCopiarPend(id){ const p = _pendCache.find(x => x.id === id); if(p) ciCopiar(p.publicId, 'ID copiado.'); }
+async function ciMarcarLimpiado(id){
+  try{ await colPend().doc(id).update({ limpiado: true }); const p = _pendCache.find(x => x.id === id); if(p) p.limpiado = true; ciPintarPendientes(); }
+  catch(e){ console.error(e); avisar('No se pudo marcar.', true); }
+}
+function ciCopiarTodosPend(){
+  const l = _pendCache.filter(p => !p.limpiado);
+  if(!l.length){ avisar('No hay pendientes por limpiar.'); return; }
+  ciCopiar(l.map(p => p.publicId + '  (' + (p.resourceType || '') + ')').join('\n'), l.length + ' ID copiados.');
+}
+async function ciVaciarLimpiados(){
+  const l = _pendCache.filter(p => p.limpiado);
+  if(!l.length){ avisar('No hay registros limpiados para vaciar.'); return; }
+  if(!confirm('Se borran ' + l.length + ' registro(s) ya limpiados de esta lista (no toca Cloudinary). ¿Continuar?')) return;
+  try{
+    for(const p of l) await colPend().doc(p.id).delete();
+    _pendCache = _pendCache.filter(p => !p.limpiado); ciPintarPendientes(); avisar('Lista vaciada.');
+  }catch(e){ console.error(e); avisar('No se pudieron borrar todos.', true); }
+}
+</script>
+</body>
+</html>

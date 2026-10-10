@@ -522,6 +522,39 @@ rules_version = '2';
 // `read` cubre get+list porque el modal hace un where('dueño','==',correo).
 // Sin componente público. No se tocó ninguna otra regla, función,
 // condición, match ni colección existente.
+// v2.41 (contador.html v1.1 — contador de tiempo): se agregan 3 colecciones
+// raíz planas: contadorProyectos (nombre, bolsaMin, tarifaHora), contadorSesiones
+// (registro de tiempo por proyecto) y contadorActivo (temporizador en curso, un
+// doc por usuario con id = uid). Mismo patrón de recordatorios/egresos: solo
+// equipo interno (esStaff()). contadorActivo exige además que el id del doc sea
+// el uid de quien escribe, para que nadie toque el temporizador de otro. Sin
+// componente público. No se tocó ninguna otra regla, función, condición, match
+// ni colección existente.
+// v2.42 (contador.html v1.2/v1.3 — tipos de tarea por proyecto): se agrega
+// la colección raíz plana contadorTipos (proyectoId, nombre, orden, creadoEn),
+// un doc por tipo de tarea. Mismo patrón que contadorProyectos/contadorSesiones:
+// solo equipo interno (esStaff()). No requiere cambios en contadorProyectos:
+// su `write` de staff ya cubre el campo nuevo tiposSembrados. Sin componente
+// público. No se tocó ninguna otra regla, función, condición, match ni
+// colección existente.
+// v2.43 (compartirinfo.html v1.0 — reportes para el cliente): se agregan 2
+// colecciones raíz planas:
+//   - compartirInfo/{token}: un reporte por proyecto y día (datos del contador
+//     sin tarifas, bloques, visibleCliente, respuestaCliente). El id del
+//     documento ES el token del link (32 caracteres aleatorios, no adivinable).
+//       * Equipo interno (esStaff()): lee y escribe todo.
+//       * Sin login: SOLO `get` de un documento puntual (nunca `list`) y SOLO si
+//         visibleCliente == true. Puede actualizar ÚNICAMENTE el campo
+//         respuestaCliente {aprobado, nombre, comentario, fecha}: comentario
+//         máx. 1.000 caracteres, nombre máx. 100, fecha == request.time. No puede
+//         tocar bloques, datosContador, título, fecha ni visibleCliente, ni crear
+//         ni borrar. RIESGO ACEPTADO por el usuario: quien tenga el link puede
+//         responder y sobrescribir la respuesta anterior (mismo criterio de "el
+//         link es el secreto" de bitacora.html y vaca.html).
+//   - compartirInfoPendientes/{id}: archivos de Cloudinary huérfanos que espera
+//     la limpieza manual (verificador portado de ensayo.html v3.293). Lista
+//     COMPARTIDA del equipo: solo esStaff() lee y escribe, sin componente público.
+// No se tocó ninguna otra regla, función, condición, match ni colección existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -1428,6 +1461,43 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.token.email == resource.data['dueño'];
       allow create: if request.auth != null && request.auth.token.email == request.resource.data['dueño'];
       allow update, delete: if request.auth != null && request.auth.token.email == resource.data['dueño'];
+    }
+    // ---------- CONTADOR DE TIEMPO (v2.41 — contador.html v1.1) ----------
+    match /contadorProyectos/{proyectoId} {
+      allow read, write: if esStaff();
+    }
+    match /contadorSesiones/{sesionId} {
+      allow read, write: if esStaff();
+    }
+    match /contadorActivo/{activoId} {
+      allow read, write: if esStaff() && request.auth.uid == activoId;
+    }
+    // v2.42: tipos de tarea por proyecto (contador.html v1.2+).
+    match /contadorTipos/{tipoId} {
+      allow read, write: if esStaff();
+    }
+    // ---------- COMPARTIRINFO (v2.43 — compartirinfo.html v1.0) ----------
+    // El id del documento es el token del link (32 caracteres aleatorios).
+    match /compartirInfo/{token} {
+      allow read, write: if esStaff();
+      // Sin login: UN documento puntual por su id exacto, nunca listar, y solo si
+      // el equipo lo marcó visible para el cliente.
+      allow get: if resource.data.visibleCliente == true;
+      // Sin login: actualizar SOLO respuestaCliente, con esquema y topes exactos.
+      allow update: if resource.data.visibleCliente == true &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['respuestaCliente']) &&
+        request.resource.data.respuestaCliente is map &&
+        request.resource.data.respuestaCliente.keys().hasOnly(['aprobado', 'nombre', 'comentario', 'fecha']) &&
+        request.resource.data.respuestaCliente.aprobado is bool &&
+        request.resource.data.respuestaCliente.nombre is string &&
+        request.resource.data.respuestaCliente.nombre.size() <= 100 &&
+        request.resource.data.respuestaCliente.comentario is string &&
+        request.resource.data.respuestaCliente.comentario.size() <= 1000 &&
+        request.resource.data.respuestaCliente.fecha == request.time;
+    }
+    // Pendientes de Cloudinary de CompartirInfo: lista compartida del equipo.
+    match /compartirInfoPendientes/{pendienteId} {
+      allow read, write: if esStaff();
     }
   }
 }

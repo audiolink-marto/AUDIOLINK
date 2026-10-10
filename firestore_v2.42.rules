@@ -511,6 +511,32 @@ rules_version = '2';
 // paralelo (OR). Los temas de la lista se leen con la regla que ya
 // existe en GUIAS2 (compartido == true): ensayo.html los marca al
 // compartir la lista.
+//
+// v2.40 (ensayo.html v3.293 — pendientes de Cloudinary): se agrega el
+// bloque /CLOUDINARY_PENDIENTES/{pendienteId} — colección nueva donde
+// ensayo.html anota los audios y PDFs de guía que quedan huérfanos en
+// Cloudinary (tema borrado, categoría borrada con PDF, PDF reemplazado),
+// para limpiarlos a mano desde la consola de Cloudinary. MISMO PATRÓN
+// EXACTO de dueño que GUIAS2/CATEGORIAS2/SETLISTS2 (correo de Firebase
+// Auth contra el campo 'dueño', notación de corchetes por la 'ñ').
+// `read` cubre get+list porque el modal hace un where('dueño','==',correo).
+// Sin componente público. No se tocó ninguna otra regla, función,
+// condición, match ni colección existente.
+// v2.41 (contador.html v1.1 — contador de tiempo): se agregan 3 colecciones
+// raíz planas: contadorProyectos (nombre, bolsaMin, tarifaHora), contadorSesiones
+// (registro de tiempo por proyecto) y contadorActivo (temporizador en curso, un
+// doc por usuario con id = uid). Mismo patrón de recordatorios/egresos: solo
+// equipo interno (esStaff()). contadorActivo exige además que el id del doc sea
+// el uid de quien escribe, para que nadie toque el temporizador de otro. Sin
+// componente público. No se tocó ninguna otra regla, función, condición, match
+// ni colección existente.
+// v2.42 (contador.html v1.2/v1.3 — tipos de tarea por proyecto): se agrega
+// la colección raíz plana contadorTipos (proyectoId, nombre, orden, creadoEn),
+// un doc por tipo de tarea. Mismo patrón que contadorProyectos/contadorSesiones:
+// solo equipo interno (esStaff()). No requiere cambios en contadorProyectos:
+// su `write` de staff ya cubre el campo nuevo tiposSembrados. Sin componente
+// público. No se tocó ninguna otra regla, función, condición, match ni
+// colección existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -1406,6 +1432,31 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && request.auth.token.email == resource.data['dueño'];
       // v2.39: lectura pública puntual para compartir.html?lista=ID
       allow get: if resource.data.compartido == true;
+    }
+
+    // ---------- CLOUDINARY_PENDIENTES (v2.40 — ensayo.html v3.293) ----------
+    // Archivos de Cloudinary que quedaron huérfanos y esperan limpieza
+    // manual: {dueño, tipo ('audio'|'pdf'), publicId, resourceType, url,
+    // nombre, motivo, limpiado, creado}. Mismo patrón de dueño que
+    // GUIAS2/CATEGORIAS2/SETLISTS2; sin lectura pública.
+    match /CLOUDINARY_PENDIENTES/{pendienteId} {
+      allow read: if request.auth != null && request.auth.token.email == resource.data['dueño'];
+      allow create: if request.auth != null && request.auth.token.email == request.resource.data['dueño'];
+      allow update, delete: if request.auth != null && request.auth.token.email == resource.data['dueño'];
+    }
+    // ---------- CONTADOR DE TIEMPO (v2.41 — contador.html v1.1) ----------
+    match /contadorProyectos/{proyectoId} {
+      allow read, write: if esStaff();
+    }
+    match /contadorSesiones/{sesionId} {
+      allow read, write: if esStaff();
+    }
+    match /contadorActivo/{activoId} {
+      allow read, write: if esStaff() && request.auth.uid == activoId;
+    }
+    // v2.42: tipos de tarea por proyecto (contador.html v1.2+).
+    match /contadorTipos/{tipoId} {
+      allow read, write: if esStaff();
     }
   }
 }

@@ -1,19 +1,43 @@
-/* AUDIOLINK · audiolink-local.js · v1.0
+/* AUDIOLINK · audiolink-local.js · v1.1
    Trabajo en local (sin internet) compartido por las hojas del ecosistema.
-   Se carga con <script src="audiolink-local.js"></script> ANTES de los
-   scripts de Firebase y de firebase-config.js. Si el archivo no está
-   desplegado, cada hoja debe seguir funcionando con su comportamiento
-   anterior (ver el respaldo en ensayo.html v3.291): este archivo nunca
-   es requisito para abrir la página.
+   Se carga con <script src="audiolink-local.js"></script> ANTES del script
+   que llama a iniciar(). Si el archivo no está desplegado, cada hoja debe
+   seguir funcionando con su comportamiento anterior (ver el respaldo en
+   ensayo.html v3.291 e ingeniero.html): este archivo nunca es requisito
+   para abrir la página.
 
-   Qué hace (todo probado antes en ensayo.html v3.290):
+   v1.1: (a pedido: "usar lo que más se pueda sin conexión") el envoltorio
+   de db deja de ser una lista corta de métodos (where/get/doc/add) y pasa
+   a ser GENÉRICO: envuelve el Firestore real con un Proxy que deja pasar
+   cualquier método (subcolecciones doc().collection(), collectionGroup,
+   orderBy, limit, onSnapshot, batch, FieldValue, etc.) y solo protege las
+   operaciones que se quedarían colgadas sin red: get, set, update,
+   delete, add y batch.commit. runTransaction y onSnapshot pasan sin tocar
+   (con persistencia, onSnapshot responde desde el caché). Los snapshots
+   que devuelve Firestore no se envuelven. add() ahora devuelve la
+   referencia completa (antes solo { id }). Además: (a) guarda el último
+   email con sesión real confirmada (audiolink_ultimo_email) para usarlo
+   como respaldo sin que cada hoja lo implemente; (b) iniciar() devuelve
+   firestoreReal (modo local con SDK) para que cada hoja decida si mantiene
+   su guard offline antiguo (mock/JSON) o usa el guard normal con la sesión
+   restaurada; (c) toda escritura se rechaza con aviso si se está en el
+   respaldo (sin sesión real confirmada), para no encolar escrituras que
+   Firestore descartaría al sincronizar; (d) la decisión "usar copia de
+   solo lectura por falla de persistencia" ahora espera a que la
+   persistencia falle de verdad (antes se asumía fallo mientras estaba
+   pendiente). ensayo.html v3.291 sigue funcionando sin cambios.
+
+   v1.0: carga de scripts (cargarFirebase/cargarScript: copia local en
+   vendor/ si existe, si no CDN), persistencia de Firestore, envoltorio de
+   escrituras/lecturas y login híbrido. Todo probado antes en ensayo.html.
+
+   Qué hace:
    (1) cargarFirebase() / cargarScript(): usan la copia local de
-       vendor/<archivo> si existe; si no, el CDN de siempre. Así el
-       .exe (Tauri) abre sin internet. AUDIOLINK_ORIGEN_LIBS dice de
-       dónde salió cada archivo ('local' o 'cdn').
+       vendor/<archivo> si existe; si no, el CDN de siempre.
+       AUDIOLINK_ORIGEN_LIBS dice de dónde salió cada archivo.
    (2) iniciar(opciones): activa la persistencia de Firestore (IndexedDB,
        synchronizeTabs) y devuelve { auth, db, usarCopiaLocal,
-       sesionSoloLocal } listos para usar en la hoja.
+       sesionSoloLocal, firestoreReal, ... } listos para usar en la hoja.
        - modoLocal = false (switch apagado): auth y db son los normales
          de la hoja; solo se activa la persistencia (caché en el
          dispositivo de lo que ya se lee).
@@ -22,13 +46,12 @@
          espera ~1.5 s la confirmación del servidor y, si no llega, se
          da por encolada (Firestore la sube sola al volver la señal,
          gana el último); una lectura espera ~3 s y si no llega lee del
-         caché. Errores reales con conexión se propagan. add() usa
-         doc()+set() para tener el id al instante.
-       - Respaldo de solo lectura (copia en localStorage que arma cada
-         hoja) únicamente si: el SDK no cargó, o Firebase no confirma
-         sesión en ~4 s habiendo email guardado, o falló la persistencia
-         y no hay red. Ahí las escrituras se rechazan, porque sin sesión
-         real Firestore las descartaría al sincronizar.
+         caché. Errores reales con conexión se propagan.
+       - Respaldo (copia que arma cada hoja: snapshot de solo lectura en
+         ensayo, mock en las demás) únicamente si: el SDK no cargó, o
+         Firebase no confirma sesión en ~4 s habiendo email guardado, o
+         falló la persistencia y no hay red. En el respaldo las
+         escrituras se rechazan.
    No toca firebase-config.js, offline-mock.js, Cloudinary ni nada
    propio de cada hoja. */
 (function(global){
@@ -69,35 +92,52 @@
   }
 
   // ---------- (2) trabajo en local ----------
+  var CLAVE_ULTIMO_EMAIL = 'audiolink_ultimo_email';
+  var MSG_SIN_CONEXION = 'Sin conexión: esta acción necesita internet';
+
+  function leerUltimoEmail(){
+    try{ return global.localStorage.getItem(CLAVE_ULTIMO_EMAIL) || ''; }catch(e){ return ''; }
+  }
+  function guardarUltimoEmail(email){
+    try{ if(email) global.localStorage.setItem(CLAVE_ULTIMO_EMAIL, email); }catch(e){}
+  }
+  function olvidarUltimoEmail(){
+    try{ global.localStorage.removeItem(CLAVE_ULTIMO_EMAIL); }catch(e){}
+  }
+
   function iniciar(op){
     op = op || {};
     var modoLocal = !!op.modoLocal;
     var sdkOk = !!op.sdkOk;
     var authReal = op.authReal;
-    var leerEmail = op.leerEmail || function(){ return ''; };
+    var leerEmail = op.leerEmail || leerUltimoEmail;
 
-    var persistenciaOk = false;
+    var estadoPersistencia = 'pendiente'; // 'pendiente' | 'ok' | 'fallo'
     var promesaPersistencia = Promise.resolve();
-    var usarCopiaForzado = false; // auth sin confirmar → db de solo lectura sobre la copia
+    var usarCopiaForzado = false; // auth sin confirmar → respaldo (sin escrituras)
 
     // Debe llamarse antes de cualquier otra operación de Firestore. Siempre
     // activa (solo guarda en el dispositivo lo que la hoja ya lee).
     if(sdkOk){
       try{
         promesaPersistencia = global.firebase.firestore().enablePersistence({ synchronizeTabs: true })
-          .then(function(){ persistenciaOk = true; })
-          .catch(function(err){ console.warn('AUDIOLINK: sin persistencia de Firestore (' + (err && err.code) + ').', err); });
+          .then(function(){ estadoPersistencia = 'ok'; })
+          .catch(function(err){
+            estadoPersistencia = 'fallo';
+            console.warn('AUDIOLINK: sin persistencia de Firestore (' + (err && err.code) + ').', err);
+          });
       }catch(err){
+        estadoPersistencia = 'fallo';
         console.warn('AUDIOLINK: no se pudo activar la persistencia de Firestore.', err);
       }
     }
 
-    // ¿Hay que leer de la copia de solo lectura en vez de Firestore?
+    // ¿Hay que usar el respaldo (copia de solo lectura, sin escrituras)?
     function usarCopiaLocal(){
       if(!modoLocal) return false;
       if(!sdkOk) return true;
       if(usarCopiaForzado) return true;
-      return !persistenciaOk && !navigator.onLine;
+      return estadoPersistencia === 'fallo' && !navigator.onLine;
     }
     // ¿Login / "cerrar sesión" deben tratarse como sin conexión?
     function sesionSoloLocal(){
@@ -122,76 +162,83 @@
       return conTimeout(leerNormal(), T_LECTURA_MS, function(){ return null; })
         .then(function(r){ return r !== null ? r : leerCache(); });
     }
-    function envolverDoc(ref){
-      function esc(nombre){
-        return function(){
-          return conTimeout(ref[nombre].apply(ref, arguments), T_ESCRITURA_MS, function(){ return undefined; });
-        };
-      }
-      return {
-        id: ref.id,
-        get: function(){ var a = arguments; return leerConRespaldo(function(){ return ref.get.apply(ref, a); }, function(){ return ref.get({ source: 'cache' }); }); },
-        set: esc('set'), update: esc('update'), delete: esc('delete')
-      };
+
+    // ---- envoltorio genérico (Proxy) del Firestore real ----
+    // Reconoce el tipo de objeto por sus métodos (sin depender del SDK).
+    function tipoDe(x){
+      if(!x || typeof x !== 'object') return null;
+      if(typeof x.collection === 'function' && typeof x.batch === 'function') return 'db';
+      if(typeof x.collection === 'function' && typeof x.set === 'function' && typeof x.get === 'function') return 'doc';
+      if(typeof x.add === 'function' && typeof x.doc === 'function') return 'col';
+      if(typeof x.where === 'function' && typeof x.get === 'function') return 'query';
+      if(typeof x.commit === 'function' && typeof x.set === 'function' && typeof x.get !== 'function') return 'batch';
+      return null;
     }
-    function envolverQuery(q){
-      return {
-        where: function(){ return envolverQuery(q.where.apply(q, arguments)); },
-        get: function(){ var a = arguments; return leerConRespaldo(function(){ return q.get.apply(q, a); }, function(){ return q.get({ source: 'cache' }); }); }
-      };
+    var proxies = new WeakMap(); // proxy → objeto real
+    function desenvolver(a){
+      return (a && typeof a === 'object' && proxies.has(a)) ? proxies.get(a) : a;
     }
-    function envolverColeccion(col){
-      var base = envolverQuery(col);
-      base.doc = function(id){ return envolverDoc(col.doc(id)); };
-      // add() → doc() + set(): el id está disponible al instante (quien llama solo debe usar docRef.id).
-      base.add = function(datos){
-        var ref = col.doc();
-        return conTimeout(ref.set(datos), T_ESCRITURA_MS, function(){ return undefined; }).then(function(){ return { id: ref.id }; });
-      };
-      return base;
+    function rechazoSinConexion(){ return Promise.reject(new Error(MSG_SIN_CONEXION)); }
+    var leer = function(t, v, args){
+      if(args.length) return v.apply(t, args); // con opciones (p. ej. {source}) se respeta tal cual
+      return leerConRespaldo(function(){ return v.call(t); }, function(){ return v.call(t, { source: 'cache' }); });
+    };
+    var escribir = function(t, v, args){
+      if(usarCopiaLocal()) return rechazoSinConexion();
+      return conTimeout(v.apply(t, args), T_ESCRITURA_MS, function(){ return undefined; });
+    };
+    var anadir = function(t, v, args){
+      if(usarCopiaLocal()) return rechazoSinConexion();
+      var ref = t.doc(); // id disponible al instante (add() = doc() + set())
+      return conTimeout(ref.set(args[0]), T_ESCRITURA_MS, function(){ return undefined; })
+        .then(function(){ return envolver(ref); });
+    };
+    var PROTEGIDOS = {
+      doc: { get: leer, set: escribir, update: escribir, delete: escribir },
+      col: { get: leer, add: anadir },
+      query: { get: leer },
+      batch: { commit: escribir }
+    };
+    function envolver(x){
+      var tipo = tipoDe(x);
+      if(!tipo) return x; // snapshots, promesas, funciones de baja, FieldValue, etc.: sin tocar
+      var p = new Proxy(x, {
+        get: function(t, prop){
+          var v = t[prop];
+          if(prop === 'parent') return envolver(v);
+          if(typeof v !== 'function') return v;
+          var protegido = PROTEGIDOS[tipo] && PROTEGIDOS[tipo][prop];
+          return function(){
+            var args = Array.prototype.map.call(arguments, desenvolver);
+            if(protegido) return protegido(t, v, args);
+            return envolver(v.apply(t, args));
+          };
+        }
+      });
+      proxies.set(p, x);
+      return p;
     }
 
-    var dbCopiaCache = null;
+    var dbCopiaCache;
     function dbCopia(){
-      if(!dbCopiaCache) dbCopiaCache = op.crearDBRespaldo(leerEmail());
+      if(dbCopiaCache === undefined){
+        try{ dbCopiaCache = op.crearDBRespaldo ? (op.crearDBRespaldo(leerEmail()) || null) : null; }
+        catch(e){ console.warn('AUDIOLINK: no se pudo crear el respaldo de datos.', e); dbCopiaCache = null; }
+      }
       return dbCopiaCache;
     }
 
-    // db del modo local con SDK: en cada llamada decide entre Firestore real
-    // (envuelto) y la copia de solo lectura (respaldo).
+    // db del modo local con SDK: Firestore real envuelto; el respaldo solo
+    // entra cuando usarCopiaLocal() es true (y la hoja definió uno).
     function crearDBLocal(){
-      var real = global.firebase.firestore();
-      function enrutar(conReal, conCopia){
-        return promesaPersistencia.then(function(){ return usarCopiaLocal() ? conCopia() : conReal(); });
-      }
-      return {
-        collection: function(nombre){
-          function colReal(){ return envolverColeccion(real.collection(nombre)); }
-          function colCopia(){ return dbCopia().collection(nombre); }
-          function consulta(filtros){
-            function aplicar(col){ return filtros.reduce(function(q, f){ return q.where(f[0], f[1], f[2]); }, col); }
-            return {
-              where: function(c, o, v){ return consulta(filtros.concat([[c, o, v]])); },
-              get: function(){ return enrutar(function(){ return aplicar(colReal()).get(); }, function(){ return aplicar(colCopia()).get(); }); }
-            };
-          }
-          var q = consulta([]);
-          q.add = function(datos){ return enrutar(function(){ return colReal().add(datos); }, function(){ return colCopia().add(datos); }); };
-          q.doc = function(id){
-            function metodo(nombre2){
-              return function(){
-                var a = arguments;
-                return enrutar(
-                  function(){ var d = colReal().doc(id); return d[nombre2].apply(d, a); },
-                  function(){ var d = colCopia().doc(id); return d[nombre2].apply(d, a); }
-                );
-              };
-            }
-            return { id: id, get: metodo('get'), set: metodo('set'), update: metodo('update'), delete: metodo('delete') };
-          };
-          return q;
+      var real = envolver(global.firebase.firestore());
+      return new Proxy({}, {
+        get: function(_, prop){
+          var base = (usarCopiaLocal() && dbCopia()) || real;
+          var v = base[prop];
+          return typeof v === 'function' ? v.bind(base) : v;
         }
-      };
+      });
     }
 
     // auth del modo local con SDK: Firebase Auth REAL (restaura la sesión sin
@@ -207,7 +254,9 @@
       }
       return {
         get currentUser(){ return real.currentUser || userRespaldo; },
-        signOut: function(){ return real.signOut(); },
+        signOut: function(){
+          return real.signOut().then(function(r){ olvidarUltimoEmail(); return r; });
+        },
         signInWithEmailAndPassword: function(c, k){ return real.signInWithEmailAndPassword(c, k); },
         onAuthStateChanged: function(cb){
           var resuelto = false;
@@ -219,6 +268,7 @@
           return real.onAuthStateChanged(function(u){
             clearTimeout(temporizador);
             if(u){
+              guardarUltimoEmail(u.email);
               var yaEstabaDentro = resuelto && !!userRespaldo;
               usarCopiaForzado = false; userRespaldo = null;
               if(yaEstabaDentro) return; // llegó tarde la sesión real: no se reinicia la pantalla
@@ -240,7 +290,7 @@
       auth = authReal;
       db = op.crearDBNormal();
     } else if(!sdkOk){
-      // SDK caído: auth de mentira + db de solo lectura (copia), como en ensayo v3.289
+      // SDK caído: auth de mentira + db de respaldo (cada hoja define el suyo)
       auth = op.crearAuthRespaldo(leerEmail());
       db = op.crearDBRespaldo(leerEmail());
     } else {
@@ -253,13 +303,14 @@
       db: db,
       usarCopiaLocal: usarCopiaLocal,
       sesionSoloLocal: sesionSoloLocal,
-      persistenciaOk: function(){ return persistenciaOk; },
+      firestoreReal: modoLocal && sdkOk,
+      persistenciaOk: function(){ return estadoPersistencia === 'ok'; },
       copiaForzada: function(){ return usarCopiaForzado; }
     };
   }
 
   global.AudiolinkLocal = {
-    version: '1.0',
+    version: '1.1',
     cargarScript: cargarScript,
     cargarFirebase: cargarFirebase,
     iniciar: iniciar

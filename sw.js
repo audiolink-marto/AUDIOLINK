@@ -1,4 +1,8 @@
-/* AUDIOLINK · sw.js · v1.1
+/* AUDIOLINK · sw.js · v1.2
+   v1.2: (a pedido) se suma 'contador.html' a PAGINAS para que la hoja
+   nueva abra sin señal igual que las demás. No cambia la estrategia,
+   VERSION ni nada más; el resto es idéntico a v1.1.
+
    Service worker (cascarón offline) para que las hojas del ecosistema
    abran sin señal dentro del .exe (Tauri/WebView2) y en el navegador. Lo
    registra registrar-sw.js (interruptor ACTIVAR_SW). Debe quedar en la
@@ -42,7 +46,7 @@ const TIMEOUT_RED_MS = 4000;
 // Hojas completas (rutas relativas a sw.js). Se guardan y se analizan.
 const PAGINAS = [
   'index.html', 'ensayo.html', 'login.html',
-  'proyecto.html', 'clientes.html', 'recordatorios.html',
+  'proyecto.html', 'clientes.html', 'recordatorios.html', 'contador.html',
   'estudios.html', 'musicos.html', 'equipo-tecnico.html',
   'logistica.html', 'eventos.html', 'cocina.html', 'vacas.html',
   'pagos.html', 'egresos.html', 'cotizador.html',

@@ -7,7 +7,21 @@
 <link rel="apple-touch-icon" href="logo/apple-touch-icon.png">
 <meta property="og:image" content="https://audiolink-marto.github.io/AUDIOLINK/logo/logo-circular-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<!-- AUDIOLINK · ingeniero.html · v1.9
+<!-- AUDIOLINK · ingeniero.html · v1.10
+     v1.10: (a pedido: "usar lo que más se pueda sin conexión") primera hoja
+     del ecosistema que usa audiolink-local.js (compartido, v1.1+). Con el
+     switch de modo offline APAGADO se comporta igual que v1.9 (única
+     diferencia: se activa la persistencia de Firestore, que solo guarda en
+     el dispositivo lo que ya lees). Con el switch ENCENDIDO ya no usa el
+     mock con JSON: usa Firebase real con persistencia (la sesión del
+     ingeniero se restaura sin red y los proyectos/sesiones que ya abriste
+     con señal salen del caché del dispositivo). El guard de sesión normal
+     sirve igual; el guard offline antiguo (pedir correo + mock) queda solo
+     como RESPALDO si audiolink-local.js no está desplegado o el SDK no
+     cargó. Esta hoja solo LEE (no hay escrituras). Sin señal, "Cerrar
+     sesión" avisa y no cierra. Solo cambian: 1 etiqueta <script>, el
+     arranque (auth/db), la condición del guard y cerrarSesion(); ninguna
+     otra función se tocó.
      v1.9: (a pedido) el sprite grande del "Cargando..." queda centrado y con
      el texto debajo: .al-dial-grande pasa a display:block y el de la grilla
      de proyectos (#gridProyectos, .grid) ocupa todas las columnas
@@ -71,6 +85,7 @@
 <script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
+<script src="audiolink-local.js"></script>
 <script>
 (function(){
   const tema = localStorage.getItem('audiolink_tema') || 'dark';
@@ -241,8 +256,24 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 
 <script>
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = crearDB();
+// v1.10: persistencia + modo local con el archivo compartido. Si
+// audiolink-local.js no está, queda exactamente el arranque de v1.9.
+const _authReal = firebase.auth();
+const _local = (typeof AudiolinkLocal !== 'undefined')
+  ? AudiolinkLocal.iniciar({
+      modoLocal: estaModoOfflineActivo(),
+      sdkOk: true,
+      authReal: _authReal,
+      crearDBNormal: crearDB,
+      // respaldo = el mock actual (offline-mock.js), solo si hace falta
+      crearDBRespaldo: () => (typeof crearDBOffline === 'function' ? crearDBOffline() : null),
+      crearAuthRespaldo: () => _authReal
+    })
+  : null;
+const auth = _local ? _local.auth : _authReal;
+const db = _local ? _local.db : crearDB();
+// ¿Se usa Firebase real aunque el switch esté encendido? (v1.10)
+const _firestoreRealLocal = !!(_local && _local.firestoreReal);
 const proyectosRef = db.collection('proyectos');
 
 // v1.3: escapeHtml() ahora vive en utils.js (compartida con proyecto.html
@@ -261,6 +292,8 @@ function toggleTema(){
 })();
 
 function cerrarSesion(){
+  // v1.10: sin señal no se cierra sesión (no se podría volver a entrar).
+  if(_local && _local.sesionSoloLocal()){ alert('Sin conexión: no se puede cerrar sesión ahora.'); return; }
   if(!confirm('¿Cerrar sesión?')) return;
   auth.signOut().then(() => window.location.href = 'login.html');
 }
@@ -292,7 +325,7 @@ function ocultarSplash(){
 }
 setTimeout(ocultarSplash, 6000); // red de seguridad si algo falla antes de iniciarListado()
 
-if(estaModoOfflineActivo()){
+if(estaModoOfflineActivo() && !_firestoreRealLocal){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
   // Grupo C ("fin del mundo"): sin Firebase Auth no hay forma de saber
   // quién sos. Se pregunta el correo una vez (prompt nativo) y se busca

@@ -1,4 +1,12 @@
-/* AUDIOLINK · nav.js · v1.31
+/* AUDIOLINK · nav.js · v1.32
+   V1.32: (a pedido) se suma la hoja contador.html al menú: ítem nuevo
+   'contador' (Contador, grupo Gestión, a continuación de Recordatorios),
+   con ícono SVG de cronómetro dibujado en la misma línea hoja técnica
+   (al-k / al-c), y se agrega a idsFueraBottomnav para que la barra
+   inferior móvil conserve sus 4 accesos (queda en el panel "···").
+   contador.html define window.NAV_CONFIG = { activo: 'contador' }, así
+   que el ítem se marca activo. No se tocó ningún otro ítem, id, href,
+   grupo, tema, sesión ni sync. El resto del archivo es idéntico a v1.31.
    V1.31: (a pedido) sin cambios de código. El historial V1.1–V1.28 se
    traslada de la cabecera a CHANGELOG.md (sección nav.js); en la
    cabecera queda la versión vigente, las 2 entradas previas (V1.30 y V1.29)
@@ -89,6 +97,7 @@
     { id:'proyecto',  href:'proyecto.html',  icon:'📁', label:'Proyectos', grupo:'Gestión', svg:'<path class="al-c" d="M1.5 14.2h21"/><path d="M2.6 8.5h18.8"/><path d="M3.5 5h6l2 3.5"/><path d="M3.5 5v15.3M20.5 7.7v12.6"/><path d="M2.6 19.5h18.8"/><path class="al-k" d="M6.5 12.2h11"/>' },
     { id:'clientes',  href:'clientes.html',  icon:'👤', label:'Clientes',  grupo:'Gestión', svg:'<path class="al-c" d="M12 1.5v21"/><circle cx="12" cy="8.2" r="3.4"/><path d="M4.6 20.5c.7-3.9 3.4-6.1 7.4-6.1s6.7 2.2 7.4 6.1"/><path d="M2.8 20.5h18.4"/><path class="al-k" d="M9 14.9l3 2.6 3-2.6"/>' },
     { id:'recordatorios', href:'recordatorios.html', icon:'📝', label:'Recordatorios', grupo:'Gestión', svg:'<path d="M5.5 2.8v18.9"/><path d="M4.8 3.5h9.7"/><path d="M4.8 21h14.9"/><path d="M19 8v13.7"/><path d="M14.5 3.5 19 8"/><path class="al-k" d="M14.5 3.5V8H19"/><path class="al-k" d="M8.5 12.5h7M8.5 15.5h7M8.5 18.5h4"/>' },
+    { id:'contador', href:'contador.html', icon:'⏱️', label:'Contador', grupo:'Gestión', svg:'<path class="al-c" d="M1.5 13.5h21"/><circle cx="12" cy="13.5" r="7.6"/><path d="M9.4 2.8h5.2M12 2.8v3.1"/><path d="M18.3 7.2l1.6-1.6"/><path class="al-k" d="M12 13.5V9.2M12 13.5l3 1.8"/><path class="al-k" d="M12 7.2v.9M19.6 13.5h-.9M12 20v-.9M4.4 13.5h.9"/>' },
     { id:'estudios',  href:'estudios.html',  icon:'🏢', label:'Estudios',  grupo:'Catálogos', svg:'<path d="M2.8 21h18.4"/><path d="M5.5 21.6V3.8M4.8 4.5h9.9M14.5 3.8v17.8"/><path d="M14 9.5h4.9M18.5 8.8v12.8"/><path class="al-k" d="M8 8h3M8 11.5h3M8 15h3"/><path class="al-k" d="M8.3 21v-3h3.4v3"/><path class="al-k" d="M15 12.8l2.9-2.9M15 16.2l3.1-3.1M15 19.6l3.1-3.1"/>' },
     { id:'musicos',   href:'musicos.html',   icon:'🎻', label:'Músicos',   grupo:'Catálogos', svg:'<path class="al-c" d="M1.5 20.8h21"/><path d="M9.2 17.2V5.4M18.2 15.2V3.4"/><path d="M9.2 5.4l9-2"/><path class="al-k" d="M9.2 8.4l9-2"/><circle cx="6.9" cy="17.6" r="2.3"/><circle cx="15.9" cy="15.6" r="2.3"/>' },
     { id:'logistica', href:'logistica.html', icon:'🎚️', label:'Logística', grupo:'Operación', svg:'<path class="al-k" d="M6 3.5v9.3M6 16.4v4.1M12 3.5v3.3M12 10.4v10.1M18 3.5v7.3M18 14.4v6.1"/><path class="al-k" d="M4.5 3.5h3M4.5 20.5h3M10.5 3.5h3M10.5 20.5h3M16.5 3.5h3M16.5 20.5h3"/><rect x="3.8" y="12.8" width="4.4" height="3.6" rx="0.4"/><rect x="9.8" y="6.8" width="4.4" height="3.6" rx="0.4"/><rect x="15.8" y="10.8" width="4.4" height="3.6" rx="0.4"/>' },
@@ -109,7 +118,7 @@
   // listan aparte en el panel "···". Antes solo estaba 'clientes'
   // hardcodeado acá (v1.1); v1.2 lo generaliza a una lista para sumar
   // 'estudios' y 'musicos' sin repetir el mismo condicional 3 veces.
-  const idsFueraBottomnav = ['clientes', 'recordatorios', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'cocina', 'ensayo', 'avatares', 'cotizador', 'header-config'];
+  const idsFueraBottomnav = ['clientes', 'recordatorios', 'contador', 'estudios', 'musicos', 'egresos', 'equipo-tecnico', 'eventos', 'vacas', 'cocina', 'ensayo', 'avatares', 'cotizador', 'header-config'];
 
   const vu = `<div class="vu"><span></span><span></span><span></span><span></span><span></span></div>`;
   // v1.13: mismo ícono, clase extra para poder cambiarle el color según
