@@ -1,4 +1,15 @@
-/* AUDIOLINK · utils.js · v1.5
+/* AUDIOLINK · utils.js · v1.6
+   v1.6: (a pedido) hoyISO() ahora devuelve la fecha LOCAL (AAAA-MM-DD
+   según el reloj del dispositivo) en vez de la fecha UTC. Antes usaba
+   toISOString(), que en Colombia (UTC-5) ya marca el día siguiente
+   desde las 7 p. m.: esFechaVencida() y estadoRecordatorio() mostraban
+   "Vencido" un recordatorio de hoy pasadas las 7 p. m. (contador.html
+   ya lo evitaba con su propia fechaLocal()). Mismo nombre, misma forma
+   de retorno, ninguna otra función cambia; index.html y
+   recordatorios.html no necesitan tocarse. También se corrige el
+   comentario de tiempoRelativo(), que decía que el ecosistema no tiene
+   Service Worker (ya existe sw.js).
+
    v1.5: se centraliza mostrarToast() — vivía copiada igual (mismo
    patrón visual) en cocina.html y RECETARIO.html. Recibe el id del
    contenedor como 4to parámetro (default 'toast-cocina', el nombre
@@ -77,7 +88,8 @@ function minutosATexto(mins){
 }
 
 function hoyISO(){
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();   // fecha LOCAL, no UTC (toISOString() cambia de día a las 7 p. m. en Colombia)
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 function esFechaVencida(fecha){
@@ -86,8 +98,9 @@ function esFechaVencida(fecha){
 }
 
 // Se recalcula cada vez que se renderiza (no es un timer corriendo en
-// segundo plano — JS no sigue corriendo sin la pestaña abierta, y este
-// ecosistema no tiene Service Worker). Si hay hora, compara con
+// segundo plano — JS no sigue corriendo sin la pestaña abierta; el
+// Service Worker del ecosistema (sw.js) no interviene en este cálculo).
+// Si hay hora, compara con
 // precisión de minutos; si no, solo con precisión de día.
 function tiempoRelativo(fecha, hora){
   if(!fecha) return null;

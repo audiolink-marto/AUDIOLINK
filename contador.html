@@ -4,7 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Contador de tiempo</title>
-<!-- AUDIOLINK · contador.html · v1.3
+<!-- AUDIOLINK · contador.html · v1.7
+     v1.7: (a pedido) bugs de tema en campos de fecha y selectores. Causa: la hoja no declaraba color-scheme,
+     así que el selector de calendario (ícono y ventana) y las listas desplegables de los select usaban
+     los colores del sistema y no los del tema (iconos invisibles / listas blancas en tema oscuro). Ahora
+     :root declara color-scheme dark y el tema claro light (igual que compartirinfo.html); además los select
+     y el campo de fecha de la bitácora usan el fondo y la tipografía de los demás campos, y las opciones de
+     las listas toman los colores del tema. Solo CSS; sin cambios de lógica ni de datos.
+     v1.6: (a pedido) el botón Imprimir ahora genera el PDF con el mismo método y estilo de
+     compartirinfo.html: abre una ventana nueva con un documento claro e independiente del tema
+     (cabecera AUDIOLINK con acento dorado, datos en cuadrícula, tablas con encabezado dorado y botón
+     "Imprimir / Guardar como PDF"). Antes se imprimía la página entera con el tema oscuro y las
+     sesiones en tarjetas, limitadas a 100. Ahora el PDF respeta el filtro de proyecto e incluye: bolsas
+     de horas (con costo si hay tarifa), resumen por día y proyecto, y TODAS las sesiones del filtro en
+     tabla (hora, tipo, tiempo, autor y nota). Es un documento interno, por eso conserva los costos. Si
+     el navegador bloquea la ventana, se avisa. Se actualiza un comentario sobre hoyISO() (corregido en
+     utils.js v1.6). El resto sin cambios; Ctrl+P sobre la hoja sigue funcionando como antes.
+     v1.5: (a pedido) optimización de rendimiento, sin cambiar lo que se ve ni los datos. (1) La lista de
+     proyectos ya no se reconstruye cada segundo: solo se vuelve a pintar si su HTML cambió (así los
+     botones ➕/✏️ no se reemplazan bajo el dedo en móvil y se gasta menos batería). (2) El tiempo usado
+     por proyecto se calcula una sola vez por actualización de sesiones (antes se recorrían todas las
+     sesiones por cada proyecto, cada segundo); el temporizador en curso se sigue sumando en vivo.
+     Sin reglas nuevas (siguen v2.43). Sin otros cambios.
+     v1.4: (a pedido) (1) Botón 📤 en cada fila del resumen de la bitácora (columna "Reporte"): abre
+     compartirinfo.html?p=PROYECTO&d=DÍA en una pestaña nueva (así el reloj y las alarmas de esta hoja
+     siguen corriendo) para crear o abrir el reporte para el cliente de ese proyecto y día.
+     (2) Toast: ahora SOLO se queda fijo (hasta hacer clic) en las alertas del pomodoro y en los avisos
+     de bolsa 80 %/100 %; los avisos menores (copiado, guardado, etc.) vuelven a desaparecer a los 4,5 s.
+     (3) Siembra de tipos: si una escritura falla ya no se marca el proyecto como sembrado; el reintento
+     completa solo los tipos de inicio que faltan (antes podía quedar con tipos a medias para siempre) y
+     se detiene en el primer fallo para no repetir el aviso de error. Sin reglas nuevas (siguen v2.43).
+     Sin otros cambios.
      v1.3: (a pedido) (1) Toast: ahora es verde activo con texto blanco (más contraste) y se queda
      en pantalla hasta que se hace clic en él (antes desaparecía a los 4,5 s). (2) Los avisos de
      bolsa (80 % y 100 %) ahora respetan el sonido elegido en el pomodoro (antes siempre sonaban
@@ -70,8 +100,10 @@ else{ ['app','auth','firestore'].forEach(function(n){ document.write('<script sr
   --T:"Playfair Display",Georgia,serif;
   --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
   --M:"JetBrains Mono",monospace;
+  color-scheme:dark;
 }
 :root[data-tema="light"]{
+  color-scheme:light;
   --bg:#faf8f4;--surf:#ffffff;--surf-light:#f3f0e8;--brd:#e2ddd0;
   --gold:#a8823a;--gold-bg:rgba(168,130,58,0.10);--txt:#2a2620;--muted:#7a756a;--faint:#a39d8f;
   --ok:#3a8f63;--warn:#b8842f;--err:#b8453a;
@@ -98,6 +130,10 @@ h2.titulo{font-family:var(--T);font-size:1.4rem;color:var(--gold);margin-bottom:
 .btn:hover{opacity:0.9;}
 .btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);border-radius:8px;padding:8px 14px;font-size:0.8rem;cursor:pointer;min-height:38px;}
 .btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+select,input[type="date"]{font-family:var(--S);}
+select.btn-ghost,input[type="date"].btn-ghost{background:var(--surf-light);color:var(--txt);font-size:0.8rem;}
+select option{background:var(--surf-light);color:var(--txt);}
+input[type="date"]{accent-color:var(--gold);}
 .nota-item{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:14px;border-radius:8px;background:var(--surf-light);margin-bottom:8px;border:1px solid var(--brd);}
 .nota-item .cuerpo{flex:1;min-width:0;}
 .nota-item .texto{font-size:0.9rem;word-break:break-word;}
@@ -269,7 +305,7 @@ window.NAV_CONFIG = { activo: 'contador' };
         <button class="btn-ghost" onclick="exportarCSV()">⬇️ CSV</button>
         <input type="date" id="diaDatos" class="btn-ghost" title="Día para copiar">
         <button class="btn-ghost" onclick="copiarDatosDia()">📋 Copiar datos del día</button>
-        <button class="btn-ghost" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn-ghost" onclick="generarPDF()">🖨️ Imprimir / PDF</button>
       </div>
     </div>
     <div class="scroll-x"><table class="res" id="tablaResumen"></table></div>
@@ -309,7 +345,7 @@ const $ = id => document.getElementById(id);
 const ETQ = ['Investigación','Redacción','Reunión','Revisión'];
 const POMO_DEF = { on:false, trab:25, corto:5, largo:15, cada:4, modo:'semi', sonido:'campana', repetir:false, notif:false, freno:4 };
 const TONOS = { campana:{ f:880, t:'sine', v:0.15 }, suave:{ f:523, t:'triangle', v:0.2 }, digital:{ f:1320, t:'square', v:0.06 }, grave:{ f:330, t:'sine', v:0.2 } };
-let usuarioActual = null, proyectos = [], sesiones = [], activo = null;
+let usuarioActual = null, proyectos = [], sesiones = [], activo = null, usadoMap = {};
 let ocupado = false, umbral = {}, toastT = null, iniciado = false;
 let tipos = [], tiposListos = false, sembrando = {}, intentosSiembra = {};
 let alarma = { on:false, msg:'', rep:null };
@@ -345,7 +381,7 @@ if(!loc && estaModoOfflineActivo()){
 }
 
 // ============ UTILIDADES ============
-// Fecha LOCAL (no hoyISO() de utils.js, que usa UTC y cambia de día a las 7 p. m. en Colombia).
+// Fecha LOCAL a partir de ms (hoyISO() de utils.js v1.6 hace lo mismo pero solo para hoy; antes usaba UTC y cambiaba de día a las 7 p. m. en Colombia).
 function fechaLocal(ms){
   const d = new Date(ms);
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -356,11 +392,13 @@ function reloj(seg){
   return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
 const txtDur = seg => minutosATexto(Math.round(seg/60)) || '0min';
-// El toast queda visible hasta que se le da clic.
-function avisar(msg){
-  const t = $('toastC'); t.textContent = msg + '  ✕'; t.style.display = 'block';
+// Toast: con fijo=true se queda hasta hacer clic (alertas); si no, se va solo a los 4,5 s.
+function avisar(msg, fijo){
+  const t = $('toastC'); t.textContent = fijo ? msg + '  ✕' : msg; t.style.display = 'block';
+  clearTimeout(toastT);
+  if(!fijo) toastT = setTimeout(() => { t.style.display = 'none'; }, 4500);
 }
-function cerrarToast(){ $('toastC').style.display = 'none'; }
+function cerrarToast(){ clearTimeout(toastT); $('toastC').style.display = 'none'; }
 // Envuelve operaciones de Firestore. Devuelve { ok, valor } si la escritura se acepta (aunque quede en cola sin señal) o null si falla.
 async function seguro(fn){
   try{ return { ok: true, valor: await fn() }; }
@@ -431,7 +469,7 @@ function pintarAlarma(){
 }
 function alertar(msg, n){
   const c = cfgPomo();
-  avisar(msg); pitido(n, c.sonido); notificar(msg, c);
+  avisar(msg, true); pitido(n, c.sonido); notificar(msg, c);
   try{ if(navigator.vibrate) navigator.vibrate([300, 150, 300]); }catch(e){}
   clearInterval(alarma.rep); alarma.rep = null;
   alarma.on = true; alarma.msg = '🔔 ' + msg;
@@ -472,6 +510,7 @@ async function iniciar(){
   refSes.onSnapshot(snap => {
     sesiones = []; snap.forEach(d => sesiones.push({ id: d.id, ...d.data() }));
     sesiones.sort((a, b) => (b.inicioMs || 0) - (a.inicioMs || 0));
+    usadoMap = {}; sesiones.forEach(x => { usadoMap[x.proyectoId] = (usadoMap[x.proyectoId] || 0) + (x.segundos || 0); });
     renderProyectos(); renderBitacora();
   }, err => console.error('Error cargando sesiones:', err));
   refTipos.onSnapshot(snap => {
@@ -600,7 +639,7 @@ async function empezarBloque(){
   await guardarActivo(); tick();
 }
 function usadoSeg(id){
-  let s = 0; sesiones.forEach(x => { if(x.proyectoId === id) s += x.segundos || 0; });
+  let s = usadoMap[id] || 0;   // acumulado precalculado al llegar las sesiones (ver onSnapshot)
   if(activo && activo.proyectoId === id) s += segActual();
   return s;
 }
@@ -608,7 +647,7 @@ function chequearUmbral(){
   const p = proyectos.find(x => x.id === activo.proyectoId); if(!p || !p.bolsaMin) return;
   const pct = usadoSeg(p.id) / (p.bolsaMin * 60) * 100, n = pct >= 100 ? 2 : pct >= 80 ? 1 : 0;
   if(umbral[p.id] === undefined){ umbral[p.id] = n; return; }
-  if(n > umbral[p.id]){ pitido(n === 2 ? 4 : 2, cfgPomo().sonido); avisar(n === 2 ? 'Bolsa agotada: ' + p.nombre : 'Vas al 80 % de la bolsa: ' + p.nombre); }
+  if(n > umbral[p.id]){ pitido(n === 2 ? 4 : 2, cfgPomo().sonido); avisar(n === 2 ? 'Bolsa agotada: ' + p.nombre : 'Vas al 80 % de la bolsa: ' + p.nombre, true); }
   umbral[p.id] = n;
 }
 function pintarAviso(){
@@ -661,7 +700,7 @@ function renderReloj(){
 // ============ PROYECTOS ============
 function renderProyectos(){
   $('emptyProyectos').style.display = proyectos.length ? 'none' : 'block';
-  $('listaProyectos').innerHTML = proyectos.map(p => {
+  const html = proyectos.map(p => {
     const bolsa = (p.bolsaMin || 0) * 60, usado = usadoSeg(p.id);
     const pct = bolsa ? usado / bolsa * 100 : 0, cl = pct >= 100 ? 'err' : pct >= 80 ? 'warn' : 'ok';
     const rest = bolsa - usado;
@@ -676,6 +715,8 @@ function renderProyectos(){
       <button class="icon-btn" title="+30 min de bolsa" onclick="ampliarBolsa('${p.id}')">➕</button>
       <button class="icon-btn" title="Editar bolsa y tarifa" onclick="editarProyecto('${p.id}')">✏️</button></div></div>`;
   }).join('');
+  const el = $('listaProyectos');   // solo se repinta si cambió (evita reconstruir los botones cada segundo)
+  if(el.dataset.h !== html){ el.innerHTML = html; el.dataset.h = html; }
 }
 async function crearProyecto(){
   const nombre = $('npNombre').value.trim(), horas = parseFloat($('npHoras').value);
@@ -717,15 +758,22 @@ async function sembrarTipos(){
     if(p.tiposSembrados || sembrando[p.id] || (intentosSiembra[p.id] || 0) >= 3) continue;
     sembrando[p.id] = true; intentosSiembra[p.id] = (intentosSiembra[p.id] || 0) + 1;
     let fallo = false;
-    if(!tipos.some(t => t.proyectoId === p.id)){
+    const propios = tipos.filter(t => t.proyectoId === p.id);
+    // Se siembra si el proyecto no tiene tipos, o si quedó una siembra a medias (hay ids de inicio): solo se escriben los que faltan.
+    if(!propios.length || propios.some(t => t.id.indexOf(p.id + '_inicio') === 0)){
       for(let i = 0; i < ETQ.length; i++){
-        const r = await seguro(() => refTipos.doc(p.id + '_inicio' + i).set({ proyectoId: p.id, nombre: ETQ[i], orden: i + 1, creadoEn: firebase.firestore.Timestamp.now() }));
-        if(!r) fallo = true;
+        const id = p.id + '_inicio' + i;
+        if(propios.some(t => t.id === id)) continue;
+        const r = await seguro(() => refTipos.doc(id).set({ proyectoId: p.id, nombre: ETQ[i], orden: i + 1, creadoEn: firebase.firestore.Timestamp.now() }));
+        if(!r){ fallo = true; break; }
       }
     }
-    const r2 = await seguro(() => refProy.doc(p.id).update({ tiposSembrados: true }));
-    if(!r2) fallo = true;
-    if(fallo) sembrando[p.id] = false; // permite reintentar (máx. 3 veces por carga de página)
+    // La marca solo se pone si todo se escribió; si no, se permite reintentar (máx. 3 veces por carga de página).
+    if(!fallo){
+      const r2 = await seguro(() => refProy.doc(p.id).update({ tiposSembrados: true }));
+      if(!r2) fallo = true;
+    }
+    if(fallo) sembrando[p.id] = false;
   }
 }
 function renderTipos(){
@@ -807,11 +855,13 @@ function renderBitacora(){
     g[k].n++; g[k].seg += s.segundos || 0;
   });
   const filas = Object.values(g).sort((a, b) => b.fecha.localeCompare(a.fecha) || nombreProy(a.pid).localeCompare(nombreProy(b.pid)));
-  $('tablaResumen').innerHTML = '<tr><th>Fecha</th><th>Proyecto</th><th class="num">Sesiones</th><th class="num">Tiempo</th><th class="num">Costo</th></tr>' +
+  $('tablaResumen').innerHTML = '<tr><th>Fecha</th><th>Proyecto</th><th class="num">Sesiones</th><th class="num">Tiempo</th><th class="num">Costo</th><th class="no-print">Reporte</th></tr>' +
     filas.map(r => {
       const p = proyectos.find(x => x.id === r.pid);
       return `<tr><td>${r.fecha}</td><td>${escapeHtml(nombreProy(r.pid))}</td><td class="num">${r.n}</td><td class="num">${txtDur(r.seg)}</td>
-        <td class="num">${p && p.tarifaHora ? formatCOP(r.seg / 3600 * p.tarifaHora) : '—'}</td></tr>`;
+        <td class="num">${p && p.tarifaHora ? formatCOP(r.seg / 3600 * p.tarifaHora) : '—'}</td>
+        <td class="no-print"><a class="icon-btn" style="display:inline-block;text-decoration:none;text-align:center;line-height:36px;" target="_blank" rel="noopener"
+        title="Reporte para el cliente (crear o abrir)" href="compartirinfo.html?p=${encodeURIComponent(r.pid)}&amp;d=${encodeURIComponent(r.fecha)}">📤</a></td></tr>`;
     }).join('');
   $('emptySesiones').style.display = lista.length ? 'none' : 'block';
   $('listaSesiones').innerHTML = lista.slice(0, 100).map(s => `<div class="nota-item"><div class="cuerpo">
@@ -833,6 +883,97 @@ function editarSesion(id){
 function borrarSesion(id){
   if(!confirm('¿Borrar esta sesión?')) return;
   seguro(() => refSes.doc(id).delete());
+}
+
+// ============ PDF (mismo método y estilo que el reporte de compartirinfo.html) ============
+function generarPDF(){
+  const lista = sesionesFiltradas();
+  if(!lista.length){ avisar('No hay sesiones para el reporte.'); return; }
+  const ac = '#c9a24b', acTxt = '#1a1509', acOsc = '#8a6a1f';
+  const f = $('filtroProy').value, todos = (!f || f === 'todos');
+  const hoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+  const td = 'padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top;', num = td + 'text-align:right;white-space:nowrap;';
+  const fechas = lista.map(s => s.fecha).sort(), desde = fechas[0], hasta = fechas[fechas.length - 1];
+  let tot = 0; lista.forEach(s => { tot += s.segundos || 0; });
+  const bolsas = (todos ? proyectos : proyectos.filter(p => p.id === f)).filter(p => p.bolsaMin > 0).map(p => {
+    const b = p.bolsaMin * 60, u = usadoSeg(p.id), pct = u / b * 100, rest = b - u;
+    return `<tr><td style="${td}">${escapeHtml(p.nombre)}</td><td style="${num}">${txtDur(u)}</td><td style="${num}">${txtDur(b)}</td>
+      <td style="${num}font-weight:bold;color:${pct >= 100 ? '#b3261e' : pct >= 80 ? '#a86a00' : '#2e7d52'};">${pct.toFixed(0)} %</td>
+      <td style="${num}">${rest >= 0 ? 'quedan ' + txtDur(rest) : 'excedida en ' + txtDur(-rest)}</td>
+      <td style="${num}">${p.tarifaHora ? formatCOP(u / 3600 * p.tarifaHora) : '—'}</td></tr>`;
+  }).join('');
+  const g = {};
+  lista.forEach(s => { const k = s.fecha + '|' + s.proyectoId; g[k] = g[k] || { fecha: s.fecha, pid: s.proyectoId, n: 0, seg: 0 }; g[k].n++; g[k].seg += s.segundos || 0; });
+  const dias = Object.values(g).sort((a, b) => b.fecha.localeCompare(a.fecha) || nombreProy(a.pid).localeCompare(nombreProy(b.pid))).map(r => {
+    const p = proyectos.find(x => x.id === r.pid);
+    return `<tr><td style="${td}white-space:nowrap;">${r.fecha}</td><td style="${td}">${escapeHtml(nombreProy(r.pid))}</td><td style="${num}">${r.n}</td><td style="${num}font-weight:bold;">${txtDur(r.seg)}</td>
+      <td style="${num}">${p && p.tarifaHora ? formatCOP(r.seg / 3600 * p.tarifaHora) : '—'}</td></tr>`;
+  }).join('');
+  const ses = lista.map(s => `<tr><td style="${td}white-space:nowrap;">${s.fecha}</td>
+    <td style="${td}white-space:nowrap;">${(s.manual || !s.inicioMs) ? 'Manual' : new Date(s.inicioMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</td>
+    <td style="${td}">${escapeHtml(nombreProy(s.proyectoId))}</td><td style="${td}">${escapeHtml(s.etiqueta || '')}${s.pomodoros ? ' 🍅' + s.pomodoros : ''}</td>
+    <td style="${td}white-space:nowrap;">${txtDur(s.segundos || 0)}</td><td style="${td}">${escapeHtml(s.autorNombre || '')}</td>
+    <td style="${td}color:#475569;">${s.nota ? escapeHtml(s.nota) : ''}</td></tr>`).join('');
+  const info = `<div><div class="k">Proyecto</div><div class="v">${todos ? 'Todos los proyectos' : escapeHtml(nombreProy(f))}</div></div>
+    <div><div class="k">Periodo</div><div class="v">${desde === hasta ? desde : desde + ' a ' + hasta}</div></div>
+    <div><div class="k">Tiempo total</div><div class="v">${txtDur(tot)}</div></div>
+    <div><div class="k">Sesiones</div><div class="v">${lista.length}</div></div>`;
+  const R = 'text-align:right;';
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reporte de tiempo — Audiolink</title>
+<style>
+*{box-sizing:border-box;}
+body{font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;margin:0 auto;padding:16px;max-width:850px;color:#0f172a;background:#fff;line-height:1.5;}
+.btnp{display:block;width:100%;min-height:52px;padding:12px;background:${ac};color:${acTxt};border:none;border-radius:10px;cursor:pointer;font-weight:bold;font-size:1rem;margin-bottom:18px;font-family:inherit;}
+.header{display:flex;flex-direction:column;gap:6px;border-bottom:4px solid ${ac};padding-bottom:16px;}
+.header h1{margin:0;letter-spacing:2px;font-size:1.4rem;}
+.sub{color:${acOsc};font-weight:bold;letter-spacing:1px;font-size:0.78rem;}
+.gen{font-size:0.85rem;color:#475569;}
+h2.t{margin:18px 0 0;font-size:1.3rem;line-height:1.3;overflow-wrap:anywhere;}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#f8fafc;padding:16px;border-radius:8px;margin:14px 0;border:1px solid #e2e8f0;}
+.k{font-size:0.72rem;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;}
+.v{font-size:1rem;font-weight:700;overflow-wrap:anywhere;}
+.st{margin:22px 0 8px;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;}
+.tw{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.9rem;}
+th{background:${ac};color:${acTxt};padding:10px;text-align:left;font-size:0.82rem;}
+.pie{text-align:center;margin-top:36px;font-size:0.75rem;color:#94a3b8;}
+@media (min-width:700px){
+  body{padding:40px;}
+  .header{flex-direction:row;justify-content:space-between;align-items:flex-end;}
+  .info{grid-template-columns:repeat(4,1fr);}
+}
+@page{margin:14mm;}
+@media print{
+  .no-print{display:none !important;}
+  body{padding:0;max-width:none;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  thead{display:table-header-group;}
+  tr{break-inside:avoid;page-break-inside:avoid;}
+  .info{grid-template-columns:repeat(4,1fr);}
+  .header{flex-direction:row;justify-content:space-between;align-items:flex-end;}
+}
+</style></head><body>
+<button class="btnp no-print" id="bp" onclick="imprimir()">🖨️ Imprimir / Guardar como PDF</button>
+<div class="header"><div><h1>AUDIOLINK</h1><div class="sub">REPORTE DE TIEMPO</div></div><div class="gen">Generado: ${hoy}</div></div>
+<h2 class="t">Contador de tiempo</h2>
+<div class="info">${info}</div>
+${bolsas ? `<h3 class="st">Bolsas de horas</h3><div class="tw"><table><thead><tr><th>Proyecto</th><th style="${R}">Usado</th><th style="${R}">Bolsa</th><th style="${R}">%</th><th style="${R}">Estado</th><th style="${R}">Costo</th></tr></thead><tbody>${bolsas}</tbody></table></div>` : ''}
+<h3 class="st">Resumen por día y proyecto</h3><div class="tw"><table><thead><tr><th>Fecha</th><th>Proyecto</th><th style="${R}">Sesiones</th><th style="${R}">Tiempo</th><th style="${R}">Costo</th></tr></thead><tbody>${dias}</tbody></table></div>
+<h3 class="st">Sesiones</h3><div class="tw"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Proyecto</th><th>Tipo</th><th>Tiempo</th><th>Autor</th><th>Nota</th></tr></thead><tbody>${ses}</tbody></table></div>
+<p class="pie">Marto 🧠 · martowave@gmail.com</p>
+<script>
+function imprimir(){
+  var b = document.getElementById('bp'), t = b.textContent;
+  var pend = [].slice.call(document.images).filter(function(i){ return !i.complete; });
+  if(!pend.length){ window.print(); return; }
+  b.textContent = 'Cargando imágenes…'; b.disabled = true;
+  Promise.all(pend.map(function(i){ return new Promise(function(r){ i.onload = i.onerror = r; }); })).then(function(){ b.textContent = t; b.disabled = false; window.print(); });
+}
+<\/script></body></html>`;
+  const win = window.open('', '_blank', 'width=900,height=800');
+  if(!win){ avisar('El navegador bloqueó la ventana. Permite ventanas emergentes para este sitio e inténtalo de nuevo.', true); return; }
+  win.document.write(html);
+  win.document.close();
 }
 
 // ============ EXPORTAR CSV ============

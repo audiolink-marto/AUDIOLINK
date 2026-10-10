@@ -7,7 +7,53 @@
 <meta name="color-scheme" content="dark light">
 <meta name="robots" content="noindex,nofollow">
 <title>Audiolink — CompartirInfo</title>
-<!-- compartirinfo.html v1.3
+<!-- compartirinfo.html v1.7
+     v1.7: (a pedido) Bloques vinculados a las sesiones del contador, todo colapsable y pensado para teléfono.
+     (1) Cada bloque puede asignarse a una sesión (campo opcional sesionId dentro del bloque; vacío = general).
+     Para eso, ciLeerContador guarda también el id del documento de contadorSesiones en cada sesión (sesiones[].id).
+     Los reportes anteriores siguen igual: sus bloques son generales y sus sesiones no tienen id hasta que pulses
+     "↻ Actualizar desde el contador" (el editor lo avisa). Si una sesión desaparece del contador, sus bloques pasan
+     a Generales con un aviso (el sesionId se conserva, no se borra).
+     (2) Editor: "Datos del contador" es un panel colapsable (cerrado). Los bloques se agrupan en tarjetas colapsables
+     (una por sesión, con hora, tipo, duración y número de bloques) y un grupo "Generales" al final, con su propia fila
+     "+ Agregar bloque aquí". Todo arranca cerrado; lo que abres se queda abierto al repintar. Cada bloque se pliega a
+     una línea (tipo + resumen) y tiene un selector "Sesión" para cambiarlo de grupo (va al final del grupo destino).
+     (3) Mover: asa ≡ de arrastre por bloque (motor adaptado del editor de lista de ensayo.html v3.297: solo el asa inicia
+     el gesto con touch-action:none, la fila sigue al dedo, las demás abren hueco, un solo cambio al soltar, autoscroll de
+     la página, pointercancel cancela; adaptado a alturas variables) además de ▲▼. El arrastre es SOLO dentro de la misma
+     sesión; mientras arrastras el bloque se ve compacto. ▲▼ también mueven solo dentro de su grupo.
+     (4) Vista del cliente y vista previa: "Tiempo trabajado" (total y barras por tipo) arriba sin la lista de sesiones;
+     debajo, "Sesiones": las que tienen bloques son tarjetas colapsables abiertas (hora, tipo, duración, nota, N bloques) y
+     las que no tienen son una fila simple; los bloques generales van al final bajo "Material adicional" (sin ese título
+     si ninguna sesión tiene bloques, como antes). Al imprimir se abren todas.
+     (5) PDF (ventana nueva): si hay bloques vinculados, cada sesión muestra sus bloques debajo y los generales van al final;
+     si no hay ninguno vinculado, queda EXACTAMENTE como en v1.6 (tabla de sesiones y bloques).
+     (6) Al guardar con un bloque inválido, ahora se abre su grupo y el bloque y se lleva a la vista (antes estaban a la vista
+     siempre); el "Bloque N" del mensaje sigue el orden en pantalla.
+     Sin cambios en subida a Cloudinary, verificador de pendientes, historial, "Marcar como enviado", guardado, respuesta del
+     cliente, tema, logo ni menú. firestore.rules: NO tengo ese archivo; si v2.43 valida las claves dentro de bloques o de
+     datosContador.sesiones habrá que permitir sesionId e id (ESTIMADO: normalmente las reglas no validan dentro de arreglos).
+     v1.6: (a pedido) (1) Logo del pie de la vista del cliente: de 14 a 20 px (sigue estático, misma opacidad).
+     (2) Favicon: ciFavicon() pide alLogoFavicon('auto') (audiolink-logo.js v2.11.30), que sigue el tema del
+     navegador (oscuro en claro, crema en oscuro; punto ámbar). Con el JS v2.11.30 el logo animado de la
+     cabecera del reporte vuelve a animarse. Sin otros cambios; el PDF no se toca.
+     v1.5: (a pedido) (1) Vista del cliente con tema claro: botón "Tema claro/oscuro" junto al PDF; se
+     guarda en audiolink_tema (dark/light, igual que el resto del ecosistema). Sin elección guardada, el
+     cliente ve el tema de su dispositivo (antes siempre oscuro). Se aceptan también los valores
+     "oscuro"/"claro" de la hoja del logo. (2) Bloque Imagen: ahora admite pegar la URL https:// de una
+     imagen externa, además de subir archivo. La imagen se carga directo de ese sitio (sin transformación
+     ni srcset, con referrerpolicy no-referrer); si antes había un archivo subido a Cloudinary, queda
+     como pendiente de limpieza por el verificador de siempre. Se ve igual en el editor, la vista previa,
+     la vista del cliente y el PDF. (3) Logo Audiolink v2.11.29 (módulo nuevo audiolink-logo.js): horizontal
+     animado de 26 px en la cabecera del reporte, horizontal estático de 14 px en el pie, horizontal
+     estático de 30 px en la ventana del PDF (claro, con el sprite incluido) y favicon con el símbolo.
+     Sin reglas nuevas (siguen v2.43). Sin otros cambios.
+     v1.4: (a pedido) el documento del reporte ya NO guarda correos del equipo. Antes editadoPor, creadoPor
+     y enviadoPor llevaban el correo de quien editó/creó/envió, y como Firestore no oculta campos dentro de un
+     documento, cualquiera con el link del cliente podía leerlos. Ahora se guarda solo el nombre del equipo
+     (vacío si el usuario no tiene nombre registrado). Al guardar un reporte existente se borra creadoPor y
+     se reemplaza editadoPor; enviadoPor se reemplaza al volver a marcar como enviado (los reportes ya
+     enviados conservan su valor anterior hasta entonces). Sin reglas nuevas (siguen v2.43). Sin otros cambios.
      v1.3: (a pedido) botón "📄 Resumen PDF" SOLO en la vista del cliente (no en el editor ni en la vista
      previa), en la cabecera del reporte. Mismo patrón que vaca.html v1.54: abre una ventana nueva con un
      documento claro e independiente del tema (header AUDIOLINK con acento dorado, datos del proyecto y
@@ -59,7 +105,9 @@
 window.CI_TOKEN = (new URLSearchParams(location.search).get('r') || '').trim();
 window.CI_CLIENTE = !!window.CI_TOKEN;
 (function(){
-  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  let tema = localStorage.getItem('audiolink_tema');
+  if(tema === 'oscuro') tema = 'dark'; else if(tema === 'claro') tema = 'light';
+  if(tema !== 'dark' && tema !== 'light') tema = (window.CI_CLIENTE && window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
   document.documentElement.setAttribute('data-tema', tema);
 })();
 </script>
@@ -68,6 +116,7 @@ window.CI_CLIENTE = !!window.CI_TOKEN;
 if(window.CI_CLIENTE){
   ['app','firestore'].forEach(function(n){ document.write('<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-' + n + '-compat.js"><\/script>'); });
   document.write('<script src="firebase-config.js"><\/script>');
+  document.write('<script src="audiolink-logo.js"><\/script>');
 }else{
   document.write('<link rel="stylesheet" href="nav.css">');
   document.write('<script src="audiolink-local.js"><\/script>');
@@ -80,6 +129,7 @@ if(!window.CI_CLIENTE){
   document.write('<script src="offline-mock.js"><\/script>');
   document.write('<script src="firebase-config.js"><\/script>');
   document.write('<script src="utils.js"><\/script>');
+  document.write('<script src="audiolink-logo.js"><\/script>');
 }
 </script>
 <style>
@@ -215,13 +265,41 @@ input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
 .hrow .tit{font-weight:600;word-break:break-word;}
 .hrow .bds{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
 .hrow .coment{font-size:0.82rem;color:var(--muted);margin-top:6px;word-break:break-word;}
+/* ---- v1.7: bloques por sesión, colapsables, móvil primero ---- */
+.ci-col{border:1px solid var(--brd);border-radius:10px;background:var(--surf);margin-bottom:10px;}
+.ci-col>summary{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 12px;cursor:pointer;list-style:none;font-size:0.9rem;}
+.ci-col>summary::-webkit-details-marker{display:none;}
+.ci-col>summary::after{content:"▾";margin-left:2px;color:var(--muted);flex:0 0 auto;transition:transform .15s;}
+.ci-col[open]>summary::after{transform:rotate(180deg);}
+.ci-col-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.ci-col-t b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ci-col-t span{font-size:0.76rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ci-col-n{font-family:var(--M);font-size:0.74rem;color:var(--gold);background:var(--gold-bg);border-radius:20px;padding:2px 9px;flex:0 0 auto;}
+.ci-col-cuerpo{padding:4px 8px 10px;}
+.ci-col-cuerpo .add-row{margin-top:6px;padding-top:10px;}
+.ci-plano .add-row{margin-top:8px;}
+.bq{padding:10px;}
+.bq-cab{gap:2px;}
+.bq-asa{flex:0 0 auto;width:36px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.4rem;line-height:1;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-radius:8px;}
+.bq-asa:active{color:var(--gold);}
+.bq-tog{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:none;border:none;color:inherit;text-align:left;cursor:pointer;min-height:44px;padding:2px 4px;font-family:var(--S);justify-content:center;}
+.bq-res{font-size:0.78rem;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bq-acc .icon-btn{min-width:38px;padding:6px 4px;}
+.bq.cerrado .bq-cuerpo{display:none;}
+.bq.cerrado .bq-cab{margin-bottom:0;}
+.bq-ses{margin-bottom:10px;}
+.bq-ses select{width:100%;min-height:48px;font-size:16px;background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:10px 11px;color:var(--txt);font-family:var(--S);}
+.arrastrando-grupo{overflow-anchor:none;user-select:none;-webkit-user-select:none;}
+.arrastrando-grupo .bq:not(.arrastrando){transition:transform .15s ease;}
+.bq.arrastrando{position:relative;z-index:5;border-color:var(--gold);background:var(--gold-bg);box-shadow:0 6px 16px rgba(0,0,0,0.35);transition:none;}
+.bq.arrastrando .bq-asa{color:var(--gold);cursor:grabbing;}
 /* ---- REPORTE (vista previa del editor y vista del cliente) ---- */
 .rp{max-width:760px;margin:0 auto;}
 .rp-cab{padding:6px 0 18px;border-bottom:1px solid var(--brd);margin-bottom:18px;}
 .rp-marca{font-family:var(--M);font-size:0.72rem;letter-spacing:0.18em;color:var(--gold);margin-bottom:8px;}
 .rp-cab h1{font-family:var(--T);font-size:1.45rem;line-height:1.25;color:var(--txt);font-weight:700;overflow-wrap:anywhere;}
 .rp-meta{color:var(--muted);font-size:0.88rem;margin-top:8px;}
-.rp-acc{margin-top:14px;}
+.rp-acc{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
 .rp-acc .btn-ghost{width:100%;}
 .rp-sec{margin-bottom:22px;}
 .rp-sec h3{font-size:0.8rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:10px;}
@@ -236,6 +314,13 @@ input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
 .rs-ses{display:flex;gap:12px;padding:10px 0;border-top:1px dashed var(--brd);font-size:0.9rem;}
 .rs-h{font-family:var(--M);font-size:0.78rem;color:var(--gold);min-width:52px;}
 .rs-n{color:var(--muted);font-size:0.84rem;margin-top:3px;white-space:pre-wrap;word-break:break-word;}
+.rs-tx{flex:1;min-width:0;}
+.rs-det>summary{list-style:none;cursor:pointer;min-height:48px;align-items:center;}
+.rs-det>summary::-webkit-details-marker{display:none;}
+.rs-det>summary::after{content:"▾";color:var(--muted);flex:0 0 auto;transition:transform .15s;}
+.rs-det[open]>summary::after{transform:rotate(180deg);}
+.rs-cnt{font-family:var(--M);font-size:0.74rem;color:var(--gold);background:var(--gold-bg);border-radius:20px;padding:2px 9px;flex:0 0 auto;}
+.rs-det-body{padding:10px 0 2px;}
 .rp-bloque{margin-bottom:20px;}
 .rp-bt{font-weight:600;margin-bottom:8px;font-size:0.98rem;}
 .rp-texto{font-size:1.02rem;line-height:1.65;word-break:break-word;}
@@ -288,6 +373,8 @@ input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
 .lb img{max-width:100%;max-height:100%;border-radius:6px;}
 .lb-x{position:absolute;top:max(10px,env(safe-area-inset-top));right:12px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;}
 .cl-pie{text-align:center;color:var(--faint);font-size:0.72rem;padding:26px 0 10px;}
+.cl-pie .al-h{opacity:.8;}
+.rp-marca .al-h{vertical-align:middle;}
 /* ---- tablet y escritorio ---- */
 @media (min-width:560px){
   main{padding-top:22px;}
@@ -347,6 +434,7 @@ input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
   .rp-cab,.rp-bloque,.rs-stat,.rs-ses,.rp-tarjeta,.rs-fila,.rp-bt{break-inside:avoid;page-break-inside:avoid;}
   .rp-bt{break-after:avoid;}
   .rp-tarjeta .btn{display:none;}
+  .rs-det>summary::after{display:none;}
 }
 </style>
 </head>
@@ -409,14 +497,6 @@ if(!window.CI_CLIENTE){
     <div class="panel no-print">
       <h3>Bloques</h3>
       <div id="listaBloques"></div>
-      <div class="add-row">
-        <button class="btn-ghost" onclick="ciAgregar('texto')">📝 Texto</button>
-        <button class="btn-ghost" onclick="ciAgregar('imagen')">🖼 Imagen</button>
-        <button class="btn-ghost" onclick="ciAgregar('video')">🎬 Video</button>
-        <button class="btn-ghost" onclick="ciAgregar('youtube')">▶️ YouTube</button>
-        <button class="btn-ghost" onclick="ciAgregar('pdf')">📄 PDF</button>
-        <button class="btn-ghost" onclick="ciAgregar('enlace')">🔗 Enlace</button>
-      </div>
     </div>
 
     <div class="panel no-print">
@@ -449,7 +529,7 @@ if(!window.CI_CLIENTE){
   <div id="clCuerpo"><div class="empty">Cargando reporte…</div></div>
   <div id="rpRespuesta" class="no-print" style="max-width:760px;margin:0 auto;"></div>
   <div id="clHist" class="no-print"></div>
-  <div class="cl-pie no-print">Audiolink</div>
+  <div class="cl-pie no-print" id="clPie">Audiolink</div>
 </main>
 
 <!-- modales -->
@@ -541,6 +621,7 @@ function fechaLocal(ms){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 // Token de 32 caracteres aleatorios (a-z, A-Z, 0-9) con crypto; sin sesgo de módulo.
+function ciQuien(){ return (usuarioActual && usuarioActual.nombre && usuarioActual.nombre.indexOf('@') < 0) ? usuarioActual.nombre : ''; }
 function ciToken(){
   const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let t = '';
@@ -555,6 +636,23 @@ function ciUrlHttp(u){
   try{ const x = new URL(String(u || '').trim()); return (x.protocol === 'http:' || x.protocol === 'https:') ? x.toString() : ''; }
   catch(e){ return ''; }
 }
+function ciUrlHttps(u){ const x = ciUrlHttp(u); return /^https:/i.test(x) ? x : ''; }
+function ciUrlImg(u){ return ciUrlCloud(u) || !!ciUrlHttps(u); }   // imagen: Cloudinary o cualquier URL https://
+function ciLogo(px, anim){ return window.alLogo ? alLogo('h', px, anim) : 'AUDIOLINK'; }
+function ciLogoInit(){ if(window.alLogoInit) alLogoInit(); }
+function ciFavicon(){
+  if(!window.alLogoFavicon) return;
+  let l = document.querySelector('link[rel="icon"]'); if(!l){ l = document.createElement('link'); l.rel = 'icon'; document.head.appendChild(l); }
+  l.type = 'image/svg+xml'; l.href = alLogoFavicon('auto');
+}
+ciFavicon();
+function ciTextoTema(){ return document.documentElement.getAttribute('data-tema') === 'light' ? '🌙 Tema oscuro' : '☀️ Tema claro'; }
+function ciCambiarTema(){
+  const r = document.documentElement, nuevo = r.getAttribute('data-tema') === 'light' ? 'dark' : 'light';
+  r.setAttribute('data-tema', nuevo);
+  try{ localStorage.setItem('audiolink_tema', nuevo); }catch(e){}
+  const b = document.getElementById('btnTema'); if(b) b.textContent = ciTextoTema();
+}
 function ciUrlCloud(u){ return /^https:\/\/res\.cloudinary\.com\//.test(u || ''); }
 function ciYtId(u){
   u = String(u || '').trim(); if(!u) return '';
@@ -563,7 +661,8 @@ function ciYtId(u){
 }
 // Miniaturas por transformación de Cloudinary (a partir de la URL guardada).
 function ciThumb(b, w){
-  const u = b.url || ''; if(!ciUrlCloud(u)) return '';
+  const u = b.url || ''; if(b.tipo === 'imagen' && !ciUrlCloud(u)) return ciUrlHttps(u);
+  if(!ciUrlCloud(u)) return '';
   w = w || 900;
   if(b.tipo === 'imagen') return u.replace('/image/upload/', '/image/upload/c_limit,w_' + w + ',q_auto,f_auto/');
   if(b.tipo === 'video')  return u.replace('/video/upload/', '/video/upload/so_0,c_limit,w_' + w + ',q_auto/').replace(/\.[A-Za-z0-9]+$/, '.jpg');
@@ -598,7 +697,7 @@ function ciEditadoDespues(rep){
   const rc = rep.respuestaCliente;
   return !!(rc && rc.aprobado && ciMs(rep.editadoEn) && ciMs(rc.fecha) && ciMs(rep.editadoEn) > ciMs(rc.fecha));
 }
-function ciResumenHTML(dc, esEditor){
+function ciResumenHTML(dc, esEditor, sinSesiones){
   if(!dc) return '';
   if(!dc.nSesiones){
     return esEditor ? '<div class="empty">No hay sesiones en el contador para este proyecto y día.</div>' : '';
@@ -616,7 +715,33 @@ function ciResumenHTML(dc, esEditor){
       <div class="rs-stat"><b>${dc.nSesiones}</b><span>${dc.nSesiones === 1 ? 'Sesión' : 'Sesiones'}</span></div>
     </div>
     <div style="margin-bottom:14px;">${filas}</div>
-    <div>${ses}</div>`;
+    ${sinSesiones ? '' : `<div>${ses}</div>`}`;
+}
+// v1.7: agrupa los bloques por sesión (por sesionId). Los que no tienen sesión, o cuya sesión ya no está, son generales.
+function ciAgruparBloques(rep){
+  const dc = rep.datosContador, ses = (dc && dc.sesiones) || [];
+  const ids = new Set(); ses.forEach(x => { if(x.id) ids.add(x.id); });
+  const por = {}, gen = [];
+  (rep.bloques || []).forEach(b => {
+    if(b.sesionId && ids.has(b.sesionId)) (por[b.sesionId] = por[b.sesionId] || []).push(b); else gen.push(b);
+  });
+  return { ses: ses, por: por, gen: gen };
+}
+function ciSesionesBloquesHTML(rep){
+  const g = ciAgruparBloques(rep), hayVinc = Object.keys(g.por).length > 0;
+  let h = '';
+  if(g.ses.length){
+    h += '<div class="rp-sec"><h3>Sesiones</h3>' + g.ses.map(x => {
+      const hora = (x.manual || !x.inicioMs) ? 'Manual' : ciHora(x.inicioMs);
+      const cab = `<div class="rs-h">${hora}</div><div class="rs-tx"><b>${ciEsc(x.tipo)}</b> · ${ciDur(x.seg)}${x.nota ? `<div class="rs-n">${ciEsc(x.nota)}</div>` : ''}</div>`;
+      const bls = x.id ? g.por[x.id] : null;
+      if(!bls || !bls.length) return `<div class="rs-ses">${cab}</div>`;
+      return `<details class="rs-det" open><summary class="rs-ses">${cab}<span class="rs-cnt">${bls.length}</span></summary><div class="rs-det-body">${bls.map(ciBloqueHTML).join('')}</div></details>`;
+    }).join('') + '</div>';
+  }
+  const gen = g.gen.map(ciBloqueHTML).join('');
+  if(gen) h += hayVinc ? `<div class="rp-sec"><h3>Material adicional</h3>${gen}</div>` : gen;
+  return h;
 }
 function ciBloqueHTML(b){
   const t = b.titulo ? `<div class="rp-bt">${ciEsc(b.titulo)}</div>` : '';
@@ -624,8 +749,9 @@ function ciBloqueHTML(b){
     case 'texto':
       return b.texto ? `<div class="rp-bloque rp-texto">${ciEsc(b.texto).replace(/\n/g, '<br>')}</div>` : '';
     case 'imagen': {
-      if(!ciUrlCloud(b.url)) return '';
-      return `<div class="rp-bloque">${t}<img class="rp-img" loading="lazy" decoding="async" src="${ciEsc(ciThumb(b, 900))}" srcset="${ciEsc(ciThumb(b, 480))} 480w, ${ciEsc(ciThumb(b, 900))} 900w, ${ciEsc(ciThumb(b, 1400))} 1400w" sizes="(max-width:760px) 100vw, 760px" data-zoom="${ciEsc(b.url)}" alt="${ciEsc(b.titulo || 'Imagen')}"></div>`;
+      if(!ciUrlImg(b.url)) return '';
+      const ext = !ciUrlCloud(b.url);   // URL externa: sin transformación ni srcset
+      return `<div class="rp-bloque">${t}<img class="rp-img" loading="lazy" decoding="async" src="${ciEsc(ciThumb(b, 900))}"${ext ? ' referrerpolicy="no-referrer"' : ` srcset="${ciEsc(ciThumb(b, 480))} 480w, ${ciEsc(ciThumb(b, 900))} 900w, ${ciEsc(ciThumb(b, 1400))} 1400w" sizes="(max-width:760px) 100vw, 760px"`} data-zoom="${ciEsc(b.url)}" alt="${ciEsc(b.titulo || 'Imagen')}"></div>`;
     }
     case 'video': {
       if(!ciUrlCloud(b.url)) return '';
@@ -650,19 +776,25 @@ function ciBloqueHTML(b){
 function ciReporteHTML(rep, esEditor, conPdf){
   const avisoEd = ciEditadoDespues(rep)
     ? '<div class="aviso warn rp-edit-aviso">Este reporte fue actualizado después de tu aprobación. Revísalo y confirma de nuevo si todo sigue bien.</div>' : '';
-  const resumen = ciResumenHTML(rep.datosContador, esEditor);
-  const bl = (rep.bloques || []).map(ciBloqueHTML).join('');
+  const resumen = ciResumenHTML(rep.datosContador, esEditor, true);
+  const bl = ciSesionesBloquesHTML(rep);
   return `<div class="rp">
-    <div class="rp-cab"><div class="rp-marca">AUDIOLINK</div><h1>${ciEsc(rep.titulo || 'Reporte')}</h1>
+    <div class="rp-cab"><div class="rp-marca">${ciLogo(26, true)}</div><h1>${ciEsc(rep.titulo || 'Reporte')}</h1>
       <div class="rp-meta">${ciEsc(rep.proyectoNombre || '')} · ${ciEsc(ciFechaLarga(rep.fecha))}</div>
-      ${conPdf ? '<div class="rp-acc no-print"><button class="btn-ghost" onclick="ciGenerarPDF()" title="Descargar resumen en PDF">📄 Resumen PDF</button></div>' : ''}</div>
+      ${conPdf ? '<div class="rp-acc no-print"><button class="btn-ghost" onclick="ciGenerarPDF()" title="Descargar resumen en PDF">📄 Resumen PDF</button><button class="btn-ghost" id="btnTema" onclick="ciCambiarTema()" title="Cambiar entre tema claro y oscuro">' + ciTextoTema() + '</button></div>' : ''}</div>
     ${avisoEd}
     ${resumen ? `<div class="rp-sec"><h3>Tiempo trabajado</h3>${resumen}</div>` : ''}
     ${bl}
   </div>`;
 }
 // Impresión/PDF: las imágenes diferidas fuera de pantalla no se cargarían; se fuerzan antes de imprimir.
-window.addEventListener('beforeprint', () => { document.querySelectorAll('img[loading="lazy"]').forEach(i => { i.loading = 'eager'; }); });
+window.addEventListener('beforeprint', () => {
+  document.querySelectorAll('img[loading="lazy"]').forEach(i => { i.loading = 'eager'; });
+  document.querySelectorAll('.rp details').forEach(d => { if(!d.open){ d.setAttribute('data-ci-reabrir', '1'); d.open = true; } });
+});
+window.addEventListener('afterprint', () => {
+  document.querySelectorAll('.rp details[data-ci-reabrir]').forEach(d => { d.open = false; d.removeAttribute('data-ci-reabrir'); });
+});
 // Clics delegados: ampliar imagen y cargar YouTube solo al tocar (no carga nada de YouTube antes).
 document.addEventListener('click', e => {
   const z = e.target.closest && e.target.closest('[data-zoom]');
@@ -730,6 +862,7 @@ function ciPintarHist(){
 
 async function ciInitCliente(){
   $('vistaCliente').style.display = '';
+  $('clPie').innerHTML = ciLogo(20, false);
   document.title = 'Reporte — Audiolink';
   const noDisp = () => { $('clCuerpo').innerHTML = '<div class="empty" style="padding:60px 10px;">Este reporte no está disponible.<br><span class="mini">Pide a Audiolink que te reenvíe el link.</span></div>'; $('rpRespuesta').innerHTML = ''; ciPintarHist(); };
   if(!db || !/^[A-Za-z0-9]{32}$/.test(CI_TOKEN)){ noDisp(); return; }
@@ -744,6 +877,7 @@ async function ciInitCliente(){
 }
 function ciPintarCliente(){
   $('clCuerpo').innerHTML = ciReporteHTML(CL.rep, false, true);
+  ciLogoInit();
   ciPintarRespuesta();
 }
 const CHK_SVG = '<span class="chk-circ"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>';
@@ -783,8 +917,10 @@ function ciEditarRespuesta(){
 function ciGenerarPDF(){
   const rep = CL.rep; if(!rep) return;
   const ac = '#c9a24b', acTxt = '#1a1509', acOsc = '#8a6a1f';
+  const LG = window.alLogoDoc ? alLogoDoc(30) : null;   // logo estático y claro, con su CSS y sprite
   const dc = rep.datosContador || null, tot = dc ? (dc.totalSeg || 0) : 0, hayTiempo = !!(dc && dc.nSesiones);
   const hoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+  const gr = ciAgruparBloques(rep), hayVinc = Object.keys(gr.por).length > 0;   // v1.7
   const td = 'padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top;';
   let resumen = '';
   if(hayTiempo){
@@ -792,13 +928,13 @@ function ciGenerarPDF(){
       `<tr><td style="${td}">${ciEsc(t.tipo)}</td><td style="${td}text-align:right;font-weight:bold;white-space:nowrap;">${ciDur(t.seg)}</td><td style="${td}text-align:right;color:#64748b;">${tot ? Math.round(t.seg / tot * 100) : 0}%</td></tr>`).join('');
     const filasSes = (dc.sesiones || []).map(s =>
       `<tr><td style="${td}white-space:nowrap;">${(s.manual || !s.inicioMs) ? 'Manual' : ciHora(s.inicioMs)}</td><td style="${td}">${ciEsc(s.tipo)}</td><td style="${td}white-space:nowrap;">${ciDur(s.seg)}</td><td style="${td}color:#475569;">${s.nota ? ciEsc(s.nota).replace(/\n/g, '<br>') : '—'}</td></tr>`).join('');
-    resumen = `<h3 class="st">Tiempo por tipo</h3><div class="tw"><table><thead><tr><th>Tipo</th><th style="text-align:right;">Tiempo</th><th style="text-align:right;">%</th></tr></thead><tbody>${filasTipo}</tbody></table></div>
-      <h3 class="st">Sesiones</h3><div class="tw"><table><thead><tr><th>Hora</th><th>Tipo</th><th>Tiempo</th><th>Nota</th></tr></thead><tbody>${filasSes}</tbody></table></div>`;
+    resumen = `<h3 class="st">Tiempo por tipo</h3><div class="tw"><table><thead><tr><th>Tipo</th><th style="text-align:right;">Tiempo</th><th style="text-align:right;">%</th></tr></thead><tbody>${filasTipo}</tbody></table></div>${hayVinc ? '' : `
+      <h3 class="st">Sesiones</h3><div class="tw"><table><thead><tr><th>Hora</th><th>Tipo</th><th>Tiempo</th><th>Nota</th></tr></thead><tbody>${filasSes}</tbody></table></div>`}`;
   }
-  const bloques = (rep.bloques || []).map(b => {
+  const bloqueHTML = b => {
     const t = b.titulo ? `<div class="bt">${ciEsc(b.titulo)}</div>` : '';
     if(b.tipo === 'texto') return b.texto ? `<div class="bl"><p>${ciEsc(b.texto).replace(/\n/g, '<br>')}</p></div>` : '';
-    if(b.tipo === 'imagen' && ciUrlCloud(b.url)) return `<div class="bl">${t}<img src="${ciEsc(ciThumb(b, 1200))}" alt="${ciEsc(b.titulo || 'Imagen')}"></div>`;
+    if(b.tipo === 'imagen' && ciUrlImg(b.url)) return `<div class="bl">${t}<img referrerpolicy="no-referrer" src="${ciEsc(ciThumb(b, 1200))}" alt="${ciEsc(b.titulo || 'Imagen')}"></div>`;
     if(b.tipo === 'video' && ciUrlCloud(b.url)) return `<div class="bl">${t}<img src="${ciEsc(ciThumb(b, 800))}" alt="" onerror="this.style.display='none'"><div class="lk">🎬 Video: <a href="${ciEsc(b.url)}">${ciEsc(b.url)}</a></div></div>`;
     if(b.tipo === 'youtube'){
       const id = ciYtId(b.url) || b.videoId; if(!/^[A-Za-z0-9_-]{11}$/.test(id || '')) return '';
@@ -807,7 +943,18 @@ function ciGenerarPDF(){
     if(b.tipo === 'pdf' && ciUrlCloud(b.url)) return `<div class="bl">${t}<div class="lk">📄 <b>${ciEsc(b.nombre || 'Documento PDF')}</b>${b.paginas ? ' (' + b.paginas + (b.paginas === 1 ? ' página' : ' páginas') + ')' : ''}<br><a href="${ciEsc(b.url)}">${ciEsc(b.url)}</a></div></div>`;
     if(b.tipo === 'enlace'){ const u = ciUrlHttp(b.url); if(!u) return ''; return `<div class="bl"><div class="lk">🔗 <b>${ciEsc(b.titulo || u)}</b><br><a href="${ciEsc(u)}">${ciEsc(u)}</a></div></div>`; }
     return '';
-  }).join('');
+  };
+  let bloques;
+  if(!hayVinc){ bloques = (rep.bloques || []).map(bloqueHTML).join(''); }   // igual que v1.6
+  else{
+    const porSes = gr.ses.map(x => {
+      const hora = (x.manual || !x.inicioMs) ? 'Manual' : ciHora(x.inicioMs);
+      const bl = (x.id && gr.por[x.id]) ? gr.por[x.id].map(bloqueHTML).join('') : '';
+      return `<div class="ses"><div class="sh"><span class="hr">${hora}</span><b>${ciEsc(x.tipo)}</b> · ${ciDur(x.seg)}${x.nota ? `<div class="sn">${ciEsc(x.nota)}</div>` : ''}</div>${bl}</div>`;
+    }).join('');
+    const gen = gr.gen.map(bloqueHTML).join('');
+    bloques = `<h3 class="st">Sesiones</h3>${porSes}` + (gen ? `<h3 class="st">Material adicional</h3>${gen}` : '');
+  }
   const rc = rep.respuestaCliente;
   const resp = rc ? `<div class="resp ${rc.aprobado ? 'ok' : ''}"><b>${rc.aprobado ? '✓ Aprobado' : 'Comentario enviado'}</b> <span class="mt">${rc.nombre ? ciEsc(rc.nombre) + ' · ' : ''}${ciEsc(ciFechaHora(rc.fecha))}</span>${rc.comentario ? `<div class="rc">${ciEsc(rc.comentario).replace(/\n/g, '<br>')}</div>` : ''}</div>` : '';
   const aviso = ciEditadoDespues(rep) ? '<div class="avs">Este reporte se actualizó después de la aprobación.</div>' : '';
@@ -816,6 +963,7 @@ function ciGenerarPDF(){
     (hayTiempo ? `<div><div class="k">Tiempo total</div><div class="v">${ciDur(tot)}</div></div><div><div class="k">Sesiones</div><div class="v">${dc.nSesiones}</div></div>` : '');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reporte — ${ciEsc(rep.titulo || 'Audiolink')}</title>
 <style>
+${LG ? LG.css : ''}
 *{box-sizing:border-box;}
 body{font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;margin:0 auto;padding:16px;max-width:850px;color:#0f172a;background:#fff;line-height:1.5;}
 .btnp{display:block;width:100%;min-height:52px;padding:12px;background:${ac};color:${acTxt};border:none;border-radius:10px;cursor:pointer;font-weight:bold;font-size:1rem;margin-bottom:18px;font-family:inherit;}
@@ -834,6 +982,10 @@ th{background:${ac};color:${acTxt};padding:10px;text-align:left;font-size:0.82re
 .bl{margin:16px 0;break-inside:avoid;page-break-inside:avoid;}
 .bl p{margin:0;font-size:1rem;line-height:1.65;overflow-wrap:anywhere;}
 .bt{font-weight:700;margin-bottom:6px;}
+.ses{margin:14px 0 6px;}
+.sh{border-top:1px dashed #cbd5e1;padding:10px 0 4px;font-size:0.95rem;break-after:avoid;page-break-after:avoid;}
+.sh .hr{font-family:'JetBrains Mono',monospace;color:#8a6a1f;margin-right:10px;font-size:0.82rem;}
+.sn{color:#64748b;font-size:0.84rem;margin-top:2px;}
 .bl img{display:block;max-width:100%;height:auto;max-height:640px;object-fit:contain;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;}
 .lk{font-size:0.88rem;color:#334155;overflow-wrap:anywhere;word-break:break-word;}
 .lk a{color:${acOsc};}
@@ -861,7 +1013,7 @@ th{background:${ac};color:${acTxt};padding:10px;text-align:left;font-size:0.82re
 }
 </style></head><body>
 <button class="btnp no-print" id="bp" onclick="imprimir()">🖨️ Imprimir / Guardar como PDF</button>
-<div class="header"><div><h1>AUDIOLINK</h1><div class="sub">REPORTE DE TRABAJO</div></div><div class="gen">Generado: ${hoy}</div></div>
+<div class="header"><div>${LG ? LG.html : '<h1>AUDIOLINK</h1>'}<div class="sub">REPORTE DE TRABAJO</div></div><div class="gen">Generado: ${hoy}</div></div>
 <h2 class="t">${ciEsc(rep.titulo || 'Reporte')}</h2>
 <div class="info">${info}</div>
 ${aviso}${resumen}${bloques}${resp}
@@ -972,14 +1124,14 @@ window.addEventListener('beforeunload', e => { if(!window.CI_CLIENTE && (sucio |
 // ---- datos del contador (sin tarifas ni costos) ----
 async function ciLeerContador(pid, fecha){
   const snap = await db.collection('contadorSesiones').where('proyectoId', '==', pid).where('fecha', '==', fecha).get();
-  const l = []; snap.forEach(d => l.push(d.data()));
+  const l = []; snap.forEach(d => l.push(Object.assign({ _id: d.id }, d.data())));
   l.sort((a, b) => (a.inicioMs || 0) - (b.inicioMs || 0));
   const por = {}; let tot = 0;
   l.forEach(s => { const k = s.etiqueta || 'Sin tipo'; por[k] = (por[k] || 0) + (s.segundos || 0); tot += s.segundos || 0; });
   return {
     totalSeg: tot, nSesiones: l.length,
     porTipo: Object.keys(por).map(k => ({ tipo: k, seg: por[k] })).sort((a, b) => b.seg - a.seg),
-    sesiones: l.map(s => ({ inicioMs: s.manual ? null : (s.inicioMs || null), manual: !!s.manual, tipo: s.etiqueta || 'Sin tipo', seg: s.segundos || 0, nota: s.nota || '' })),
+    sesiones: l.map(s => ({ id: s._id || '', inicioMs: s.manual ? null : (s.inicioMs || null), manual: !!s.manual, tipo: s.etiqueta || 'Sin tipo', seg: s.segundos || 0, nota: s.nota || '' })),
     actualizadoMs: Date.now()
   };
 }
@@ -994,7 +1146,7 @@ async function ciAbrirReporte(){
   try{
     await ciDescartarBorrador();
     const snap = await colInfo().where('proyectoId', '==', pid).where('fecha', '==', fecha).limit(1).get();
-    _conocidos.clear();
+    _conocidos.clear(); _bAbiertos.clear(); _gAbiertos.clear();
     if(!snap.empty){
       ciArmarDesdeDoc(snap.docs[0]);
       avisar('Reporte existente abierto.');
@@ -1028,7 +1180,7 @@ async function ciAbrirPorToken(token){
     await ciDescartarBorrador();
     const d = await colInfo().doc(token).get();
     if(!d.exists){ avisar('Ese reporte ya no existe.', true); return; }
-    _conocidos.clear(); ciArmarDesdeDoc(d); sucio = false;
+    _conocidos.clear(); _bAbiertos.clear(); _gAbiertos.clear(); ciArmarDesdeDoc(d); sucio = false;
     if(proyectos.some(p => p.id === R.proyectoId)) $('selProy').value = R.proyectoId;
     $('selFecha').value = R.fecha;
     ciCerrarModal('modHist'); pintarEditor(); window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1045,7 +1197,7 @@ async function ciActualizarContador(){
   if(!confirm('Se reemplazan los datos del contador de este reporte por los actuales. ¿Continuar?')) return;
   try{
     R.datosContador = await ciLeerContador(R.proyectoId, R.fecha);
-    marcarSucio(); pintarDatos(); avisar('Datos del contador actualizados (falta guardar).');
+    marcarSucio(); pintarDatos(); pintarBloques(); avisar('Datos del contador actualizados (falta guardar).');
   }catch(e){ console.error(e); avisar('No se pudo leer el contador.', true); }
 }
 
@@ -1057,7 +1209,11 @@ function pintarEditor(){
   $('rTitulo').value = R.titulo; $('chkVis').checked = !!R.visibleCliente;
   pintarDatos(); pintarLink(); pintarBloques(); pintarRespuestaEd(); pintarBarra();
 }
-function pintarDatos(){ $('edDatos').innerHTML = ciResumenHTML(R.datosContador, true); }
+function pintarDatos(){
+  const dc = R.datosContador;
+  if(!dc || !dc.nSesiones){ $('edDatos').innerHTML = ciResumenHTML(dc, true); return; }
+  $('edDatos').innerHTML = `<details class="ci-col"><summary><span class="ci-col-t"><b>${ciDur(dc.totalSeg || 0)} · ${dc.nSesiones} ${dc.nSesiones === 1 ? 'sesión' : 'sesiones'}</b><span>Toca para ver el detalle</span></span></summary><div class="ci-col-cuerpo">${ciResumenHTML(dc, true)}</div></details>`;
+}
 function ciLinkDe(token){
   const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('r', token); return u.toString();
 }
@@ -1079,7 +1235,7 @@ async function ciMarcarEnviado(){
   if(R.enviadoEn && !confirm('Ya figura enviado el ' + ciFechaHora(R.enviadoEn) + '. ¿Registrar un nuevo envío?')) return;
   try{
     const ref = colInfo().doc(R.token);
-    await ciConTimeout(ref.update({ enviadoEn: firebase.firestore.FieldValue.serverTimestamp(), enviadoPor: usuarioActual.email }), 20000);
+    await ciConTimeout(ref.update({ enviadoEn: firebase.firestore.FieldValue.serverTimestamp(), enviadoPor: ciQuien() }), 20000);
     const d = await ref.get();
     if(d.exists){ R.enviadoEn = d.data().enviadoEn || null; R.enviadoPor = d.data().enviadoPor || ''; }
     pintarLink(); avisar('Marcado como enviado.');
@@ -1113,17 +1269,155 @@ async function ciRecargarRespuesta(){
 }
 
 // ---- bloques ----
-function ciNuevoBloque(tipo){
-  return { id: ciIdBloque(), tipo: tipo, titulo: '', texto: '', url: '', publicId: '', resourceType: '', nombre: '', formato: '', bytes: 0, paginas: 0 };
+function ciNuevoBloque(tipo, sid){
+  return { id: ciIdBloque(), tipo: tipo, sesionId: sid || '', titulo: '', texto: '', url: '', publicId: '', resourceType: '', nombre: '', formato: '', bytes: 0, paginas: 0 };
 }
-function ciAgregar(tipo){ R.bloques.push(ciNuevoBloque(tipo)); marcarSucio(); pintarBloques(); }
+// v1.7: estado de lo abierto en el editor (sobrevive a los repintados) y utilidades de sesión.
+let _bAbiertos = new Set(), _gAbiertos = new Set(), _arr = null, _bloqueErr = '';
+function ciClaveGrupo(sid){ return sid ? 's:' + sid : 'gen'; }
+function ciIdsSesion(){
+  const st = new Set();
+  ((R && R.datosContador && R.datosContador.sesiones) || []).forEach(x => { if(x.id) st.add(x.id); });
+  return st;
+}
+function ciSesionDe(b){ return (b.sesionId && ciIdsSesion().has(b.sesionId)) ? b.sesionId : ''; }
+function ciOrdenVisible(){
+  const ses = ((R.datosContador && R.datosContador.sesiones) || []).filter(x => x.id), out = [];
+  ses.forEach(x => R.bloques.forEach(b => { if(ciSesionDe(b) === x.id) out.push(b); }));
+  R.bloques.forEach(b => { if(!ciSesionDe(b)) out.push(b); });
+  return out;
+}
+function ciVerBloque(id){
+  const el = document.querySelector('.bq[data-id="' + id + '"]');
+  if(el && el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+function ciAgregar(tipo, sid){
+  const b = ciNuevoBloque(tipo, sid); R.bloques.push(b);
+  _bAbiertos.add(b.id); _gAbiertos.add(ciClaveGrupo(sid || ''));
+  marcarSucio(); pintarBloques(); ciVerBloque(b.id);
+}
+function ciAsignarSesion(id, val){
+  const b = ciBuscar(id); if(!b) return;
+  b.sesionId = val || '';
+  R.bloques = R.bloques.filter(x => x !== b);
+  const g = ciSesionDe(b); let ult = -1;
+  R.bloques.forEach((x, k) => { if(ciSesionDe(x) === g) ult = k; });
+  if(ult < 0) R.bloques.push(b); else R.bloques.splice(ult + 1, 0, b);
+  _gAbiertos.add(ciClaveGrupo(g)); _bAbiertos.add(b.id);
+  marcarSucio(); pintarBloques(); ciVerBloque(b.id);
+  avisar('Bloque movido (falta guardar).');
+}
+function ciTogGrupo(key, abierto){ if(abierto) _gAbiertos.add(key); else _gAbiertos.delete(key); }
+function ciResBloque(b){
+  if(b.tipo === 'texto') return (b.texto || '').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Vacío';
+  if(b.titulo) return b.titulo;
+  if(b.tipo === 'youtube' || b.tipo === 'enlace') return b.url ? b.url.replace(/^https?:\/\//, '').slice(0, 60) : 'Sin enlace';
+  return b.nombre || (b.url ? 'Archivo cargado' : 'Sin archivo');
+}
+function ciTogBloque(id){
+  const el = document.querySelector('.bq[data-id="' + id + '"]'); if(!el) return;
+  const cerrar = !el.classList.contains('cerrado');
+  el.classList.toggle('cerrado', cerrar);
+  if(cerrar) _bAbiertos.delete(id); else _bAbiertos.add(id);
+  const t = el.querySelector('.bq-tog'); if(t) t.setAttribute('aria-expanded', String(!cerrar));
+  const b = ciBuscar(id), r = $('bqr-' + id); if(b && r) r.textContent = ciResBloque(b);
+}
+function ciMostrarBloque(id){
+  const b = id && ciBuscar(id); if(!b) return;
+  _gAbiertos.add(ciClaveGrupo(ciSesionDe(b))); _bAbiertos.add(id);
+  pintarBloques(); ciVerBloque(id);
+}
 function ciBuscar(id){ return R.bloques.find(b => b.id === id); }
-function ciMover(id, d){
-  const i = R.bloques.findIndex(b => b.id === id), j = i + d;
-  if(i < 0 || j < 0 || j >= R.bloques.length) return;
-  const t = R.bloques[i]; R.bloques[i] = R.bloques[j]; R.bloques[j] = t;
+function ciMover(id, d){   // v1.7: solo dentro de su grupo (sesión o generales)
+  const b = ciBuscar(id); if(!b) return;
+  const g = ciSesionDe(b), grupo = R.bloques.filter(x => ciSesionDe(x) === g);
+  const i = grupo.indexOf(b), j = i + d;
+  if(i < 0 || j < 0 || j >= grupo.length) return;
+  const x = R.bloques.indexOf(b), y = R.bloques.indexOf(grupo[j]);
+  const t = R.bloques[x]; R.bloques[x] = R.bloques[y]; R.bloques[y] = t;
   marcarSucio(); pintarBloques();
 }
+// Reordena una lista de ids moviendo el de la posición "desde" a "hasta" (función pura).
+function ciReordenarIds(ids, desde, hasta){ const a = ids.slice(), m = a.splice(desde, 1)[0]; a.splice(hasta, 0, m); return a; }
+// ---- arrastre con asa ≡ (adaptado de ensayo.html v3.297; alturas variables, scroll de página) ----
+function ciIniciarArrastre(ev, id){
+  if(_arr) return;
+  if(ev.pointerType === 'mouse' && ev.button !== 0) return;
+  const fila = document.querySelector('.bq[data-id="' + id + '"]'); if(!fila) return;
+  const cont = fila.parentElement;
+  const filas = Array.from(cont.children).filter(f => f.classList.contains('bq'));
+  if(filas.length < 2) return;
+  ev.preventDefault();
+  const asa = ev.currentTarget;
+  try{ asa.setPointerCapture(ev.pointerId); }catch(e){}
+  fila.classList.add('cerrado', 'arrastrando');   // compacto mientras se mueve (no toca _bAbiertos)
+  cont.classList.add('arrastrando-grupo');
+  const sy = window.pageYOffset || 0;
+  const rects = filas.map(f => f.getBoundingClientRect());
+  _arr = { asa: asa, pointerId: ev.pointerId, cont: cont, filas: filas, fila: fila,
+           tops: rects.map(r => r.top + sy), hs: rects.map(r => r.height),
+           gap: parseFloat(getComputedStyle(fila).marginBottom) || 0,
+           desde: filas.indexOf(fila), hasta: filas.indexOf(fila), startY: ev.clientY, startScroll: sy, y: ev.clientY, raf: 0 };
+  asa.addEventListener('pointermove', _ciMoverArr);
+  asa.addEventListener('pointerup', _ciSoltarArr);
+  asa.addEventListener('pointercancel', _ciCancelarArr);
+  _arr.raf = requestAnimationFrame(_ciAutoscrollArr);
+}
+function _ciAplicarArr(){
+  const a = _arr; if(!a) return;
+  const n = a.filas.length, d = a.desde;
+  let dy = (a.y - a.startY) + ((window.pageYOffset || 0) - a.startScroll);
+  dy = Math.max(a.tops[0] - a.tops[d], Math.min((a.tops[n - 1] + a.hs[n - 1]) - (a.tops[d] + a.hs[d]), dy));
+  a.fila.style.transform = 'translateY(' + dy + 'px)';
+  // se compara el BORDE de avance (inferior al bajar, superior al subir) con el centro de cada vecino:
+  // así funciona aunque el bloque arrastrado sea más alto que los demás
+  const sup = a.tops[d] + dy, inf = sup + a.hs[d], paso = a.hs[d] + a.gap;
+  let hasta = d;
+  for(let j = d + 1; j < n; j++){ if(inf > a.tops[j] + a.hs[j] / 2) hasta = j; else break; }
+  for(let j = d - 1; j >= 0; j--){ if(sup < a.tops[j] + a.hs[j] / 2) hasta = j; else break; }
+  a.hasta = hasta;
+  a.filas.forEach((f, j) => {
+    if(j === d) return;
+    let t = 0;
+    if(d < hasta && j > d && j <= hasta) t = -paso;
+    else if(d > hasta && j >= hasta && j < d) t = paso;
+    f.style.transform = t ? 'translateY(' + t + 'px)' : '';
+  });
+}
+function _ciMoverArr(ev){ const a = _arr; if(!a) return; a.y = ev.clientY; _ciAplicarArr(); }
+function _ciAutoscrollArr(){
+  const a = _arr; if(!a) return;
+  const borde = 70, bar = $('barraGuardar'), inf = window.innerHeight - (bar ? bar.offsetHeight : 0) - borde;
+  let v = 0;
+  if(a.y < borde) v = -Math.min(18, Math.ceil((borde - a.y) / 5));
+  else if(a.y > inf) v = Math.min(18, Math.ceil((a.y - inf) / 5));
+  if(v){ const antes = window.pageYOffset; window.scrollBy(0, v); if(window.pageYOffset !== antes) _ciAplicarArr(); }
+  a.raf = requestAnimationFrame(_ciAutoscrollArr);
+}
+function _ciTerminarArr(aplicar){
+  const a = _arr; if(!a) return;
+  _arr = null;
+  cancelAnimationFrame(a.raf);
+  a.asa.removeEventListener('pointermove', _ciMoverArr);
+  a.asa.removeEventListener('pointerup', _ciSoltarArr);
+  a.asa.removeEventListener('pointercancel', _ciCancelarArr);
+  try{ a.asa.releasePointerCapture(a.pointerId); }catch(e){}
+  a.fila.classList.remove('arrastrando'); a.cont.classList.remove('arrastrando-grupo');
+  a.filas.forEach(f => { f.style.transform = ''; });
+  if(aplicar && a.hasta !== a.desde){
+    const ids = a.filas.map(f => f.getAttribute('data-id'));
+    const pos = ids.map(x => R.bloques.findIndex(b => b.id === x)).sort((p, q) => p - q);
+    if(pos.every(p => p >= 0)){
+      const nuevo = ciReordenarIds(ids, a.desde, a.hasta), mapa = {};
+      R.bloques.forEach(b => { mapa[b.id] = b; });
+      nuevo.forEach((x, k) => { R.bloques[pos[k]] = mapa[x]; });
+      marcarSucio();
+    }
+  }
+  pintarBloques();
+}
+function _ciSoltarArr(){ _ciTerminarArr(true); }
+function _ciCancelarArr(){ _ciTerminarArr(false); }
 function ciQuitar(id){
   const b = ciBuscar(id); if(!b) return;
   if(b._sub != null){ avisar('Espera a que termine la subida de ese bloque.', true); return; }
@@ -1140,10 +1434,19 @@ function ciCampo(id, campo, valor, repintar){
 }
 function ciBloqueEditorHTML(b, i, n){
   const T = TIPOS_BLOQUE[b.tipo];
-  const cab = `<div class="bq-cab"><span class="bq-tipo">${T.ico} ${T.nom}</span><span class="bq-acc">
+  const abierto = _bAbiertos.has(b.id);
+  const cab = `<div class="bq-cab"><span class="bq-asa" role="button" aria-label="Arrastrar para reordenar" title="Arrastrar para reordenar" onpointerdown="ciIniciarArrastre(event,'${b.id}')">≡</span>
+    <button type="button" class="bq-tog" aria-expanded="${abierto}" onclick="ciTogBloque('${b.id}')"><span class="bq-tipo">${T.ico} ${T.nom}</span><span class="bq-res" id="bqr-${b.id}">${ciEsc(ciResBloque(b))}</span></button>
+    <span class="bq-acc">
     <button class="icon-btn" title="Subir" ${i === 0 ? 'disabled' : ''} onclick="ciMover('${b.id}',-1)">▲</button>
     <button class="icon-btn" title="Bajar" ${i === n - 1 ? 'disabled' : ''} onclick="ciMover('${b.id}',1)">▼</button>
     <button class="icon-btn borrar" title="Quitar bloque" onclick="ciQuitar('${b.id}')">🗑</button></span></div>`;
+  const sesOpts = ((R.datosContador && R.datosContador.sesiones) || []).filter(x => x.id);
+  let selSes = '';
+  if(sesOpts.length){
+    const cur = ciSesionDe(b);
+    selSes = `<div class="bq-ses"><label class="mini">Sesión</label><select onchange="ciAsignarSesion('${b.id}',this.value)"><option value="">General (al final)</option>${sesOpts.map(x => `<option value="${ciEsc(x.id)}" ${x.id === cur ? 'selected' : ''}>${ciEsc(((x.manual || !x.inicioMs) ? 'Manual' : ciHora(x.inicioMs)) + ' · ' + x.tipo + ' · ' + ciDur(x.seg))}</option>`).join('')}</select></div>`;
+  }
   const titulo = `<input type="text" maxlength="140" placeholder="Título (opcional)" value="${ciEsc(b.titulo)}" oninput="ciCampo('${b.id}','titulo',this.value)">`;
   let cuerpo = '';
   if(b.tipo === 'texto'){
@@ -1164,6 +1467,11 @@ function ciBloqueEditorHTML(b, i, n){
       }
       zona = `${prev}<div style="margin-top:8px;"><label class="btn-ghost">📎 ${b.url ? 'Reemplazar archivo' : 'Elegir archivo'}<input type="file" hidden accept="${accept}" onchange="ciElegirArchivo('${b.id}',this)"></label>
         <span class="mini" style="margin-left:8px;">Máx. ${LIM_MB[b.tipo]} MB</span></div>`;
+      if(b.tipo === 'imagen'){
+        const ext = b.url && !ciUrlCloud(b.url);
+        zona += `<input type="url" style="margin-top:8px;" placeholder="…o pega la URL de una imagen (https://…)" value="${ext ? ciEsc(b.url) : ''}" onchange="ciImagenUrl('${b.id}',this.value)">
+          <div class="mini">${ext ? '⚠ Se carga directo de ese sitio: si allá la borran o cambian, el cliente dejará de verla. Para que quede guardada, súbela como archivo.' : 'Sirve cualquier imagen con enlace https://.'}</div>`;
+      }
     }
     cuerpo = titulo + zona;
   }else if(b.tipo === 'youtube'){
@@ -1175,15 +1483,49 @@ function ciBloqueEditorHTML(b, i, n){
     cuerpo = titulo + `<input type="url" placeholder="https://…" value="${ciEsc(b.url)}" onchange="ciCampo('${b.id}','url',this.value,true)">
       <div class="mini">${b.url ? (ciUrlHttp(b.url) ? '✓ Enlace válido' : '⚠ El enlace no es válido.') : 'Se mostrará como tarjeta con el botón "Abrir".'}</div>`;
   }
-  return `<div class="bq">${cab}${cuerpo}</div>`;
+  return `<div class="bq${abierto ? '' : ' cerrado'}" data-id="${b.id}">${cab}<div class="bq-cuerpo">${selSes}${cuerpo}</div></div>`;
+}
+function ciGrupoEditorHTML(x, bls, huerf){
+  const sid = x ? x.id : '', key = ciClaveGrupo(sid), hayS = ciIdsSesion().size > 0;
+  const LBL = { texto: 'Texto', imagen: 'Imagen', video: 'Video', youtube: 'YouTube', pdf: 'PDF', enlace: 'Enlace' };
+  const lista = bls.map((b, i) => ciBloqueEditorHTML(b, i, bls.length)).join('') || '<div class="empty" style="padding:14px 6px;">Sin bloques todavía.</div>';
+  const av = huerf ? `<div class="aviso warn">⚠ ${huerf} bloque${huerf === 1 ? ' estaba' : 's estaban'} en una sesión que ya no está en el contador; ${huerf === 1 ? 'queda' : 'quedan'} aquí como general${huerf === 1 ? '' : 'es'}.</div>` : '';
+  const add = ['texto', 'imagen', 'video', 'youtube', 'pdf', 'enlace'].map(t => `<button class="btn-ghost" onclick="ciAgregar('${t}','${ciEsc(sid)}')">${TIPOS_BLOQUE[t].ico} ${LBL[t]}</button>`).join('');
+  const cuerpo = `${av}<div class="grp-bloques" data-g="${ciEsc(key)}">${lista}</div><div class="add-row">${add}</div>`;
+  if(!x && !hayS) return `<div class="ci-plano">${cuerpo}</div>`;   // sin sesiones vinculables: lista única, sin colapsar
+  let tit, sub;
+  if(x){ tit = ((x.manual || !x.inicioMs) ? 'Manual' : ciHora(x.inicioMs)) + ' · ' + x.tipo; sub = ciDur(x.seg) + (x.nota ? ' · ' + x.nota : ''); }
+  else{ tit = 'Generales'; sub = 'Sin sesión · van al final del reporte'; }
+  return `<details class="ci-col" ${_gAbiertos.has(key) ? 'open' : ''} ontoggle="ciTogGrupo('${ciEsc(key)}',this.open)"><summary><span class="ci-col-t"><b>${ciEsc(tit)}</b><span>${ciEsc(sub)}</span></span><span class="ci-col-n">${bls.length}</span></summary><div class="ci-col-cuerpo">${cuerpo}</div></details>`;
 }
 function pintarBloques(){
-  const el = $('listaBloques');
-  el.innerHTML = R.bloques.length ? R.bloques.map((b, i) => ciBloqueEditorHTML(b, i, R.bloques.length)).join('')
-    : '<div class="empty">Aún no hay bloques. Agrega el primero abajo.</div>';
+  if(_arr) return;   // no repintar mientras se arrastra (se repinta al soltar)
+  const el = $('listaBloques'); if(!el) return;
+  const ses = ((R.datosContador && R.datosContador.sesiones) || []).filter(x => x.id);
+  const por = {}, gen = [];
+  R.bloques.forEach(b => { const g = ciSesionDe(b); if(g) (por[g] = por[g] || []).push(b); else gen.push(b); });
+  const huerf = R.bloques.filter(b => b.sesionId && !ciSesionDe(b)).length;
+  let h = '';
+  if(!ses.length && R.datosContador && R.datosContador.nSesiones){
+    h += '<div class="aviso">Las sesiones de este reporte aún no se pueden vincular. Pulsa “↻ Actualizar desde el contador” (arriba) y se habilitan.</div>';
+  }
+  ses.forEach(x => { h += ciGrupoEditorHTML(x, por[x.id] || [], 0); });
+  h += ciGrupoEditorHTML(null, gen, huerf);
+  el.innerHTML = h;
 }
 
 // ---- subida a Cloudinary (sin firma) — mismo mecanismo XHR con progreso de ensayo.html ----
+function ciImagenUrl(id, valor){
+  const b = ciBuscar(id); if(!b) return;
+  let v = (valor || '').trim();
+  if(!v){ if(b.url && !ciUrlCloud(b.url)){ b.url = ''; b.nombre = ''; marcarSucio(); } pintarBloques(); return; }
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(v)) v = 'https://' + v;
+  const u = ciUrlHttps(v);
+  if(!u){ avisar('Usa una URL https:// válida (las http:// no se muestran de forma segura).', true); pintarBloques(); return; }
+  // Al pasar a URL se suelta el archivo de Cloudinary (si lo había): el guardado lo anota como pendiente de limpieza.
+  Object.assign(b, { url: u, publicId: '', resourceType: '', nombre: new URL(u).hostname, formato: '', bytes: 0, paginas: 0 });
+  marcarSucio(); pintarBloques();
+}
 function ciSubir(file, kind, onProgress){
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -1224,6 +1566,7 @@ async function ciElegirArchivo(id, input){
 // ---- guardar ----
 function ciLimpiarBloque(b){
   const o = { id: b.id, tipo: b.tipo };
+  if(b.sesionId) o.sesionId = String(b.sesionId);
   if(b.tipo === 'texto'){ o.texto = (b.texto || '').trim(); return o; }
   o.titulo = (b.titulo || '').trim();
   if(b.tipo === 'imagen' || b.tipo === 'video' || b.tipo === 'pdf'){
@@ -1235,33 +1578,37 @@ function ciLimpiarBloque(b){
 }
 function ciHash(){ return JSON.stringify({ t: (R.titulo || '').trim(), b: R.bloques.map(ciLimpiarBloque), d: R.datosContador }); }
 function ciValidar(){
+  _bloqueErr = '';
   if(!(R.titulo || '').trim()) return 'Falta el título del reporte.';
-  for(let i = 0; i < R.bloques.length; i++){
-    const b = R.bloques[i], n = 'Bloque ' + (i + 1) + ' (' + TIPOS_BLOQUE[b.tipo].nom + '): ';
-    if(b.tipo === 'texto' && !(b.texto || '').trim()) return n + 'está vacío.';
-    if((b.tipo === 'imagen' || b.tipo === 'video' || b.tipo === 'pdf') && !b.url) return n + 'falta el archivo.';
-    if(b.tipo === 'youtube' && !ciYtId(b.url)) return n + 'el link de YouTube no es válido.';
-    if(b.tipo === 'enlace' && !ciUrlHttp(b.url)) return n + 'el enlace no es válido.';
+  const ord = ciOrdenVisible();
+  for(let i = 0; i < ord.length; i++){
+    const b = ord[i], n = 'Bloque ' + (i + 1) + ' (' + TIPOS_BLOQUE[b.tipo].nom + '): ';
+    let m = '';
+    if(b.tipo === 'texto' && !(b.texto || '').trim()) m = n + 'está vacío.';
+    else if((b.tipo === 'imagen' || b.tipo === 'video' || b.tipo === 'pdf') && !b.url) m = n + 'falta el archivo.';
+    else if(b.tipo === 'youtube' && !ciYtId(b.url)) m = n + 'el link de YouTube no es válido.';
+    else if(b.tipo === 'enlace' && !ciUrlHttp(b.url)) m = n + 'el enlace no es válido.';
+    if(m){ _bloqueErr = b.id; return m; }
   }
   return '';
 }
 async function ciGuardar(){
   if(!R || guardando) return;
   if(subiendo){ avisar('Espera a que terminen las subidas.', true); return; }
-  const err = ciValidar(); if(err){ avisar(err, true); return; }
+  const err = ciValidar(); if(err){ avisar(err, true); ciMostrarBloque(_bloqueErr); return; }
   guardando = true; pintarBarra();
   const bloques = R.bloques.map(ciLimpiarBloque);
   const hash = ciHash();
   const cambioContenido = !R.existe || hash !== _hashGuardado;
   const ts = firebase.firestore.FieldValue.serverTimestamp();
   const base = { proyectoId: R.proyectoId, proyectoNombre: R.proyectoNombre, fecha: R.fecha, titulo: R.titulo.trim(),
-                 visibleCliente: !!R.visibleCliente, datosContador: R.datosContador, bloques: bloques, editadoPor: usuarioActual.email };
+                 visibleCliente: !!R.visibleCliente, datosContador: R.datosContador, bloques: bloques, editadoPor: ciQuien() };
   if(cambioContenido) base.editadoEn = ts;   // solo el contenido cuenta como "editado" (no el cambio de visibilidad)
   const ref = colInfo().doc(R.token);
   let ok = false;
   try{
-    if(!R.existe) await ciConTimeout(ref.set(Object.assign({}, base, { editadoEn: ts, creadoEn: ts, creadoPor: usuarioActual.email })), 20000);
-    else await ciConTimeout(ref.update(base), 20000);   // update: nunca toca respuestaCliente
+    if(!R.existe) await ciConTimeout(ref.set(Object.assign({}, base, { editadoEn: ts, creadoEn: ts, creadoPor: ciQuien() })), 20000);
+    else await ciConTimeout(ref.update(Object.assign({}, base, { creadoPor: firebase.firestore.FieldValue.delete() })), 20000);   // update: nunca toca respuestaCliente; borra el creadoPor antiguo (correo)
     ok = true;
   }catch(e){
     console.error('CompartirInfo guardar:', e);
@@ -1319,6 +1666,7 @@ function ciVistaPrevia(){
   $('prevCuerpo').innerHTML = ciReporteHTML(rep, false) +
     '<div class="resp-box" style="max-width:760px;margin:22px auto 0;text-align:center;"><div class="mini">Aquí el cliente verá el botón “Todo bien, aprobado” y el campo de comentario.</div></div>';
   $('modPrev').classList.add('on');
+  ciLogoInit();
 }
 
 // ============================================================
