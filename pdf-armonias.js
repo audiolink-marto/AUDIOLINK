@@ -1,4 +1,61 @@
-// AUDIOLINK · pdf-armonias.js · v1.113
+// AUDIOLINK · pdf-armonias.js · v1.124
+// v1.124: (a pedido) 1) nota de sección de la barra de título: opacidad de 0.8 a 1 (blanco pleno, igual que el
+// tiempo y el resumen de v1.123). 2) letra de la canción (dibujarLetraCaja): color fijo gris oscuro (60) para
+// diferenciarla de los acordes (20); el valor 60 es ESTIMADO (verificar en PDF real, pantalla e impreso). Tamaño,
+// posición, itálica y ajuste de ancho sin cambios; los llamadores ya devuelven el color a 20 después de la letra.
+// Único cambio: esos dos puntos. También se ve así en musico.html (comparte este archivo).
+// v1.123: (a pedido) contraste y tamaño del tiempo "m:ss – m:ss" y del resumen "c.#X-c.#Y" de la barra de
+// título: de itálica 7 pt con 75% de opacidad a negrita 9 pt, blanco pleno. El tiempo ahora lleva su unidad
+// ("0:03 – 0:12 min"; la unidad se agrega acá, s.tiempoTxt llega igual que antes). La medición que reserva
+// espacio para la nota de sección y decide si el tiempo cabe usa el mismo estilo que el dibujo. Único cambio:
+// bloque de la barra de título (medición + los dos dibujos). El resumen también se ve así en musico.html.
+// v1.122: (a pedido) tiempo de la sección "m:ss – m:ss" (s.tiempoTxt, lo arma guia-practica.html v1.129
+// con el offset del compás 1 ya restado) en la barra de título, a la izquierda del resumen "c.#X-c.#Y"
+// (blanco, itálica 7 pt, misma opacidad). Si no cabe sin pisar el nombre, no se dibuja. La nota de
+// sección ahora también descuenta el ancho del resumen y del tiempo. Sin s.tiempoTxt (ej. musico.html)
+// solo cambia que la nota reserva el espacio del resumen. Único cambio: bloque de la barra de título.
+// v1.121: (a pedido) símbolo AudioLink del crédito a todo color (resplandor, sombra, brillo, ojos) y texto
+// del crédito en la fuente del logo (Chakra Petch SemiBold, subconjunto incrustado).
+// v1.120: (a pedido) crédito al final del PDF como el del sidebar ("Marto [símbolo AudioLink] ·
+// martowave@gmail.com"), una sola vez, gris 7 pt centrado; nuevo módulo dibujarSimboloAudiolink.
+// v1.119: (a pedido) el # de compás (cajas y listas de vueltas del Vamp) pasa de gris 170 a 110
+// para que se vea; solo cambia el color (tamaño, posición y texto iguales).
+// v1.118: (a pedido) el autor pasa a la misma línea del subtítulo, alineado a la
+// derecha (gris itálica 9 pt); si no hay 6 mm de hueco, queda en línea propia
+// como en v1.117. Solo cambia el bloque título/autor/subtítulo; sin autor, idéntico.
+// v1.117: (a pedido, FIX) Vamp con ciclo en varios renglones (ej. 8 comp.
+// con POR_FILA=4): la lista de "próximas vueltas" (#35, #36...) solo se
+// dibujaba para las cajas del 1er renglón (recorría min(ciclo,POR_FILA)
+// columnas) — c.5 a c.8 quedaban sin sus #39..#42. Ahora recorre TODAS
+// las cajas del ciclo y ubica cada lista en su renglón/columna real (misma
+// cuenta que dibujarCajas: fila=floor((col+colInicioCiclo)/POR_FILA),
+// columna=(col+colInicioCiclo)%POR_FILA, y el gap de anacrusa solo desde
+// colInicioCiclo). Con el ciclo en un solo renglón el resultado es
+// idéntico al de antes. Efecto lateral (a propósito): con anacrusa y ciclo
+// >= 4, la lista de la última columna ya no se dibuja fuera de su caja.
+// Único cambio: el bucle de la lista de vueltas en la rama Vamp.
+// v1.116: (a pedido) 3 cambios en el encabezado del PDF de acordes, nada
+// más: (1) el subtítulo muestra una negra dibujada + "= 120" en vez de
+// "BPM 120" (nueva dibujarNegraTempo, vectorial: helvetica no trae ♩);
+// (2) tonalidad en el subtítulo, "Tono: G (F#)", que llega ya armada en
+// datos.tonoTxt (opcional; si no viene no se dibuja); (3) autor del tema
+// en una línea propia (gris, itálica) bajo el nombre, desde
+// datos.autorTxt (opcional; sin autor el PDF queda igual que antes).
+// Quien no pase tonoTxt/autorTxt (ej. musico.html) solo cambia por la
+// negra. Único cambio: dibujarNegraTempo + el bloque del nombre/
+// subtítulo en generarEstructuraPDF.
+// v1.115: (a pedido, FIX) marco de repetición del Vamp con ciclo > POR_FILA
+// (ej. ciclo de 8 = 2 renglones): el trazo de cierre ":║" quedaba en el
+// renglón 1 junto al de apertura. Ahora la apertura "║:" se queda en el
+// renglón 1 y el cierre baja al ÚLTIMO renglón del ciclo, al final de su
+// última columna. dibujarBarraRepeticion recibe opciones.cierreY /
+// opciones.cierreXFin (opcionales; sin pasarlos, comportamiento idéntico).
+// Con ciclo <= POR_FILA (un solo renglón) no se pasan -> cero cambio.
+// Único cambio: dibujarBarraRepeticion + su llamado en la rama Vamp.
+// v1.114: (a pedido) letra completa en el PDF: dibujarCajas() ya no corta la
+// letra a 22 caracteres; usa dibujarLetraCaja() (ancho real = anchoCol-3,
+// baja fuente hasta 5.5pt, 2 renglones solo sin regla de tiempo, "…" de
+// último recurso). Único cambio: helper nuevo + 1 bloque en dibujarCajas().
 // v1.113: (a pedido) jerarquía de navegación del header de sección —
 // badge de letra de ensayo (A/B/C) sube de 8pt a 10pt bold (caja de
 // 5/7mm a 6/8mm), y el nombre de sección de 10pt a 11pt bold (mismo
@@ -262,8 +319,127 @@
 // Contiene: generarEstructuraPDF (PDF de acordes/armonías), usado por
 // guia-practica.html y musico.html.
 
+// v1.116: (a pedido) negra dibujada con vectores para el subtítulo del
+// tempo ("♩ = 120"). La fuente estándar de jsPDF (helvetica) no trae el
+// símbolo ♩, así que se dibuja: cabeza ovalada inclinada rellena + plica.
+// Escala con el tamaño de fuente (fs, referencia 10pt). Dibuja en x/yBase
+// (yBase = línea base del texto) y devuelve el ancho ocupado en mm, para
+// que el texto "= 120" arranque justo a continuación. Color de relleno y
+// trazo = el del texto del subtítulo (20,20,20).
+function dibujarNegraTempo(doc, x, yBase, fs){
+  const k = fs / 10;
+  const rx = 0.98 * k, ry = 0.68 * k, ang = -22 * Math.PI / 180;
+  const cx = x + rx, cy = yBase - 0.75 * k;
+  const pts = [];
+  for(let i = 0; i < 24; i++){
+    const t = i / 24 * 2 * Math.PI;
+    const ex = rx * Math.cos(t), ey = ry * Math.sin(t);
+    pts.push([cx + ex * Math.cos(ang) - ey * Math.sin(ang), cy + ex * Math.sin(ang) + ey * Math.cos(ang)]);
+  }
+  const rel = [];
+  for(let i = 1; i < pts.length; i++) rel.push([pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]]);
+  doc.setFillColor(20, 20, 20); doc.setDrawColor(20, 20, 20);
+  doc.lines(rel, pts[0][0], pts[0][1], [1, 1], 'F', true);
+  doc.setLineWidth(0.22 * k);
+  const sx = cx + rx * 0.93, sy = cy - 0.2 * k;
+  doc.line(sx, sy, sx, sy - 3.4 * k);
+  return 2 * rx + 0.6 * k;
+}
+
+// v1.121: fuente del logo (Chakra Petch SemiBold 600, OFL, Google Fonts) reducida a
+// las letras del crédito (TTF ~1.8 KB). Si no carga, el crédito usa helvetica.
+const FUENTE_CREDITO_B64 = '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AAEECQANASACVAADAAEECQAOADQDdAADAAEECQAQABgDqAADAAEECQARABADwABDAG8AcAB5AHIAaQBnAGgAdAAgADIAMAAxADgAIABUAGgAZQAgAEMAaABhAGsAcgBhACAAUABlAHQAYwBoACAAUAByAG8AagBlAGMAdAAgAEEAdQB0AGgAbwByAHMAIAAoAGgAdAB0AHAAcwA6AC8ALwBnAGkAdABoAHUAYgAuAGMAbwBtAC8AbQA0AHIAYwAxAGUALwBDAGgAYQBrAHIAYQAtAFAAZQB0AGMAaAAuAGcAaQB0ACkAQwBoAGEAawByAGEAIABQAGUAdABjAGgAIABTAGUAbQBpAEIAbwBsAGQAUgBlAGcAdQBsAGEAcgAxAC4AMAAwADAAOwBDAEQASwAgADsAQwBoAGEAawByAGEAUABlAHQAYwBoAC0AUwBlAG0AaQBCAG8AbABkAFYAZQByAHMAaQBvAG4AIAAxAC4AMAAwADAAOwAgAHQAdABmAGEAdQB0AG8AaABpAG4AdAAgACgAdgAxAC4ANgApAEMAaABhAGsAcgBhAFAAZQB0AGMAaAAtAFMAZQBtAGkAQgBvAGwAZABDAGEAZABzAG8AbgAgAEQAZQBtAGEAawAgAEMAbwAuACwATAB0AGQALgBLAGEAdABhAHQAcgBhAGQAIABBAGsAcwBvAHIAbgAgAEMAbwAuACwATAB0AGQALgBoAHQAdABwADoALwAvAHcAdwB3AC4AYwBhAGQAcwBvAG4AZABlAG0AYQBrAC4AYwBvAG0AaAB0AHQAcAA6AC8ALwB3AHcAdwAuAGsAYQB0AGEAdAByAGEAZAAuAGMAbwBtAFQAaABpAHMAIABGAG8AbgB0ACAAUwBvAGYAdAB3AGEAcgBlACAAaQBzACAAbABpAGMAZQBuAHMAZQBkACAAdQBuAGQAZQByACAAdABoAGUAIABTAEkATAAgAE8AcABlAG4AIABGAG8AbgB0ACAATABpAGMAZQBuAHMAZQAsACAAVgBlAHIAcwBpAG8AbgAgADEALgAxAC4AIABUAGgAaQBzACAAbABpAGMAZQBuAHMAZQAgAGkAcwAgAGEAdgBhAGkAbABhAGIAbABlACAAdwBpAHQAaAAgAGEAIABGAEEAUQAgAGEAdAA6ACAAaAB0AHQAcAA6AC8ALwBzAGMAcgBpAHAAdABzAC4AcwBpAGwALgBvAHIAZwAvAE8ARgBMAGgAdAB0AHAAOgAvAC8AcwBjAHIAaQBwAHQAcwAuAHMAaQBsAC4AbwByAGcALwBPAEYATABDAGgAYQBrAHIAYQAgAFAAZQB0AGMAaABTAGUAbQBpAEIAbwBsAGQAAAACAAAAAAAA/7UAMgAAAAAAAAAAAAAAAAAAAAAAAAAAABIAAAADADAARABGAEgASgBMAE8AUABSAFUAVwBZAFoAEQDDACMAAA==';
+function registrarFuenteCredito(doc){
+  try{
+    doc.addFileToVFS('ChakraPetch-SemiBold-credito.ttf', FUENTE_CREDITO_B64);
+    doc.addFont('ChakraPetch-SemiBold-credito.ttf', 'ChakraPetchCredito', 'normal');
+    return true;
+  }catch(e){ return false; }
+}
+
+// v1.120: (a pedido) símbolo AudioLink vectorial (trazo/relleno del
+// SVG "simbolo-claro", a todo color: resplandor y sombra aproximados con aros/franjas) para el
+// crédito del final, en lugar del emoji del sidebar (helvetica no trae
+// emojis). h = alto en mm; el ancho sale proporcional (99:168.33).
+// Devuelve el ancho dibujado. Módulo propuesto como reutilizable.
+function dibujarSimboloAudiolink(doc, x, y, h){
+  const s = h / 168.33;
+  const bx = v => 128 + (v - 128) * 0.68, by = v => 140 + (v - 140) * 0.68;
+  const X = v => x + (bx(v) - 78.5) * s, Y = v => y + (by(v) - 71.67) * s;   // dentro del grupo escalado 0.68
+  const X2 = v => x + (v - 78.5) * s, Y2 = v => y + (v - 71.67) * s;         // fuera del grupo
+  const k = 0.68 * s;
+  const marron = [74, 59, 44];
+  const op = (a) => { try{ doc.setGState(new doc.GState({ opacity: a, 'stroke-opacity': a })); }catch(e){} };
+  const trazoCuerpo = () => {
+    const p = (a, b) => [X(a), Y(b)];
+    const P0 = p(85.5, 140), P1 = p(85.5, 90.7), P2 = p(117.8, 60.1), P3 = p(138.2, 60.1), P4 = p(170.5, 90.7), P5 = p(170.5, 140);
+    const c1a = p(85.5, 72), c1b = p(99.1, 60.1), c2a = p(156.9, 60.1), c2b = p(170.5, 72);
+    return { P0, rel: [
+      [P1[0]-P0[0], P1[1]-P0[1]],
+      [c1a[0]-P1[0], c1a[1]-P1[1], c1b[0]-P1[0], c1b[1]-P1[1], P2[0]-P1[0], P2[1]-P1[1]],
+      [P3[0]-P2[0], P3[1]-P2[1]],
+      [c2a[0]-P3[0], c2a[1]-P3[1], c2b[0]-P3[0], c2b[1]-P3[1], P4[0]-P3[0], P4[1]-P3[1]],
+      [P5[0]-P4[0], P5[1]-P4[1]]
+    ] };
+  };
+  const cuerpo = trazoCuerpo();
+  doc.saveGraphicsState();
+  // 1) resplandor ámbar (degradado radial aproximado con aros) y sombra lateral, recortados al cuerpo
+  doc.lines(cuerpo.rel, cuerpo.P0[0], cuerpo.P0[1], [1, 1], null, true);
+  doc.clip(); doc.discardPath();
+  const stops = [[0, .9], [.15, .837], [.3, .702], [.45, .522], [.6, .342], [.75, .18], [.9, .063], [1, 0]];
+  const alfaEn = t => { for(let i = 1; i < stops.length; i++){ if(t <= stops[i][0]){ const a = stops[i-1], b = stops[i]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]); } } return 0; };
+  const N = 14; let acum = 0; doc.setFillColor(240, 132, 0);
+  for(let i = N; i >= 1; i--){
+    const t = (i - 0.5) / N, T = alfaEn(t);
+    const a = Math.max(0, Math.min(1, 1 - (1 - T) / (1 - acum)));
+    acum = 1 - (1 - acum) * (1 - a);
+    op(a); doc.circle(X(128), Y(89), 50 * k * i / N, 'F');
+  }
+  doc.setFillColor(marron[0], marron[1], marron[2]);
+  const M = 10, xa = X(128), xb = X(170.5) + 4 * k;
+  for(let i = 0; i < M; i++){                               // sombra: 0 → 0.3 de la mitad al borde derecho
+    op(0.3 / M * 0.5); doc.rect(xa + (xb - xa) * i / M, Y(55), (xb - xa) * (M - i) / M + 0.01, Y(142) - Y(55), 'F');
+  }
+  doc.restoreGraphicsState();
+  // 2) contorno del cuerpo y raya lateral tenue
+  doc.setDrawColor(marron[0], marron[1], marron[2]);
+  doc.setLineCap('round'); doc.setLineJoin('round');
+  doc.setLineWidth(7.35 * k);
+  doc.lines(cuerpo.rel, cuerpo.P0[0], cuerpo.P0[1], [1, 1], 'S', true);
+  doc.saveGraphicsState(); op(0.4); doc.setLineWidth(4.41 * k);
+  doc.line(X(160.3), Y(80.5), X(160.3), Y(128.1)); doc.restoreGraphicsState();
+  // 3) punto central ámbar
+  doc.setFillColor(224, 138, 0); doc.circle(X(128), Y(89), 10 * k, 'F');
+  doc.saveGraphicsState(); op(0.95); doc.setFillColor(245, 184, 74); doc.circle(X(128), Y(89), 4 * k, 'F'); doc.restoreGraphicsState();
+  // 4) brillo blanco del cuerpo
+  doc.saveGraphicsState(); op(0.65); doc.setDrawColor(255, 255, 255); doc.setLineWidth(5.88 * k);
+  const h0 = [X(95.7), Y(116.2)], h1 = [X(95.7), Y(95.8)], h2 = [X(112.7), Y(71.15)];
+  doc.lines([[0, h1[1]-h0[1]], [X(95.7)-h1[0], Y(83.9)-h1[1], X(102.5)-h1[0], Y(75.4)-h1[1], h2[0]-h1[0], h2[1]-h1[1]]], h0[0], h0[1], [1, 1], 'S', false);
+  doc.restoreGraphicsState();
+  // 5) patas y ojos
+  doc.setDrawColor(marron[0], marron[1], marron[2]); doc.setLineWidth(4.5 * s);
+  doc.line(X2(110), Y2(140), X2(110), Y2(213.2));
+  doc.line(X2(146), Y2(140), X2(146), Y2(213.2));
+  doc.line(X2(128), Y2(140), X2(128), Y2(206));
+  const ojo = (cx, ladoIzq) => {
+    doc.setLineWidth(3.25 * 0.92 * s);
+    doc.circle(X2(cx), Y2(222), 6.5 * 0.92 * s, 'S');
+    const r = 4.2 * 0.92 * s, cyy = Y2(222), cxx = X2(cx), pts = [];
+    const a0 = ladoIzq ? [-4, 0.4] : [-4, -0.95], a1 = ladoIzq ? [4, -0.95] : [4, 0.4];
+    pts.push([cxx + a0[0] * 0.92 * s, cyy + a0[1] * 0.92 * s]);
+    for(let i = 1; i < 12; i++){ const t = Math.PI * i / 12; pts.push([cxx - r * Math.cos(t), cyy - r * Math.sin(t)]); }
+    pts.push([cxx + a1[0] * 0.92 * s, cyy + a1[1] * 0.92 * s]);
+    const rel = []; for(let i = 1; i < pts.length; i++) rel.push([pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]]);
+    doc.setFillColor(marron[0], marron[1], marron[2]); doc.setLineWidth(1.08 * 0.92 * s);
+    doc.lines(rel, pts[0][0], pts[0][1], [1, 1], 'FD', true);
+  };
+  ojo(110, true); ojo(146, false);
+  return 99 * s;
+}
+
 function generarEstructuraPDF(datos){
-  const { temaNombre, bpm, compasTexto, claveTxt, secciones: seccionesEntrada } = datos;
+  const { temaNombre, bpm, compasTexto, claveTxt, tonoTxt, autorTxt, secciones: seccionesEntrada } = datos;
   if(!window.jspdf){ alert('No se pudo cargar el generador de PDF. Revisá tu conexión e intentá de nuevo.'); return; }
   if(!seccionesEntrada || !seccionesEntrada.length){ alert('No hay secciones cargadas todavía.'); return; }
   const { jsPDF } = window.jspdf;
@@ -463,8 +639,39 @@ function generarEstructuraPDF(datos){
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
   doc.setTextColor(20, 20, 20);
   doc.text(nombreTema, margen, y); y += 7;
+  // v1.118: (a pedido) autor del tema: misma línea del subtítulo, alineado
+  // al margen derecho (gris, itálica 9 pt). Si entre subtítulo y autor no
+  // quedan al menos 6 mm, vuelve a su línea propia entre título y subtítulo
+  // (como en v1.117). Autor más ancho que la página: se trunca a 1 línea.
+  // Sin autor, el PDF queda idéntico a v1.117.
+  const subtituloTxt = `= ${bpm || '—'} · Compás ${compasTexto || '4/4'}${tonoTxt ? ' · Tono: ' + tonoTxt : ''}${claveTxt ? ' · Clave: ' + claveTxt : ''}`;
+  let autorLinea = '', autorEnLineaPropia = false, anchoAutor = 0;
+  if(autorTxt){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+    autorLinea = doc.splitTextToSize('Autor: ' + autorTxt, pageW - margen * 2)[0];
+    anchoAutor = doc.getTextWidth(autorLinea);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    // 2.56 mm = ancho que devuelve dibujarNegraTempo a 10 pt (2*0.98 + 0.6) + 0.8 de separación
+    const anchoSubtitulo = 2.56 + 0.8 + doc.getTextWidth(subtituloTxt);
+    autorEnLineaPropia = (anchoUtil - anchoSubtitulo - anchoAutor) < 6;
+  }
+  if(autorTxt && autorEnLineaPropia){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text(autorLinea, margen, y);
+    y += 5;
+    doc.setTextColor(20, 20, 20);
+  }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-  doc.text(`BPM ${bpm || '—'} · Compás ${compasTexto || '4/4'}${claveTxt ? ' · Clave: ' + claveTxt : ''}`, margen, y);
+  const anchoNegra = dibujarNegraTempo(doc, margen, y, 10);
+  doc.text(subtituloTxt, margen + anchoNegra + 0.8, y);
+  if(autorTxt && !autorEnLineaPropia){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text(autorLinea, pageW - margen, y, { align: 'right' });
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  }
   y += 8;
 
   const asegurarEspacio = (alto) => {
@@ -536,6 +743,42 @@ function generarEstructuraPDF(datos){
   //                              principal sobre por qué).
   // v1.71: mismo orden que htmlOpcionesTiempoAcorde (guia-practica.html)
   // para el select de tiempo/anticipación de cada acorde.
+  // v1.114: (a pedido) la letra del compás se mide por ANCHO REAL (getTextWidth)
+  // en vez de cortarse a 22 caracteres. Orden: (1) cabe a la fuente de
+  // siempre (7pt, o 6pt con regla de tiempo) -> igual que antes; (2) baja
+  // la fuente de a 0.25pt hasta 5.5pt en 1 renglón; (3) sin regla de tiempo
+  // en la celda: 2 renglones a 5.5pt dentro de la misma caja (alto sin
+  // cambios); (4) último recurso: 1 renglón a 5.5pt con "…". Con regla de
+  // tiempo NUNCA se usan 2 renglones (se pisarían con las marcas).
+  // Mínimo 5.5pt y márgenes son ESTIMADOS (medir con PDF de prueba).
+  const dibujarLetraCaja = (le, cx, yCaja, anchoMax, hayRegla) => {
+    const FS_BASE = hayRegla ? 6 : 7, FS_MIN = 5.5;
+    const yUnico = yCaja + (hayRegla ? 12 : 13);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(60); // v1.124: ESTIMADO — letra más suave que los acordes (20)
+    const cabe = (txt) => doc.getTextWidth(txt) <= anchoMax;
+    doc.setFontSize(FS_BASE);
+    if(cabe(le)){ doc.text(le, cx, yUnico, { align: 'center' }); return; }
+    for(let fs = FS_BASE - 0.25; fs >= FS_MIN - 0.001; fs -= 0.25){
+      doc.setFontSize(fs);
+      if(cabe(le)){ doc.text(le, cx, yUnico, { align: 'center' }); return; }
+    }
+    doc.setFontSize(FS_MIN);
+    if(!hayRegla){
+      const lineas = doc.splitTextToSize(le, anchoMax);
+      if(lineas.length <= 2 && lineas.every(cabe)){
+        if(lineas.length === 1){ doc.text(lineas[0], cx, yUnico, { align: 'center' }); }
+        else {
+          doc.text(lineas[0], cx, yCaja + 11.8, { align: 'center' });
+          doc.text(lineas[1], cx, yCaja + 14.6, { align: 'center' });
+        }
+        return;
+      }
+    }
+    let corta = le;
+    while(corta.length > 1 && !cabe(corta + '…')) corta = corta.slice(0, -1);
+    doc.text(corta + '…', cx, yUnico, { align: 'center' });
+  };
   const TIEMPOS_ORDEN = ['1', 'a1', '2', 'a2', '3', 'a3', '4', 'a4'];
   const dibujarCajas = (acordes, letra, total, notas, colInicio, labelInicio, opciones) => {
     opciones = opciones || {};
@@ -638,7 +881,7 @@ function generarEstructuraPDF(datos){
       // a propósito: es la referencia secundaria, el acorde sigue siendo
       // lo dominante al centro.
       if(opciones.compasGlobalInicio != null && !esCajaAnacrusa){
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(110);
         // v1.100: (a pedido, FIX real) "opciones.numerosGlobales[j]", si
         // viene, pisa el cálculo lineal de siempre (compasGlobalInicio +
         // posLabel). Hace falta para vamp con sobra (ver más abajo): ahí
@@ -676,9 +919,8 @@ function generarEstructuraPDF(datos){
       const hayRegla = TIEMPOS_ORDEN.indexOf(tValCelda) !== -1;
       const le = (letra && letra[j]) || '';
       if(le){
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(hayRegla ? 6 : 7);
-        const leCorta = le.length > 22 ? le.slice(0, 21) + '…' : le;
-        doc.text(leCorta, xR + anchoCol / 2, yCaja + (hayRegla ? 12 : 13), { align: 'center' });
+        // v1.114: letra completa por ancho real (ver dibujarLetraCaja).
+        dibujarLetraCaja(le, xR + anchoCol / 2, yCaja, anchoCol - 3, hayRegla);
         doc.setTextColor(20);
       }
       if(hayRegla){
@@ -730,15 +972,23 @@ function generarEstructuraPDF(datos){
     // del Vamp no arranca en la columna 0 real (ej. anacrusa ocupando la
     // columna 0): el marco tiene que arrancar donde arranca el CICLO, no
     // en el margen de la página. Sin pasarlo (default 0), cero cambio.
+    // v1.115: (a pedido) cierreY / cierreXFin opcionales — con ciclo de
+    // varios renglones, el trazo de cierre (derecha) se dibuja en el
+    // ÚLTIMO renglón del ciclo: cierreY = Y de esa caja, cierreXFin = mm
+    // desde `margen` hasta el borde derecho de su última caja. Sin
+    // pasarlos, el cierre usa yBloqueInicio y ox+ancho (idéntico a antes).
+    const yCierre = opciones.cierreY != null ? opciones.cierreY : yBloqueInicio;
+    const xFin = opciones.cierreXFin != null ? opciones.cierreXFin : (ox + ancho);
     doc.rect(margen + ox - 4.4, yBloqueInicio, grosor, alto, 'F');
     doc.rect(margen + ox - 2.4, yBloqueInicio, 0.4, alto, 'F');
-    doc.rect(margen + ox + ancho + 3.2, yBloqueInicio, grosor, alto, 'F');
-    doc.rect(margen + ox + ancho + 2.0, yBloqueInicio, 0.4, alto, 'F');
+    doc.rect(margen + xFin + 3.2, yCierre, grosor, alto, 'F');
+    doc.rect(margen + xFin + 2.0, yCierre, 0.4, alto, 'F');
     const yc = yBloqueInicio + alto / 2;
+    const ycC = yCierre + alto / 2;
     doc.circle(margen + ox - 0.85, yc - 1.2, 0.35, 'F');
     doc.circle(margen + ox - 0.85, yc + 1.2, 0.35, 'F');
-    doc.circle(margen + ox + ancho + 0.85, yc - 1.2, 0.35, 'F');
-    doc.circle(margen + ox + ancho + 0.85, yc + 1.2, 0.35, 'F');
+    doc.circle(margen + xFin + 0.85, ycC - 1.2, 0.35, 'F');
+    doc.circle(margen + xFin + 0.85, ycC + 1.2, 0.35, 'F');
   };
   // v1.29: corchete "1." / "2." de casilla, en vez del texto "2ª vez:"
   // suelto — se dibuja pegado a la esquina sup. izq. del bloque.
@@ -1346,7 +1596,7 @@ function generarEstructuraPDF(datos){
         // ~881), usando compasGlobalInicio+j. No se dibuja si el contador
         // global está apagado, mismo criterio que en todos lados.
         if(compasGlobalInicio != null){
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(110);
           doc.text('#' + (compasGlobalInicio + j), margen + anchoParte * j + anchoParte - 1.5, yCaja + 4, { align: 'right' });
           doc.setTextColor(20);
         }
@@ -1600,6 +1850,23 @@ function generarEstructuraPDF(datos){
     const compasTxt = (s.compasOverride || '').trim() ? '· ' + s.compasOverride.trim() : '';
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
     const anchoCompas = compasTxt ? doc.getTextWidth(compasTxt) + 4 : 0;
+    // v1.122: (a pedido) tiempo de la sección + resumen "c.#X-c.#Y": se miden ACÁ,
+    // antes de la nota, para reservarles su espacio (la nota se achica/recorta
+    // antes de pisarlos). El tiempo solo se imprime si su borde izquierdo queda
+    // a la derecha del nombre (xLibre + 2); si no cabe, se omite (y no reserva).
+    const resumenTxtBarra = (compasGlobalInicio != null && s.duracion != null && s.duracion > 0)
+      ? 'c.#' + compasGlobalInicio + ((compasGlobalInicio + s.duracion - 1) !== compasGlobalInicio ? '-c.#' + (compasGlobalInicio + s.duracion - 1) : '')
+      : '';
+    // v1.123: se mide con el MISMO estilo con que se dibuja (negrita 9 pt) y el tiempo lleva su unidad " min".
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    const anchoResumenBarra = resumenTxtBarra ? doc.getTextWidth(resumenTxtBarra) : 0;
+    const tiempoBase = (s.tiempoTxt || '').trim();
+    const tiempoTxtBarra = tiempoBase ? tiempoBase + ' min' : '';
+    const anchoTiempoBarra = tiempoTxtBarra ? doc.getTextWidth(tiempoTxtBarra) : 0;
+    const xDerechaTiempo = margen + anchoUtil - 2 - anchoCompas - (anchoResumenBarra ? anchoResumenBarra + 3 : 0);
+    const tiempoCabe = !!tiempoTxtBarra && (xDerechaTiempo - anchoTiempoBarra) >= (xLibre + 2);
+    const anchoReservaDerecha = (anchoResumenBarra ? anchoResumenBarra + 3 : 0) + (tiempoCabe ? anchoTiempoBarra + 3 : 0);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
     // v1.55: (a pedido, FIX de diseño) la nota de sección deja de vivir
     // en su propia línea gris debajo de la barra (v1.31) — ahora va
     // INLINE en la misma línea del nombre, dentro de la franja de color
@@ -1615,10 +1882,10 @@ function generarEstructuraPDF(datos){
     // con el compás.
     if((s.notaSeccion || '').trim()){
       const nota = s.notaSeccion.trim();
-      const anchoDisponible = (margen + anchoUtil - anchoCompas - 2) - xLibre;
+      const anchoDisponible = (margen + anchoUtil - anchoCompas - 2 - anchoReservaDerecha) - xLibre;
       if(anchoDisponible > 8){
         doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.8 }));
+        doc.setGState(new doc.GState({ opacity: 1 }));
         doc.setFont('helvetica', 'italic');
         let fontNota = 8;
         doc.setFontSize(fontNota);
@@ -1655,15 +1922,17 @@ function generarEstructuraPDF(datos){
     // no competir visualmente con el nombre. Si hay compás override
     // (compasTxt), el resumen se corre a la izquierda de ese texto para
     // no pisarlo.
-    if(compasGlobalInicio != null && s.duracion != null && s.duracion > 0){
-      const finResumen = compasGlobalInicio + s.duracion - 1;
-      const resumenTxt = 'c.#' + compasGlobalInicio + (finResumen !== compasGlobalInicio ? '-c.#' + finResumen : '');
-      doc.saveGraphicsState();
-      doc.setGState(new doc.GState({ opacity: 0.75 }));
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(255);
+    if(resumenTxtBarra){
+      const resumenTxt = resumenTxtBarra;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255);
       doc.text(resumenTxt, margen + anchoUtil - 2 - anchoCompas, y + 5, { align: 'right' });
-      doc.restoreGraphicsState();
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(255);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255);
+    }
+    // v1.122: tiempo de la sección, a la izquierda del resumen (mismo estilo).
+    if(tiempoCabe){
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255);
+      doc.text(tiempoTxtBarra, xDerechaTiempo, y + 5, { align: 'right' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255);
     }
     y += 9;
     doc.setTextColor(20);
@@ -1853,7 +2122,18 @@ function generarEstructuraPDF(datos){
         // — con anacrusa, el marco tiene que arrancar donde arranca la
         // caja REAL de columna 1 (después del gap de 6mm), no en el borde
         // de la columna 0 de página ni pegado a la Anacrusa.
-        dibujarBarraRepeticion(yGridVamp + (hayNotasCicloMarco ? notaFilaAlto : 0), cajaAlto, anchoMarcoVamp, { offsetX: colInicioCiclo * cajaAncho + anacrusaGapMm });
+        // v1.115: ciclo en varios renglones -> el cierre baja al último
+        // renglón del ciclo (apertura sigue en el renglón 1). Un solo
+        // renglón: filaUltimaCiclo=0, se llama exactamente igual que antes.
+        const filaUltimaCiclo = Math.floor((colInicioCiclo + ciclo - 1) / POR_FILA);
+        const opcionesMarcoVamp = { offsetX: colInicioCiclo * cajaAncho + anacrusaGapMm };
+        if(filaUltimaCiclo > 0){
+          const colsUltimaFila = ((colInicioCiclo + ciclo - 1) % POR_FILA) + 1;
+          const altoFilaVamp = cajaAlto + (hayNotasCicloMarco ? notaFilaAlto : 0);
+          opcionesMarcoVamp.cierreY = yGridVamp + filaUltimaCiclo * altoFilaVamp + (hayNotasCicloMarco ? notaFilaAlto : 0);
+          opcionesMarcoVamp.cierreXFin = colsUltimaFila * cajaAncho + ((conAnacrusaVamp && (colsUltimaFila - 1) >= colInicioCiclo) ? anacrusaGapMm : 0);
+        }
+        dibujarBarraRepeticion(yGridVamp + (hayNotasCicloMarco ? notaFilaAlto : 0), cajaAlto, anchoMarcoVamp, opcionesMarcoVamp);
         // v1.63: (a pedido) FIX/mejora sobre v1.59 — antes la lista de
         // próximas vueltas solo se pegaba a la 1ra caja del ciclo (columna
         // 0). El pedido es que TODAS las cajas del ciclo muestren sus
@@ -1866,13 +2146,20 @@ function generarEstructuraPDF(datos){
           const maxLineasVamp = 3;
           const hayNotasCiclo = hayContenido(s.notasCiclo);
           const yBaseVamp = yGridVamp + (hayNotasCiclo ? notaFilaAlto : 0) + 7;
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
-          for(let col = 0; col < Math.min(ciclo, POR_FILA); col++){
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(110);
+          for(let col = 0; col < ciclo; col++){
             // v1.104: +colInicioCiclo*cajaAncho — misma columna real que
             // usa dibujarCajas para el ciclo (col+colInicioCiclo), no la
             // columna 0 de la página.
-            const xListaVamp = margen + colInicioCiclo * cajaAncho + anacrusaGapMm + cajaAncho * col + cajaAncho - 1.5;
-            let yListaVamp = yBaseVamp;
+            // v1.117: (FIX) renglón y columna reales de cada caja del
+            // ciclo (antes solo el 1er renglón). El gap de anacrusa se
+            // aplica igual que en dibujarCajas: solo desde colInicioCiclo.
+            const colRealVamp = col + colInicioCiclo;
+            const filaListaVamp = Math.floor(colRealVamp / POR_FILA);
+            const colEnFilaVamp = colRealVamp % POR_FILA;
+            const gapListaVamp = (conAnacrusaVamp && colEnFilaVamp >= colInicioCiclo) ? anacrusaGapMm : 0;
+            const xListaVamp = margen + colEnFilaVamp * cajaAncho + gapListaVamp + cajaAncho - 1.5;
+            let yListaVamp = yBaseVamp + filaListaVamp * (cajaAlto + (hayNotasCiclo ? notaFilaAlto : 0));
             for(let k = 1; k <= Math.min(vueltasVamp, maxLineasVamp); k++){
               doc.text('#' + (compasGlobalInicio + col + k * ciclo), xListaVamp, yListaVamp, { align: 'right' });
               yListaVamp += 2.6;
@@ -2031,7 +2318,7 @@ function generarEstructuraPDF(datos){
               // real, pisándolo. Usa hayNotas1 (mismo dato que ya se le
               // pasa a dibujarCajas como "notas" de la 1ra vez).
               const yCajaReal = yBloque + (hayNotas1 ? notaFilaAlto : 0);
-              doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
+              doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(110);
               for(let col = 0; col < Math.min(basePase, POR_FILA); col++){
                 // v1.2: última vuelta oculta en columnas reemplazadas
                 // por la 2da vez (ver comentario arriba).
@@ -2192,6 +2479,30 @@ function generarEstructuraPDF(datos){
     }
     y += 2;
   });
+
+  // v1.120: (a pedido) crédito del final, como el del sidebar
+  // (nav.js): "Marto [símbolo] · martowave@gmail.com". Una sola vez, al
+  // final del último contenido, centrado, gris tenue 7 pt.
+  {
+    const alSim = 4.2, gap = 1.4;
+    const fuenteOk = registrarFuenteCredito(doc);
+    const fCred = () => { try{ if(fuenteOk) doc.setFont('ChakraPetchCredito', 'normal'); else doc.setFont('helvetica', 'normal'); }catch(e){ doc.setFont('helvetica', 'normal'); } doc.setFontSize(7); };
+    fCred();
+    const t1 = 'Marto', t2 = '· martowave@gmail.com';
+    const w1 = doc.getTextWidth(t1), w2 = doc.getTextWidth(t2);
+    const wSim = 99 / 168.33 * alSim;
+    const total = w1 + gap + wSim + gap + w2;
+    y += 4;
+    asegurarEspacio(alSim + 2);
+    const x0 = (pageW - total) / 2;
+    doc.setTextColor(150, 150, 150);
+    doc.text(t1, x0, y + 1.2);
+    dibujarSimboloAudiolink(doc, x0 + w1 + gap, y - 2.2, alSim);
+    doc.setTextColor(150, 150, 150);
+    fCred();
+    doc.text(t2, x0 + w1 + gap + wSim + gap, y + 1.2);
+    doc.setTextColor(20, 20, 20);
+  }
 
   const nombreArchivo = 'estructura-' + nombreTema.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '.pdf';
   // v1.28: preview antes de descargar — en vez de forzar la descarga

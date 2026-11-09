@@ -4,7 +4,110 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.122
+<!-- AUDIOLINK · guia-practica.html · v1.133
+     v1.133: (a pedido) tiempo real del audio en los PDF con compás de denominador
+     distinto de 4 (ej. 4/8). tiemposSeccionesPDF() ahora calcula los segundos por
+     compás como numerador × 4/denominador × 60/BPM, leyendo el denominador del
+     compasOverride de la sección o, si no tiene, del campo "Compás" del tema
+     (inválido = 4). Con 4/4 el resultado es idéntico al de v1.132; con 4/8 a 75 BPM
+     pasa de 3.2 s a 1.6 s por compás. Único cambio: tiemposSeccionesPDF() (+ este
+     changelog y el número de versión). No toca beatsPorBarraDeSeccion, la grilla,
+     el contador, el clic, el guardado ni los pdf-*.js.
+     v1.132: (FIX, a pedido) el tiempo de sección de los PDF mostraba la DURACIÓN
+     y no la posición en el audio cuando las secciones no tienen un "desde"
+     propio (todas en el mismo segundo): cada una arrancaba en el mismo punto.
+     Ahora, si los "desde" cargados NO son estrictamente crecientes (o hay 1
+     sola sección), el tiempo se acumula desde el "Offset del compás 1": inicio
+     = offset + compases de las secciones anteriores × segundos por compás
+     (cada sección con su propio compás, vía beatsPorBarraDeSeccion); fin =
+     inicio + su duración. Si los "desde" sí son crecientes se usan tal cual,
+     como en v1.131. Sin BPM o sin duración en una sección: sin tiempo desde
+     ahí. Único cambio: tiemposSeccionesPDF().
+     v1.131: (a pedido) el tiempo de cada sección en los PDF ya NO resta el
+     "Offset del compás 1": muestra el tiempo real del audio (desdeSegundos tal
+     cual), así el primer compás aparece en el offset (ej. offset 2.5 → 0:02).
+     Deja sin efecto, en tiemposSeccionesPDF(), la resta de v1.129. Único
+     cambio: esa función (se quita la resta del offset y su variable).
+     v1.130: (FIX) guardarDatosTema(): al cambiar el offset/BPM/compás y aceptar
+     "reanclar", las secciones se mandaban a Firestore tal cual (con huecos o
+     undefined dentro de sus listas) y Firestore rechazaba TODO el guardado
+     ("Unsupported field value: undefined"), offset incluido. Ahora esas
+     secciones pasan por la misma limpieza de guardarSecciones() (v1.25 + v1.124,
+     copiada igual): claves undefined se eliminan y los huecos de arreglos se
+     rellenan con ''. Único cambio: la línea que arma seccionesAGuardar.
+     v1.129: (a pedido) tiempo de cada sección en la barra de título de ambos
+     PDF ("m:ss – m:ss", a la izquierda de "c.#X-c.#Y"). Nueva
+     tiemposSeccionesPDF(): inicio = desdeSegundos de la sección, fin = inicio de
+     la siguiente sección (si hay), si no hastaSegundos, si no inicio + duración
+     en compases × segundos por compás (solo con BPM cargado). A TODO se le resta
+     el "Offset del compás 1" (inputOffset), así el compás 1 es 0:00 (mínimo 0:00).
+     Si no hay dato suficiente la sección va sin tiempo. Se pasa como tiempoTxt a
+     generarEstructuraPDF / generarEstructuraPDFPercusion (pdf-armonias v1.122 /
+     pdf-percusion v1.112). Único cambio: la función nueva y las dos llamadas de
+     exportarEstructuraPDF / exportarEstructuraPDFPercusion.
+     v1.128: (a pedido) 2 features: (1) tonalidad en el subtítulo de ambos
+     PDF en cifrado con sus alteradas entre paréntesis, ej. "G (F#)",
+     "Cm (Bb Eb Ab)" (nueva tonalidadConAlteradas(), usa el mismo
+     armaduraDeTonalidad/círculo de quintas de siempre, sin duplicar la
+     tabla; tonalidad no reconocida o sin alteraciones queda como se
+     escribió, con la 1ra letra en mayúscula); (2) campo nuevo "Autor"
+     (inputAutor -> practicaAutor) en Datos del tema, se guarda con el
+     mismo botón, se carga al abrir el tema, y se pasa a los PDF.
+     exportarEstructuraPDF/exportarEstructuraPDFPercusion pasan ahora
+     tonoTxt y autorTxt. Requiere pdf-armonias.js v1.116 y
+     pdf-percusion.js v1.106 (el "BPM 120" del subtítulo pasa a
+     negra + "= 120" en esos dos archivos). Nada más se toca.
+     v1.127: (a pedido) la grilla Contenido (acordes/letra por compás) queda
+     SIEMPRE a 4 columnas por renglón, así los compases agrupan en
+     múltiplos de 2 (antes .acordes-grid era flex-wrap y el corte dependía
+     del ancho de pantalla). .acordes-grid pasa a CSS grid de 4 columnas de
+     hasta --celda-ancho (104px); en pantallas angostas las columnas se
+     achican en vez de saltar a 3 (minmax(0,...)). Los inputs de la celda
+     pasan de width fijo a 100% de su columna. Grilla por golpe (Break/
+     Corte, width:54px en línea) sin cambios. Mismos handlers y datos.
+     v1.126: (a pedido) casillas de la grilla Contenido (acordes/letra por
+     compás) más grandes para ver lo que se escribe: ancho de celda de 64px
+     a 104px (variable CSS --celda-ancho en .acordes-grid; .acorde-input,
+     .tiempo-select, .letra-input y .nota-input la usan, así quedan todas
+     parejas) y tope de la letra de 2 a 4 renglones (ajustarAlturaLetra;
+     más allá, scroll interno). La grilla por golpe (Break/Corte) no cambia:
+     sus inputs llevan width:54px en línea. Mismos handlers y mismos datos.
+     v1.125: (a pedido) la letra de cada compás (grilla Contenido
+     acordes/letra) se ve completa: <input> de 1 línea -> <textarea
+     rows=1> que crece solo hasta 2 renglones (tope; si hay más, scroll
+     interno). Casilla de 64px intacta; solo .letra-input pasa a padding
+     horizontal de 4px (antes 12px del base, que dejaba ~40px útiles) para
+     llegar de lado a lado. Enter no mete salto de línea (la letra sigue
+     siendo UNA cadena) y los saltos pegados se cambian por espacio. Mismos
+     handlers actualizarLetra* y mismos datos guardados. Se aplica en los 3
+     lugares (fija/bloque, ciclo vamp, 2da vez). Funciones nuevas:
+     ajustarAlturaLetra / inputLetraCompas / ajustarLetrasEn.
+     v1.124: (FIX) guardarSecciones() fallaba con "Unsupported field value:
+     undefined" al editar un acorde/letra/tiempo en un compás posterior a
+     otros vacíos: los handlers actualizar* hacen arr[j] = valor sobre un
+     arreglo vacío y dejan huecos ([ , , , 'B7']) que Firestore lee como
+     undefined. La red de seguridad de v1.25 solo limpiaba claves de primer
+     nivel. Ahora, en esa misma red, los huecos/undefined dentro de arreglos
+     de strings se rellenan con '' (mismo valor que resizeArrayAcordes).
+     Único cambio: bloque .map() final de guardarSecciones().
+     v1.123: (a pedido) botón "👁️ Preview PDF" en el header de la card
+     "Secciones" (junto a Exportar PDF / PDF Percusión) — abre un modal
+     (#modalPreviewPDF) con un <iframe> grande para revisar el PDF sin
+     abrir pestaña nueva ni recargar la página. Selector Acordes/Percusión,
+     botón "🔄 Actualizar" (regenera con el estado actual de
+     seccionesEnEdicion, sin guardar nada en Firebase) y "↗ Abrir en
+     pestaña" (respaldo, útil en celu/iOS donde el iframe de PDF a veces
+     solo muestra la 1ra página). OPCIÓN A: NO se tocó pdf-armonias.js ni
+     pdf-percusion.js — mientras se genera el PDF se intercepta
+     window.open de forma temporal (try/finally, siempre se restaura),
+     se captura la URL blob que esos archivos intentan abrir y se pone en
+     el iframe. Los blobs anteriores se liberan con URL.revokeObjectURL
+     al regenerar y al cerrar. Si los generadores no abren ninguna URL
+     (ej. caen a doc.save()), el modal avisa en vez de quedar vacío.
+     Cero cambios en exportarEstructuraPDF*, cálculos, guardado ni en
+     ninguna otra función; solo se agregó CSS, 1 botón, 1 modal y 5
+     funciones nuevas (abrirPreviewPDF/generarPreviewPDF/
+     cerrarPreviewPDF/abrirPreviewPDFEnPestana/capturarPDFGenerado).
      v1.122: (a pedido) los 8 checkboxes de esta hoja pasan a verse como el
      switch del dial (.al-chk): anacrusa, propagar cambios, variación, coda
      y casilla horizontal en dorado (ajustes, 24px); campana, instrumentos
@@ -1613,6 +1716,15 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .modal-box{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:18px 20px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;}
 .modal-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font-family:var(--T);font-size:1rem;color:var(--gold);font-weight:600;}
 .modal-box-footer{margin-top:16px;text-align:right;}
+/* v1.123: modal "👁️ Preview PDF" — caja casi pantalla completa con
+   iframe. Clase propia (.modal-box-pdf) para no tocar .modal-box (480px,
+   usada por el modal de percusión). */
+.modal-box-pdf{max-width:960px;width:100%;height:92vh;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-box-pdf .preview-pdf-barra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+.modal-box-pdf .preview-pdf-barra select{width:auto;min-width:130px;}
+.modal-box-pdf .preview-pdf-estado{font-size:0.86rem;color:var(--muted);flex:1;min-width:120px;}
+.modal-box-pdf iframe{flex:1;width:100%;border:1px solid var(--brd);border-radius:8px;background:#fff;min-height:0;}
+@media(max-width:600px){.modal-box-pdf{height:96vh;max-height:96vh;padding:12px;}}
 .btn-del{background:none;border:none;color:var(--err);cursor:pointer;font-size:1rem;padding:4px 8px;}
 
 /* v1.7: presets rápidos de duración para el fin manual de sección
@@ -1674,12 +1786,14 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
    para poder generar la grilla. */
 .seccion-fila-acordes{margin-top:10px;padding-top:10px;border-top:1px solid var(--brd);}
 .seccion-fila-acordes label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.03em;font-weight:600;}
-.acordes-grid{display:flex;flex-wrap:wrap;gap:6px;}
-.acorde-input{width:64px;text-align:center;flex:0 0 auto;}
-.tiempo-select{width:64px;text-align:center;flex:0 0 auto;font-size:11px;color:var(--txt-soft,#777);}
+.acordes-grid{display:grid;grid-template-columns:repeat(4,minmax(0,var(--celda-ancho)));gap:6px;--celda-ancho:104px;}
+.acorde-input{width:100%;text-align:center;flex:0 0 auto;}
+.tiempo-select{width:100%;text-align:center;flex:0 0 auto;font-size:11px;color:var(--txt-soft,#777);}
 .acorde-celda{display:flex;flex-direction:column;gap:3px;flex:0 0 auto;}
-.letra-input{width:64px;text-align:center;font-size:0.72rem;color:var(--muted);}
-.nota-input{width:64px;text-align:center;font-size:0.66rem;font-style:italic;color:#b8781f;}
+/* v1.125/v1.126: textarea de 1 renglón que crece hasta 4 (JS: ajustarAlturaLetra).
+   padding horizontal 4px para aprovechar los 64px de lado a lado. */
+.letra-input{width:100%;text-align:center;font-size:0.72rem;line-height:1.25;color:var(--muted);padding:10px 4px;resize:none;overflow:hidden;overflow-wrap:anywhere;word-break:break-word;display:block;}
+.nota-input{width:100%;text-align:center;font-size:0.66rem;font-style:italic;color:#b8781f;}
 .seccion-repeticion-campos{margin-top:10px;padding-top:8px;border-top:1px dashed var(--brd);}
 .mapa-tema{display:flex;gap:2px;margin-bottom:8px;border-radius:8px;overflow:hidden;min-height:40px;}
 .mapa-tema-bloque{flex:0 0 auto;min-width:24px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.05rem;font-weight:800;text-align:center;padding:6px 2px;text-shadow:0 1px 2px rgba(0,0,0,0.35);line-height:1.2;transition:filter 0.15s;}
@@ -1952,6 +2066,12 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
           <input type="text" id="mostrarArmadura" readonly tabindex="-1" style="opacity:0.75;cursor:default;">
         </div>
       </div>
+      <!-- v1.128: (a pedido) autor del tema (opcional) — se imprime en los
+           PDF debajo del nombre de la canción. -->
+      <div class="field">
+        <label>Autor del tema (opcional)</label>
+        <input type="text" id="inputAutor" placeholder="ej: Juan Pérez">
+      </div>
       <button class="btn" onclick="guardarDatosTema()">Guardar BPM y compás</button>
       <div class="guardado-ok" id="okDatosTema">✓ Guardado</div>
       </div>
@@ -1961,6 +2081,7 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
       <div class="card-header-toggle" onclick="toggleCardPrincipal('secciones')">
         <h3>Secciones</h3>
         <div class="card-header-acciones" onclick="event.stopPropagation()">
+          <button type="button" class="btn-ghost" onclick="abrirPreviewPDF()">👁️ Preview PDF</button>
           <button type="button" class="btn-ghost" onclick="exportarEstructuraPDF()">📄 Exportar PDF</button>
           <button type="button" class="btn-ghost" onclick="exportarEstructuraPDFPercusion()">🥁 PDF Percusión</button>
         </div>
@@ -1983,6 +2104,27 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
           <div class="modal-box-footer">
             <button type="button" class="btn" onclick="cerrarModalPercusion()">Listo</button>
           </div>
+        </div>
+      </div>
+      <!-- v1.123: modal "👁️ Preview PDF" — fuera de #listaSecciones por el
+           mismo motivo que #modalPercusion (pintarSecciones() reescribe
+           esa lista y cerraría el modal). Oculto por defecto. -->
+      <div id="modalPreviewPDF" class="modal-overlay" style="display:none;" onclick="if(event.target === this) cerrarPreviewPDF();">
+        <div class="modal-box modal-box-pdf">
+          <div class="modal-box-header">
+            <span>👁️ Preview del PDF</span>
+            <button type="button" class="btn-ghost" onclick="cerrarPreviewPDF()">✕</button>
+          </div>
+          <div class="preview-pdf-barra">
+            <select id="previewPDFTipo" onchange="generarPreviewPDF()">
+              <option value="acordes">📄 Acordes</option>
+              <option value="percusion">🥁 Percusión</option>
+            </select>
+            <button type="button" class="btn-ghost" onclick="generarPreviewPDF()">🔄 Actualizar</button>
+            <button type="button" class="btn-ghost" onclick="abrirPreviewPDFEnPestana()">↗ Abrir en pestaña</button>
+            <span class="preview-pdf-estado" id="previewPDFEstado"></span>
+          </div>
+          <iframe id="previewPDFFrame" title="Preview del PDF"></iframe>
         </div>
       </div>
       <button class="btn-ghost" onclick="agregarFilaSeccion()">+ Agregar sección</button>
@@ -2168,6 +2310,23 @@ function simbolosDeArmadura(tonalidad){
   const m = texto.match(/^(\d+)\s+(sostenido|bemol)/);
   if(!m) return '';
   return (m[2] === 'sostenido' ? '♯' : '♭').repeat(parseInt(m[1], 10));
+}
+// v1.128: (a pedido) tonalidad en cifrado + alteradas entre paréntesis
+// para el subtítulo de los PDF: "G" -> "G (F#)", "Cm" -> "Cm (Bb Eb Ab)".
+// Usa armaduraDeTonalidad (mismo círculo de quintas) y el orden estándar
+// de sostenidos (F C G D A E B) / bemoles (B E A D G C F). Usa "#" y "b"
+// en texto plano porque helvetica de jsPDF no trae ♯/♭. Sin alteraciones
+// (C, Am) o tonalidad no reconocida: devuelve lo escrito, sin paréntesis.
+function tonalidadConAlteradas(tonalidad){
+  let t = (tonalidad || '').trim();
+  if(!t) return '';
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  const m = armaduraDeTonalidad(t).match(/^(\d+)\s+(sostenido|bemol)/);
+  if(!m) return t;
+  const esSost = m[2] === 'sostenido';
+  const orden = esSost ? ['F','C','G','D','A','E','B'] : ['B','E','A','D','G','C','F'];
+  const alt = orden.slice(0, parseInt(m[1], 10)).map(n => n + (esSost ? '#' : 'b')).join(' ');
+  return `${t} (${alt})`;
 }
 function actualizarArmaduraMostrada(){
   const el = document.getElementById('mostrarArmadura');
@@ -2447,6 +2606,7 @@ async function iniciarGuiaPractica(){
     document.getElementById('inputClave').value = temaDataActual.practicaClave || '';
     document.getElementById('inputAnacrusa').checked = !!temaDataActual.practicaAnacrusa;
     document.getElementById('inputTonalidad').value = temaDataActual.practicaTonalidad || '';
+    document.getElementById('inputAutor').value = temaDataActual.practicaAutor || '';
     actualizarArmaduraMostrada();
 
     // v1.1: (a pedido) el instrumento de cada maqueta ya NO se escribe
@@ -2502,6 +2662,7 @@ async function guardarDatosTema(){
   const clave = document.getElementById('inputClave').value || null;
   const anacrusa = document.getElementById('inputAnacrusa').checked;
   const tonalidad = document.getElementById('inputTonalidad').value.trim() || null;
+  const autor = document.getElementById('inputAutor').value.trim() || null;
 
   // v1.11: (a pedido) si el offset (o BPM/compás) cambia y ya hay
   // secciones creadas, esas secciones guardan un desdeSegundos crudo
@@ -2540,14 +2701,28 @@ async function guardarDatosTema(){
           }
           return nuevo;
         });
-        seccionesAGuardar = seccionesEnEdicion.map(s => ({ ...s }));
+        // v1.130: misma red de seguridad que guardarSecciones() (v1.25/v1.124):
+        // Firestore rechaza `undefined` (también los huecos dentro de arreglos).
+        seccionesAGuardar = seccionesEnEdicion.map(s => {
+          const c = { ...s };
+          Object.keys(c).forEach(k => { if(c[k] === undefined) delete c[k]; });
+          Object.keys(c).forEach(k => {
+            if(Array.isArray(c[k])){
+              const a = c[k];
+              let hay = false;
+              for(let x = 0; x < a.length; x++){ if(a[x] === undefined){ hay = true; break; } }
+              if(hay) c[k] = Array.from(a, v => (v === undefined ? '' : v));
+            }
+          });
+          return c;
+        });
         pintarSecciones();
       }
     }
   }
 
   try{
-    const patch = { practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave, practicaAnacrusa: anacrusa, practicaTonalidad: tonalidad };
+    const patch = { practicaBpm: bpm, practicaCompas: compas, practicaOffset: offset, practicaClave: clave, practicaAnacrusa: anacrusa, practicaTonalidad: tonalidad, practicaAutor: autor };
     if(seccionesAGuardar) patch.practicaSecciones = seccionesAGuardar;
     await temaRef.update(patch);
     temaDataActual.practicaBpm = bpm;
@@ -2556,6 +2731,7 @@ async function guardarDatosTema(){
     temaDataActual.practicaClave = clave;
     temaDataActual.practicaAnacrusa = anacrusa;
     temaDataActual.practicaTonalidad = tonalidad;
+    temaDataActual.practicaAutor = autor;
     if(seccionesAGuardar) temaDataActual.practicaSecciones = seccionesAGuardar;
     mostrarOk('okDatosTema');
   }catch(e){ console.error(e); alert('No se pudo guardar BPM/compás.'); }
@@ -3048,6 +3224,7 @@ function pintarSecciones(){
     </div>
   `;
   }).join('');
+  ajustarLetrasEn(cont); // v1.125
   pintarPropagacionSecciones();
 }
 
@@ -3081,6 +3258,27 @@ function letraEnsayoSugerida(i){
     n++;
   }
   return String.fromCharCode(65 + (n % 26));
+}
+
+// v1.125: letra por compás en <textarea> — crece de 1 a 4 renglones (v1.126: tope 2 -> 4).
+function ajustarAlturaLetra(el){
+  if(!el || el.offsetParent === null) return; // oculto: scrollHeight=0, se recalcula al mostrarse
+  el.style.height = 'auto';
+  const cs = getComputedStyle(el);
+  const lh = parseFloat(cs.lineHeight) || (parseFloat(cs.fontSize) * 1.25);
+  const extra = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + (el.offsetHeight - el.clientHeight);
+  const max = Math.round(lh * 4 + extra);
+  const h = el.scrollHeight + (el.offsetHeight - el.clientHeight);
+  el.style.height = Math.min(h, max) + 'px';
+  el.style.overflowY = (h > max + 1) ? 'auto' : 'hidden';
+}
+function inputLetraCompas(el){
+  if(el.value.indexOf('\n') !== -1) el.value = el.value.replace(/\r?\n/g, ' ');
+  ajustarAlturaLetra(el);
+}
+function ajustarLetrasEn(contenedor){
+  if(!contenedor) return;
+  contenedor.querySelectorAll('textarea.letra-input').forEach(ajustarAlturaLetra);
 }
 
 function toggleColapsoSeccion(i){
@@ -3230,7 +3428,7 @@ function htmlAcordesSeccion(s, i){
           ${acordes.map((a, j) => `<div class="acorde-celda">
             <input type="text" class="acorde-input" placeholder="c.${j+1}" title="Silencio armónico: escribí N.C." value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordeCiclo(${i}, ${j}, this.value)">
             <select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempoCiclo(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempoCiclo[j])}</select>
-            <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraCiclo(${i}, ${j}, this.value)">
+            <textarea class="letra-input" rows="1" placeholder="letra" onkeydown="if(event.key==='Enter')event.preventDefault()" oninput="inputLetraCompas(this);actualizarLetraCiclo(${i}, ${j}, this.value)">${(letra[j] || '').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>
             ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notas[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaCiclo(${i}, ${j}, this.value)">` : ''}
             ${s._notasAbiertas ? `<select class="tiempo-select" title="Acento de percusión dentro del compás (guía de percusión)" onchange="actualizarAcentoPercusionCiclo(${i}, ${j}, this.value)">${htmlOpcionesAcentoPercusion(acentosCiclo[j])}</select>
             <input type="text" class="nota-input" placeholder="percu" title="Nota exclusiva de la guía de percusión (ej: sube a campana)" value="${(notasPercusionCiclo[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPercusionCiclo(${i}, ${j}, this.value)">` : ''}
@@ -3352,7 +3550,7 @@ function htmlAcordesSeccion(s, i){
           ${acordesFinal2.map((a, j) => `<div class="acorde-celda">
             <input type="text" class="acorde-input" placeholder="2v c.${basePase - finalN + j + 1}" value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordeFinal2(${i}, ${j}, this.value)">
             <select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempoFinal2(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempoFinal2[j])}</select>
-            <input type="text" class="letra-input" placeholder="letra" value="${(letraFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraFinal2(${i}, ${j}, this.value)">
+            <textarea class="letra-input" rows="1" placeholder="letra" onkeydown="if(event.key==='Enter')event.preventDefault()" oninput="inputLetraCompas(this);actualizarLetraFinal2(${i}, ${j}, this.value)">${(letraFinal2[j] || '').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>
             ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notasFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaFinal2(${i}, ${j}, this.value)">` : ''}
             ${s._notasAbiertas ? `<select class="tiempo-select" title="Acento de percusión dentro del compás (guía de percusión)" onchange="actualizarAcentoPercusionFinal2(${i}, ${j}, this.value)">${htmlOpcionesAcentoPercusion(acentosFinal2[j])}</select>
             <input type="text" class="nota-input" placeholder="percu" title="Nota exclusiva de la guía de percusión (ej: sube a campana)" value="${(notasPercusionFinal2[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPercusionFinal2(${i}, ${j}, this.value)">` : ''}
@@ -3385,7 +3583,7 @@ function htmlAcordesSeccion(s, i){
         ${acordes.map((a, j) => `<div class="acorde-celda">
           <input type="text" class="acorde-input" placeholder="c.${j+1}" title="Silencio armónico: escribí N.C." value="${(a || '').replace(/"/g,'&quot;')}" oninput="actualizarAcordePorCompas(${i}, ${j}, this.value)">
           ${!esBreak ? `<select class="tiempo-select" title="Tiempo/anticipación del acorde dentro del compás" onchange="actualizarAcordeTiempo(${i}, ${j}, this.value)">${htmlOpcionesTiempoAcorde(acordesTiempo[j])}</select>` : ''}
-          <input type="text" class="letra-input" placeholder="letra" value="${(letra[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarLetraPorCompas(${i}, ${j}, this.value)">
+          <textarea class="letra-input" rows="1" placeholder="letra" onkeydown="if(event.key==='Enter')event.preventDefault()" oninput="inputLetraCompas(this);actualizarLetraPorCompas(${i}, ${j}, this.value)">${(letra[j] || '').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>
           ${s._notasAbiertas ? `<input type="text" class="nota-input" placeholder="nota" value="${(notas[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPorCompas(${i}, ${j}, this.value)">` : ''}
           ${!esBreak && s._notasAbiertas ? `<select class="tiempo-select" title="Acento de percusión dentro del compás (guía de percusión)" onchange="actualizarAcentoPercusion(${i}, ${j}, this.value)">${htmlOpcionesAcentoPercusion(acentosPercusion[j])}</select>
           <input type="text" class="nota-input" placeholder="percu" title="Nota exclusiva de la guía de percusión (ej: sube a campana)" value="${(notasPercusion[j] || '').replace(/"/g,'&quot;')}" oninput="actualizarNotaPercusion(${i}, ${j}, this.value)">` : ''}
@@ -4002,6 +4200,7 @@ function actualizarPatronRitmico(i, valor){
   const gridVieja = document.getElementById('acordesGridViejaBreak-' + i);
   if(wrapGolpe) wrapGolpe.style.display = nuevoTotal > 0 ? '' : 'none';
   if(gridVieja) gridVieja.style.display = nuevoTotal > 0 ? 'none' : '';
+  if(gridVieja && nuevoTotal <= 0) ajustarLetrasEn(gridVieja); // v1.125
 }
 // v1.55: (a pedido) "acordes por golpe" — un input chico por cada nota
 // REAL del patrón rítmico (no por compás), para poder alinear cada
@@ -4393,6 +4592,60 @@ function esPresetHastaActivo(s, i, n){
 // habia que ir porteando a mano cada vez que cambiaba (asi se
 // desincronizo Break/Corte). Ahora hay una sola funcion de dibujo para
 // los dos PDF.
+// v1.129: tiempo "m:ss – m:ss" de cada sección para la barra de título de los
+// PDF. `secciones` ya viene ordenado por desdeSegundos (igual que en las dos
+// funciones de exportar). Devuelve un array de textos, uno por sección ('' si
+// no hay dato suficiente). v1.131: tiempo real del audio, sin restar el offset.
+// v1.132: si los "desde" cargados no sirven (no son estrictamente crecientes,
+// ej. todas las secciones en el mismo segundo, o hay una sola), se acumulan los
+// compases desde el offset del compás 1.
+function tiemposSeccionesPDF(secciones){
+  const bpmInput = parseFloat(document.getElementById('inputBpm').value);
+  const fmt = (seg) => segundosATexto(Math.max(0, seg) + 1e-6);
+  // v1.133: denominador del compás de la sección (compasOverride) o, si no tiene,
+  // el del compás general del tema; inválido = 4. Los segundos por compás pasan a
+  // numerador × 4/denominador × 60/BPM (con /4 queda igual que antes).
+  const denomCompasPDF = (s) => {
+    const ov = ((s && s.compasOverride) || '').trim();
+    const txt = ov || (document.getElementById('inputCompas').value || '4/4');
+    const d = parseInt(txt.split('/')[1], 10);
+    return d > 0 ? d : 4;
+  };
+  const segPorCompasPDF = (s) => segundosPorCompas(bpmInput, beatsPorBarraDeSeccion(s)) * 4 / denomCompasPDF(s);
+  let desdeCargados = secciones.length >= 2;
+  for(let i = 1; i < secciones.length && desdeCargados; i++){
+    if(!((secciones[i].desdeSegundos || 0) > (secciones[i - 1].desdeSegundos || 0))) desdeCargados = false;
+  }
+  if(!desdeCargados){
+    if(!(bpmInput > 0)) return secciones.map(() => '');
+    let t = previewOffset();
+    let seguir = true;
+    return secciones.map(s => {
+      if(!seguir) return '';
+      const dur = duracionCompasesSeccion(s);
+      const secPerBar = segPorCompasPDF(s);
+      if(!(dur > 0) || !secPerBar){ seguir = false; return ''; }
+      const desde = t;
+      t += dur * secPerBar;
+      return fmt(desde) + ' – ' + fmt(t);
+    });
+  }
+  return secciones.map((s, i) => {
+    if(s.desdeSegundos == null) return '';
+    const desde = s.desdeSegundos;
+    let hasta = null;
+    const sig = (i + 1 < secciones.length) ? secciones[i + 1].desdeSegundos : null;
+    if(sig != null && sig > desde) hasta = sig;
+    else if(s.hastaSegundos != null && s.hastaSegundos > desde) hasta = s.hastaSegundos;
+    else if(bpmInput > 0){
+      const dur = duracionCompasesSeccion(s);
+      const secPerBar = segPorCompasPDF(s);
+      if(secPerBar && dur != null && dur > 0) hasta = desde + dur * secPerBar;
+    }
+    if(hasta == null) return '';
+    return fmt(desde) + ' – ' + fmt(hasta);
+  });
+}
 function exportarEstructuraPDF(){
   if(!seccionesEnEdicion.length){ alert('No hay secciones cargadas todavia.'); return; }
   const bpm = document.getElementById('inputBpm').value || '—';
@@ -4402,9 +4655,11 @@ function exportarEstructuraPDF(){
   const nombreTema = temaDataActual.nombre || 'Tema sin nombre';
 
   const secciones = seccionesEnEdicion.slice().sort((a, b) => (a.desdeSegundos || 0) - (b.desdeSegundos || 0));
+  const tiemposPDF = tiemposSeccionesPDF(secciones);
   const seccionesParaPDF = secciones.map((s, i) => Object.assign({}, s, {
     duracion: duracionCompasesSeccion(s),
     color: colorDeSeccionEnLista(secciones, i),
+    tiempoTxt: tiemposPDF[i],
     // v1.90: (a pedido) si el staff no cargó letra de ensayo a mano, el
     // PDF ahora usa la misma sugerida (A/B/C...) que ya se ve en el mapa
     // de tema en pantalla (letraEnsayoSugerida, sin tocar esa función) —
@@ -4420,6 +4675,8 @@ function exportarEstructuraPDF(){
     bpm: bpm,
     compasTexto: compas,
     claveTxt: claveTxt,
+    tonoTxt: tonalidadConAlteradas(document.getElementById('inputTonalidad').value),
+    autorTxt: (document.getElementById('inputAutor').value || '').trim(),
     anacrusa: !!temaDataActual.practicaAnacrusa,
     secciones: seccionesParaPDF
   });
@@ -4445,9 +4702,11 @@ function exportarEstructuraPDFPercusion(){
   // PDF de percusión quedaba sin letra en vez de usar la sugerida
   // (A/B/C...). Mismo criterio: índice REAL en seccionesEnEdicion (no
   // el índice `i` de este array ordenado por tiempo).
+  const tiemposPDF = tiemposSeccionesPDF(secciones);
   const seccionesParaPDF = secciones.map((s, i) => Object.assign({}, s, {
     duracion: duracionCompasesSeccion(s),
     color: colorDeSeccionEnLista(secciones, i),
+    tiempoTxt: tiemposPDF[i],
     letraEnsayo: (s.letraEnsayo || '').trim() || letraEnsayoSugerida(seccionesEnEdicion.indexOf(s))
   }));
 
@@ -4456,9 +4715,79 @@ function exportarEstructuraPDFPercusion(){
     bpm: bpm,
     compasTexto: compas,
     claveTxt: claveTxt,
+    tonoTxt: tonalidadConAlteradas(document.getElementById('inputTonalidad').value),
+    autorTxt: (document.getElementById('inputAutor').value || '').trim(),
     anacrusa: !!temaDataActual.practicaAnacrusa,
     secciones: seccionesParaPDF
   });
+}
+// ============ v1.123: PREVIEW DEL PDF EN MODAL (Opción A) ============
+// No se tocan pdf-armonias.js / pdf-percusion.js: ambos terminan
+// llamando a window.open(<url blob>) (o doc.save() si el pop-up se
+// bloquea). Mientras corre el generador se reemplaza window.open por una
+// función que solo captura esa URL (y devuelve un objeto dummy truthy
+// para que el generador NO caiga al doc.save()). Siempre se restaura en
+// el finally, pase lo que pase.
+let previewPDFUrlActual = null;
+function capturarPDFGenerado(generador){
+  const openOriginal = window.open;
+  let capturada = null;
+  window.open = function(url){
+    if(url && !capturada) capturada = String(url);
+    return { focus: function(){}, close: function(){}, closed: false };
+  };
+  try{ generador(); }
+  finally{ window.open = openOriginal; }
+  return capturada;
+}
+function liberarPreviewPDFUrl(){
+  if(previewPDFUrlActual && previewPDFUrlActual.indexOf('blob:') === 0){
+    try{ URL.revokeObjectURL(previewPDFUrlActual); }catch(e){}
+  }
+  previewPDFUrlActual = null;
+}
+function abrirPreviewPDF(){
+  if(!seccionesEnEdicion.length){ alert('No hay secciones cargadas todavia.'); return; }
+  document.getElementById('modalPreviewPDF').style.display = 'flex';
+  generarPreviewPDF();
+}
+function generarPreviewPDF(){
+  const estado = document.getElementById('previewPDFEstado');
+  const frame = document.getElementById('previewPDFFrame');
+  const tipo = document.getElementById('previewPDFTipo').value;
+  if(!seccionesEnEdicion.length){ estado.textContent = 'No hay secciones cargadas todavía.'; return; }
+  estado.textContent = 'Generando…';
+  // pequeña pausa para que se vea el "Generando…" antes de que jsPDF
+  // bloquee el hilo
+  setTimeout(() => {
+    let url = null;
+    try{
+      url = capturarPDFGenerado(tipo === 'percusion' ? exportarEstructuraPDFPercusion : exportarEstructuraPDF);
+    }catch(e){
+      console.error('Error generando preview PDF:', e);
+      estado.textContent = 'Error generando el PDF (ver consola).';
+      return;
+    }
+    if(!url){
+      estado.textContent = 'El generador no devolvió una vista previa (probablemente descargó el PDF directo). Usá "Exportar PDF".';
+      return;
+    }
+    liberarPreviewPDFUrl();
+    previewPDFUrlActual = url;
+    frame.src = url;
+    estado.textContent = 'Actualizado ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }, 30);
+}
+function abrirPreviewPDFEnPestana(){
+  if(!previewPDFUrlActual){ alert('Todavía no hay un PDF generado.'); return; }
+  window.open(previewPDFUrlActual, '_blank');
+}
+function cerrarPreviewPDF(){
+  document.getElementById('modalPreviewPDF').style.display = 'none';
+  const frame = document.getElementById('previewPDFFrame');
+  if(frame) frame.src = 'about:blank';
+  liberarPreviewPDFUrl();
+  document.getElementById('previewPDFEstado').textContent = '';
 }
 async function guardarSecciones(){
   // v1.24: propagación — antes de armar el objeto a guardar, cada
@@ -4506,6 +4835,18 @@ async function guardarSecciones(){
     // manda como null) antes de guardar; Firebase rechaza `undefined`.
     .map(s => {
       Object.keys(s).forEach(k => { if(s[k] === undefined) delete s[k]; });
+      // v1.124: huecos/undefined DENTRO de arreglos (ej. acordesPorCompas =
+      // [ , , , 'B7']) se rellenan con '' — Firebase los rechaza como
+      // undefined. Array.from recorre también los huecos. Solo se toca el
+      // arreglo si realmente tiene algún hueco/undefined.
+      Object.keys(s).forEach(k => {
+        if(Array.isArray(s[k])){
+          const a = s[k];
+          let hay = false;
+          for(let x = 0; x < a.length; x++){ if(a[x] === undefined){ hay = true; break; } }
+          if(hay) s[k] = Array.from(a, v => (v === undefined ? '' : v));
+        }
+      });
       return s;
     });
   try{

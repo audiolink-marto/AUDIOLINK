@@ -1,4 +1,52 @@
-// AUDIOLINK · pdf-percusion.js · v1.105
+// AUDIOLINK · pdf-percusion.js · v1.115
+// v1.115: (a pedido) nota de sección de la barra de título: opacidad de 0.8 a 1 (blanco pleno, igual que el
+// tiempo y el resumen de v1.114). Tamaño, posición, itálica, auto-ajuste y recorte sin cambios. Único cambio:
+// esa opacidad. Mismo cambio que pdf-armonias.js v1.124 (la letra no aplica: percusión no dibuja letra).
+// v1.114: (a pedido) contraste y tamaño del tiempo "m:ss – m:ss" y del resumen "c.#X-c.#Y" de la barra de
+// título: de itálica 7 pt con 75% de opacidad a negrita 9 pt, blanco pleno. El tiempo ahora lleva su unidad
+// ("0:03 – 0:12 min"; la unidad se agrega acá, s.tiempoTxt llega igual que antes). La medición que reserva
+// espacio para la nota de sección y decide si el tiempo cabe usa el mismo estilo que el dibujo. Único cambio:
+// bloque de la barra de título (medición + los dos dibujos). Mismo cambio que pdf-armonias.js v1.123.
+// v1.113: (FIX) esta hoja y pdf-armonias.js se cargan juntas como scripts normales y ambas declaraban
+// `const FUENTE_CREDITO_B64` a nivel global (v1.111 / v1.121): la segunda en cargar tiraba "Identifier
+// already been declared" y generarEstructuraPDFPercusion no llegaba a existir. Se renombra acá a
+// FUENTE_CREDITO_B64_PERC (2 apariciones: la declaración y su único uso). Nada más cambia.
+// v1.112: (a pedido) tiempo de la sección "m:ss – m:ss" (s.tiempoTxt, lo arma guia-practica.html v1.129
+// con el offset del compás 1 ya restado) en la barra de título, a la izquierda del resumen "c.#X-c.#Y"
+// (que a su vez va a la izquierda del instrumento). Blanco, itálica 7 pt, misma opacidad. Si no cabe sin
+// pisar el nombre, no se dibuja. La nota de sección ahora también descuenta el ancho de instrumento,
+// resumen y tiempo (antes solo el compás override). Único cambio: bloque de la barra de título.
+// v1.111: (a pedido) símbolo AudioLink del crédito a todo color (resplandor, sombra, brillo, ojos) y texto
+// del crédito en la fuente del logo (Chakra Petch SemiBold, subconjunto incrustado).
+// v1.110: (a pedido) crédito al final del PDF como el del sidebar ("Marto [símbolo AudioLink] ·
+// martowave@gmail.com"), una sola vez, gris 7 pt centrado; nuevo módulo dibujarSimboloAudiolink.
+// v1.109: (a pedido) el # de compás (cajas y listas de vueltas del Vamp) pasa de gris 170 a 110
+// para que se vea; solo cambia el color (tamaño, posición y texto iguales).
+// v1.108: (a pedido) el autor pasa a la misma línea del subtítulo, alineado a la
+// derecha (gris itálica 9 pt); si no hay 6 mm de hueco, queda en línea propia
+// como en v1.107. Solo cambia el bloque título/autor/subtítulo; sin autor, idéntico.
+// v1.107: (a pedido, 2 FIX) (1) Vamp con ciclo en varios renglones (ej. 8
+// comp. con POR_FILA=6): la lista de "próximas vueltas" solo cubría el 1er
+// renglón (min(ciclo,POR_FILA)) — c.7/c.8 quedaban sin #39/#40. Ahora
+// recorre todas las cajas del ciclo y ubica cada lista en su renglón/
+// columna real (mismo criterio que pdf-armonias.js v1.117; el paso entre
+// renglones es el de dibujarCajasPercusion: cajaAlto + tira de notas + 2).
+// (2) mismo FIX que pdf-armonias.js v1.115 para el marco de repetición:
+// con el ciclo/bloque en varios renglones, el cierre ":║" quedaba en el
+// 1er renglón (con el ancho de la ÚLTIMA fila, entre c.2 y c.3 en un
+// ciclo de 8). Ahora la apertura "║:" se queda en el renglón 1 y el
+// cierre baja al renglón de la última caja del ciclo, al final de ella.
+// dibujarBarraRepeticionPercusion recibe opciones.cierreY/cierreXFin
+// (opcionales; sin pasarlos, comportamiento idéntico). Aplica también a
+// fija-bloque con repeticiones y más de POR_FILA compases (misma llamada).
+// Con un solo renglón no cambia nada. Único cambio: la lista de vueltas
+// del Vamp, dibujarBarraRepeticionPercusion y su llamado.
+// v1.106: (a pedido) mismos 3 cambios de encabezado que pdf-armonias.js
+// v1.116: negra dibujada + "= 120" en vez de "BPM 120" (dibujarNegraTempo,
+// vectorial), tonalidad "Tono: G (F#)" (datos.tonoTxt, opcional) y autor
+// del tema en línea propia gris/itálica bajo el nombre (datos.autorTxt,
+// opcional; sin autor el PDF queda igual). Único cambio: dibujarNegraTempo
+// + el bloque del nombre/subtítulo en generarEstructuraPDFPercusion.
 // v1.105: (a pedido) silencios de corchea ('.') y negra (',') en el PDF
 // pasaron de gris (150,150,150) a negro (20) — mismo criterio que el
 // resto del dibujo (cabezas/plicas/ligaduras), igual cambio ya aplicado
@@ -181,8 +229,127 @@
 // igual que cualquier otra (sin su patrón rítmico propio). Si hace
 // falta alguna de esas 3 cosas, se agrega después con el mismo criterio
 // ya usado en todo este archivo (avisando antes de tocar).
+// v1.106: (a pedido) negra dibujada con vectores para el subtítulo del
+// tempo ("♩ = 120"). La fuente estándar de jsPDF (helvetica) no trae el
+// símbolo ♩, así que se dibuja: cabeza ovalada inclinada rellena + plica.
+// Escala con el tamaño de fuente (fs, referencia 10pt). Dibuja en x/yBase
+// (yBase = línea base del texto) y devuelve el ancho ocupado en mm, para
+// que el texto "= 120" arranque justo a continuación. Color de relleno y
+// trazo = el del texto del subtítulo (20,20,20).
+function dibujarNegraTempo(doc, x, yBase, fs){
+  const k = fs / 10;
+  const rx = 0.98 * k, ry = 0.68 * k, ang = -22 * Math.PI / 180;
+  const cx = x + rx, cy = yBase - 0.75 * k;
+  const pts = [];
+  for(let i = 0; i < 24; i++){
+    const t = i / 24 * 2 * Math.PI;
+    const ex = rx * Math.cos(t), ey = ry * Math.sin(t);
+    pts.push([cx + ex * Math.cos(ang) - ey * Math.sin(ang), cy + ex * Math.sin(ang) + ey * Math.cos(ang)]);
+  }
+  const rel = [];
+  for(let i = 1; i < pts.length; i++) rel.push([pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]]);
+  doc.setFillColor(20, 20, 20); doc.setDrawColor(20, 20, 20);
+  doc.lines(rel, pts[0][0], pts[0][1], [1, 1], 'F', true);
+  doc.setLineWidth(0.22 * k);
+  const sx = cx + rx * 0.93, sy = cy - 0.2 * k;
+  doc.line(sx, sy, sx, sy - 3.4 * k);
+  return 2 * rx + 0.6 * k;
+}
+
+// v1.111: fuente del logo (Chakra Petch SemiBold 600, OFL, Google Fonts) reducida a
+// las letras del crédito (TTF ~1.8 KB). Si no carga, el crédito usa helvetica.
+const FUENTE_CREDITO_B64_PERC = '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AAEECQANASACVAADAAEECQAOADQDdAADAAEECQAQABgDqAADAAEECQARABADwABDAG8AcAB5AHIAaQBnAGgAdAAgADIAMAAxADgAIABUAGgAZQAgAEMAaABhAGsAcgBhACAAUABlAHQAYwBoACAAUAByAG8AagBlAGMAdAAgAEEAdQB0AGgAbwByAHMAIAAoAGgAdAB0AHAAcwA6AC8ALwBnAGkAdABoAHUAYgAuAGMAbwBtAC8AbQA0AHIAYwAxAGUALwBDAGgAYQBrAHIAYQAtAFAAZQB0AGMAaAAuAGcAaQB0ACkAQwBoAGEAawByAGEAIABQAGUAdABjAGgAIABTAGUAbQBpAEIAbwBsAGQAUgBlAGcAdQBsAGEAcgAxAC4AMAAwADAAOwBDAEQASwAgADsAQwBoAGEAawByAGEAUABlAHQAYwBoAC0AUwBlAG0AaQBCAG8AbABkAFYAZQByAHMAaQBvAG4AIAAxAC4AMAAwADAAOwAgAHQAdABmAGEAdQB0AG8AaABpAG4AdAAgACgAdgAxAC4ANgApAEMAaABhAGsAcgBhAFAAZQB0AGMAaAAtAFMAZQBtAGkAQgBvAGwAZABDAGEAZABzAG8AbgAgAEQAZQBtAGEAawAgAEMAbwAuACwATAB0AGQALgBLAGEAdABhAHQAcgBhAGQAIABBAGsAcwBvAHIAbgAgAEMAbwAuACwATAB0AGQALgBoAHQAdABwADoALwAvAHcAdwB3AC4AYwBhAGQAcwBvAG4AZABlAG0AYQBrAC4AYwBvAG0AaAB0AHQAcAA6AC8ALwB3AHcAdwAuAGsAYQB0AGEAdAByAGEAZAAuAGMAbwBtAFQAaABpAHMAIABGAG8AbgB0ACAAUwBvAGYAdAB3AGEAcgBlACAAaQBzACAAbABpAGMAZQBuAHMAZQBkACAAdQBuAGQAZQByACAAdABoAGUAIABTAEkATAAgAE8AcABlAG4AIABGAG8AbgB0ACAATABpAGMAZQBuAHMAZQAsACAAVgBlAHIAcwBpAG8AbgAgADEALgAxAC4AIABUAGgAaQBzACAAbABpAGMAZQBuAHMAZQAgAGkAcwAgAGEAdgBhAGkAbABhAGIAbABlACAAdwBpAHQAaAAgAGEAIABGAEEAUQAgAGEAdAA6ACAAaAB0AHQAcAA6AC8ALwBzAGMAcgBpAHAAdABzAC4AcwBpAGwALgBvAHIAZwAvAE8ARgBMAGgAdAB0AHAAOgAvAC8AcwBjAHIAaQBwAHQAcwAuAHMAaQBsAC4AbwByAGcALwBPAEYATABDAGgAYQBrAHIAYQAgAFAAZQB0AGMAaABTAGUAbQBpAEIAbwBsAGQAAAACAAAAAAAA/7UAMgAAAAAAAAAAAAAAAAAAAAAAAAAAABIAAAADADAARABGAEgASgBMAE8AUABSAFUAVwBZAFoAEQDDACMAAA==';
+function registrarFuenteCredito(doc){
+  try{
+    doc.addFileToVFS('ChakraPetch-SemiBold-credito.ttf', FUENTE_CREDITO_B64_PERC);
+    doc.addFont('ChakraPetch-SemiBold-credito.ttf', 'ChakraPetchCredito', 'normal');
+    return true;
+  }catch(e){ return false; }
+}
+
+// v1.110: (a pedido) símbolo AudioLink vectorial (trazo/relleno del
+// SVG "simbolo-claro", a todo color: resplandor y sombra aproximados con aros/franjas) para el
+// crédito del final, en lugar del emoji del sidebar (helvetica no trae
+// emojis). h = alto en mm; el ancho sale proporcional (99:168.33).
+// Devuelve el ancho dibujado. Módulo propuesto como reutilizable.
+function dibujarSimboloAudiolink(doc, x, y, h){
+  const s = h / 168.33;
+  const bx = v => 128 + (v - 128) * 0.68, by = v => 140 + (v - 140) * 0.68;
+  const X = v => x + (bx(v) - 78.5) * s, Y = v => y + (by(v) - 71.67) * s;   // dentro del grupo escalado 0.68
+  const X2 = v => x + (v - 78.5) * s, Y2 = v => y + (v - 71.67) * s;         // fuera del grupo
+  const k = 0.68 * s;
+  const marron = [74, 59, 44];
+  const op = (a) => { try{ doc.setGState(new doc.GState({ opacity: a, 'stroke-opacity': a })); }catch(e){} };
+  const trazoCuerpo = () => {
+    const p = (a, b) => [X(a), Y(b)];
+    const P0 = p(85.5, 140), P1 = p(85.5, 90.7), P2 = p(117.8, 60.1), P3 = p(138.2, 60.1), P4 = p(170.5, 90.7), P5 = p(170.5, 140);
+    const c1a = p(85.5, 72), c1b = p(99.1, 60.1), c2a = p(156.9, 60.1), c2b = p(170.5, 72);
+    return { P0, rel: [
+      [P1[0]-P0[0], P1[1]-P0[1]],
+      [c1a[0]-P1[0], c1a[1]-P1[1], c1b[0]-P1[0], c1b[1]-P1[1], P2[0]-P1[0], P2[1]-P1[1]],
+      [P3[0]-P2[0], P3[1]-P2[1]],
+      [c2a[0]-P3[0], c2a[1]-P3[1], c2b[0]-P3[0], c2b[1]-P3[1], P4[0]-P3[0], P4[1]-P3[1]],
+      [P5[0]-P4[0], P5[1]-P4[1]]
+    ] };
+  };
+  const cuerpo = trazoCuerpo();
+  doc.saveGraphicsState();
+  // 1) resplandor ámbar (degradado radial aproximado con aros) y sombra lateral, recortados al cuerpo
+  doc.lines(cuerpo.rel, cuerpo.P0[0], cuerpo.P0[1], [1, 1], null, true);
+  doc.clip(); doc.discardPath();
+  const stops = [[0, .9], [.15, .837], [.3, .702], [.45, .522], [.6, .342], [.75, .18], [.9, .063], [1, 0]];
+  const alfaEn = t => { for(let i = 1; i < stops.length; i++){ if(t <= stops[i][0]){ const a = stops[i-1], b = stops[i]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]); } } return 0; };
+  const N = 14; let acum = 0; doc.setFillColor(240, 132, 0);
+  for(let i = N; i >= 1; i--){
+    const t = (i - 0.5) / N, T = alfaEn(t);
+    const a = Math.max(0, Math.min(1, 1 - (1 - T) / (1 - acum)));
+    acum = 1 - (1 - acum) * (1 - a);
+    op(a); doc.circle(X(128), Y(89), 50 * k * i / N, 'F');
+  }
+  doc.setFillColor(marron[0], marron[1], marron[2]);
+  const M = 10, xa = X(128), xb = X(170.5) + 4 * k;
+  for(let i = 0; i < M; i++){                               // sombra: 0 → 0.3 de la mitad al borde derecho
+    op(0.3 / M * 0.5); doc.rect(xa + (xb - xa) * i / M, Y(55), (xb - xa) * (M - i) / M + 0.01, Y(142) - Y(55), 'F');
+  }
+  doc.restoreGraphicsState();
+  // 2) contorno del cuerpo y raya lateral tenue
+  doc.setDrawColor(marron[0], marron[1], marron[2]);
+  doc.setLineCap('round'); doc.setLineJoin('round');
+  doc.setLineWidth(7.35 * k);
+  doc.lines(cuerpo.rel, cuerpo.P0[0], cuerpo.P0[1], [1, 1], 'S', true);
+  doc.saveGraphicsState(); op(0.4); doc.setLineWidth(4.41 * k);
+  doc.line(X(160.3), Y(80.5), X(160.3), Y(128.1)); doc.restoreGraphicsState();
+  // 3) punto central ámbar
+  doc.setFillColor(224, 138, 0); doc.circle(X(128), Y(89), 10 * k, 'F');
+  doc.saveGraphicsState(); op(0.95); doc.setFillColor(245, 184, 74); doc.circle(X(128), Y(89), 4 * k, 'F'); doc.restoreGraphicsState();
+  // 4) brillo blanco del cuerpo
+  doc.saveGraphicsState(); op(0.65); doc.setDrawColor(255, 255, 255); doc.setLineWidth(5.88 * k);
+  const h0 = [X(95.7), Y(116.2)], h1 = [X(95.7), Y(95.8)], h2 = [X(112.7), Y(71.15)];
+  doc.lines([[0, h1[1]-h0[1]], [X(95.7)-h1[0], Y(83.9)-h1[1], X(102.5)-h1[0], Y(75.4)-h1[1], h2[0]-h1[0], h2[1]-h1[1]]], h0[0], h0[1], [1, 1], 'S', false);
+  doc.restoreGraphicsState();
+  // 5) patas y ojos
+  doc.setDrawColor(marron[0], marron[1], marron[2]); doc.setLineWidth(4.5 * s);
+  doc.line(X2(110), Y2(140), X2(110), Y2(213.2));
+  doc.line(X2(146), Y2(140), X2(146), Y2(213.2));
+  doc.line(X2(128), Y2(140), X2(128), Y2(206));
+  const ojo = (cx, ladoIzq) => {
+    doc.setLineWidth(3.25 * 0.92 * s);
+    doc.circle(X2(cx), Y2(222), 6.5 * 0.92 * s, 'S');
+    const r = 4.2 * 0.92 * s, cyy = Y2(222), cxx = X2(cx), pts = [];
+    const a0 = ladoIzq ? [-4, 0.4] : [-4, -0.95], a1 = ladoIzq ? [4, -0.95] : [4, 0.4];
+    pts.push([cxx + a0[0] * 0.92 * s, cyy + a0[1] * 0.92 * s]);
+    for(let i = 1; i < 12; i++){ const t = Math.PI * i / 12; pts.push([cxx - r * Math.cos(t), cyy - r * Math.sin(t)]); }
+    pts.push([cxx + a1[0] * 0.92 * s, cyy + a1[1] * 0.92 * s]);
+    const rel = []; for(let i = 1; i < pts.length; i++) rel.push([pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]]);
+    doc.setFillColor(marron[0], marron[1], marron[2]); doc.setLineWidth(1.08 * 0.92 * s);
+    doc.lines(rel, pts[0][0], pts[0][1], [1, 1], 'FD', true);
+  };
+  ojo(110, true); ojo(146, false);
+  return 99 * s;
+}
+
 function generarEstructuraPDFPercusion(datos){
-  const { temaNombre, bpm, compasTexto, claveTxt, secciones: seccionesEntrada } = datos;
+  const { temaNombre, bpm, compasTexto, claveTxt, tonoTxt, autorTxt, secciones: seccionesEntrada } = datos;
   if(!window.jspdf){ alert('No se pudo cargar el generador de PDF. Revisá tu conexión e intentá de nuevo.'); return; }
   if(!seccionesEntrada || !seccionesEntrada.length){ alert('No hay secciones cargadas todavía.'); return; }
   const { jsPDF } = window.jspdf;
@@ -295,8 +462,39 @@ function generarEstructuraPDFPercusion(datos){
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
   doc.setTextColor(20, 20, 20);
   doc.text(nombreTema, margen, y); y += 7;
+  // v1.108: (a pedido) autor del tema: misma línea del subtítulo, alineado
+  // al margen derecho (gris, itálica 9 pt). Si entre subtítulo y autor no
+  // quedan al menos 6 mm, vuelve a su línea propia entre título y subtítulo
+  // (como en v1.107). Autor más ancho que la página: se trunca a 1 línea.
+  // Sin autor, el PDF queda idéntico a v1.107.
+  const subtituloTxt = `= ${bpm || '—'} · Compás ${compasTexto || '4/4'}${tonoTxt ? ' · Tono: ' + tonoTxt : ''}${claveTxt ? ' · Clave: ' + claveTxt : ''}`;
+  let autorLinea = '', autorEnLineaPropia = false, anchoAutor = 0;
+  if(autorTxt){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+    autorLinea = doc.splitTextToSize('Autor: ' + autorTxt, pageW - margen * 2)[0];
+    anchoAutor = doc.getTextWidth(autorLinea);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    // 2.56 mm = ancho que devuelve dibujarNegraTempo a 10 pt (2*0.98 + 0.6) + 0.8 de separación
+    const anchoSubtitulo = 2.56 + 0.8 + doc.getTextWidth(subtituloTxt);
+    autorEnLineaPropia = (anchoUtil - anchoSubtitulo - anchoAutor) < 6;
+  }
+  if(autorTxt && autorEnLineaPropia){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text(autorLinea, margen, y);
+    y += 5;
+    doc.setTextColor(20, 20, 20);
+  }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-  doc.text(`BPM ${bpm || '—'} · Compás ${compasTexto || '4/4'}${claveTxt ? ' · Clave: ' + claveTxt : ''}`, margen, y);
+  const anchoNegra = dibujarNegraTempo(doc, margen, y, 10);
+  doc.text(subtituloTxt, margen + anchoNegra + 0.8, y);
+  if(autorTxt && !autorEnLineaPropia){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text(autorLinea, pageW - margen, y, { align: 'right' });
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  }
   y += 8;
 
   const asegurarEspacio = (alto) => {
@@ -425,13 +623,21 @@ function generarEstructuraPDFPercusion(datos){
     doc.setFillColor(20, 20, 20);
     doc.rect(margen + ox - 4.4, yBloqueInicio, grosor, alto, 'F');
     doc.rect(margen + ox - 2.4, yBloqueInicio, 0.4, alto, 'F');
-    doc.rect(margen + ox + ancho + 3.2, yBloqueInicio, grosor, alto, 'F');
-    doc.rect(margen + ox + ancho + 2.0, yBloqueInicio, 0.4, alto, 'F');
+    // v1.107: (FIX) cierreY / cierreXFin opcionales — con ciclo/bloque de
+    // varios renglones el trazo de cierre (derecha) baja al renglón de la
+    // última caja: cierreY = Y de esa caja, cierreXFin = mm desde `margen`
+    // hasta el borde derecho de su última caja. Sin pasarlos, el cierre
+    // usa yBloqueInicio y ox+ancho (idéntico a antes).
+    const yCierre = opciones.cierreY != null ? opciones.cierreY : yBloqueInicio;
+    const xFin = opciones.cierreXFin != null ? opciones.cierreXFin : (ox + ancho);
+    doc.rect(margen + xFin + 3.2, yCierre, grosor, alto, 'F');
+    doc.rect(margen + xFin + 2.0, yCierre, 0.4, alto, 'F');
     const yc = yBloqueInicio + alto / 2;
+    const ycC = yCierre + alto / 2;
     doc.circle(margen + ox - 0.85, yc - 1.2, 0.35, 'F');
     doc.circle(margen + ox - 0.85, yc + 1.2, 0.35, 'F');
-    doc.circle(margen + ox + ancho + 0.85, yc - 1.2, 0.35, 'F');
-    doc.circle(margen + ox + ancho + 0.85, yc + 1.2, 0.35, 'F');
+    doc.circle(margen + xFin + 0.85, ycC - 1.2, 0.35, 'F');
+    doc.circle(margen + xFin + 0.85, ycC + 1.2, 0.35, 'F');
   };
   // v1.88: (a pedido) corchete "1."/"2." de casilla, duplicado tal cual
   // de dibujarCorcheteCasilla (generarEstructuraPDF, línea ~1310) — mismo
@@ -843,15 +1049,37 @@ function generarEstructuraPDFPercusion(datos){
     const compasTxt = (s.compasOverride || '').trim() ? '· ' + s.compasOverride.trim() : '';
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
     const anchoCompas = compasTxt ? doc.getTextWidth(compasTxt) + 4 : 0;
+    // v1.112: (a pedido) instrumento + resumen \"c.#X-c.#Y\" + tiempo de la sección: se
+    // miden ACÁ, antes de la nota, para reservarles su espacio (misma cuenta que
+    // el dibujo real más abajo). El tiempo solo se imprime si su borde izquierdo
+    // queda a la derecha del nombre (xLibre + 2); si no cabe, se omite (y no reserva).
+    const instrumentoTxtBarra = textoInstrumentoPercusion(s);
+    let anchoInstrumentoBarra = 0;
+    if(instrumentoTxtBarra){
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
+      anchoInstrumentoBarra = doc.getTextWidth(instrumentoTxtBarra) + 4;
+    }
+    const resumenTxtBarra = (compasGlobalInicio != null && s.duracion != null && s.duracion > 0)
+      ? 'c.#' + compasGlobalInicio + ((compasGlobalInicio + s.duracion - 1) !== compasGlobalInicio ? '-c.#' + (compasGlobalInicio + s.duracion - 1) : '')
+      : '';
+    // v1.114: se mide con el MISMO estilo con que se dibuja (negrita 9 pt) y el tiempo lleva su unidad " min".
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    const anchoResumenBarra = resumenTxtBarra ? doc.getTextWidth(resumenTxtBarra) : 0;
+    const tiempoBase = (s.tiempoTxt || '').trim();
+    const tiempoTxtBarra = tiempoBase ? tiempoBase + ' min' : '';
+    const anchoTiempoBarra = tiempoTxtBarra ? doc.getTextWidth(tiempoTxtBarra) : 0;
+    const xDerechaTiempo = margen + anchoUtil - 2 - anchoCompas - anchoInstrumentoBarra - (anchoResumenBarra ? anchoResumenBarra + 3 : 0);
+    const tiempoCabe = !!tiempoTxtBarra && (xDerechaTiempo - anchoTiempoBarra) >= (xLibre + 2);
+    const anchoReservaDerecha = anchoInstrumentoBarra + (anchoResumenBarra ? anchoResumenBarra + 3 : 0) + (tiempoCabe ? anchoTiempoBarra + 3 : 0);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
     // Nota de sección inline (mismo criterio de "auto-ajuste + recorte"
     // que generarEstructuraPDF, versión resumida).
     if((s.notaSeccion || '').trim()){
       const nota = s.notaSeccion.trim();
-      const anchoDisponible = (margen + anchoUtil - anchoCompas - 2) - xLibre;
+      const anchoDisponible = (margen + anchoUtil - anchoCompas - 2 - anchoReservaDerecha) - xLibre;
       if(anchoDisponible > 8){
         doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.8 }));
+        doc.setGState(new doc.GState({ opacity: 1 }));
         doc.setFont('helvetica', 'italic');
         let fontNota = 8;
         doc.setFontSize(fontNota);
@@ -890,15 +1118,17 @@ function generarEstructuraPDFPercusion(datos){
     // usa generarEstructuraPDF (v1.70: blanco, itálica, opacidad
     // reducida), corrido a la izquierda del texto de instrumento para no
     // pisarlo si ambos están presentes.
-    if(compasGlobalInicio != null && s.duracion != null && s.duracion > 0){
-      const finResumen = compasGlobalInicio + s.duracion - 1;
-      const resumenTxt = 'c.#' + compasGlobalInicio + (finResumen !== compasGlobalInicio ? '-c.#' + finResumen : '');
-      doc.saveGraphicsState();
-      doc.setGState(new doc.GState({ opacity: 0.75 }));
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(255);
+    if(resumenTxtBarra){
+      const resumenTxt = resumenTxtBarra;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255);
       doc.text(resumenTxt, margen + anchoUtil - 2 - anchoCompas - anchoInstrumentoTxt, y + 5, { align: 'right' });
-      doc.restoreGraphicsState();
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(255);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255);
+    }
+    // v1.112: tiempo de la sección, a la izquierda del resumen (mismo estilo).
+    if(tiempoCabe){
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255);
+      doc.text(tiempoTxtBarra, xDerechaTiempo, y + 5, { align: 'right' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255);
     }
     y += 7 + 3;
     doc.setTextColor(20);
@@ -1108,7 +1338,7 @@ function generarEstructuraPDFPercusion(datos){
           const numeroGlobalPercusion = (opciones.numerosGlobales && opciones.numerosGlobales[j] != null)
             ? opciones.numerosGlobales[j]
             : (compasBase + posLabel);
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(110);
           doc.text('#' + numeroGlobalPercusion, xR + anchoCol - 1.5, yCaja + 4, { align: 'right' });
           doc.setTextColor(20);
         }
@@ -1262,13 +1492,20 @@ function generarEstructuraPDFPercusion(datos){
           // v1.90: +notaFilaAlto si la grilla reservó tira de notas (el
           // label "#N" de la caja se corrió hacia abajo esa misma medida).
           const yBaseVamp = yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0) + 6.5;
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
-          for(let col = 0; col < Math.min(totalCajas, POR_FILA); col++){
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(110);
+          for(let col = 0; col < totalCajas; col++){
             // v1.101: +colInicioCicloPercusion*cajaAncho — misma columna
             // real que usa dibujarCajasPercusion para el ciclo, con
             // anacrusa corrida 1 columna a la derecha.
-            const xListaVamp = margen + colInicioCicloPercusion * cajaAncho + anacrusaGapMmPercusion + cajaAncho * col + cajaAncho - 1.5;
-            let yListaVamp = yBaseVamp;
+            // v1.107: (FIX) renglón y columna reales de cada caja del
+            // ciclo (antes solo el 1er renglón). Paso entre renglones =
+            // el de dibujarCajasPercusion (cajaAlto + tira de notas + 2).
+            const colRealVampPercusion = col + colInicioCicloPercusion;
+            const filaListaVampPercusion = Math.floor(colRealVampPercusion / POR_FILA);
+            const colEnFilaVampPercusion = colRealVampPercusion % POR_FILA;
+            const gapListaVampPercusion = (conAnacrusaVampPercusion && colEnFilaVampPercusion >= colInicioCicloPercusion) ? anacrusaGapMmPercusion : 0;
+            const xListaVamp = margen + colEnFilaVampPercusion * cajaAncho + gapListaVampPercusion + cajaAncho - 1.5;
+            let yListaVamp = yBaseVamp + filaListaVampPercusion * (cajaAlto + (ultimaHayNotasPercusion ? notaFilaAlto : 0) + 2);
             for(let k = 1; k <= Math.min(vueltasVampLista, maxLineasVamp); k++){
               doc.text('#' + (compasGlobalInicio + col + k * totalCajas), xListaVamp, yListaVamp, { align: 'right' });
               yListaVamp += 2.6;
@@ -1296,7 +1533,7 @@ function generarEstructuraPDFPercusion(datos){
         if(totalVueltasPercusion > 0){
           const maxLineasPercusion = 3;
           const yBasePercusion = yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0) + 6.5;
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(170);
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(110);
           for(let col = 0; col < Math.min(totalCajas, POR_FILA); col++){
             // v1.2: última vuelta oculta en columnas reemplazadas por
             // la 2da vez (ver comentario arriba).
@@ -1343,7 +1580,20 @@ function generarEstructuraPDFPercusion(datos){
         // v1.101: offsetX = colInicioCicloPercusion*cajaAncho — con
         // anacrusa+Vamp, el marco arranca en la columna del ciclo, no en
         // el margen de página.
-        dibujarBarraRepeticionPercusion(yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0), cajaAlto, anchoMarcoPercusion, { offsetX: colInicioCicloPercusion * cajaAncho + anacrusaGapMmPercusion });
+        // v1.107: ciclo/bloque en varios renglones -> el cierre baja al
+        // renglón de la última caja del ciclo (apertura sigue en el
+        // renglón 1). Un solo renglón: filaUltimaCicloPercusion=0, se
+        // llama exactamente igual que antes. Paso entre renglones = el de
+        // dibujarCajasPercusion (cajaAlto + tira de notas + 2).
+        const filaUltimaCicloPercusion = Math.floor((colInicioCicloPercusion + totalCajas - 1) / POR_FILA);
+        const opcionesMarcoPercusion = { offsetX: colInicioCicloPercusion * cajaAncho + anacrusaGapMmPercusion };
+        if(filaUltimaCicloPercusion > 0){
+          const colsUltimaFilaPercusion = ((colInicioCicloPercusion + totalCajas - 1) % POR_FILA) + 1;
+          const notaAltoMarcoPercusion = ultimaHayNotasPercusion ? notaFilaAlto : 0;
+          opcionesMarcoPercusion.cierreY = yGridVamp + filaUltimaCicloPercusion * (cajaAlto + notaAltoMarcoPercusion + 2) + notaAltoMarcoPercusion;
+          opcionesMarcoPercusion.cierreXFin = colsUltimaFilaPercusion * cajaAncho + ((conAnacrusaVampPercusion && (colsUltimaFilaPercusion - 1) >= colInicioCicloPercusion) ? anacrusaGapMmPercusion : 0);
+        }
+        dibujarBarraRepeticionPercusion(yGridVamp + (ultimaHayNotasPercusion ? notaFilaAlto : 0), cajaAlto, anchoMarcoPercusion, opcionesMarcoPercusion);
       }
 
       // v1.88: (a pedido) "se repite xN..." pasa a dibujarse DESPUÉS de
@@ -1444,6 +1694,30 @@ function generarEstructuraPDFPercusion(datos){
     // pisando la nota naranja de la última fila.
     y += ultimoElementoEsTexto ? 4 : cajaAlto + (ultimaHayNotasPercusion ? notaFilaAlto : 0) + 4;
   });
+
+  // v1.110: (a pedido) crédito del final, como el del sidebar
+  // (nav.js): "Marto [símbolo] · martowave@gmail.com". Una sola vez, al
+  // final del último contenido, centrado, gris tenue 7 pt.
+  {
+    const alSim = 4.2, gap = 1.4;
+    const fuenteOk = registrarFuenteCredito(doc);
+    const fCred = () => { try{ if(fuenteOk) doc.setFont('ChakraPetchCredito', 'normal'); else doc.setFont('helvetica', 'normal'); }catch(e){ doc.setFont('helvetica', 'normal'); } doc.setFontSize(7); };
+    fCred();
+    const t1 = 'Marto', t2 = '· martowave@gmail.com';
+    const w1 = doc.getTextWidth(t1), w2 = doc.getTextWidth(t2);
+    const wSim = 99 / 168.33 * alSim;
+    const total = w1 + gap + wSim + gap + w2;
+    y += 4;
+    asegurarEspacio(alSim + 2);
+    const x0 = (pageW - total) / 2;
+    doc.setTextColor(150, 150, 150);
+    doc.text(t1, x0, y + 1.2);
+    dibujarSimboloAudiolink(doc, x0 + w1 + gap, y - 2.2, alSim);
+    doc.setTextColor(150, 150, 150);
+    fCred();
+    doc.text(t2, x0 + w1 + gap + wSim + gap, y + 1.2);
+    doc.setTextColor(20, 20, 20);
+  }
 
   const nombreArchivo = 'percusion-' + nombreTema.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '.pdf';
   doc.setProperties({ title: nombreArchivo });

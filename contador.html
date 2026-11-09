@@ -4,7 +4,52 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Contador de tiempo</title>
-<!-- AUDIOLINK · contador.html · v1.7
+<!-- AUDIOLINK · contador.html · v1.15
+     v1.15: (a pedido, mobile first) Etiquetado rápido de la tarea en el panel "Hoy": en vez de frases largas, dos filas de chips cortos, Acción (varias) y Lugar
+     (varios), más una nota opcional. La tarea se arma con tu estilo: "ACCIÓN Y ACCIÓN - LUGAR Y LUGAR, nota" (ej. RESANAR Y MARCAR - PISO 1). Vista previa "Se
+     registrará: ...". Las listas se guardan en el documento del cliente (contadorClientes: acciones, lugares; sin reglas nuevas): las acciones se muestran
+     para todos los clientes (unión de las de cada uno) y los lugares son por cliente. "＋" agrega un chip, "✎ Editar listas" muestra ✕ para quitar y sugerencias
+     sacadas de tus tareas anteriores (cortando por guion, coma y " Y "; tú eliges A=acción o L=lugar). "↺ Cargar la última" repite acción/lugar/nota del último
+     día. El día guarda la tarea como texto (igual que antes) y además acciones, lugares y nota. Sin selección, "Hoy completo/medio" repite la última tarea.
+     Se quitan los chips de tareas largas de v1.14. Sin cambios en horas, reportes ni reglas (v2.46).
+     v1.14: (a pedido, mobile first) "Trabajé hoy" pasa a ser el centro de la vista Días. 1) Barra fija al pie con "⚡ Hoy completo" y "◐ Hoy medio día": registran
+     al instante con la tarea y etiqueta del último día (o la tarea elegida en los chips), sin confirmación, y muestran "Registrado · Deshacer" 6 s. Si hoy ya está
+     registrado, la barra dice "Hoy registrado ✓" y abre la edición. 2) Panel "Hoy": chips con las últimas 5 tareas del cliente, botón "↩ Ayer" y fila de la semana
+     (L–D): relleno = día completo, medio relleno = medio día; tocar un día vacío lo registra, tocar uno lleno lo edita; los días futuros están bloqueados.
+     3) Se quita el botón "⚡ Trabajé hoy" (con confirmación) del Resumen; queda "📋 Copiar resumen". El valor sale del valor del día del cliente × jornada
+     (si el cliente no lo tiene, del último día). Sin cambios en horas, datos ni reglas (v2.46).
+     v1.13: (a pedido, mobile first) 1) Tipografía numérica: cifras tabulares y de altura uniforme en toda la hoja (font-variant-numeric) y Resumen de Días
+     en 4 tarjetas con la cifra grande en Playfair Display (lnum/tnum) y tamaño fluido clamp(); etiquetas pequeñas en mayúsculas con espaciado. No se agrega
+     ninguna fuente nueva (ESTIMADO: el efecto de lnum/tnum en Playfair debe verificarse en el celular). 2) Barra de progreso pagado/ganado. 3) Separador por
+     mes (con subtotal) en las listas de días y pagos cuando el orden es por fecha. 4) Botón "⚡ Trabajé hoy": repite el último día del cliente con
+     confirmación. 5) Botón "📋 Copiar resumen": estado de cuenta en texto para WhatsApp. 6) La jornada y la etiqueta del último día se recuerdan por
+     cliente (localStorage contador_ult_ID). Sin cambios en horas, datos ni reglas (v2.46).
+     v1.12: (a pedido, mobile first) Secciones plegables para evitar el "chorrero" hacia abajo. Se hace con un pequeño script (iniciarSecciones) sobre los
+     paneles existentes, sin reestructurar el HTML: el título (o la fila del título) pasa a ser un botón de 44 px con flecha ▸ del color del bloque,
+     accesible con teclado (Enter/Espacio). Cada sección es independiente (pueden quedar varias abiertas). Abiertas por defecto: Cronómetro, Bitácora y
+     resumen, y en Días: Resumen, Días trabajados y Pagos; el resto plegado. Se abre sola al tocar ✏️ (Registrar día / Registrar pago) y el Cronómetro
+     si hay uno en curso. Plegadas muestran un dato: Cliente (nombre), Días trabajados (cantidad) y Pagos (cantidad y total). El estado se recuerda por
+     aparato (localStorage contador_sec). Al imprimir todo se muestra abierto. Sin cambios de datos, lógica ni reglas (v2.46).
+     v1.11: (a pedido, mobile first) Distinción clara Horas / Días: Horas = azul (todos sus paneles, incluidos cronómetro, pomodoro y tiempo manual, que
+     pasan de dorado a azul) y Días = dorado (pagos siguen en verde). Pestañas grandes (44 px de alto) con el color de su tipo, y una franja de tipo bajo
+     las pestañas ("Horas · tiempo trabajado en el computador" / "Días de trabajo · fuera del computador"). Ayuda del 👓: "Reporte de horas" o "Estado
+     de cuenta". Solo clases y CSS: sin cambios de datos, lógica ni reglas (v2.46).
+     v1.10: (a pedido) 1) Editar días y pagos con el mismo formulario (✏️ carga el registro; botón "Guardar cambios" y "Cancelar"): fecha, jornada,
+     valor, tarea y etiqueta del día; fecha, monto, medio, nota y comprobante del pago (si se reemplaza o quita la foto, la anterior se anota en
+     compartirInfoPendientes). 2) Color por tipo de bloque, solo con transparencias bajas sobre los tokens del tema (claro y oscuro): dorado = captura de
+     tiempo y días, azul (nuevo --info) = configuración y bitácora, verde = pagos; Resumen con tinte dorado más fuerte y saldo en ámbar (pendiente) o verde.
+     Sin cambios de lógica en horas ni en reglas (v2.46). Tras editar, usa ↻ Actualizar en el reporte del cliente.
+     v1.9: (a pedido) Días de trabajo: fechas con día y mes ("Lun 17 oct", con año si no es el actual); filtros (etiqueta, mes, jornada, medio) y orden
+     (fecha/valor/monto) con "Mostrando X · subtotal"; vista Lista/Calendario mensual (● día completo, ◐ medio día, 💵 pago; tocar un día muestra el
+     detalle); botón cuadrado para subir el comprobante (vista previa y ✕); miniaturas de Cloudinary (c_fill, q_auto, f_auto) en pagos.
+     El Resumen siempre muestra el total real, sin filtros. Una imagen por pago, solo imágenes. Sin cambios en horas ni en reglas (v2.46).
+     v1.8: (a pedido) pestaña nueva "Días de trabajo" para trabajo por días fuera del computador (clientes externos, el primero Juli).
+     Pestañas Horas / Días (los paneles de horas quedan intactos dentro de #vistaHoras). Colecciones nuevas contadorClientes (nombre,
+     valorDia), contadorDias (clienteId, fecha, tarea, etiqueta, jornada 1 o 0.5, valor editable) y contadorPagos (clienteId, fecha, monto,
+     medio, nota, comprobante {url, publicId}). Comprobante: se sube a Cloudinary (cloud mqwgjh3u, preset COMPARTIRINFO, carpeta COMPARTIRINFO,
+     igual que compartirinfo.html); al borrar un pago con foto el archivo se anota en compartirInfoPendientes. Resumen: días, ganado, pagado
+     y saldo. El botón 👓 abre compartirinfo.html?c=CLIENTEID (lo atiende compartirinfo v1.9). El 📤 de la bitácora de horas pasa a 👓.
+     Requiere reglas v2.46. Sin cambios en cronómetro, pomodoro, bolsa, bitácora, resumen, CSV, PDF ni guard de sesión.
      v1.7: (a pedido) bugs de tema en campos de fecha y selectores. Causa: la hoja no declaraba color-scheme,
      así que el selector de calendario (ícono y ventana) y las listas desplegables de los select usaban
      los colores del sistema y no los del tema (iconos invisibles / listas blancas en tema oscuro). Ahora
@@ -93,10 +138,61 @@ else{ ['app','auth','firestore'].forEach(function(n){ document.write('<script sr
 })();
 </script>
 <style>
+.tab-on{border-color:var(--gold) !important;color:var(--gold) !important;}
+.col-head{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.panel:not(.cerrado)>.col-head{margin-bottom:8px;}
+.col-head h3{margin:0 !important;display:flex;align-items:center;flex:1;min-width:0;}
+.col-head h3::before{content:"▸";display:inline-block;width:1.2em;color:var(--ac,var(--gold));transition:transform .2s;}
+.panel:not(.cerrado)>.col-head h3::before{transform:rotate(90deg);}
+.col-res{margin-left:auto;padding-left:10px;font-size:0.78rem;color:var(--muted);font-weight:500;letter-spacing:0;text-transform:none;white-space:nowrap;}
+.col-head:focus-visible{outline:2px solid var(--ac,var(--gold));outline-offset:2px;border-radius:8px;}
+@media (prefers-reduced-motion:reduce){.col-head h3::before{transition:none;}}
+@media screen{.panel.cerrado>:not(.col-head){display:none;}}
+.pa-g{--ac:var(--gold);}.pa-v{--ac:var(--ok);}.pa-b{--ac:var(--info);}
+.pa-g,.pa-v,.pa-b{border-left:3px solid var(--ac);background:linear-gradient(90deg,color-mix(in srgb,var(--ac) 7%,transparent),transparent 60%),var(--surf);}
+.pa-res{background:linear-gradient(90deg,color-mix(in srgb,var(--ac) 14%,transparent),transparent 70%),var(--surf);}
+.pa-g h3,.pa-v h3,.pa-b h3{color:var(--ac);}
+.vtab{flex:1;min-height:44px;font-weight:600;}
+#tabH{border-color:color-mix(in srgb,var(--info) 45%,var(--brd));}#tabD{border-color:color-mix(in srgb,var(--gold) 45%,var(--brd));}
+#tabH.tab-on{border-color:var(--info) !important;color:var(--info) !important;background:color-mix(in srgb,var(--info) 12%,transparent);}
+#tabD.tab-on{background:color-mix(in srgb,var(--gold) 12%,transparent);}
+.tipo-bar{padding:10px 14px;border-radius:10px;border-left:4px solid var(--ac);background:color-mix(in srgb,var(--ac) 10%,transparent);color:var(--ac);font-size:0.8rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:16px;}
+.tb-h{--ac:var(--info);}.tb-d{--ac:var(--gold);}
+#vistaDias{padding-bottom:90px;}
+.chip-g{display:inline-flex;gap:2px;align-items:center;}
+#hoyNota{width:100%;margin-top:8px;padding:10px 12px;min-height:44px;background:var(--surf);color:inherit;border:1px solid var(--brd);border-radius:10px;font:inherit;font-size:16px;box-sizing:border-box;}
+.hoy-l{font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:10px;}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}.chip{min-height:36px;padding:6px 12px;border-radius:99px;border:1px solid var(--brd);background:var(--surf);color:inherit;font:inherit;font-size:0.85rem;cursor:pointer;}
+.chip.on{border-color:var(--gold);color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,transparent);}
+.wk{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0;}
+.wk-d{aspect-ratio:1;border-radius:50%;border:1px solid var(--brd);background:var(--surf);color:inherit;font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;cursor:pointer;}
+.wk-d i{font-style:normal;font-size:0.62rem;color:var(--muted);}.wk-d b{font-size:0.95rem;}
+.wk-d.f{background:var(--gold);color:#1a1509;border-color:var(--gold);}.wk-d.f i{color:#1a1509;}
+.wk-d.h{background:linear-gradient(90deg,var(--gold) 50%,var(--surf) 50%);border-color:var(--gold);}
+.wk-d.hoy{box-shadow:0 0 0 2px var(--info);}.wk-d:disabled{opacity:.35;cursor:default;}
+.hoy-fijo{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:850px;bottom:0;z-index:40;display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--brd);box-sizing:border-box;}
+.hoy-fijo button{flex:1;min-height:48px;}
+.undo-bar{position:fixed;left:12px;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:41;display:none;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-radius:12px;background:var(--surf);border:1px solid var(--ok);color:var(--txt);max-width:826px;margin:0 auto;}
+body{font-variant-numeric:tabular-nums lining-nums;}
+.res-g{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.res-c{background:var(--surf);border:1px solid var(--brd);border-top:3px solid var(--ac,var(--gold));border-radius:10px;padding:10px 12px;min-width:0;}
+.res-c b{display:block;font-family:var(--T);font-weight:700;font-size:clamp(1.05rem,5vw,1.4rem);line-height:1.2;color:var(--ac,var(--gold));font-feature-settings:"lnum" 1,"tnum" 1;overflow-wrap:anywhere;}
+.res-c span{font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);}
+.res-c.b{--ac:var(--info);}.res-c.v{--ac:var(--ok);}.res-c.w{--ac:var(--warn);}
+.res-bar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--ok) 18%,transparent);overflow:hidden;margin:12px 0 4px;}
+.res-bar i{display:block;height:100%;background:var(--ok);border-radius:99px;transition:width .4s;}
+.res-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}.res-act button{flex:1;min-width:140px;min-height:44px;}
+.mes-sep{display:flex;justify-content:space-between;gap:8px;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--brd);font-size:0.78rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);}
+@media (prefers-reduced-motion:reduce){.res-bar i{transition:none;}}
+@media (min-width:600px){.res-g{grid-template-columns:repeat(4,1fr);}}
+.fbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}.fbar select{flex:1;min-width:120px;padding:8px;background:var(--surf);color:inherit;border:1px solid var(--brd);border-radius:8px;font:inherit;}
+.sq-up{width:96px;height:96px;border:2px dashed var(--brd);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--gold);cursor:pointer;background-size:cover;background-position:center;}
+.cal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;}.cal-g i{font-style:normal;font-size:0.72rem;color:var(--muted);}
+.cal-d{aspect-ratio:1;border:1px solid var(--brd);border-radius:8px;background:var(--surf);color:inherit;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;}.cal-d small{font-size:0.7rem;color:var(--gold);min-height:1em;}.cal-d.on{border-color:var(--gold);}.cal-d.sel{background:var(--gold);color:#1a1509;}.cal-d.sel small{color:#1a1509;}
 :root{
   --bg:#0b0b0d;--surf:#151517;--surf-light:#1d1d20;--brd:#2a2a2e;
   --gold:#c9a24b;--gold-bg:rgba(201,162,75,0.12);--txt:#f0ede6;--muted:#9a978f;--faint:#5c5a55;
-  --ok:#4caf7d;--warn:#d9a441;--err:#d4574a;
+  --ok:#4caf7d;--warn:#d9a441;--err:#d4574a;--info:#5b8fd9;
   --T:"Playfair Display",Georgia,serif;
   --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
   --M:"JetBrains Mono",monospace;
@@ -106,7 +202,7 @@ else{ ['app','auth','firestore'].forEach(function(n){ document.write('<script sr
   color-scheme:light;
   --bg:#faf8f4;--surf:#ffffff;--surf-light:#f3f0e8;--brd:#e2ddd0;
   --gold:#a8823a;--gold-bg:rgba(168,130,58,0.10);--txt:#2a2620;--muted:#7a756a;--faint:#a39d8f;
-  --ok:#3a8f63;--warn:#b8842f;--err:#b8453a;
+  --ok:#3a8f63;--warn:#b8842f;--err:#b8453a;--info:#3d6fb5;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;}
@@ -225,7 +321,11 @@ window.NAV_CONFIG = { activo: 'contador' };
   <div class="aviso no-print" id="avisoOffline" style="display:none;"></div>
   <div class="aviso no-print" id="alarmaBox" style="display:none;"><span id="alarmaTxt"></span> <button class="btn-ghost" style="margin-left:10px;" onclick="confirmarAlarma()">✓ Entendido</button></div>
 
-  <div class="panel no-print">
+  <div class="no-print" style="display:flex;gap:8px;margin-bottom:18px;"><button class="btn-ghost vtab" id="tabH" onclick="verVista('horas')">⏱️ Horas</button><button class="btn-ghost vtab" id="tabD" onclick="verVista('dias')">🗓️ Días de trabajo</button></div>
+<div id="vistaHoras">
+<div class="tipo-bar tb-h">⏱️ Horas · tiempo trabajado en el computador</div>
+
+  <div class="panel no-print pa-b">
     <h3>Cronómetro</h3>
     <div class="form-row-inline">
       <div class="form-row"><label>Proyecto</label><select id="selProy" onchange="llenarTipos()"></select></div>
@@ -237,7 +337,7 @@ window.NAV_CONFIG = { activo: 'contador' };
     <div class="controles" id="controles"></div>
   </div>
 
-  <div class="panel no-print">
+  <div class="panel no-print pa-b">
     <h3>Modo pomodoro</h3>
     <div class="sw-row"><input type="checkbox" class="al-chk" id="chkPomo" onchange="guardarCfgPomo()"><label for="chkPomo">Activar (se aplica al iniciar la próxima sesión)</label></div>
     <div class="pomo-grid">
@@ -261,7 +361,7 @@ window.NAV_CONFIG = { activo: 'contador' };
     <div class="sw-row"><input type="checkbox" class="al-chk" id="chkRepetir" onchange="guardarCfgPomo()"><label for="chkRepetir">Repetir la alarma hasta que la confirmes</label></div>
   </div>
 
-  <div class="panel">
+  <div class="panel pa-b">
     <h3>Proyectos y bolsa de horas</h3>
     <div id="listaProyectos"></div>
     <div class="empty" id="emptyProyectos" style="display:none;">Aún no hay proyectos. Crea el primero abajo.</div>
@@ -275,7 +375,7 @@ window.NAV_CONFIG = { activo: 'contador' };
     </div>
   </div>
 
-  <div class="panel no-print">
+  <div class="panel no-print pa-b">
     <h3>Tipos de tarea por proyecto</h3>
     <div class="form-row"><label>Proyecto</label><select id="tProy" onchange="renderTipos()"></select></div>
     <div id="listaTipos"></div>
@@ -285,7 +385,7 @@ window.NAV_CONFIG = { activo: 'contador' };
     <button class="btn" onclick="agregarTipo()">Agregar tipo</button>
   </div>
 
-  <div class="panel no-print">
+  <div class="panel no-print pa-b">
     <h3>Registrar tiempo manual</h3>
     <div class="form-row-inline">
       <div class="form-row"><label>Proyecto</label><select id="mProy" onchange="llenarTipos()"></select></div>
@@ -297,7 +397,7 @@ window.NAV_CONFIG = { activo: 'contador' };
     <button class="btn" onclick="registrarManual()">Añadir tiempo</button>
   </div>
 
-  <div class="panel">
+  <div class="panel pa-b">
     <div class="panel-header-row">
       <h3 style="margin-bottom:0;">Bitácora y resumen</h3>
       <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -313,6 +413,53 @@ window.NAV_CONFIG = { activo: 'contador' };
     <div id="listaSesiones"></div>
     <div class="empty" id="emptySesiones" style="display:none;">No hay sesiones registradas.</div>
   </div>
+</div><!-- /vistaHoras -->
+<div id="vistaDias" style="display:none;">
+  <div class="tipo-bar tb-d">🗓️ Días de trabajo · fuera del computador</div>
+  <div class="panel no-print"><h3>Cliente</h3>
+    <div class="form-row-inline">
+      <div class="form-row"><label>Cliente</label><select id="cliSel" onchange="restaurarUlt();renderDias()"></select></div>
+      <div class="form-row"><label>&nbsp;</label><button class="btn-ghost" onclick="abrirReporteCli()" title="Estado de cuenta del cliente (crear o abrir)">👓 Estado de cuenta</button></div>
+    </div>
+    <div class="form-row-inline" style="border-top:1px dashed var(--brd);padding-top:14px;">
+      <div class="form-row"><label>Nuevo cliente</label><input type="text" id="cNombre"></div>
+      <div class="form-row"><label>Valor del día</label><input type="number" id="cValor" min="0" inputmode="numeric"></div>
+    </div>
+    <button class="btn" onclick="crearCliente()">Crear cliente</button>
+  </div>
+  <div class="panel no-print pa-g"><h3>Hoy</h3><div id="hoyBox"></div></div>
+  <div class="panel pa-g pa-res"><h3>Resumen</h3><div id="resDias"></div></div>
+  <div class="panel no-print pa-g"><h3>Registrar día de trabajo</h3>
+    <div class="form-row-inline">
+      <div class="form-row"><label>Fecha</label><input type="date" id="dFecha"></div>
+      <div class="form-row"><label>Jornada</label><select id="dJor" onchange="calcValorDia()"><option value="1">Día completo</option><option value="0.5">Medio día</option></select></div>
+      <div class="form-row"><label>Valor</label><input type="number" id="dValor" min="0" inputmode="numeric"></div>
+    </div>
+    <div class="form-row-inline">
+      <div class="form-row"><label>Tarea</label><input type="text" id="dTarea"></div>
+      <div class="form-row"><label>Etiqueta (obra)</label><input type="text" id="dEtq" list="etqList"><datalist id="etqList"></datalist></div>
+    </div>
+    <button class="btn" id="btnDia" onclick="agregarDia()">Añadir día</button> <button class="btn-ghost" id="btnDiaX" style="display:none;" onclick="cancelarEdDia()">Cancelar</button>
+  </div>
+  <div class="panel pa-g"><h3>Días trabajados</h3>
+    <div class="no-print" style="display:flex;gap:8px;margin-bottom:12px;"><button class="btn-ghost tab-on" id="mdL" onclick="verModoDias('lista')">☰ Lista</button><button class="btn-ghost" id="mdC" onclick="verModoDias('cal')">📅 Calendario</button></div>
+    <div class="fbar no-print" id="fbDias"><select id="fdEtq" onchange="renderDias()"></select><select id="fdMes" onchange="renderDias()"></select><select id="fdJor" onchange="renderDias()"><option value="">Toda jornada</option><option value="1">Día completo</option><option value="0.5">Medio día</option></select><select id="fdOrd" onchange="renderDias()"><option value="fd">Fecha ↓</option><option value="fa">Fecha ↑</option><option value="vd">Valor ↓</option><option value="va">Valor ↑</option></select></div>
+    <div id="listaDiasT"></div><div id="calDias" style="display:none;"></div></div>
+  <div class="panel no-print pa-v"><h3>Registrar pago</h3>
+    <div class="form-row-inline">
+      <div class="form-row"><label>Fecha</label><input type="date" id="pgFecha"></div>
+      <div class="form-row"><label>Monto</label><input type="number" id="pgMonto" min="0" inputmode="numeric"></div>
+      <div class="form-row"><label>Medio</label><select id="pgMedio"><option>Efectivo</option><option>Nequi</option><option>Transferencia</option><option>Otro</option></select></div>
+    </div>
+    <div class="form-row"><label>Nota (opcional)</label><input type="text" id="pgNota"></div>
+    <div class="form-row"><label>Comprobante o foto (opcional)</label><div style="display:flex;align-items:center;gap:10px;"><label class="sq-up" id="pgSq"><input type="file" id="pgFoto" accept="image/*" hidden onchange="previewFoto()"><span id="pgSqT">＋</span></label><button class="icon-btn" id="pgQuitar" style="display:none;" title="Quitar" onclick="quitarFoto()">✕</button></div></div>
+    <button class="btn" id="btnPago" onclick="agregarPago()">Añadir pago</button> <button class="btn-ghost" id="btnPagoX" style="display:none;" onclick="cancelarEdPago()">Cancelar</button>
+  </div>
+  <div class="panel pa-v"><h3>Pagos</h3>
+    <div class="fbar no-print"><select id="fpMed" onchange="renderDias()"><option value="">Todo medio</option><option>Efectivo</option><option>Nequi</option><option>Transferencia</option><option>Otro</option></select><select id="fpMes" onchange="renderDias()"></select><select id="fpOrd" onchange="renderDias()"><option value="fd">Fecha ↓</option><option value="fa">Fecha ↑</option><option value="md">Monto ↓</option><option value="ma">Monto ↑</option></select></div>
+    <div id="listaPagos"></div></div>
+  <div class="undo-bar no-print" id="undoBar"></div><div class="hoy-fijo no-print" id="hoyFijo" style="display:none;"></div>
+</div>
 </main>
 </div><!-- /main-wrap -->
 <div id="toastC" onclick="cerrarToast()" title="Clic para cerrar"></div>
@@ -349,6 +496,275 @@ let usuarioActual = null, proyectos = [], sesiones = [], activo = null, usadoMap
 let ocupado = false, umbral = {}, toastT = null, iniciado = false;
 let tipos = [], tiposListos = false, sembrando = {}, intentosSiembra = {};
 let alarma = { on:false, msg:'', rep:null };
+
+// ============ DÍAS DE TRABAJO (v1.8) ============
+const refCli = db.collection('contadorClientes'), refDias = db.collection('contadorDias'), refPag = db.collection('contadorPagos'), refPend = db.collection('compartirInfoPendientes');
+const CLD = { cloud:'mqwgjh3u', preset:'COMPARTIRINFO', carpeta:'COMPARTIRINFO' };
+let clientes = [], diasT = [], pagos = [];
+// ---- v1.12: secciones plegables ----
+const SEC_ABIERTAS = ['hoy', 'cronometro', 'bitacora-y-resumen', 'resumen', 'dias-trabajados', 'pagos'];
+const secSlug = t => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function secEstado(){ try{ return JSON.parse(localStorage.getItem('contador_sec') || '{}'); }catch(e){ return {}; } }
+function secAbrir(k, ab, guardar){
+  const p = document.querySelector('.panel[data-sec="' + k + '"]'); if(!p) return;
+  p.classList.toggle('cerrado', !ab); const h = p.querySelector('.col-head'); if(h) h.setAttribute('aria-expanded', String(!!ab));
+  if(guardar){ const e = secEstado(); e[k] = !!ab; try{ localStorage.setItem('contador_sec', JSON.stringify(e)); }catch(_){} }
+}
+function secRes(k, t){
+  const p = document.querySelector('.panel[data-sec="' + k + '"]'); if(!p) return;
+  const h3 = p.querySelector('h3'); let r = h3.querySelector('.col-res'); if(!r){ r = document.createElement('span'); r.className = 'col-res'; h3.appendChild(r); }
+  r.textContent = t || '';
+}
+function iniciarSecciones(){
+  const est = secEstado();
+  document.querySelectorAll('#vistaHoras .panel, #vistaDias .panel').forEach(p => {
+    const h3 = p.querySelector('h3'); if(!h3) return;
+    const k = secSlug(h3.textContent), head = h3.closest('.panel-header-row') || h3;
+    p.setAttribute('data-sec', k); head.classList.add('col-head'); head.setAttribute('role', 'button'); head.setAttribute('tabindex', '0');
+    const tog = () => secAbrir(k, p.classList.contains('cerrado'), true);
+    head.addEventListener('click', e => { if(e.target.closest('button,a,select,input')) return; tog(); });
+    head.addEventListener('keydown', e => { if((e.key === 'Enter' || e.key === ' ') && e.target === head){ e.preventDefault(); tog(); } });
+    secAbrir(k, k in est ? est[k] : SEC_ABIERTAS.includes(k), false);
+  });
+  if(activo) secAbrir('cronometro', true, false);
+  renderDias();
+}
+const nDia = n => String(+(+n).toFixed(1));
+const cliActual = () => clientes.find(c => c.id === $('cliSel').value);
+function verVista(v){
+  $('vistaHoras').style.display = v === 'dias' ? 'none' : ''; $('vistaDias').style.display = v === 'dias' ? '' : 'none';
+  $('tabH').classList.toggle('tab-on', v !== 'dias'); $('tabD').classList.toggle('tab-on', v === 'dias');
+  try{ localStorage.setItem('contador_vista', v); }catch(e){}
+}
+function iniciarDias(){
+  let v = 'horas'; try{ v = localStorage.getItem('contador_vista') || 'horas'; }catch(e){}
+  verVista(v); $('dFecha').value = $('pgFecha').value = fechaLocal(Date.now());
+  const ord = (a, b) => (b.fecha || '').localeCompare(a.fecha || '') || ((b.creadoEn && b.creadoEn.seconds) || 0) - ((a.creadoEn && a.creadoEn.seconds) || 0);
+  refCli.onSnapshot(sn => {
+    clientes = []; sn.forEach(d => clientes.push({ id: d.id, ...d.data() }));
+    clientes.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    const el = $('cliSel'), x = el.value;
+    el.innerHTML = clientes.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
+    if(x && clientes.some(c => c.id === x)) el.value = x;
+    restaurarUlt(); renderDias();
+  }, e => console.error('Error cargando clientes:', e));
+  refDias.onSnapshot(sn => { diasT = []; sn.forEach(d => diasT.push({ id: d.id, ...d.data() })); diasT.sort(ord); renderDias(); }, e => console.error('Error cargando días:', e));
+  refPag.onSnapshot(sn => { pagos = []; sn.forEach(d => pagos.push({ id: d.id, ...d.data() })); pagos.sort(ord); renderDias(); }, e => console.error('Error cargando pagos:', e));
+}
+function sepMes(arr, i, ord, f){
+  if(ord !== 'fd' && ord !== 'fa') return '';
+  const m = (arr[i].fecha || '').slice(0, 7); if(i > 0 && (arr[i - 1].fecha || '').slice(0, 7) === m) return '';
+  return '<div class="mes-sep"><span>' + fmtMes(m) + '</span><span>' + f(arr.filter(q => (q.fecha || '').slice(0, 7) === m)) + '</span></div>';
+}
+function restaurarUlt(){
+  const c = cliActual();
+  if(c){ try{ const u = JSON.parse(localStorage.getItem('contador_ult_' + c.id) || 'null'); if(u){ $('dJor').value = String(u.jornada || 1); $('dEtq').value = u.etiqueta || ''; } }catch(e){} }
+  calcValorDia();
+}
+let selAcc = [], selLug = [], hoyNota = '', hoyEd = false, hoySugs = [], undoT = null;
+const tareaTxt = () => { const a = selAcc.join(' Y '), l = selLug.join(' Y '); let t = a + (a && l ? ' - ' : '') + l; if(hoyNota.trim()) t += (t ? ', ' : '') + hoyNota.trim(); return t; };
+const listaAcc = () => [...new Set(clientes.flatMap(c => c.acciones || []))];
+const listaLug = () => (cliActual() || {}).lugares || [];
+function hoyPrev(){ const e = $('hoyPrev'); if(e) e.textContent = tareaTxt() ? 'Se registrará: ' + tareaTxt() : 'Sin selección: se repetirá la última tarea'; }
+function mostrarDeshacer(id, txt){
+  const b = $('undoBar'); b.innerHTML = '<span>✓ Registrado · ' + escapeHtml(txt) + '</span><button class="btn-ghost" id="undoBtn">Deshacer</button>'; b.style.display = 'flex';
+  clearTimeout(undoT); undoT = setTimeout(() => { b.style.display = 'none'; }, 6000);
+  $('undoBtn').onclick = async () => { b.style.display = 'none'; clearTimeout(undoT); await seguro(() => refDias.doc(id).delete()); avisar('Registro deshecho.'); };
+}
+async function regRapido(fecha, jor){
+  const c = cliActual(); if(!c){ alert('Crea o elige un cliente primero.'); return; }
+  if(diasT.some(x => x.clienteId === c.id && x.fecha === fecha)){ avisar('Ese día ya está registrado.'); return; }
+  const mis = diasT.filter(x => x.clienteId === c.id), l = mis[0], sel = tareaTxt(), tarea = sel || (l && l.tarea) || '';
+  if(!tarea){ secAbrir('registrar-dia-de-trabajo', true, false); $('dTarea').focus(); avisar('Elige acción y lugar, o escribe la tarea.'); return; }
+  const jornada = jor || (l && l.jornada) || 1, porDia = c.valorDia || (l ? (l.valor || 0) / (l.jornada || 1) : 0);
+  const dato = { clienteId: c.id, fecha, tarea, etiqueta: (l && l.etiqueta) || '', jornada, valor: Math.round(porDia * jornada), autorId: usuarioActual.uid, autorNombre: usuarioActual.nombre, creadoEn: firebase.firestore.Timestamp.now() };
+  if(sel){ dato.acciones = selAcc.slice(); dato.lugares = selLug.slice(); dato.nota = hoyNota.trim(); }
+  const r = await seguro(() => refDias.add(dato));
+  if(r){ selAcc = []; selLug = []; hoyNota = ''; mostrarDeshacer(r.valor.id, fmtDia(fecha) + ' · ' + (jornada === 0.5 ? 'medio día' : 'completo')); renderHoy(); }
+}
+function hoyTog(t, i){ const v = (t === 'a' ? listaAcc() : listaLug())[i], S = t === 'a' ? selAcc : selLug, k = S.indexOf(v); if(k >= 0) S.splice(k, 1); else S.push(v); renderHoy(); }
+async function hoyAdd(t){
+  const c = cliActual(); if(!c) return;
+  const v = (prompt(t === 'a' ? 'Nueva acción (ej. RESANAR):' : 'Nuevo lugar (ej. PISO 1):') || '').trim(); if(!v) return;
+  const r = await seguro(() => refCli.doc(c.id).update({ [t === 'a' ? 'acciones' : 'lugares']: firebase.firestore.FieldValue.arrayUnion(v) }));
+  if(r){ const S = t === 'a' ? selAcc : selLug; if(!S.includes(v)) S.push(v); }
+}
+async function hoyDel(t, i){
+  const v = (t === 'a' ? listaAcc() : listaLug())[i]; if(!v || !confirm('¿Quitar "' + v + '" de la lista?')) return;
+  const campo = t === 'a' ? 'acciones' : 'lugares', objs = t === 'a' ? clientes.filter(c => (c.acciones || []).includes(v)) : [cliActual()];
+  await seguro(() => Promise.all(objs.map(c => refCli.doc(c.id).update({ [campo]: firebase.firestore.FieldValue.arrayRemove(v) }))));
+  const S = t === 'a' ? selAcc : selLug, k = S.indexOf(v); if(k >= 0) S.splice(k, 1);
+}
+function hoyUlt(){
+  const c = cliActual(), l = c && diasT.filter(x => x.clienteId === c.id)[0]; if(!l){ avisar('Aún no hay un día anterior.'); return; }
+  if(l.acciones || l.lugares){ selAcc = (l.acciones || []).slice(); selLug = (l.lugares || []).slice(); hoyNota = l.nota || ''; } else { selAcc = []; selLug = []; hoyNota = l.tarea || ''; }
+  renderHoy();
+}
+function hoyLimpiar(){ selAcc = []; selLug = []; hoyNota = ''; renderHoy(); }
+function hoyEditar(){ hoyEd = !hoyEd; renderHoy(); }
+function hoyCalcSugs(){
+  const c = cliActual(); if(!c) return []; const cnt = {}, ya = new Set([...listaAcc(), ...listaLug()].map(x => x.toUpperCase()));
+  diasT.filter(x => x.clienteId === c.id).forEach(x => String(x.tarea || '').split(/\s*[-,]\s*/).flatMap(f => f.split(/\s+Y\s+/i)).forEach(f => { f = f.trim().toUpperCase(); if(f.length >= 3 && f.length <= 40 && !ya.has(f)) cnt[f] = (cnt[f] || 0) + 1; }));
+  return Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 12).map(e => e[0]);
+}
+async function hoySugAdd(i, t){ const v = hoySugs[i], c = cliActual(); if(!v || !c) return; await seguro(() => refCli.doc(c.id).update({ [t === 'a' ? 'acciones' : 'lugares']: firebase.firestore.FieldValue.arrayUnion(v) })); }
+function hoyDia(iso){ const c = cliActual(); if(!c) return; const rec = diasT.find(x => x.clienteId === c.id && x.fecha === iso); if(rec) editarDia(rec.id); else regRapido(iso, 0); }
+function renderHoy(){
+  const c = cliActual(), box = $('hoyBox'), fj = $('hoyFijo');
+  if(!c){ box.innerHTML = '<div class="empty">Crea o elige un cliente.</div>'; fj.style.display = 'none'; return; }
+  const mis = diasT.filter(x => x.clienteId === c.id), ms = Date.now(), hoy = fechaLocal(ms), ay = fechaLocal(ms - 86400000), rec = mis.find(x => x.fecha === hoy);
+  const chips = (t, L, S) => L.map((v, i) => `<span class="chip-g"><button class="chip${S.includes(v) ? ' on' : ''}" onclick="hoyTog('${t}',${i})">${escapeHtml(v)}</button>${hoyEd ? `<button class="chip" style="color:var(--err);" title="Quitar" onclick="hoyDel('${t}',${i})">✕</button>` : ''}</span>`).join('') + `<button class="chip" title="Agregar" onclick="hoyAdd('${t}')">＋</button>`;
+  const t = new Date(), lun = new Date(t.getFullYear(), t.getMonth(), t.getDate() - (t.getDay() + 6) % 7);
+  let wk = '';
+  for(let k = 0; k < 7; k++){
+    const d = new Date(lun.getFullYear(), lun.getMonth(), lun.getDate() + k), iso = fechaLocal(d.getTime()), rs = mis.filter(x => x.fecha === iso), full = rs.some(x => (x.jornada || 1) !== 0.5);
+    wk += `<button class="wk-d${full ? ' f' : rs.length ? ' h' : ''}${iso === hoy ? ' hoy' : ''}"${iso > hoy ? ' disabled' : ''} onclick="hoyDia('${iso}')" title="${fmtDia(iso)}"><i>${['L','M','M','J','V','S','D'][k]}</i><b>${d.getDate()}</b></button>`;
+  }
+  hoySugs = hoyEd ? hoyCalcSugs() : [];
+  const sug = hoyEd ? `<div class="hoy-l">Sugerencias de tus tareas anteriores (A = acción, L = lugar)</div><div class="chips">${hoySugs.map((v, i) => `<span class="chip-g"><span class="chip">${escapeHtml(v)}</span><button class="chip" onclick="hoySugAdd(${i},'a')">A</button><button class="chip" onclick="hoySugAdd(${i},'l')">L</button></span>`).join('') || '<span class="nota-meta">Sin sugerencias nuevas.</span>'}</div>` : '';
+  box.innerHTML = (rec ? `<div class="nota-meta" style="margin:0 0 6px;"><span>Hoy ✓ ${escapeHtml(rec.tarea || '')} · ${(rec.jornada || 1) === 0.5 ? 'medio día' : 'día completo'}</span></div>` : '')
+    + `<div class="nota-meta" style="margin:0 0 4px;"><span id="hoyPrev"></span></div>`
+    + `<div class="hoy-l">Acción</div><div class="chips">${chips('a', listaAcc(), selAcc)}</div><div class="hoy-l">Lugar</div><div class="chips">${chips('l', listaLug(), selLug)}</div>`
+    + `<input type="text" id="hoyNota" placeholder="Nota opcional (ej. cuartico de ropas)" value="${escapeHtml(hoyNota)}" oninput="hoyNota=this.value;hoyPrev()">`
+    + `<div class="res-act"><button class="btn-ghost" onclick="hoyUlt()">↺ Cargar la última</button><button class="btn-ghost" onclick="hoyLimpiar()">🧹 Limpiar</button><button class="btn-ghost${hoyEd ? ' tab-on' : ''}" onclick="hoyEditar()">${hoyEd ? '✓ Listo' : '✎ Editar listas'}</button></div>${sug}`
+    + `<div class="wk">${wk}</div><button class="btn-ghost" onclick="regRapido('${ay}',0)">↩ Ayer${mis.some(x => x.fecha === ay) ? ' ✓' : ''}</button>`;
+  hoyPrev();
+  fj.style.display = 'flex';
+  fj.innerHTML = rec ? `<button class="btn" onclick="editarDia('${rec.id}')">Hoy registrado ✓ · editar</button>`
+    : `<button class="btn" onclick="regRapido('${hoy}',1)">⚡ Hoy completo</button><button class="btn-ghost" onclick="regRapido('${hoy}',0.5)">◐ Hoy medio día</button>`;
+}
+async function copiarEstado(){
+  const c = cliActual(); if(!c) return;
+  const d = diasT.filter(x => x.clienteId === c.id).slice().reverse(), g = pagos.filter(x => x.clienteId === c.id).slice().reverse();
+  let nd = 0, gan = 0, pag = 0; d.forEach(x => { nd += x.jornada || 1; gan += x.valor || 0; }); g.forEach(x => { pag += x.monto || 0; });
+  const t = ['ESTADO DE CUENTA · ' + c.nombre, '', 'Días: ' + nDia(nd) + ' · Ganado: ' + formatCOP(gan) + ' · Pagado: ' + formatCOP(pag), (gan - pag >= 0 ? 'Saldo pendiente: ' : 'Pagado de más: ') + formatCOP(Math.abs(gan - pag)), '', 'DÍAS']
+    .concat(d.map(x => '• ' + fmtDia(x.fecha) + ' — ' + x.tarea + (x.etiqueta ? ' (' + x.etiqueta + ')' : '') + ((x.jornada || 1) === 0.5 ? ' [medio día]' : '') + ' — ' + formatCOP(x.valor || 0)), ['', 'PAGOS'], g.map(x => '• ' + fmtDia(x.fecha) + ' — ' + formatCOP(x.monto || 0) + ' (' + x.medio + ')' + (x.nota ? ' ' + x.nota : ''))).join('\n');
+  try{ await navigator.clipboard.writeText(t); avisar('Resumen copiado.'); }catch(e){ prompt('Copia el resumen:', t); }
+}
+function calcValorDia(){ const c = cliActual(); $('dValor').value = c && c.valorDia ? Math.round(c.valorDia * (+$('dJor').value)) : ''; }
+function abrirReporteCli(){ const c = cliActual(); if(!c){ alert('Crea o elige un cliente primero.'); return; } window.open('compartirinfo.html?c=' + encodeURIComponent(c.id), '_blank', 'noopener'); }
+async function crearCliente(){
+  const nombre = $('cNombre').value.trim(); if(!nombre){ alert('Escribe el nombre del cliente.'); return; }
+  const r = await seguro(() => refCli.add({ nombre, valorDia: +$('cValor').value || null, creadoEn: firebase.firestore.Timestamp.now() }));
+  if(r){ $('cNombre').value = ''; $('cValor').value = ''; }
+}
+const DSM = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'], MSM = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'], MLG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function fmtDia(f){ const p = String(f || '').split('-'); if(p.length < 3) return f || ''; const d = new Date(+p[0], +p[1] - 1, +p[2]); return DSM[d.getDay()] + ' ' + (+p[2]) + ' ' + MSM[+p[1] - 1] + (+p[0] !== new Date().getFullYear() ? ' ' + p[0] : ''); }
+const thC = (u, w) => String(u).replace('/upload/', '/upload/c_fill,w_' + w + ',h_' + w + ',q_auto,f_auto/');
+let calMes = fechaLocal(Date.now()).slice(0, 7), calSelF = '';
+function previewFoto(){ const f = $('pgFoto').files[0], u = f ? URL.createObjectURL(f) : (edPago && edPago.comp && edPago.comp.url ? thC(edPago.comp.url, 200) : ''); $('pgSq').style.backgroundImage = u ? 'url(' + u + ')' : ''; $('pgSqT').style.display = u ? 'none' : ''; $('pgQuitar').style.display = u ? '' : 'none'; }
+function quitarFoto(){ if(edPago) edPago.comp = null; $('pgFoto').value = ''; previewFoto(); }
+function verModoDias(m){ const c = m === 'cal'; $('listaDiasT').style.display = $('fbDias').style.display = c ? 'none' : ''; $('calDias').style.display = c ? '' : 'none'; $('mdL').classList.toggle('tab-on', !c); $('mdC').classList.toggle('tab-on', c); }
+function calNav(n){ const p = calMes.split('-'), d = new Date(+p[0], +p[1] - 1 + n, 1); calMes = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); calSelF = ''; renderDias(); }
+function calSel(f){ calSelF = f; renderDias(); }
+function optsSel(id, vals, todo, fmt){ const el = $(id), x = el.value; el.innerHTML = '<option value="">' + todo + '</option>' + vals.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(fmt ? fmt(v) : v)}</option>`).join(''); if(vals.includes(x)) el.value = x; }
+const fmtMes = m => MLG[+m.slice(5) - 1] + ' ' + m.slice(0, 4);
+function renderCal(d, g){
+  const p = calMes.split('-'), y = +p[0], m = +p[1] - 1, n = new Date(y, m + 1, 0).getDate(), off = (new Date(y, m, 1).getDay() + 6) % 7;
+  let h = `<div class="cal-h"><button class="icon-btn" onclick="calNav(-1)">◀</button><b>${MLG[m]} ${y}</b><button class="icon-btn" onclick="calNav(1)">▶</button></div><div class="cal-g">` + ['L','M','M','J','V','S','D'].map(x => `<i>${x}</i>`).join('') + '<span></span>'.repeat(off);
+  for(let k = 1; k <= n; k++){
+    const iso = calMes + '-' + String(k).padStart(2, '0'), ds = d.filter(x => x.fecha === iso), pg = g.some(x => x.fecha === iso), full = ds.some(x => (x.jornada || 1) !== 0.5);
+    h += `<button class="cal-d${ds.length ? ' on' : ''}${iso === calSelF ? ' sel' : ''}" onclick="calSel('${iso}')">${k}<small>${full ? '●' : ds.length ? '◐' : ''}${pg ? '💵' : ''}</small></button>`;
+  }
+  h += '</div>';
+  if(calSelF){
+    const it = d.filter(x => x.fecha === calSelF).map(x => `<div class="nota-item"><div class="cuerpo"><div class="texto">${escapeHtml(x.tarea || '')}</div><div class="nota-meta"><span>${x.etiqueta ? escapeHtml(x.etiqueta) : ''}</span><span>${(x.jornada || 1) === 0.5 ? 'medio día' : 'día completo'}</span><span>${formatCOP(x.valor || 0)}</span></div></div></div>`).join('')
+      + g.filter(x => x.fecha === calSelF).map(x => `<div class="nota-item"><div class="cuerpo"><div class="texto">💵 ${formatCOP(x.monto || 0)} · ${escapeHtml(x.medio || '')}</div></div></div>`).join('');
+    h += `<div style="margin-top:12px;"><div class="nota-meta"><span class="fecha">${fmtDia(calSelF)}</span></div>${it || '<div class="empty">Sin registros ese día.</div>'}</div>`;
+  }
+  $('calDias').innerHTML = h;
+}
+function renderDias(){
+  const c = cliActual(), id = c ? c.id : '';
+  const d = diasT.filter(x => x.clienteId === id), g = pagos.filter(x => x.clienteId === id);
+  let nd = 0, ganado = 0, pagado = 0;
+  d.forEach(x => { nd += x.jornada || 1; ganado += x.valor || 0; }); g.forEach(x => { pagado += x.monto || 0; });
+  const saldo = ganado - pagado;
+  const pct = ganado > 0 ? Math.min(100, Math.round(pagado * 100 / ganado)) : 0;
+  const rc = (v, t, k) => `<div class="res-c ${k || ''}"><b>${v}</b><span>${t}</span></div>`;
+  $('resDias').innerHTML = !c ? '<div class="empty">Crea un cliente para empezar.</div>' :
+    `<div class="res-g">${rc(nDia(nd), 'Días')}${rc(formatCOP(ganado), 'Ganado', 'b')}${rc(formatCOP(pagado), 'Pagado', 'v')}${rc(formatCOP(Math.abs(saldo)), saldo >= 0 ? 'Saldo pendiente' : 'Pagado de más', saldo > 0 ? 'w' : 'v')}</div>
+    <div class="res-bar"><i style="width:${pct}%"></i></div><div class="nota-meta" style="margin:0;"><span>Pagado ${pct}% de lo ganado</span></div>
+    <div class="res-act no-print"><button class="btn-ghost" onclick="copiarEstado()">📋 Copiar resumen</button></div>`;
+  const et = [...new Set(d.map(x => x.etiqueta).filter(Boolean))];
+  $('etqList').innerHTML = et.map(e => `<option value="${escapeHtml(e)}">`).join('');
+  optsSel('fdEtq', et, 'Toda etiqueta'); optsSel('fdMes', [...new Set(d.map(x => (x.fecha || '').slice(0, 7)))].sort().reverse(), 'Todo mes', fmtMes); optsSel('fpMes', [...new Set(g.map(x => (x.fecha || '').slice(0, 7)))].sort().reverse(), 'Todo mes', fmtMes);
+  const fe = $('fdEtq').value, fm = $('fdMes').value, fj = $('fdJor').value, od = $('fdOrd').value;
+  let dv = d.filter(x => (!fe || x.etiqueta === fe) && (!fm || (x.fecha || '').startsWith(fm)) && (!fj || String(x.jornada || 1) === fj));
+  dv.sort((a, b) => od === 'va' ? (a.valor || 0) - (b.valor || 0) : od === 'vd' ? (b.valor || 0) - (a.valor || 0) : od === 'fa' ? (a.fecha || '').localeCompare(b.fecha || '') : (b.fecha || '').localeCompare(a.fecha || ''));
+  const pm = $('fpMed').value, pmes = $('fpMes').value, op = $('fpOrd').value;
+  let gv = g.filter(x => (!pm || x.medio === pm) && (!pmes || (x.fecha || '').startsWith(pmes)));
+  gv.sort((a, b) => op === 'ma' ? (a.monto || 0) - (b.monto || 0) : op === 'md' ? (b.monto || 0) - (a.monto || 0) : op === 'fa' ? (a.fecha || '').localeCompare(b.fecha || '') : (b.fecha || '').localeCompare(a.fecha || ''));
+  const pie = (n, t, sub) => `<div class="nota-meta" style="margin-top:8px;"><span>Mostrando ${n} de ${t}</span><span>Subtotal <b>${formatCOP(sub)}</b></span></div>`;
+  $('listaDiasT').innerHTML = (dv.length ? dv.map((x, i) => sepMes(dv, i, od, a => nDia(a.reduce((n, q) => n + (q.jornada || 1), 0)) + ' días · ' + formatCOP(a.reduce((n, q) => n + (q.valor || 0), 0))) + `<div class="nota-item"><div class="cuerpo"><div class="texto">${escapeHtml(x.tarea || '')}</div>
+    <div class="nota-meta"><span class="fecha">${fmtDia(x.fecha)}</span>${x.etiqueta ? '<span>' + escapeHtml(x.etiqueta) + '</span>' : ''}<span>${(x.jornada || 1) === 0.5 ? 'medio día' : 'día completo'}</span><span>${formatCOP(x.valor || 0)}</span></div></div>
+    <div class="nota-acciones no-print"><button class="icon-btn" title="Editar" onclick="editarDia('${x.id}')">✏️</button><button class="icon-btn borrar" title="Borrar" onclick="borrarDia('${x.id}')">🗑️</button></div></div>`).join('')
+    : '<div class="empty">Sin días para mostrar.</div>') + (d.length ? pie(dv.length, d.length, dv.reduce((a, x) => a + (x.valor || 0), 0)) : '');
+  $('listaPagos').innerHTML = (gv.length ? gv.map((x, i) => sepMes(gv, i, op, a => a.length + ' · ' + formatCOP(a.reduce((n, q) => n + (q.monto || 0), 0))) + `<div class="nota-item"><div class="cuerpo"><div class="texto">${formatCOP(x.monto || 0)} · ${escapeHtml(x.medio || '')}</div>
+    <div class="nota-meta"><span class="fecha">${fmtDia(x.fecha)}</span>${x.nota ? '<span>' + escapeHtml(x.nota) + '</span>' : ''}</div>${x.comprobante && x.comprobante.url ? '<a href="' + escapeHtml(x.comprobante.url) + '" target="_blank" rel="noopener"><img loading="lazy" src="' + escapeHtml(thC(x.comprobante.url, 120)) + '" width="64" height="64" alt="Comprobante" style="margin-top:6px;border-radius:8px;object-fit:cover;"></a>' : ''}</div>
+    <div class="nota-acciones no-print"><button class="icon-btn" title="Editar" onclick="editarPago('${x.id}')">✏️</button><button class="icon-btn borrar" title="Borrar" onclick="borrarPago('${x.id}')">🗑️</button></div></div>`).join('')
+    : '<div class="empty">Sin pagos para mostrar.</div>') + (g.length ? pie(gv.length, g.length, gv.reduce((a, x) => a + (x.monto || 0), 0)) : '');
+  secRes('cliente', c ? c.nombre : ''); secRes('dias-trabajados', d.length ? nDia(nd) + ' días' : ''); secRes('pagos', g.length ? g.length + ' · ' + formatCOP(pagado) : '');
+  renderHoy();
+  renderCal(d, g);
+}
+let edDiaId = '', edPago = null;
+async function agregarDia(){
+  const c = cliActual(), tarea = $('dTarea').value.trim(), f = $('dFecha').value;
+  if(!c || !f || !tarea){ alert('Elige cliente y fecha, y escribe la tarea.'); return; }
+  const dato = { fecha: f, tarea, etiqueta: $('dEtq').value.trim(), jornada: +$('dJor').value, valor: Math.round(+$('dValor').value) || 0 };
+  const r = await seguro(() => edDiaId ? refDias.doc(edDiaId).update(dato) : refDias.add(Object.assign({ clienteId: c.id }, dato, { autorId: usuarioActual.uid, autorNombre: usuarioActual.nombre, creadoEn: firebase.firestore.Timestamp.now() })));
+  if(r){ if(!edDiaId){ try{ localStorage.setItem('contador_ult_' + c.id, JSON.stringify({ jornada: dato.jornada, etiqueta: dato.etiqueta })); }catch(_){} } cancelarEdDia(); }
+}
+function editarDia(id){
+  const x = diasT.find(q => q.id === id); if(!x) return;
+  secAbrir('registrar-dia-de-trabajo', true, false);
+  edDiaId = id; $('dFecha').value = x.fecha || ''; $('dJor').value = String(x.jornada || 1); $('dValor').value = x.valor || 0; $('dTarea').value = x.tarea || ''; $('dEtq').value = x.etiqueta || '';
+  $('btnDia').textContent = 'Guardar cambios'; $('btnDiaX').style.display = ''; $('btnDia').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function cancelarEdDia(){ edDiaId = ''; $('dTarea').value = ''; $('btnDia').textContent = 'Añadir día'; $('btnDiaX').style.display = 'none'; calcValorDia(); }
+function borrarDia(id){ if(confirm('¿Borrar este día?')) seguro(() => refDias.doc(id).delete()); }
+async function subirComprobante(file){
+  const fd = new FormData(); fd.append('file', file); fd.append('upload_preset', CLD.preset); fd.append('folder', CLD.carpeta);
+  const r = await fetch('https://api.cloudinary.com/v1_1/' + CLD.cloud + '/image/upload', { method: 'POST', body: fd });
+  const j = await r.json(); if(!r.ok || !j.secure_url) throw new Error((j.error && j.error.message) || 'Error de subida');
+  return { url: j.secure_url, publicId: j.public_id };
+}
+async function agregarPago(){
+  const c = cliActual(), monto = Math.round(+$('pgMonto').value), f = $('pgFecha').value;
+  if(!c || !f || !(monto > 0)){ alert('Elige cliente y fecha, y escribe el monto.'); return; }
+  const b = $('btnPago'); b.disabled = true;
+  try{
+    const file = $('pgFoto').files[0], ant = edPago ? edPago.ant : null; let comp = edPago ? edPago.comp : null;
+    if(file){ avisar('Subiendo comprobante…'); comp = await subirComprobante(file); }
+    const dato = { fecha: f, monto, medio: $('pgMedio').value, nota: $('pgNota').value.trim(), comprobante: comp };
+    const r = await seguro(() => edPago ? refPag.doc(edPago.id).update(dato) : refPag.add(Object.assign({ clienteId: c.id }, dato, { autorId: usuarioActual.uid, autorNombre: usuarioActual.nombre, creadoEn: firebase.firestore.Timestamp.now() })));
+    if(r){
+      if(ant && ant.publicId && (!comp || comp.publicId !== ant.publicId)) await seguro(() => refPend.add({ tipo: 'imagen', publicId: ant.publicId, resourceType: 'image', url: ant.url || '', nombre: 'Comprobante de pago', motivo: 'Comprobante reemplazado o quitado en un pago', reporteToken: '', proyectoNombre: c.nombre || '', fecha: f, limpiado: false, creadoPor: usuarioActual.email, creado: firebase.firestore.FieldValue.serverTimestamp() }));
+      cancelarEdPago(); avisar('Pago guardado.');
+    }
+  }catch(e){ console.error('Comprobante:', e); alert('No se pudo subir el comprobante. El pago NO se guardó; inténtalo de nuevo.'); }
+  b.disabled = false;
+}
+function editarPago(id){
+  const x = pagos.find(q => q.id === id); if(!x) return;
+  secAbrir('registrar-pago', true, false);
+  edPago = { id, ant: x.comprobante || null, comp: x.comprobante || null };
+  $('pgFecha').value = x.fecha || ''; $('pgMonto').value = x.monto || ''; $('pgMedio').value = x.medio || 'Efectivo'; $('pgNota').value = x.nota || ''; $('pgFoto').value = ''; previewFoto();
+  $('btnPago').textContent = 'Guardar cambios'; $('btnPagoX').style.display = ''; $('btnPago').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function cancelarEdPago(){ edPago = null; $('pgMonto').value = ''; $('pgNota').value = ''; $('pgFoto').value = ''; previewFoto(); $('btnPago').textContent = 'Añadir pago'; $('btnPagoX').style.display = 'none'; }
+async function borrarPago(id){
+  const x = pagos.find(q => q.id === id); if(!x || !confirm('¿Borrar este pago?')) return;
+  if(x.comprobante && x.comprobante.publicId){
+    const c = clientes.find(q => q.id === x.clienteId);
+    const r = await seguro(() => refPend.add({ tipo: 'imagen', publicId: x.comprobante.publicId, resourceType: 'image', url: x.comprobante.url || '', nombre: 'Comprobante de pago',
+      motivo: 'Pago borrado en el contador', reporteToken: '', proyectoNombre: c ? c.nombre : '', fecha: x.fecha || '', limpiado: false,
+      creadoPor: usuarioActual.email, creado: firebase.firestore.FieldValue.serverTimestamp() }));
+    if(!r) return;
+  }
+  seguro(() => refPag.doc(id).delete());
+}
 
 // ============ GUARD DE SESIÓN (mismo patrón que recordatorios.html v1.11) ============
 if(!loc && estaModoOfflineActivo()){
@@ -527,6 +943,8 @@ async function iniciar(){
   if(activo){ $('selProy').value = activo.proyectoId; $('selEtq').value = activo.etiqueta; }
   iniciarReloj();
   tick();
+  iniciarDias();
+  iniciarSecciones();
 }
 
 function llenarSelects(){
@@ -861,7 +1279,7 @@ function renderBitacora(){
       return `<tr><td>${r.fecha}</td><td>${escapeHtml(nombreProy(r.pid))}</td><td class="num">${r.n}</td><td class="num">${txtDur(r.seg)}</td>
         <td class="num">${p && p.tarifaHora ? formatCOP(r.seg / 3600 * p.tarifaHora) : '—'}</td>
         <td class="no-print"><a class="icon-btn" style="display:inline-block;text-decoration:none;text-align:center;line-height:36px;" target="_blank" rel="noopener"
-        title="Reporte para el cliente (crear o abrir)" href="compartirinfo.html?p=${encodeURIComponent(r.pid)}&amp;d=${encodeURIComponent(r.fecha)}">📤</a></td></tr>`;
+        title="Reporte de horas del cliente (crear o abrir)" href="compartirinfo.html?p=${encodeURIComponent(r.pid)}&amp;d=${encodeURIComponent(r.fecha)}">👓</a></td></tr>`;
     }).join('');
   $('emptySesiones').style.display = lista.length ? 'none' : 'block';
   $('listaSesiones').innerHTML = lista.slice(0, 100).map(s => `<div class="nota-item"><div class="cuerpo">

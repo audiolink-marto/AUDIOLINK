@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="78.50 71.67 99.00 168.33" role="img" aria-label="Audiolink"><defs><radialGradient id="al-glow2" cx="50%" cy="50%" r="50%">
+      <stop offset="0" style="stop-color:#F08400;stop-opacity:0.9000"/>
+      <stop offset="0.15" style="stop-color:#F08400;stop-opacity:0.8370"/>
+      <stop offset="0.3" style="stop-color:#F08400;stop-opacity:0.7020"/>
+      <stop offset="0.45" style="stop-color:#F08400;stop-opacity:0.5220"/>
+      <stop offset="0.6" style="stop-color:#F08400;stop-opacity:0.3420"/>
+      <stop offset="0.75" style="stop-color:#F08400;stop-opacity:0.1800"/>
+      <stop offset="0.9" style="stop-color:#F08400;stop-opacity:0.0630"/>
+      <stop offset="1" style="stop-color:#F08400" stop-opacity="0"/>
+    </radialGradient><linearGradient id="al-shade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" style="stop-color:#4a3b2c" stop-opacity="0"/>
+      <stop offset="0.5" style="stop-color:#4a3b2c" stop-opacity="0"/>
+      <stop offset="1" style="stop-color:#4a3b2c" stop-opacity="0.3"/>
+    </linearGradient><clipPath id="al-cuerpo"><path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z"/></clipPath></defs><svg x="86.50" y="79.67" width="83.00" height="152.33" viewBox="86.5 79.67 83 152.33" overflow="visible">
+      <g transform="translate(128 140) scale(0.68) translate(-128 -140)">
+        <g clip-path="url(#al-cuerpo)"><circle cx="128" cy="89" r="50" fill="url(#al-glow2)"/></g>
+        <path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z" fill="url(#al-shade)" stroke="none"/>
+        <g fill="none" stroke="#4a3b2c" stroke-width="7.35" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z"/>
+          <path d="M160.3 80.5 V128.1" stroke-width="4.41" opacity=".4"/>
+        </g>
+        <circle cx="128" cy="89" r="10" style="fill:#E08A00"/>
+        <circle class="al-punto al-nucleo" cx="128" cy="89" r="4" style="fill:#F5B84A" opacity="0.95"/>
+        <path d="M95.7 116.2 V95.8 C95.7 83.9 102.5 75.4 112.7 71.15" fill="none" stroke="#ffffff" stroke-opacity="0.65" stroke-width="5.88" stroke-linecap="round"/>
+      </g>
+      <g fill="none" stroke="#4a3b2c" stroke-linecap="round" stroke-linejoin="round">
+        <g stroke-width="4.5"><path d="M110 140 V213.2"/><path d="M146 140 V213.2"/><path d="M128 140 V206"/></g>
+        <g transform="translate(110 222) scale(0.92) translate(-100 -222)"><circle cx="100" cy="222" r="6.5" stroke-width="3.25"/><path d="M96 222.4 A4.2 4.2 0 0 1 104 221.05 Z" fill="#4a3b2c" stroke-width="1.08"/></g>
+        <g transform="translate(146 222) scale(0.92) translate(-156 -222)"><circle cx="156" cy="222" r="6.5" stroke-width="3.25"/><path d="M152 221.05 A4.2 4.2 0 0 1 160 222.4 Z" fill="#4a3b2c" stroke-width="1.08"/></g>
+      </g>
+    </svg></svg>

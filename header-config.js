@@ -1,4 +1,16 @@
-// AUDIOLINK · header-config.js · v1.9
+// AUDIOLINK · header-config.js · v1.10
+// v1.10: (a pedido) PRESETS DEL HEADER compartidos por el equipo, en
+// Firestore (colección 'headerPresets', un doc por preset: nombre, config,
+// creadoPor, fecha). 100% agregado al final del archivo — ninguna función
+// ni línea existente cambió (solo este encabezado). Un preset guarda las 24
+// variables del panel (rutas de logo/diffuser + todo lo demás, efectos
+// incluidos). Aplicar un preset escribe esas claves en localStorage y
+// reutiliza _aplicarHeaderConfigLocal() (misma ruta que ya usa el panel), así
+// que el preview, los inputs y la sincronización a configHeader/global (v1.8)
+// funcionan igual que al mover un control a mano. OJO: por esa sincronización,
+// aplicar un preset cambia el header de los PDF de TODO el equipo (los
+// efectos CSS siguen sin sincronizarse a configHeader/global, v1.8). Aplicar,
+// sobrescribir y borrar piden confirmación. Ver bloque "v1.10" al final.
 // v1.9: (a pedido) inicializarHeaderConfig() ahora también LEE
 // configHeader/global de Firestore (antes v1.8 solo escribía) — ver nota
 // completa junto a la función, más abajo. Efecto: el diseño del header
@@ -906,4 +918,213 @@ function seleccionarDeGaleriaHeader(tipo, url){
     if(input) input.value = url;
     actualizarDiffuserPath(url);
   }
+}
+
+// ============================================================
+// v1.10: PRESETS DEL HEADER (compartidos por el equipo, Firestore)
+// ============================================================
+// Colección 'headerPresets'. Doc: { nombre, config:{...24 campos},
+// creadoPor, fecha, actualizadoEn?, actualizadoPor? }. Requiere que la
+// página defina `db` (como la galería); si no, todo se omite en silencio.
+// Los controles de la tarjeta "Presets del equipo" (header-config.html v1.7)
+// llaman a las funciones presetHeader* de abajo.
+
+const HEADER_PRESETS_COLLECTION = 'headerPresets';
+let _headerPresetsCache = [];
+
+function _presetNum(v, d){
+  const n = (typeof v === 'string') ? parseFloat(v) : v;
+  return (typeof n === 'number' && isFinite(n)) ? n : d;
+}
+function _presetColor(v){
+  return (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)) ? v : HEADER_COLOR_DEFAULT;
+}
+function _presetAlign(v){
+  return ['izquierda','centro','derecha'].includes(v) ? v : LOGO_ALIGN_DEFAULT;
+}
+
+// Definición única de los campos de un preset:
+// k = clave en el doc, ls = clave en localStorage, t = tipo, def = valor
+// por defecto, get = valor actual (variables globales de este archivo).
+const HEADER_PRESET_CAMPOS = [
+  { k:'headerColor',          ls:'audiolink_header_color',           t:'color', def:HEADER_COLOR_DEFAULT,            get:() => '#' + HEADER_COLOR_RGB.map(n => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')).join('') },
+  { k:'headerSinFondo',       ls:'audiolink_header_sin_fondo',       t:'bool',  def:false,                           get:() => HEADER_SIN_FONDO },
+  { k:'headerColorOpacity',   ls:'audiolink_header_color_opacity',   t:'num',   def:HEADER_COLOR_OPACITY_DEFAULT,    get:() => HEADER_COLOR_OPACITY },
+  { k:'headerDiffuserOpacity',ls:'audiolink_header_diffuser_opacity',t:'num',   def:HEADER_DIFFUSER_OPACITY_DEFAULT, get:() => HEADER_DIFFUSER_OPACITY },
+  { k:'logoSize',             ls:'audiolink_logo_size',              t:'num',   def:LOGO_SIZE_DEFAULT,               get:() => LOGO_SIZE },
+  { k:'logoAlign',            ls:'audiolink_logo_align',             t:'align', def:LOGO_ALIGN_DEFAULT,              get:() => LOGO_ALIGN },
+  { k:'logoOffsetY',          ls:'audiolink_logo_offset_y',          t:'num',   def:LOGO_OFFSET_Y_DEFAULT,           get:() => LOGO_OFFSET_Y },
+  { k:'logoSinLogo',          ls:'audiolink_logo_sin_logo',          t:'bool',  def:LOGO_SIN_LOGO_DEFAULT,           get:() => LOGO_SIN_LOGO },
+  { k:'logoOpacity',          ls:'audiolink_logo_opacity',           t:'num',   def:LOGO_OPACITY_DEFAULT,            get:() => LOGO_OPACITY },
+  { k:'logoBlur',             ls:'audiolink_logo_blur',              t:'num',   def:LOGO_BLUR_DEFAULT,               get:() => LOGO_BLUR },
+  { k:'logoGrayscale',        ls:'audiolink_logo_grayscale',         t:'num',   def:LOGO_GRAYSCALE_DEFAULT,          get:() => LOGO_GRAYSCALE },
+  { k:'logoContrast',         ls:'audiolink_logo_contrast',          t:'num',   def:LOGO_CONTRAST_DEFAULT,           get:() => LOGO_CONTRAST },
+  { k:'logoSombra',           ls:'audiolink_logo_sombra',            t:'bool',  def:LOGO_SOMBRA_DEFAULT,             get:() => LOGO_SOMBRA },
+  { k:'logoRotacion',         ls:'audiolink_logo_rotacion',          t:'num',   def:LOGO_ROTACION_DEFAULT,           get:() => LOGO_ROTACION },
+  { k:'logoHue',              ls:'audiolink_logo_hue',               t:'num',   def:LOGO_HUE_DEFAULT,                get:() => LOGO_HUE },
+  { k:'logoSaturate',         ls:'audiolink_logo_saturate',          t:'num',   def:LOGO_SATURATE_DEFAULT,           get:() => LOGO_SATURATE },
+  { k:'logoSepia',            ls:'audiolink_logo_sepia',             t:'num',   def:LOGO_SEPIA_DEFAULT,              get:() => LOGO_SEPIA },
+  { k:'diffuserBlur',         ls:'audiolink_diffuser_blur',          t:'num',   def:DIFFUSER_BLUR_DEFAULT,           get:() => DIFFUSER_BLUR },
+  { k:'diffuserGrayscale',    ls:'audiolink_diffuser_grayscale',     t:'num',   def:DIFFUSER_GRAYSCALE_DEFAULT,      get:() => DIFFUSER_GRAYSCALE },
+  { k:'diffuserContrast',     ls:'audiolink_diffuser_contrast',      t:'num',   def:DIFFUSER_CONTRAST_DEFAULT,       get:() => DIFFUSER_CONTRAST },
+  { k:'diffuserSombra',       ls:'audiolink_diffuser_sombra',        t:'bool',  def:DIFFUSER_SOMBRA_DEFAULT,         get:() => DIFFUSER_SOMBRA },
+  { k:'diffuserRotacion',     ls:'audiolink_diffuser_rotacion',      t:'num',   def:DIFFUSER_ROTACION_DEFAULT,       get:() => DIFFUSER_ROTACION }
+];
+
+function _presetNormalizar(campo, valor){
+  if(campo.t === 'bool')  return valor === true || valor === '1' || valor === 1;
+  if(campo.t === 'color') return _presetColor(valor);
+  if(campo.t === 'align') return _presetAlign(valor);
+  return _presetNum(valor, campo.def);
+}
+
+// Foto del estado actual del panel (24 campos, todos válidos para Firestore).
+function capturarConfigHeaderActual(){
+  const cfg = {
+    logoPath: (document.getElementById('logoPathInput')?.value || localStorage.getItem('audiolink_logo_path') || '').trim(),
+    diffuserPath: (document.getElementById('diffuserPathInput')?.value || localStorage.getItem('audiolink_diffuser_path') || '').trim()
+  };
+  HEADER_PRESET_CAMPOS.forEach(c => { cfg[c.k] = _presetNormalizar(c, c.get()); });
+  return cfg;
+}
+
+// Aplica un config de preset al panel y al localStorage. Campos que falten
+// en el preset (o inválidos) caen a su valor por defecto.
+function aplicarConfigHeaderPreset(cfg){
+  cfg = cfg || {};
+  // Rutas: se escriben por las funciones de siempre (el input se setea
+  // antes porque _aplicarHeaderConfigLocal() no pisa el input con una ruta vacía).
+  const rutaLogo = (typeof cfg.logoPath === 'string') ? cfg.logoPath.trim() : '';
+  const rutaDiffuser = (typeof cfg.diffuserPath === 'string') ? cfg.diffuserPath.trim() : '';
+  const inLogo = document.getElementById('logoPathInput');
+  const inDiffuser = document.getElementById('diffuserPathInput');
+  if(inLogo) inLogo.value = rutaLogo;
+  if(inDiffuser) inDiffuser.value = rutaDiffuser;
+  actualizarLogoPath(rutaLogo);
+  actualizarDiffuserPath(rutaDiffuser);
+  // Resto de campos: localStorage + _aplicarHeaderConfigLocal() (inputs, variables, preview).
+  HEADER_PRESET_CAMPOS.forEach(c => {
+    const v = _presetNormalizar(c, cfg[c.k]);
+    localStorage.setItem(c.ls, c.t === 'bool' ? (v ? '1' : '0') : String(v));
+  });
+  _aplicarHeaderConfigLocal();
+}
+
+function _presetEstado(msg, tipo){
+  const el = document.getElementById('presetHeaderEstado');
+  if(!el) return;
+  el.textContent = msg || '';
+  el.className = 'upload-status' + (tipo ? ' ' + tipo : '');
+  clearTimeout(_presetEstado._t);
+  if(msg) _presetEstado._t = setTimeout(() => { el.textContent = ''; el.className = 'upload-status'; }, 4000);
+}
+function _presetUsuario(){
+  try{ return (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.email) || ''; }
+  catch(e){ return ''; }
+}
+function _presetSeleccionado(){
+  const id = document.getElementById('presetHeaderSelect')?.value || '';
+  return _headerPresetsCache.find(p => p.id === id) || null;
+}
+
+function renderPresetsHeader(){
+  const sel = document.getElementById('presetHeaderSelect');
+  if(!sel) return;
+  const previo = sel.value;
+  sel.innerHTML = '';
+  if(!_headerPresetsCache.length){
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = '— Sin presets guardados —';
+    sel.appendChild(o);
+  } else {
+    _headerPresetsCache.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id; o.textContent = p.nombre || '(sin nombre)';
+      sel.appendChild(o);
+    });
+    if(_headerPresetsCache.some(p => p.id === previo)) sel.value = previo;
+  }
+  mostrarMetaPresetHeader();
+}
+
+function mostrarMetaPresetHeader(){
+  const el = document.getElementById('presetHeaderMeta');
+  if(!el) return;
+  const p = _presetSeleccionado();
+  if(!p){ el.textContent = ''; return; }
+  const quien = p.actualizadoPor || p.creadoPor || '';
+  const cuando = p.actualizadoEn || p.fecha || '';
+  let f = '';
+  if(cuando){ const d = new Date(cuando); f = isNaN(d) ? '' : d.toLocaleString('es-CO', { dateStyle:'medium', timeStyle:'short' }); }
+  el.textContent = (quien || f) ? ('Última modificación' + (quien ? ' por ' + quien : '') + (f ? ' · ' + f : '')) : '';
+}
+
+function escucharPresetsHeader(){
+  if(typeof db === 'undefined' || !db) return;
+  db.collection(HEADER_PRESETS_COLLECTION).orderBy('nombre').onSnapshot(snap => {
+    const lista = [];
+    snap.forEach(doc => lista.push({ id: doc.id, ...doc.data() }));
+    _headerPresetsCache = lista;
+    renderPresetsHeader();
+  }, err => {
+    console.error('No se pudo leer los presets (headerPresets):', err);
+    _presetEstado('No se pudieron leer los presets (revisa las Rules de headerPresets).', 'err');
+  });
+}
+
+function presetHeaderGuardarNuevo(){
+  if(typeof db === 'undefined' || !db){ _presetEstado('Sin conexión a Firestore.', 'err'); return; }
+  const inp = document.getElementById('presetHeaderNombre');
+  const nombre = (inp?.value || '').trim().slice(0, 60);
+  if(!nombre){ _presetEstado('Escribe un nombre para el preset.', 'err'); return; }
+  const config = capturarConfigHeaderActual();
+  const ahora = new Date().toISOString();
+  const usuario = _presetUsuario();
+  const repetido = _headerPresetsCache.find(p => (p.nombre || '').trim().toLowerCase() === nombre.toLowerCase());
+  if(repetido){
+    if(!confirm('Ya existe un preset llamado «' + repetido.nombre + '».\n\n¿Sobrescribirlo con los ajustes actuales del panel?')) return;
+    db.collection(HEADER_PRESETS_COLLECTION).doc(repetido.id)
+      .set({ config, actualizadoEn: ahora, actualizadoPor: usuario }, { merge: true })
+      .then(() => { _presetEstado('✓ Preset «' + repetido.nombre + '» sobrescrito', 'ok'); if(inp) inp.value = ''; })
+      .catch(err => { console.error(err); _presetEstado('No se pudo guardar: ' + err.message, 'err'); });
+    return;
+  }
+  db.collection(HEADER_PRESETS_COLLECTION)
+    .add({ nombre, config, creadoPor: usuario, fecha: ahora })
+    .then(ref => {
+      _presetEstado('✓ Preset «' + nombre + '» guardado', 'ok');
+      if(inp) inp.value = '';
+      const sel = document.getElementById('presetHeaderSelect');
+      if(sel && ref && ref.id) setTimeout(() => { if(_headerPresetsCache.some(p => p.id === ref.id)){ sel.value = ref.id; mostrarMetaPresetHeader(); } }, 400);
+    })
+    .catch(err => { console.error(err); _presetEstado('No se pudo guardar: ' + err.message, 'err'); });
+}
+
+function presetHeaderAplicar(){
+  const p = _presetSeleccionado();
+  if(!p){ _presetEstado('Elige un preset de la lista.', 'err'); return; }
+  if(!confirm('Esto cambia el header de los PDF de todo el equipo.\n\n¿Aplicar «' + p.nombre + '»?')) return;
+  aplicarConfigHeaderPreset(p.config);
+  _presetEstado('✓ Preset «' + p.nombre + '» aplicado', 'ok');
+}
+
+function presetHeaderSobrescribir(){
+  if(typeof db === 'undefined' || !db){ _presetEstado('Sin conexión a Firestore.', 'err'); return; }
+  const p = _presetSeleccionado();
+  if(!p){ _presetEstado('Elige un preset de la lista.', 'err'); return; }
+  if(!confirm('¿Sobrescribir «' + p.nombre + '» con los ajustes actuales del panel?\n\nEsto reemplaza lo que tenía guardado ese preset.')) return;
+  db.collection(HEADER_PRESETS_COLLECTION).doc(p.id)
+    .set({ config: capturarConfigHeaderActual(), actualizadoEn: new Date().toISOString(), actualizadoPor: _presetUsuario() }, { merge: true })
+    .then(() => _presetEstado('✓ Preset «' + p.nombre + '» actualizado', 'ok'))
+    .catch(err => { console.error(err); _presetEstado('No se pudo actualizar: ' + err.message, 'err'); });
+}
+
+function presetHeaderBorrar(){
+  if(typeof db === 'undefined' || !db){ _presetEstado('Sin conexión a Firestore.', 'err'); return; }
+  const p = _presetSeleccionado();
+  if(!p){ _presetEstado('Elige un preset de la lista.', 'err'); return; }
+  if(!confirm('¿Borrar el preset «' + p.nombre + '»?\n\nNo se puede deshacer.')) return;
+  db.collection(HEADER_PRESETS_COLLECTION).doc(p.id).delete()
+    .then(() => _presetEstado('✓ Preset «' + p.nombre + '» borrado', 'ok'))
+    .catch(err => { console.error(err); _presetEstado('No se pudo borrar: ' + err.message, 'err'); });
 }

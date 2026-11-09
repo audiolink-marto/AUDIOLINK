@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Header PDF (v1.6)</title>
-<!-- AUDIOLINK · header-config.html · v1.6
+<title>Audiolink — Header PDF (v1.7)</title>
+<!-- AUDIOLINK · header-config.html · v1.7
+     v1.7: (a pedido) tarjeta nueva "Presets del equipo" arriba de la columna
+     izquierda: guarda los ajustes actuales del panel como preset en Firestore
+     (colección headerPresets, compartidos por todo el equipo) y permite
+     aplicar, sobrescribir y borrar. Aplicar/Sobrescribir/Borrar piden
+     confirmación (aplicar cambia el header de los PDF de todo el equipo).
+     Toda la lógica vive en header-config.js v1.10 (funciones presetHeader*).
+     Único cambio en el script de la página: escucharPresetsHeader() junto a
+     escucharGaleriaHeader() (modo offline y tras el guard de sesión).
+     Ningún otro control se tocó.
      v1.6: (a pedido) los 4 checkboxes pasan a verse como el switch del dial
      (.al-chk): "Sin fondo" y "Sin logo" en rojo (ocultar); las 2 sombras en
      dorado (ajustes). Siguen siendo <input type="checkbox"> reales: ids,
@@ -281,6 +290,33 @@ window.NAV_CONFIG = { activo: 'header-config' };
   <div class="config-col">
 
   <div class="card">
+    <h3>Presets del equipo</h3>
+    <div class="sub">Guarda los ajustes actuales de este panel (rutas, color, tamaño y todos los efectos) como preset compartido con todo el equipo. Aplicar un preset cambia el header de los PDF de todos.</div>
+
+    <div class="field">
+      <label for="presetHeaderSelect">Preset guardado</label>
+      <select id="presetHeaderSelect" onchange="mostrarMetaPresetHeader()">
+        <option value="">— Sin presets guardados —</option>
+      </select>
+      <div class="sub" id="presetHeaderMeta" style="margin:6px 0 0;"></div>
+      <div class="upload-row">
+        <button type="button" class="btn" title="Aplica el preset elegido al panel y al header de los PDF de todo el equipo (pide confirmación)." onclick="presetHeaderAplicar()">▶ Aplicar</button>
+        <button type="button" class="upload-btn" title="Reemplaza lo guardado en el preset elegido con los ajustes actuales del panel (pide confirmación)." onclick="presetHeaderSobrescribir()">♻️ Sobrescribir</button>
+        <button type="button" class="upload-btn" title="Borra el preset elegido para todo el equipo (pide confirmación)." onclick="presetHeaderBorrar()">🗑 Borrar</button>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:0;">
+      <label for="presetHeaderNombre">Guardar los ajustes actuales como</label>
+      <input type="text" id="presetHeaderNombre" maxlength="60" placeholder="ej: Header oscuro sobrio" onkeydown="if(event.key==='Enter'){event.preventDefault();presetHeaderGuardarNuevo();}">
+      <div class="upload-row">
+        <button type="button" class="btn" title="Guarda los ajustes actuales del panel como un preset nuevo. Si el nombre ya existe, pregunta antes de sobrescribirlo." onclick="presetHeaderGuardarNuevo()">💾 Guardar como nuevo</button>
+        <span class="upload-status" id="presetHeaderEstado"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <h3>Logo y textura</h3>
     <div class="sub">Rutas de las imágenes usadas en el header de todos los PDF del ecosistema.</div>
 
@@ -459,6 +495,7 @@ document.addEventListener('DOMContentLoaded', function(){
 if(typeof estaModoOfflineActivo === 'function' && estaModoOfflineActivo()){
   console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
   escucharGaleriaHeader();
+  escucharPresetsHeader(); // v1.7
 } else {
   auth.onAuthStateChanged(async (user) => {
     if(!user){
@@ -473,6 +510,7 @@ if(typeof estaModoOfflineActivo === 'function' && estaModoOfflineActivo()){
         return;
       }
       escucharGaleriaHeader();
+      escucharPresetsHeader(); // v1.7
     } catch(e){
       console.error('Error validando sesión:', e);
       window.location.href = 'login.html';

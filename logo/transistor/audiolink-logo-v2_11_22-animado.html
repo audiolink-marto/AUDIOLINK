@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<!-- v2.11.22 · VUELTA al diseño de v2.11.15: se descartan todas las pruebas de sonrisa (tarjeta comparativa, #al-o-boca, #al-o-int1, #al-o-int2 y la opción class="al-cara" de alCable()). La "o" con la sonrisa ámbar dentro (#al-o), el símbolo, cable, pulso, colores, tema y hojas quedan como estaban. -->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audiolink · Logo v2.11.22</title>
+<style>
+  @font-face{font-family:'AL Chakra Petch';font-weight:600;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,d09GMgABAAAAAAOEAA4AAAAAB0AAAAMyAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbgUIcMAZgAFwRCAqDPIJeATYCJAMkCxQABCAFg3IHIBvZBQieA27TjOGE6VaEWFc48T8/Zu/22/MR1O91e/dfKq0rUJ44XC8OZHPYZhQYF2EjVCzCwvg86OXXcl6Wcj+3a/RBAdEhO18hJKAw7f+uZb8Mui+uCDiLyVJ2ppkSoCOQhKo9RYrUOSDH/Q/AXnv+L6c3Ft8Bf/EDPeAT2oNHA9v8LZrU88ATG9umRXEb08wCaRi76AH+IwmYBkgiTgR9PWGMBltZReD8yDEdOD9hjoAzY1AJiIdnQQfmEBByxokza4xhF2aiQL0f/8S6UJJMrlTxRdZR8IMZlZwBK9pGhAN8cBfaZTsASo5bGSbIrywHdu4T4pKA8ADoACAAwPYgE8Gte2LzOnmB8pshgADxb3gJW4wgoYFlfPIyYzvALGdK92QIDUqsUMyq6b5cv21YsWzJbDqud1BlDugBi8A0vAI/AAUgGSMiRkuVtXte5417c6rTWkspCss4jWNLOkqnpwapg/uRkU6zyLl10nRy9JXBckQT1S8KS7dhwVqOzi1PErmVPF0GfRWypVSUkfoxa1w+ap8uj2NG+1LYYmTknieOnjWUlRrsbawnIRohV/xyFxhVZudmnR2WFeR6PE+i35u685BIHxPCHfkndUF+/sVhXVn5TFZiz/K7ZebPIwaj3+kOGwn8Tx7iRvwi13fdvvXtRO0vL2tf8ZBcZj3VWPxHKisqNjAe5lWKCiV24/sPnaUZRNry4bLxY+MuK0Lk/XjDOyolxJX/SaqqKjcBCAgsbFpm3Not/LlZ9gvGb3VvAMbDsd4//O9NWStvocOAwPMwR42Y/5/aX+K99vKQipwmIAsJDTMW0p14/2zlDvG5S2imEsUAejaYWWYCANAw6LhgRKUFhigC0nMKTOMdZJZ878ybgsJaDF1DqRN6ElF6zQSEEsYgAfz4C4MUweSQRBhHTcBB8sgxUhjCAkpFTjrEb4wnYjBKUA9xgzGMXr0IvnwpEQwmkvAhRWn50goikPIn5zst39vzsYO6L+wcheS0iASUhkwBOSWRBkfgz4df9GmkREkyIZHYYMN5D4mUKNsbT1A6yMIIwyhwBwFTGKHDuNPQYTQh3CdMjARidY0B) format('woff2')}
+  :root{
+    --bg:#f6efe0; --surf:#fffaf0; --tinta:#4a3b2c; --muted:#8a7a66; --ambar:#E08A00; --link:#A85F00; --ambar-c:#F5B84A; --ambar-pico:#F5A00F; --ambar-c-pico:#FFD27A; --halo:#F08400; --halo-1:.9; --halo-2:.4; --linea:rgba(74,59,44,.15);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-tema="claro"]){
+      --bg:#14110d; --surf:#1d1812; --tinta:#e9dcc3; --muted:#9a8c76; --linea:rgba(233,220,195,.15); --ambar:#F5A524; --link:#F5A524; --ambar-c:#FFD27A; --ambar-pico:#FFB93D; --ambar-c-pico:#FFE3A0; --halo:#F5A524; --halo-1:.7; --halo-2:.26;
+    }
+  }
+  :root[data-tema="oscuro"]{
+    --bg:#14110d; --surf:#1d1812; --tinta:#e9dcc3; --muted:#9a8c76; --linea:rgba(233,220,195,.15); --ambar:#F5A524; --link:#F5A524; --ambar-c:#FFD27A; --ambar-pico:#FFB93D; --ambar-c-pico:#FFE3A0; --halo:#F5A524; --halo-1:.7; --halo-2:.26;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--tinta);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px;min-height:100vh}
+  .wrap{max-width:860px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px}
+  h1{font-size:1rem;font-weight:600;margin:0}
+  h2{font-size:.78rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+  button{font:inherit;font-size:.85rem;color:var(--tinta);background:var(--surf);border:1px solid var(--linea);border-radius:999px;padding:7px 14px;cursor:pointer}
+  .card{background:var(--surf);border:1px solid var(--linea);border-radius:16px;padding:28px;margin-bottom:18px}
+  .fila{display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:space-around}
+
+  /* Símbolo */
+  .al-sim{color:var(--tinta);overflow:visible}
+  symbol{overflow:visible}
+
+  /* Nombre: "Audio" en tinta + "link" en ámbar */
+    .al-nombre{font-family:'AL Chakra Petch',system-ui,sans-serif;font-weight:600;letter-spacing:.01em;line-height:1;color:var(--tinta);white-space:nowrap}
+  .al-nombre b{font-weight:600;color:var(--link)}
+  .etq{font-size:.72rem;color:var(--muted);margin-top:8px;text-align:center}
+
+  /* Horizontal: símbolo centrado verticalmente respecto al texto */
+  .al-h{display:inline-flex;align-items:center;gap:.22em}
+  .al-h .al-sim{height:1.223em;width:.667em;flex:none}
+  .al-h .al-nombre{font-size:1em}
+
+  /* Vertical */
+  .al-v{display:inline-flex;flex-direction:column;align-items:center;gap:.2em}
+  .al-v .al-sim{height:2.59em;width:1.411em}
+  .al-v .al-nombre{font-size:1em}
+
+  .tam{display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;justify-content:center}
+  .tam figure{margin:0;text-align:center}
+  .tam figcaption{font-size:.72rem;color:var(--muted);margin-top:6px}
+
+  /* Pulso opcional (login/portada): añadir class="al-vivo" al <svg class="al-sim">. Sin la clase, el símbolo queda estático */
+  .al-halo{transform-box:fill-box;transform-origin:center;animation:var(--al-halo,none)}
+  .al-punto{transform-box:fill-box;transform-origin:center;animation:var(--al-punto,none)}
+  .al-brote{transform-box:fill-box;transform-origin:center;animation:var(--al-brote,none)}
+  .al-nucleo{animation:var(--al-nucleo,none)}
+  .al-vivo{--al-halo:al-pulso 1.8s ease-in-out infinite;--al-punto:al-latido 1.8s ease-in-out infinite;--al-nucleo:al-latido-n 1.8s ease-in-out infinite;--al-brote:al-brote 1.8s ease-in-out infinite}
+  @keyframes al-pulso{0%{opacity:1;transform:scale(1)}14%{opacity:.8;transform:scale(1.15)}28%{opacity:1;transform:scale(1)}42%{opacity:.9;transform:scale(1.1)}70%,100%{opacity:1;transform:scale(1)}}
+  @keyframes al-brote{0%{opacity:0;transform:scale(.8)}14%{opacity:.75;transform:scale(1.05)}28%{opacity:0;transform:scale(1.25)}42%{opacity:.5;transform:scale(1.1)}56%,100%{opacity:0;transform:scale(.8)}}
+  @keyframes al-latido{0%{transform:scale(1);fill:var(--ambar)}14%{transform:scale(1.3);fill:var(--ambar-pico)}28%{transform:scale(1);fill:var(--ambar)}42%{transform:scale(1.2);fill:var(--ambar-pico)}70%,100%{transform:scale(1);fill:var(--ambar)}}
+  @keyframes al-latido-n{0%{transform:scale(1);fill:var(--ambar-c)}14%{transform:scale(1.3);fill:var(--ambar-c-pico)}28%{transform:scale(1);fill:var(--ambar-c)}42%{transform:scale(1.2);fill:var(--ambar-c-pico)}70%,100%{transform:scale(1);fill:var(--ambar-c)}}
+  /* Aquí el pulso se muestra siempre (ignora prefers-reduced-motion). Para respetarlo, reponer: @media (prefers-reduced-motion:reduce){.al-vivo{--al-halo:none;--al-punto:none}} */
+
+  /* Cable (sale de la pata derecha, no del ojo): SVG overlay generado por alCable() dentro de .al-h / .al-v con class="al-cable". Pulso viajero: añadir class="al-viaja" al mismo contenedor */
+  .al-cable{position:relative}
+  .al-cable-svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+  .al-cable-base{fill:none;stroke:var(--tinta);stroke-opacity:.35;stroke-linecap:round;stroke-linejoin:round}
+  .al-cable-pulso{fill:none;stroke:var(--ambar);stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:var(--dash,14px) var(--len,100px);stroke-dashoffset:var(--dash,14px);opacity:0;animation:var(--al-cable,none)}
+  .al-o{display:inline-block;height:.498em;width:.585em;margin-right:.01em;vertical-align:baseline;fill:currentColor;overflow:visible}
+  .al-bl{display:inline-block;width:0;height:0}
+  .al-viaja{--al-cable:al-viaja 1.8s ease-in-out infinite;--al-letra:al-letra 1.8s ease-in-out infinite}
+  .al-viaja .al-l{animation:var(--al-letra,none)}
+  @keyframes al-viaja{0%,13%{opacity:0;stroke-dashoffset:var(--dash,14px)}16%{opacity:1;stroke-dashoffset:calc(var(--dash,14px)*.7)}38%{opacity:1;stroke-dashoffset:calc(var(--dash,14px) - var(--len,100px))}42%,100%{opacity:0;stroke-dashoffset:calc(var(--len,100px)*-1)}}
+  @keyframes al-letra{0%,32%{color:var(--link)}40%{color:var(--ambar-c-pico)}62%,100%{color:var(--link)}}
+  /* Hoja de comparación */
+  .cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px 24px;align-items:center;justify-items:center;padding:16px 0;border-top:1px solid var(--linea)}
+  .cmp:first-of-type{border-top:0}
+  .cmp figure{margin:0;text-align:center}
+  .cmp .etq{margin-top:10px}
+</style>
+</head>
+<body>
+<!-- Símbolo reutilizable: <svg class="al-sim"><use href="#al-transistor"/></svg> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="al-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" style="stop-color:var(--halo);stop-opacity:var(--halo-1)"/>
+      <stop offset="0.55" style="stop-color:var(--halo);stop-opacity:var(--halo-2)"/>
+      <stop offset="1" style="stop-color:var(--halo)" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="al-glow2" cx="50%" cy="50%" r="50%">
+      <stop offset="0" style="stop-color:var(--halo);stop-opacity:calc(var(--halo-1)*1)"/>
+      <stop offset="0.15" style="stop-color:var(--halo);stop-opacity:calc(var(--halo-1)*0.93)"/>
+      <stop offset="0.3" style="stop-color:var(--halo);stop-opacity:calc(var(--halo-1)*0.78)"/>
+      <stop offset="0.45" style="stop-color:var(--halo);stop-opacity:calc(var(--halo-1)*0.58)"/>
+      <stop offset="0.6" style="stop-color:var(--halo);stop-opacity:calc(var(--halo-1)*0.38)"/>
+      <stop offset="0.75" style="stop-color:var(--halo);stop-opacity:calc(var(--halo-1)*0.2)"/>
+      <stop offset="0.9" style="stop-color:var(--halo);stop-opacity:calc(var(--halo-1)*0.07)"/>
+      <stop offset="1" style="stop-color:var(--halo)" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="al-cuerpo"><path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z"/></clipPath>
+    <linearGradient id="al-shade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" style="stop-color:var(--tinta)" stop-opacity="0"/>
+      <stop offset="0.5" style="stop-color:var(--tinta)" stop-opacity="0"/>
+      <stop offset="1" style="stop-color:var(--tinta)" stop-opacity="0.3"/>
+    </linearGradient>
+    <symbol id="al-transistor" viewBox="86.5 79.67 83 152.33">
+      <g transform="translate(128 140) scale(0.68) translate(-128 -140)">
+        <circle class="al-brote" cx="128" cy="89" r="64" fill="url(#al-glow2)" opacity="0"/>
+        <g clip-path="url(#al-cuerpo)"><circle class="al-halo" cx="128" cy="89" r="50" fill="url(#al-glow2)"/></g>
+        <path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z" fill="url(#al-shade)" stroke="none"/>
+        <g fill="none" stroke="currentColor" stroke-width="7.35" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z"/>
+          <path d="M160.3 80.5 V128.1" stroke-width="4.41" opacity=".4"/>
+        </g>
+        <circle class="al-punto" cx="128" cy="89" r="10" style="fill:var(--ambar)"/>
+        <circle class="al-punto al-nucleo" cx="128" cy="89" r="4" style="fill:var(--ambar-c)" opacity="0.95"/>
+        <path d="M95.7 116.2 V95.8 C95.7 83.9 102.5 75.4 112.7 71.15" fill="none" stroke="#ffffff" stroke-opacity="0.65" stroke-width="5.88" stroke-linecap="round"/>
+      </g>
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <g stroke-width="4.5"><path d="M110 140 V213.2"/><path d="M146 140 V213.2"/><path d="M128 140 V206"/></g>
+        <g transform="translate(110 222) scale(0.92) translate(-100 -222)"><circle cx="100" cy="222" r="6.5" stroke-width="3.25"/><path d="M96 222.4 A4.2 4.2 0 0 1 104 221.05 Z" fill="currentColor" stroke-width="1.08"/></g>
+        <g transform="translate(146 222) scale(0.92) translate(-156 -222)"><circle cx="156" cy="222" r="6.5" stroke-width="3.25"/><path d="M152 221.05 A4.2 4.2 0 0 1 160 222.4 Z" fill="currentColor" stroke-width="1.08"/></g>
+      </g>
+    </symbol>
+    <symbol id="al-o" viewBox="0 0 585 498"><path transform="translate(0 498) scale(1 -1)" fill-rule="evenodd" d="M55 100V398L154 498H430L530 398V100L430 0H154ZM377 95 417 135V363L377 403H208L168 363V135L208 95Z"/><path d="M232 262 C255 310 305 312 345 252" fill="none" style="stroke:var(--ambar)" stroke-width="38" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header>
+    <h1>Audiolink · Logo v2.11.22</h1>
+    <button id="btnTema" type="button">Cambiar tema</button>
+  </header>
+
+  <div class="card">
+    <h2>Horizontal · sidebar y headers</h2>
+      <div class="cmp">
+        <figure><span class="al-h al-cable al-viaja" style="font-size:14px"><svg class="al-sim al-vivo" role="img" aria-label="Audiolink"><use href="#al-transistor"/></svg><span class="al-nombre">audi<svg class="al-o" aria-hidden="true" focusable="false"><use href="#al-o"/></svg><b><span class="al-l">l<i class="al-bl"></i></span>ink</b></span></span><figcaption class="etq">14 px · con cable · pulso viajero</figcaption></figure>
+      </div>
+      <div class="cmp">
+        <figure><span class="al-h al-cable al-viaja" style="font-size:18px"><svg class="al-sim al-vivo" role="img" aria-label="Audiolink"><use href="#al-transistor"/></svg><span class="al-nombre">audi<svg class="al-o" aria-hidden="true" focusable="false"><use href="#al-o"/></svg><b><span class="al-l">l<i class="al-bl"></i></span>ink</b></span></span><figcaption class="etq">18 px · con cable · pulso viajero</figcaption></figure>
+      </div>
+      <div class="cmp">
+        <figure><span class="al-h al-cable al-viaja" style="font-size:28px"><svg class="al-sim al-vivo" role="img" aria-label="Audiolink"><use href="#al-transistor"/></svg><span class="al-nombre">audi<svg class="al-o" aria-hidden="true" focusable="false"><use href="#al-o"/></svg><b><span class="al-l">l<i class="al-bl"></i></span>ink</b></span></span><figcaption class="etq">28 px · con cable · pulso viajero</figcaption></figure>
+      </div>
+      <div class="cmp">
+        <figure><span class="al-h al-cable al-viaja" style="font-size:40px"><svg class="al-sim al-vivo" role="img" aria-label="Audiolink"><use href="#al-transistor"/></svg><span class="al-nombre">audi<svg class="al-o" aria-hidden="true" focusable="false"><use href="#al-o"/></svg><b><span class="al-l">l<i class="al-bl"></i></span>ink</b></span></span><figcaption class="etq">40 px · con cable · pulso viajero</figcaption></figure>
+      </div>
+  </div>
+
+  <div class="card">
+    <h2>Vertical · login y portada</h2>
+      <div class="cmp">
+        <figure><span class="al-v al-cable al-viaja" style="font-size:18px"><svg class="al-sim al-vivo" role="img" aria-label="Audiolink"><use href="#al-transistor"/></svg><span class="al-nombre">audi<svg class="al-o" aria-hidden="true" focusable="false"><use href="#al-o"/></svg><b><span class="al-l">l<i class="al-bl"></i></span>ink</b></span></span><figcaption class="etq">18 px · con cable · pulso viajero</figcaption></figure>
+      </div>
+      <div class="cmp">
+        <figure><span class="al-v al-cable al-viaja" style="font-size:32px"><svg class="al-sim al-vivo" role="img" aria-label="Audiolink"><use href="#al-transistor"/></svg><span class="al-nombre">audi<svg class="al-o" aria-hidden="true" focusable="false"><use href="#al-o"/></svg><b><span class="al-l">l<i class="al-bl"></i></span>ink</b></span></span><figcaption class="etq">32 px · con cable · pulso viajero</figcaption></figure>
+      </div>
+      <div class="cmp">
+        <figure><span class="al-v al-cable al-viaja" style="font-size:48px"><svg class="al-sim al-vivo" role="img" aria-label="Audiolink"><use href="#al-transistor"/></svg><span class="al-nombre">audi<svg class="al-o" aria-hidden="true" focusable="false"><use href="#al-o"/></svg><b><span class="al-l">l<i class="al-bl"></i></span>ink</b></span></span><figcaption class="etq">48 px · con cable · pulso viajero</figcaption></figure>
+      </div>
+  </div>
+
+  <div class="card">
+    <h2>Prueba de tamaños del símbolo</h2>
+    <div class="tam">
+      <figure><svg class="al-sim al-vivo" width="16" height="16"><use href="#al-transistor"/></svg><figcaption>16 px</figcaption></figure>
+      <figure><svg class="al-sim al-vivo" width="32" height="32"><use href="#al-transistor"/></svg><figcaption>32 px</figcaption></figure>
+      <figure><svg class="al-sim al-vivo" width="64" height="64"><use href="#al-transistor"/></svg><figcaption>64 px</figcaption></figure>
+      <figure><svg class="al-sim al-vivo" width="128" height="128"><use href="#al-transistor"/></svg><figcaption>128 px</figcaption></figure>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    var raiz=document.documentElement, btn=document.getElementById('btnTema');
+    try{ var g=localStorage.getItem('audiolink_tema'); if(g) raiz.setAttribute('data-tema',g); }catch(e){}
+    btn.addEventListener('click',function(){
+      var oscuroSistema=window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var actual=raiz.getAttribute('data-tema')||(oscuroSistema?'oscuro':'claro');
+      var nuevo=actual==='oscuro'?'claro':'oscuro';
+      raiz.setAttribute('data-tema',nuevo);
+      try{ localStorage.setItem('audiolink_tema',nuevo); }catch(e){}
+    });
+  })();
+</script>
+
+<script>
+  /* alCable(el): cable que sale de la pata derecha (nunca del ojo), rodea el ojo por fuera y llega a la "l" de link. Horizontal: corre bajo "audio" y sube a la base de la l. Vertical: baja junto al ojo y entra por arriba de la l. El pulso nace en la base de la pata, baja por ella y recorre el cable. */
+  (function(){
+    var NS='http://www.w3.org/2000/svg';
+    function alCable(w){
+      var s=w.querySelector('.al-sim'), l=w.querySelector('.al-l'), bl=w.querySelector('.al-bl');
+      if(!s||!l||!bl) return;
+      var svg=w.querySelector('.al-cable-svg');
+      if(!svg){
+        svg=document.createElementNS(NS,'svg'); svg.setAttribute('class','al-cable-svg'); svg.setAttribute('aria-hidden','true');
+        svg.innerHTML='<path class="al-cable-base"/><path class="al-cable-pulso"/>';
+        w.appendChild(svg);
+      }
+      var W=w.getBoundingClientRect(), S=s.getBoundingClientRect(), L=l.getBoundingClientRect(), B=bl.getBoundingClientRect();
+      var G=(s.getAttribute('data-geo')||'86.5 79.67 83 152.33 146 140 204 163.5').split(' ').map(Number);
+      G.splice(3,1);
+      var fs=parseFloat(getComputedStyle(w).fontSize), u=S.width/G[2];
+      var ox=S.left-W.left, oy=S.top-W.top;
+      var gx=ox+(G[3]-G[0])*u, g0=oy+(G[4]-G[1])*u, g1=oy+(G[5]-G[1])*u, xs=ox+(G[6]-G[0])*u;
+      var sw=Math.max(1.25,5.5*u), lx=L.left-W.left+L.width*0.5, by=B.top-W.top;
+      var r=Math.min(0.09*fs,(xs-gx)/2), rest, y1;
+      if(w.classList.contains('al-v')){
+        y1=S.bottom-W.top+0.03*fs;
+        var ty=by-0.72*fs-0.06*fs, y2=y1+(ty-y1)*0.45, k=(y2-y1)*0.6;
+        rest=' H'+(xs-r)+' Q'+xs+' '+g1+' '+xs+' '+(g1+r)+' V'+y1+' C'+xs+' '+(y1+k)+' '+lx+' '+(y2-k)+' '+lx+' '+y2+' V'+ty;
+      }else{
+        var yr=by+0.14*fs, r1=Math.min(r,(yr-g1)/2.2), r3=Math.min(0.09*fs,(yr-by)/1.8);
+        rest=' H'+(xs-r1)+' Q'+xs+' '+g1+' '+xs+' '+(g1+r1)+' V'+(yr-r1)+' Q'+xs+' '+yr+' '+(xs+r1)+' '+yr+' H'+(lx-r3)+' Q'+lx+' '+yr+' '+lx+' '+(yr-r3)+' V'+(by+sw*0.4);
+      }
+      var base='M'+gx+' '+g1+rest, pulso='M'+gx+' '+g0+' V'+(g1-r)+' Q'+gx+' '+g1+' '+(gx+r)+' '+g1+rest;
+      var p=svg.querySelectorAll('path');
+      p[0].setAttribute('d',base); var bw=Math.max(0.8,sw*0.55); p[0].setAttribute('stroke-width',bw);
+      p[1].setAttribute('d',pulso); p[1].setAttribute('stroke-width',bw);
+      var len=p[1].getTotalLength();
+      p[1].style.setProperty('--len',len+'px'); p[1].style.setProperty('--dash',(0.55*fs)+'px');
+    }
+    function todos(){ var n=document.querySelectorAll('.al-cable'); for(var i=0;i<n.length;i++) alCable(n[i]); }
+    window.alCable=alCable;
+    (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){ todos(); setTimeout(todos,120); });
+    window.addEventListener('load',todos);
+    window.addEventListener('resize',todos);
+  })();
+</script>
+</body>
+</html>

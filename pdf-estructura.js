@@ -1,4 +1,8 @@
-// AUDIOLINK · pdf-estructura.js · v1.92
+// AUDIOLINK · pdf-estructura.js · v1.93
+// v1.93: (a pedido) letra completa en el PDF: dibujarCajas() ya no corta la
+// letra a 22 caracteres; usa dibujarLetraCaja() (ancho real, baja fuente
+// hasta 5.5pt, 2 renglones solo sin regla de tiempo, "…" de último
+// recurso). Único cambio: helper nuevo + 1 bloque en dibujarCajas().
 // v1.92: (a pedido) ahora se ven las 2 notas por compás a la vez en el
 // PDF de percusión, con jerarquía clara:
 //  - Nota de PERCUSIÓN (notasPercusionPorCompas/Ciclo/Final2) — vuelve a
@@ -1276,6 +1280,41 @@ function generarEstructuraPDF(datos){
   //                              principal sobre por qué).
   // v1.71: mismo orden que htmlOpcionesTiempoAcorde (guia-practica.html)
   // para el select de tiempo/anticipación de cada acorde.
+  // v1.93: (a pedido) la letra del compás se mide por ANCHO REAL (getTextWidth)
+  // en vez de cortarse a 22 caracteres. Orden: (1) cabe a la fuente de
+  // siempre (7pt, o 6pt con regla de tiempo) -> igual que antes; (2) baja
+  // la fuente de a 0.25pt hasta 5.5pt en 1 renglón; (3) sin regla de tiempo
+  // en la celda: 2 renglones a 5.5pt dentro de la misma caja (alto sin
+  // cambios); (4) último recurso: 1 renglón a 5.5pt con "…". Con regla de
+  // tiempo NUNCA se usan 2 renglones (se pisarían con las marcas).
+  // Mínimo 5.5pt y márgenes son ESTIMADOS (medir con PDF de prueba).
+  const dibujarLetraCaja = (le, cx, yCaja, anchoMax, hayRegla) => {
+    const FS_BASE = hayRegla ? 6 : 7, FS_MIN = 5.5;
+    const yUnico = yCaja + (hayRegla ? 12 : 13);
+    doc.setFont('helvetica', 'italic');
+    const cabe = (txt) => doc.getTextWidth(txt) <= anchoMax;
+    doc.setFontSize(FS_BASE);
+    if(cabe(le)){ doc.text(le, cx, yUnico, { align: 'center' }); return; }
+    for(let fs = FS_BASE - 0.25; fs >= FS_MIN - 0.001; fs -= 0.25){
+      doc.setFontSize(fs);
+      if(cabe(le)){ doc.text(le, cx, yUnico, { align: 'center' }); return; }
+    }
+    doc.setFontSize(FS_MIN);
+    if(!hayRegla){
+      const lineas = doc.splitTextToSize(le, anchoMax);
+      if(lineas.length <= 2 && lineas.every(cabe)){
+        if(lineas.length === 1){ doc.text(lineas[0], cx, yUnico, { align: 'center' }); }
+        else {
+          doc.text(lineas[0], cx, yCaja + 11.8, { align: 'center' });
+          doc.text(lineas[1], cx, yCaja + 14.6, { align: 'center' });
+        }
+        return;
+      }
+    }
+    let corta = le;
+    while(corta.length > 1 && !cabe(corta + '…')) corta = corta.slice(0, -1);
+    doc.text(corta + '…', cx, yUnico, { align: 'center' });
+  };
   const TIEMPOS_ORDEN = ['1', 'a1', '2', 'a2', '3', 'a3', '4', 'a4'];
   const dibujarCajas = (acordes, letra, total, notas, colInicio, labelInicio, opciones) => {
     opciones = opciones || {};
@@ -1348,9 +1387,8 @@ function generarEstructuraPDF(datos){
       const hayRegla = TIEMPOS_ORDEN.indexOf(tValCelda) !== -1;
       const le = (letra && letra[j]) || '';
       if(le){
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(hayRegla ? 6 : 7);
-        const leCorta = le.length > 22 ? le.slice(0, 21) + '…' : le;
-        doc.text(leCorta, x + cajaAncho / 2, yCaja + (hayRegla ? 12 : 13), { align: 'center' });
+        // v1.93: letra completa por ancho real (ver dibujarLetraCaja).
+        dibujarLetraCaja(le, x + cajaAncho / 2, yCaja, cajaAncho - 3, hayRegla);
         doc.setTextColor(20);
       }
       if(hayRegla){

@@ -1,0 +1,15 @@
+AUDIOLINK · PAQUETE DE LOGO (diseño v2.11.22: "o" con la sonrisa ámbar dentro)
+
+svg/   Vectoriales estáticos (sin pulso). Texto convertido a trazos: no necesitan la fuente.
+png/   Fondo transparente, 500 y 1000 px.
+jpg/   Fondo sólido, 500 y 1000 px.
+audiolink-logo-v2_11_22-animado.html   Hoja con el logo animado (pulso) y estático.
+
+Versiones: vertical, horizontal y simbolo (solo el transistor, sin cable).
+Temas: "claro" (para fondos claros) y "oscuro" (para fondos oscuros).
+
+Tamaños 500 y 1000:
+- vertical y simbolo: lienzo cuadrado (500x500 y 1000x1000).
+- horizontal: 500 y 1000 px de ancho, alto proporcional.
+
+Fondos de los JPG: claro #f6efe0 · oscuro #14110d (los de la hoja).

@@ -7,7 +7,52 @@
 <meta name="color-scheme" content="dark light">
 <meta name="robots" content="noindex,nofollow">
 <title>Audiolink — CompartirInfo</title>
-<!-- compartirinfo.html v1.7
+<!-- compartirinfo.html v2.4
+     v2.4: (a pedido, mobile first) Estado de cuenta y totales: 1) Tipografía numérica: cifras tabulares y de altura uniforme en toda la hoja y en las
+     tarjetas de totales (Playfair Display con lnum/tnum, tamaño fluido clamp(), etiquetas en mayúsculas con espaciado). No se agrega ninguna fuente
+     (ESTIMADO: el efecto de lnum/tnum en Playfair debe verificarse en el celular). 2) Barra de progreso pagado/ganado. 3) Separador por mes (con subtotal)
+     en las listas de días y pagos cuando el orden es por fecha. 4) Botón "📋 Copiar resumen" (texto para WhatsApp) en el estado de cuenta. Sin cambios de
+     datos, lógica ni reglas.
+     v2.3: (a pedido, mobile first) Secciones plegables. Vista del cliente: modo ACORDEÓN (al abrir una se cierra la otra). Los totales ("Tiempo trabajado" /
+     tarjetas del estado de cuenta) quedan siempre visibles (.rp-fija); en horas: Sesiones abierta y Material adicional plegado (las sesiones ya eran
+     <details>); en el estado de cuenta: Días trabajados abierto y Pagos plegado, con su resumen en el título (cantidad y total). Tu editor: cada panel es
+     independiente (pequeño script ciSecInit sobre los paneles existentes, igual que en contador v1.12): abiertos Reporte, Título y link, Datos del
+     contador y Bloques; plegados Respuesta del cliente y Zona delicada; estado recordado por aparato (localStorage ci_sec). Títulos de 44 px con flecha
+     ▸. Al imprimir se muestra todo. Sin cambios de datos, lógica ni reglas.
+     v2.2: (a pedido, mobile first) Distinción clara Horas / Días, solo CSS y clases: Horas = azul (⏱️ Reporte de horas), Días = dorado (🗓️ Estado de cuenta).
+     Vista del cliente y vista previa: etiqueta de tipo bajo la marca, cabecera, línea, puntos de sección y totales con el color del tipo; el título de la
+     pestaña dice el tipo. Editor: chip de tipo junto a "Título y link" y bloques de datos/reporte con el color del tipo (respuesta del cliente sigue verde
+     y zona delicada roja). Historial: chip y borde de color por tipo. PDF: encabezado y color por tipo (azul en horas). El tipo sale de
+     datosContador.tipo o de proyectoId "cli_". Sin cambios de datos, lógica ni reglas.
+     v2.1: (a pedido) Color y estilo, solo CSS y clases (sin cambios de datos ni de reglas). Vista del cliente y vista previa: cabecera con degradado dorado y
+     línea inferior, títulos de sección con punto de color, aparición suave (se desactiva con prefers-reduced-motion). Estado de cuenta: tarjetas de totales con
+     acento (días dorado, ganado azul, pagado verde, saldo ámbar o verde), filas como tarjetas con marca de color (día completo dorado, medio día tenue, pago
+     verde) y anillo en el día de hoy del calendario. Editor: bloques con acento dorado (datos y bloques), azul (reporte y link), verde (respuesta del cliente)
+     y rojo (zona delicada). Nuevo token --info (azul) en tema oscuro y claro. Las horas conservan su contenido.
+     v2.0: (a pedido) Estado de cuenta por días: fechas con día y mes ("Lun 17 oct", con año si no es el actual; en el PDF, fecha larga); filtros
+     (etiqueta, mes, jornada, medio) y orden (fecha/valor/monto) con "Mostrando X de Y · Subtotal"; vista Lista/Calendario mensual de solo lectura
+     (● completo, ◐ medio día, 💵 pago; tocar un día muestra el detalle); miniaturas de Cloudinary en los comprobantes, que se amplían con el visor
+     del reporte. Los totales de arriba siempre son los reales (sin filtros) y el PDF sigue con tablas completas. Las horas no cambian.
+     v1.9: (a pedido) Estado de cuenta por días para clientes de trabajo fuera del computador (contador.html v1.8, pestaña Días de trabajo).
+     Nuevo parámetro ?c=CLIENTEID en el editor (lo abre el botón 👓 del contador): abre o crea UN reporte acumulado por cliente (doc con
+     proyectoId = "cli_" + clienteId; el link no cambia). Al abrirlo los datos se releen solos (falta Guardar). Copia de datos con
+     datosContador.tipo = "dias": días (fecha, tarea, etiqueta, jornada, valor), pagos (fecha, monto, medio, nota, foto del comprobante),
+     días, ganado, pagado y saldo. Se ve en el editor, en la vista del cliente y en el PDF. Este reporte SÍ muestra montos (a propósito).
+     Los reportes de horas no cambian. Requiere reglas v2.46 (colecciones del contador); compartirInfo sigue en v2.43.
+     v1.8: (a pedido) Bloques de texto con formato Markdown (para pegar o cargar los MD de metodologia y verlos con formato).
+     (1) Nuevo lector de Markdown propio, ciMd() (modulo reutilizable, sin librerias): escapa todo primero y solo emite una lista fija
+     de etiquetas; enlaces solo http(s); el HTML en crudo se muestra como texto. Soporta titulos, negrita, cursiva, tachado, codigo (en
+     linea y en bloque), listas (anidadas, numeradas, de tareas), citas, lineas, enlaces y tablas (con scroll horizontal en telefono).
+     (2) Cada bloque de texto tiene selector "Texto simple / Markdown" (campo nuevo formato:'md' dentro del bloque). Si el campo no existe
+     o esta vacio, el bloque se ve EXACTAMENTE como antes, asi que los reportes anteriores no cambian. Con Markdown aparece el interruptor
+     "Editar / Vista previa" del bloque.
+     (3) Boton "Cargar .md" en cada grupo (sesion o generales): acepta varios archivos .md/.markdown/.txt y crea un bloque de texto Markdown
+     por archivo (se lee en el navegador; no sube nada a Cloudinary). Aviso si un archivo pasa de 100 KB (ESTIMADO: el documento del reporte
+     en Firestore tiene tope de 1 MiB en total). Los bloques cargados quedan plegados.
+     (4) Se ve con formato en la vista del cliente, la vista previa y el PDF (ventana nueva). El resumen de una linea del bloque quita los simbolos.
+     Sin cambios en Cloudinary, verificador de pendientes, historial, "Marcar como enviado", guardado, respuesta del cliente, sesiones, tema,
+     logo ni menu. firestore.rules: NO tengo ese archivo; si v2.43 valida las claves dentro de bloques habra que permitir "formato" en los
+     bloques de texto (ESTIMADO: normalmente las reglas no validan dentro de arreglos).
      v1.7: (a pedido) Bloques vinculados a las sesiones del contador, todo colapsable y pensado para teléfono.
      (1) Cada bloque puede asignarse a una sesión (campo opcional sesionId dentro del bloque; vacío = general).
      Para eso, ciLeerContador guarda también el id del documento de contadorSesiones en cada sesión (sesiones[].id).
@@ -137,7 +182,7 @@ if(!window.CI_CLIENTE){
 :root{
   --bg:#0b0b0d;--surf:#151517;--surf-light:#1d1d20;--brd:#2a2a2e;
   --gold:#c9a24b;--gold-bg:rgba(201,162,75,0.12);--txt:#f0ede6;--muted:#9a978f;--faint:#5c5a55;
-  --ok:#4caf7d;--warn:#d9a441;--err:#d4574a;
+  --ok:#4caf7d;--warn:#d9a441;--err:#d4574a;--info:#5b8fd9;
   --T:"Playfair Display",Georgia,serif;
   --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
   --M:"JetBrains Mono",monospace;
@@ -147,7 +192,7 @@ if(!window.CI_CLIENTE){
 :root[data-tema="light"]{
   --bg:#faf8f4;--surf:#ffffff;--surf-light:#f3f0e8;--brd:#e2ddd0;
   --gold:#a8823a;--gold-bg:rgba(168,130,58,0.10);--txt:#2a2620;--muted:#7a756a;--faint:#a39d8f;
-  --ok:#3a8f63;--warn:#b8842f;--err:#b8453a;
+  --ok:#3a8f63;--warn:#b8842f;--err:#b8453a;--info:#3d6fb5;
   color-scheme:light;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -307,6 +352,55 @@ input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
 .rs-stat{flex:1;min-width:0;background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;}
 .rs-stat b{display:block;font-family:var(--M);font-size:1.15rem;color:var(--gold);font-weight:500;overflow-wrap:anywhere;}
 .rs-stat span{font-size:0.76rem;color:var(--muted);}
+.ci-fb{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}.ci-fb select{flex:1;min-width:110px;padding:8px;background:var(--surf);color:inherit;border:1px solid var(--brd);border-radius:8px;font:inherit;}
+.ci-tabs{display:flex;gap:8px;margin:10px 0;}.ci-tabs button{flex:1;padding:8px;background:var(--surf);color:inherit;border:1px solid var(--brd);border-radius:8px;font:inherit;cursor:pointer;}.ci-tabs button.on{border-color:var(--gold);color:var(--gold);}
+.ci-calh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}.ci-calh button{background:none;border:1px solid var(--brd);color:inherit;border-radius:8px;padding:6px 12px;cursor:pointer;}
+.ci-calg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;}.ci-calg i{font-style:normal;font-size:0.72rem;color:var(--muted);}
+.ci-cald{aspect-ratio:1;border:1px solid var(--brd);border-radius:8px;background:var(--surf);color:inherit;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;}.ci-cald small{font-size:0.7rem;color:var(--gold);min-height:1em;}.ci-cald.on{border-color:var(--gold);}.ci-cald.sel{background:var(--gold);color:#1a1509;}.ci-cald.sel small{color:#1a1509;}
+.pa-g{--ac:var(--gold);}.pa-v{--ac:var(--ok);}.pa-b{--ac:var(--info);}.pa-r{--ac:var(--err);}
+.pa-g,.pa-v,.pa-b,.pa-r{border-left:3px solid var(--ac);background:linear-gradient(90deg,color-mix(in srgb,var(--ac) 7%,transparent),transparent 60%),var(--surf);}
+.pa-g h3,.pa-v h3,.pa-b h3,.pa-r h3{color:var(--ac);}
+.rp{animation:ci-in .35s ease both;}@keyframes ci-in{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.rp-cab{position:relative;border-bottom:none;padding-top:14px;border-radius:12px 12px 0 0;background:linear-gradient(180deg,color-mix(in srgb,var(--gold) 8%,transparent),transparent);}
+.rp-cab::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);}
+.rp-sec h3::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gold);margin-right:8px;}
+.rs-stat{border-top:3px solid var(--ac,var(--gold));}.rs-stat b{font-family:var(--T);font-size:1.3rem;color:var(--ac,var(--gold));}
+.rs-stat.b{--ac:var(--info);}.rs-stat.v{--ac:var(--ok);}.rs-stat.w{--ac:var(--warn);}
+.ci-row{background:var(--surf);border:1px solid var(--brd);border-left:4px solid var(--ac);border-radius:10px;padding:10px 12px;margin-bottom:8px;transition:transform .15s;}
+.ci-row.g{--ac:var(--gold);}.ci-row.h{--ac:color-mix(in srgb,var(--gold) 45%,transparent);}.ci-row.v{--ac:var(--ok);}.ci-row:active{transform:scale(.99);}
+.ci-cald.hoy{box-shadow:0 0 0 2px var(--gold);}
+@media (prefers-reduced-motion:reduce){.rp,.ci-row{animation:none;transition:none;}}
+.rp.t-h{--ac:var(--info);}.rp.t-d{--ac:var(--gold);}
+.rp-cab{background:linear-gradient(180deg,color-mix(in srgb,var(--ac,var(--gold)) 8%,transparent),transparent);}
+.rp-cab::after{background:linear-gradient(90deg,var(--ac,var(--gold)),transparent);}
+.rp-sec h3::before{background:var(--ac,var(--gold));}
+.rp-tipo,.tipo-chip{display:inline-block;padding:5px 12px;border-radius:999px;font-size:0.78rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent);border:1px solid color-mix(in srgb,var(--ac) 45%,transparent);}
+.rp-tipo{margin:0 0 10px;}.tipo-chip{padding:3px 10px;font-size:0.72rem;}
+.tc-h{--ac:var(--info);}.tc-d{--ac:var(--gold);}
+.hrow.t-h{border-left:4px solid var(--info);}.hrow.t-d{border-left:4px solid var(--gold);}
+#edWrap.t-h .pa-g,#edWrap.t-h .pa-b{--ac:var(--info);}#edWrap.t-d .pa-g,#edWrap.t-d .pa-b{--ac:var(--gold);}
+.ci-sub{display:flex;align-items:center;min-height:44px;margin-top:8px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.ci-sub::before{content:"▸";display:inline-block;width:1.2em;color:var(--ac,var(--gold));transition:transform .2s;}.ci-sub.on::before{transform:rotate(90deg);}
+.ci-res{margin-left:auto;padding-left:10px;font-size:0.78rem;color:var(--muted);font-weight:500;white-space:nowrap;}
+.rp .rp-sec:not(.rp-fija)>h3{display:flex;align-items:center;min-height:44px;cursor:pointer;margin-bottom:0;}
+.rp .rp-sec:not(.rp-fija)>h3::before{content:"▸";width:auto;height:auto;border-radius:0;background:none;color:var(--ac,var(--gold));transition:transform .2s;}
+.rp .rp-sec:not(.rp-fija):not(.cerrado)>h3::before{transform:rotate(90deg);}
+.col-head{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.panel:not(.cerrado)>.col-head{margin-bottom:8px;}
+.col-head h3{margin:0 !important;display:flex;align-items:center;flex:1;min-width:0;}
+.col-head h3::before{content:"▸";display:inline-block;width:1.2em;color:var(--ac,var(--gold));transition:transform .2s;}
+.panel:not(.cerrado)>.col-head h3::before{transform:rotate(90deg);}
+.col-head:focus-visible,.ci-sub:focus-visible{outline:2px solid var(--ac,var(--gold));outline-offset:2px;border-radius:8px;}
+@media (prefers-reduced-motion:reduce){.ci-sub::before,.rp .rp-sec>h3::before,.col-head h3::before{transition:none;}}
+@media screen{.rp .rp-sec.cerrado>:not(h3){display:none;}.panel.cerrado>:not(.col-head){display:none;}}
+body{font-variant-numeric:tabular-nums lining-nums;}
+.rs-stat b{font-size:clamp(1rem,4.8vw,1.35rem);font-feature-settings:"lnum" 1,"tnum" 1;overflow-wrap:anywhere;}
+.rs-stat span{font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;}
+.ci-bar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--ok) 18%,transparent);overflow:hidden;margin:12px 0 4px;}
+.ci-bar i{display:block;height:100%;background:var(--ok);border-radius:99px;transition:width .4s;}
+.ci-acts{margin-top:10px;}.ci-acts button{width:100%;min-height:44px;}
+.ci-mes{display:flex;justify-content:space-between;gap:8px;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--brd);font-size:0.78rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);}
+@media (prefers-reduced-motion:reduce){.ci-bar i{transition:none;}}
 .rs-fila{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;margin-bottom:10px;font-size:0.88rem;}
 .rs-barra{grid-column:1 / -1;order:3;height:8px;background:var(--surf);border-radius:6px;overflow:hidden;border:1px solid var(--brd);}
 .rs-barra i{display:block;height:100%;background:var(--gold);}
@@ -324,6 +418,34 @@ input[type="checkbox"].al-chk:disabled{opacity:.4;cursor:not-allowed;}
 .rp-bloque{margin-bottom:20px;}
 .rp-bt{font-weight:600;margin-bottom:8px;font-size:0.98rem;}
 .rp-texto{font-size:1.02rem;line-height:1.65;word-break:break-word;}
+/* ---- v1.8: bloques de texto en Markdown ---- */
+.rp-md{word-break:normal;overflow-wrap:anywhere;}
+.md>:first-child{margin-top:0;}
+.md h2,.md h3,.md h4,.md h5,.md h6{font-family:var(--T);color:var(--txt);font-weight:700;line-height:1.3;margin:22px 0 8px;overflow-wrap:anywhere;}
+.md h2{font-size:1.3rem;padding-bottom:6px;border-bottom:1px solid var(--brd);}
+.md h3{font-size:1.12rem;}
+.md h4,.md h5,.md h6{font-size:1rem;}
+.md p{margin:0 0 10px;}
+.md ul,.md ol{margin:0 0 12px;padding-left:22px;}
+.md li{margin:3px 0;}
+.md li.tk{list-style:none;margin-left:-20px;}
+.md-chk{color:var(--gold);margin-right:2px;}
+.md a{color:var(--gold);text-decoration:underline;}
+.md blockquote{margin:0 0 12px;padding:8px 12px;border-left:3px solid var(--gold);background:var(--gold-bg);color:var(--txt);border-radius:0 8px 8px 0;}
+.md blockquote>:last-child{margin-bottom:0;}
+.md code{font-family:var(--M);font-size:0.86em;background:var(--surf-light);border:1px solid var(--brd);border-radius:4px;padding:1px 5px;}
+.md pre{margin:0 0 12px;padding:10px 12px;background:var(--surf);border:1px solid var(--brd);border-radius:8px;overflow-x:auto;break-inside:avoid;}
+.md pre code{background:none;border:0;padding:0;font-size:0.84rem;white-space:pre;}
+.md hr{border:0;border-top:1px solid var(--brd);margin:18px 0;}
+.md del{opacity:.7;}
+.md-tw{overflow-x:auto;margin:0 0 14px;-webkit-overflow-scrolling:touch;}
+.md table{border-collapse:collapse;font-size:0.9rem;min-width:100%;}
+.md th,.md td{border:1px solid var(--brd);padding:7px 10px;text-align:left;vertical-align:top;}
+.md th{background:var(--surf-light);font-weight:600;}
+.md tr{break-inside:avoid;page-break-inside:avoid;}
+.bq-fmt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+.bq-fmt select{min-height:44px;font-size:16px;background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;color:var(--txt);font-family:var(--S);}
+.bq-md-prev{border:1px solid var(--brd);border-radius:8px;padding:12px;background:var(--bg);min-height:120px;}
 .rp-img{width:100%;height:auto;max-height:70vh;object-fit:contain;background:var(--surf);border:1px solid var(--brd);border-radius:10px;cursor:zoom-in;display:block;}
 .rp-video{width:100%;max-height:70vh;background:#000;border-radius:10px;display:block;}
 .rp-yt{position:relative;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden;cursor:pointer;}
@@ -454,7 +576,7 @@ if(!window.CI_CLIENTE){
   <div class="sub-titulo">Arma un reporte por proyecto y día, con los datos del contador, y compártelo con el cliente por link.</div>
   <div class="aviso no-print" id="avisoOffline" style="display:none;"></div>
 
-  <div class="panel no-print">
+  <div class="panel no-print pa-b">
     <div class="panel-header-row">
       <h3 style="margin-bottom:0;">Reporte</h3>
       <div class="hdr-btns">
@@ -471,7 +593,7 @@ if(!window.CI_CLIENTE){
   </div>
 
   <div id="edWrap" style="display:none;">
-    <div class="panel no-print">
+    <div class="panel no-print pa-g">
       <div class="panel-header-row">
         <h3 style="margin-bottom:0;">Datos del contador</h3>
         <button class="btn-ghost" onclick="ciActualizarContador()">↻ Actualizar desde el contador</button>
@@ -479,8 +601,8 @@ if(!window.CI_CLIENTE){
       <div id="edDatos"></div>
     </div>
 
-    <div class="panel no-print">
-      <h3>Título y link para el cliente</h3>
+    <div class="panel no-print pa-b">
+      <h3>Título y link para el cliente <span id="edTipo" class="tipo-chip"></span></h3>
       <div class="form-row"><label>Título del reporte</label><input type="text" id="rTitulo" maxlength="140" oninput="ciTitulo(this.value)"></div>
       <div class="sw-row"><input type="checkbox" class="al-chk" id="chkVis" onchange="ciVisible(this.checked)"><label for="chkVis">Visible para el cliente (sin esto el link no abre)</label></div>
       <div class="link-box">
@@ -494,12 +616,12 @@ if(!window.CI_CLIENTE){
       <div class="link-box" style="margin-top:12px;"><button class="btn-ghost" id="btnEnviado" onclick="ciMarcarEnviado()">✉ Marcar como enviado</button><span class="mini" id="rEnviado"></span></div>
     </div>
 
-    <div class="panel no-print">
+    <div class="panel no-print pa-g">
       <h3>Bloques</h3>
       <div id="listaBloques"></div>
     </div>
 
-    <div class="panel no-print">
+    <div class="panel no-print pa-v">
       <div class="panel-header-row">
         <h3 style="margin-bottom:0;">Respuesta del cliente</h3>
         <button class="btn-ghost" onclick="ciRecargarRespuesta()">↻ Recargar</button>
@@ -507,7 +629,7 @@ if(!window.CI_CLIENTE){
       <div id="edRespuesta"></div>
     </div>
 
-    <div class="panel no-print" style="border-color:var(--brd);">
+    <div class="panel no-print pa-r" style="border-top-color:var(--brd);border-right-color:var(--brd);border-bottom-color:var(--brd);">
       <h3>Zona delicada</h3>
       <button class="btn-ghost peligro" onclick="ciBorrarReporte()">🗑 Borrar reporte</button>
       <div class="mini" style="margin-top:8px;">Borra el reporte y anota sus archivos en Pendientes de Cloudinary (desde el navegador no se pueden borrar de Cloudinary).</div>
@@ -592,6 +714,128 @@ const $ = id => document.getElementById(id);
 // ============================================================
 function ciEsc(s){
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// ============================================================
+// v1.8: LECTOR DE MARKDOWN (módulo propio, reutilizable, sin librerías)
+// Escapa TODO primero (ciEsc) y solo emite etiquetas de una lista fija; los enlaces solo http(s).
+// Soporta: títulos, negrita, cursiva, tachado, código en línea y en bloque, listas (anidadas, numeradas y de tareas),
+// citas, líneas ---, enlaces y tablas. El HTML en crudo NO se interpreta (se muestra como texto).
+// Marcadores internos \u0000 (código) y \u0001/\u0002/\u0003 (enlaces) se eliminan de la entrada antes de usarse.
+// ============================================================
+function ciMdInline(t){
+  const cods = [], links = [];
+  t = ciEsc(String(t == null ? '' : t).replace(/[\u0000-\u0003]/g, ''));
+  t = t.replace(/`([^`]+)`/g, function(m, c){ cods.push(c); return '\u0000' + (cods.length - 1) + '\u0000'; });
+  t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function(m, tx, u){
+    const url = ciUrlHttp(u.replace(/&amp;/g, '&'));
+    if(!url) return m;
+    links.push(url);
+    return '\u0001' + (links.length - 1) + '\u0002' + tx + '\u0003';
+  });
+  t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/(^|[^\w])__(.+?)__(?!\w)/g, '$1<strong>$2</strong>');
+  t = t.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  t = t.replace(/(^|[^*\w])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![*\w])/g, '$1<em>$2</em>');
+  t = t.replace(/(^|[^_\w])_([^_\s](?:[^_]*?[^_\s])?)_(?![_\w])/g, '$1<em>$2</em>');
+  t = t.replace(/\u0001(\d+)\u0002/g, function(m, n){ return '<a href="' + ciEsc(links[+n]) + '" target="_blank" rel="noopener noreferrer">'; }).replace(/\u0003/g, '</a>');
+  t = t.replace(/\u0000(\d+)\u0000/g, function(m, n){ return '<code>' + cods[+n] + '</code>'; });
+  return t;
+}
+function ciMd(src){
+  const L = String(src == null ? '' : src).replace(/\r\n?/g, '\n').split('\n');
+  const reH = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
+  const reHr = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+  const reLi = /^([ \t]*)([-*+]|\d{1,9}[.)])[ \t]+(.*)$/;
+  const reFence = /^ {0,3}(`{3,}|~{3,})[ \t]*[\w+-]*[ \t]*$/;
+  const reSep = /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+  const esSep = s => s != null && s.indexOf('|') >= 0 && reSep.test(s);
+  const inicioBloque = k => reFence.test(L[k]) || reH.test(L[k]) || reHr.test(L[k]) || /^ {0,3}>/.test(L[k]) || reLi.test(L[k]) || (L[k].indexOf('|') >= 0 && esSep(L[k + 1]));
+  function celdas(orig){
+    let s = orig.trim(); if(s.charAt(0) === '|') s = s.slice(1);
+    const out = []; let cur = '', tick = false;
+    for(let k = 0; k < s.length; k++){
+      const ch = s.charAt(k);
+      if(ch === '\\' && s.charAt(k + 1) === '|'){ cur += '|'; k++; continue; }
+      if(ch === '`') tick = !tick;
+      if(ch === '|' && !tick){ out.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    out.push(cur.trim());
+    if(out.length > 1 && out[out.length - 1] === '' && /\|[ \t]*$/.test(orig) && !/\\\|[ \t]*$/.test(orig)) out.pop();
+    return out;
+  }
+  const out = []; let i = 0;
+  while(i < L.length){
+    if(!L[i].trim()){ i++; continue; }
+    let m = L[i].match(reFence);
+    if(m){
+      const marca = m[1].charAt(0), n = m[1].length, cierra = new RegExp('^ {0,3}' + (marca === '`' ? '`' : '~') + '{' + n + ',}[ \\t]*$'), buf = [];
+      i++;
+      while(i < L.length && !cierra.test(L[i])){ buf.push(L[i]); i++; }
+      i++;
+      out.push('<pre><code>' + ciEsc(buf.join('\n')) + '</code></pre>'); continue;
+    }
+    m = L[i].match(reH);
+    if(m){ const n = Math.min(m[1].length + 1, 6); out.push('<h' + n + '>' + ciMdInline(m[2]) + '</h' + n + '>'); i++; continue; }
+    if(reHr.test(L[i])){ out.push('<hr>'); i++; continue; }
+    if(/^ {0,3}>/.test(L[i])){
+      const buf = [];
+      while(i < L.length && /^ {0,3}>/.test(L[i])){ buf.push(L[i].replace(/^ {0,3}> ?/, '')); i++; }
+      out.push('<blockquote>' + ciMd(buf.join('\n')) + '</blockquote>'); continue;
+    }
+    if(L[i].indexOf('|') >= 0 && esSep(L[i + 1])){
+      const cab = celdas(L[i]), al = celdas(L[i + 1]).map(c => /^:-+:$/.test(c) ? 'center' : /-:$/.test(c) ? 'right' : '');
+      i += 2;
+      const filas = [];
+      while(i < L.length && L[i].trim() && L[i].indexOf('|') >= 0 && !reFence.test(L[i])){ filas.push(celdas(L[i])); i++; }
+      const st = k => al[k] ? ' style="text-align:' + al[k] + '"' : '';
+      let h = '<div class="md-tw"><table><thead><tr>' + cab.map((c, k) => '<th' + st(k) + '>' + ciMdInline(c) + '</th>').join('') + '</tr></thead><tbody>';
+      filas.forEach(function(f){
+        let tr = '';
+        for(let k = 0; k < cab.length; k++) tr += '<td' + st(k) + '>' + ciMdInline(f[k] || '') + '</td>';
+        h += '<tr>' + tr + '</tr>';
+      });
+      out.push(h + '</tbody></table></div>'); continue;
+    }
+    if(reLi.test(L[i]) && !reHr.test(L[i])){
+      const stack = []; let h = '';
+      while(i < L.length){
+        const mm = L[i].match(reLi);
+        if(!mm){
+          if(!L[i].trim()){
+            let j = i + 1; while(j < L.length && !L[j].trim()) j++;
+            if(j < L.length && reLi.test(L[j]) && !reHr.test(L[j])){ i = j; continue; }
+            break;
+          }
+          if(/^[ \t]{2,}\S/.test(L[i]) && stack.length && !reFence.test(L[i])){ h += '<br>' + ciMdInline(L[i].trim()); i++; continue; }
+          break;
+        }
+        if(reHr.test(L[i])) break;
+        const ind = mm[1].replace(/\t/g, '    ').length, ord = /^\d/.test(mm[2]), tag = ord ? 'ol' : 'ul';
+        while(stack.length && ind < stack[stack.length - 1].ind) h += '</li></' + stack.pop().tag + '>';
+        const top = stack[stack.length - 1];
+        if(top && top.ind === ind && top.tag === tag) h += '</li>';
+        else{
+          if(top && top.ind === ind) h += '</li></' + stack.pop().tag + '>';
+          stack.push({ ind: ind, tag: tag });
+          const nro = parseInt(mm[2], 10);
+          h += '<' + tag + (ord && nro !== 1 ? ' start="' + nro + '"' : '') + '>';
+        }
+        let c = mm[3], cls = '';
+        const tk = c.match(/^\[([ xX])\][ \t]+(.*)$/);
+        if(tk){ cls = ' class="tk"'; c = '<span class="md-chk">' + (tk[1] === ' ' ? '\u2610' : '\u2611') + '</span> ' + ciMdInline(tk[2]); }
+        else c = ciMdInline(c);
+        h += '<li' + cls + '>' + c;
+        i++;
+      }
+      while(stack.length) h += '</li></' + stack.pop().tag + '>';
+      out.push(h); continue;
+    }
+    const buf = [L[i]]; i++;
+    while(i < L.length && L[i].trim() && !inicioBloque(i)){ buf.push(L[i]); i++; }
+    out.push('<p>' + buf.map(x => ciMdInline(x.trim())).join('<br>') + '</p>');
+  }
+  return out.join('');
 }
 function ciMs(x){
   if(!x) return 0;
@@ -697,8 +941,80 @@ function ciEditadoDespues(rep){
   const rc = rep.respuestaCliente;
   return !!(rc && rc.aprobado && ciMs(rep.editadoEn) && ciMs(rc.fecha) && ciMs(rep.editadoEn) > ciMs(rc.fecha));
 }
+const ciCOP = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0);
+const ciNd = n => String(+(+n || 0).toFixed(1));
+function ciTipoDe(o){ return (o && ((o.datosContador && o.datosContador.tipo === 'dias') || String(o.proyectoId || '').indexOf('cli_') === 0)) ? 'dias' : 'horas'; }
+const CI_TIPO = { horas: { ico: '⏱️', nom: 'Reporte de horas', c: 't-h', k: 'tc-h' }, dias: { ico: '🗓️', nom: 'Estado de cuenta', c: 't-d', k: 'tc-d' } };
+const _CD = { ab: { dias: true, pagos: false }, modo: 'lista', fe: '', fm: '', fj: '', od: 'fd', pm: '', pmes: '', op: 'fd', mes: '', sel: '' };
+let _ciDc = null;
+const CI_DS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'], CI_MS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'], CI_ML = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function ciFd(f){ const p = String(f || '').split('-'); if(p.length < 3) return f || ''; const d = new Date(+p[0], +p[1] - 1, +p[2]); return CI_DS[d.getDay()] + ' ' + (+p[2]) + ' ' + CI_MS[+p[1] - 1] + (+p[0] !== new Date().getFullYear() ? ' ' + p[0] : ''); }
+const ciFmtMes = m => CI_ML[+m.slice(5) - 1] + ' ' + m.slice(0, 4);
+const ciThC = (u, w) => String(u).replace('/upload/', '/upload/c_fill,w_' + w + ',h_' + w + ',q_auto,f_auto/');
+function ciSepMes(arr, i, ord, f){
+  if(ord !== 'fd' && ord !== 'fa') return '';
+  const m = arr[i].fecha.slice(0, 7); if(i > 0 && arr[i - 1].fecha.slice(0, 7) === m) return '';
+  return '<div class="ci-mes"><span>' + ciEsc(ciFmtMes(m)) + '</span><span>' + f(arr.filter(q => q.fecha.slice(0, 7) === m)) + '</span></div>';
+}
+async function ciCopiarEstado(btn){
+  const dc = _ciDc; if(!dc) return;
+  const d = dc.dias || [], g = dc.pagos || [];
+  const t = ['ESTADO DE CUENTA · ' + (dc.clienteNombre || ''), '', 'Días: ' + ciNd(dc.nDias) + ' · Ganado: ' + ciCOP(dc.ganado) + ' · Pagado: ' + ciCOP(dc.pagado), ((dc.saldo || 0) >= 0 ? 'Saldo pendiente: ' : 'Pagado de más: ') + ciCOP(Math.abs(dc.saldo || 0)), '', 'DÍAS']
+    .concat(d.map(x => '• ' + ciFd(x.fecha) + ' — ' + x.tarea + (x.etiqueta ? ' (' + x.etiqueta + ')' : '') + (x.jornada === 0.5 ? ' [medio día]' : '') + ' — ' + ciCOP(x.valor)), ['', 'PAGOS'], g.map(x => '• ' + ciFd(x.fecha) + ' — ' + ciCOP(x.monto) + ' (' + x.medio + ')' + (x.nota ? ' ' + x.nota : ''))).join('\n');
+  try{ await navigator.clipboard.writeText(t); const o = btn.textContent; btn.textContent = '✓ Copiado'; setTimeout(() => { btn.textContent = o; }, 1600); }catch(e){ prompt('Copia el resumen:', t); }
+}
+function ciSub(k){ const ab = _CD.ab, abrir = !ab[k]; if(abrir && window.CI_CLIENTE){ ab.dias = false; ab.pagos = false; } ab[k] = abrir; ciDiasRe(); }
+function ciSet(k, v){ _CD[k] = v; ciDiasRe(); }
+function ciCalNav(n){ const p = _CD.mes.split('-'), d = new Date(+p[0], +p[1] - 1 + n, 1); _CD.mes = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); _CD.sel = ''; ciDiasRe(); }
+function ciDiasRe(){ const w = $('ciDiasW'); if(w && _ciDc) w.innerHTML = ciDiasInner(_ciDc); }
+function ciDiasHTML(dc){ _ciDc = dc; return '<div id="ciDiasW">' + ciDiasInner(dc) + '</div>'; }
+function ciDiasInner(dc){
+  const D = dc.dias || [], P = dc.pagos || [], C = _CD;
+  if(!C.mes) C.mes = ((D[D.length - 1] || {}).fecha || new Date().toISOString()).slice(0, 7);
+  const sel = (k, opts) => `<select onchange="ciSet('${k}',this.value)">` + opts.map(o => `<option value="${ciEsc(o[0])}"${o[0] === C[k] ? ' selected' : ''}>${ciEsc(o[1])}</option>`).join('') + '</select>';
+  const meses = a => [['', 'Todo mes']].concat([...new Set(a.map(x => x.fecha.slice(0, 7)))].sort().reverse().map(m => [m, ciFmtMes(m)]));
+  const et = [['', 'Toda etiqueta']].concat([...new Set(D.map(x => x.etiqueta).filter(Boolean))].map(e => [e, e]));
+  const dv = D.filter(x => (!C.fe || x.etiqueta === C.fe) && (!C.fm || x.fecha.startsWith(C.fm)) && (!C.fj || String(x.jornada || 1) === C.fj)).sort((a, b) => C.od === 'va' ? a.valor - b.valor : C.od === 'vd' ? b.valor - a.valor : C.od === 'fa' ? a.fecha.localeCompare(b.fecha) : b.fecha.localeCompare(a.fecha));
+  const pv = P.filter(x => (!C.pm || x.medio === C.pm) && (!C.pmes || x.fecha.startsWith(C.pmes))).sort((a, b) => C.op === 'ma' ? a.monto - b.monto : C.op === 'md' ? b.monto - a.monto : C.op === 'fa' ? a.fecha.localeCompare(b.fecha) : b.fecha.localeCompare(a.fecha));
+  const st = (v, t, c) => `<div class="rs-stat ${c || ''}" style="min-width:110px;"><b>${v}</b><span>${t}</span></div>`;
+  const pie = (n, t, sub) => `<div class="rs-n" style="margin-top:8px;">Mostrando ${n} de ${t} · Subtotal <b>${ciCOP(sub)}</b></div>`;
+  const fila = x => `<div class="rs-ses ci-row ${x.jornada === 0.5 ? 'h' : 'g'}"><div class="rs-h">${ciEsc(ciFd(x.fecha))}</div><div class="rs-tx"><b>${ciEsc(x.tarea)}</b>${x.etiqueta ? ' · ' + ciEsc(x.etiqueta) : ''}<div class="rs-n">${x.jornada === 0.5 ? 'Medio día' : 'Día completo'} · ${ciCOP(x.valor)}</div></div></div>`;
+  const filaP = x => `<div class="rs-ses ci-row v"><div class="rs-h">${ciEsc(ciFd(x.fecha))}</div><div class="rs-tx"><b>${ciCOP(x.monto)}</b> · ${ciEsc(x.medio)}${x.nota ? `<div class="rs-n">${ciEsc(x.nota)}</div>` : ''}${ciUrlCloud(x.url) ? `<img loading="lazy" src="${ciEsc(ciThC(x.url, 120))}" data-zoom="${ciEsc(x.url)}" width="64" height="64" alt="Comprobante" style="display:block;margin-top:8px;border-radius:8px;object-fit:cover;cursor:zoom-in;">` : ''}</div></div>`;
+  let cal = ''; const hoyIso = fechaLocal(Date.now());
+  if(C.modo === 'cal'){
+    const p = C.mes.split('-'), y = +p[0], m = +p[1] - 1, n = new Date(y, m + 1, 0).getDate(), off = (new Date(y, m, 1).getDay() + 6) % 7;
+    cal = `<div class="ci-calh"><button onclick="ciCalNav(-1)">◀</button><b>${CI_ML[m]} ${y}</b><button onclick="ciCalNav(1)">▶</button></div><div class="ci-calg">` + ['L','M','M','J','V','S','D'].map(q => `<i>${q}</i>`).join('') + '<span></span>'.repeat(off);
+    for(let d = 1; d <= n; d++){
+      const iso = C.mes + '-' + String(d).padStart(2, '0'), ds = D.filter(x => x.fecha === iso), pg = P.some(x => x.fecha === iso), full = ds.some(x => x.jornada !== 0.5);
+      cal += `<button class="ci-cald${ds.length ? ' on' : ''}${iso === C.sel ? ' sel' : ''}${iso === hoyIso ? ' hoy' : ''}" onclick="ciSet('sel','${iso}')">${d}<small>${full ? '●' : ds.length ? '◐' : ''}${pg ? '💵' : ''}</small></button>`;
+    }
+    cal += '</div>';
+    if(C.sel){ const a = D.filter(x => x.fecha === C.sel).map(fila).join('') + P.filter(x => x.fecha === C.sel).map(filaP).join(''); cal += `<div class="st" style="margin:14px 0 4px;font-weight:600;">${ciEsc(ciFd(C.sel))}</div>${a || '<div class="empty">Sin registros ese día.</div>'}`; }
+  }
+  const tab = (m, t) => `<button class="${C.modo === m ? 'on' : ''}" onclick="ciSet('modo','${m}')">${t}</button>`;
+  const ab = C.ab;
+  const sub = (k, t, res, body) => `<div class="ci-sub${ab[k] ? ' on' : ''}" role="button" tabindex="0" aria-expanded="${!!ab[k]}" onclick="ciSub('${k}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ciSub('${k}');}">${t}<span class="ci-res">${res}</span></div>${ab[k] ? body : ''}`;
+  const pct = dc.ganado > 0 ? Math.min(100, Math.round((dc.pagado || 0) * 100 / dc.ganado)) : 0;
+  const statsH = `<div class="rs-stats" style="flex-wrap:wrap;">${st(ciNd(dc.nDias), 'Días')}${st(ciCOP(dc.ganado), 'Ganado', 'b')}${st(ciCOP(dc.pagado), 'Pagado', 'v')}${st(ciCOP(Math.abs(dc.saldo || 0)), (dc.saldo || 0) >= 0 ? 'Saldo pendiente' : 'Pagado de más', (dc.saldo || 0) > 0 ? 'w' : 'v')}</div><div class="ci-bar"><i style="width:${pct}%"></i></div><div class="rs-n">Pagado ${pct}% de lo ganado</div><div class="ci-acts no-print"><button class="btn-ghost" onclick="ciCopiarEstado(this)">📋 Copiar resumen</button></div>`;
+  const bodyD = `<div class="ci-tabs">${tab('lista', '☰ Lista')}${tab('cal', '📅 Calendario')}</div>${C.modo === 'cal' ? cal : `<div class="ci-fb">${sel('fe', et)}${sel('fm', meses(D))}${sel('fj', [['', 'Toda jornada'], ['1', 'Día completo'], ['0.5', 'Medio día']])}${sel('od', [['fd', 'Fecha ↓'], ['fa', 'Fecha ↑'], ['vd', 'Valor ↓'], ['va', 'Valor ↑']])}</div>${dv.map((x, i) => ciSepMes(dv, i, C.od, a => ciNd(a.reduce((n, q) => n + (q.jornada || 1), 0)) + ' días · ' + ciCOP(a.reduce((n, q) => n + q.valor, 0))) + fila(x)).join('') || '<div class="empty">Sin días para mostrar.</div>'}${D.length ? pie(dv.length, D.length, dv.reduce((a, x) => a + x.valor, 0)) : ''}`}`;
+  const bodyP = `    <div class="ci-fb">${sel('pm', [['', 'Todo medio'], ['Efectivo', 'Efectivo'], ['Nequi', 'Nequi'], ['Transferencia', 'Transferencia'], ['Otro', 'Otro']])}${sel('pmes', meses(P))}${sel('op', [['fd', 'Fecha ↓'], ['fa', 'Fecha ↑'], ['md', 'Monto ↓'], ['ma', 'Monto ↑']])}</div>
+    ${pv.map((x, i) => ciSepMes(pv, i, C.op, a => a.length + ' · ' + ciCOP(a.reduce((n, q) => n + q.monto, 0))) + filaP(x)).join('') || '<div class="empty">Sin pagos para mostrar.</div>'}${P.length ? pie(pv.length, P.length, pv.reduce((a, x) => a + x.monto, 0)) : ''}`;
+  return statsH + sub('dias', 'Días trabajados', ciNd(dc.nDias) + ' días', bodyD) + sub('pagos', 'Pagos', P.length + ' · ' + ciCOP(dc.pagado), bodyP);
+}
+function ciDiasPdf(dc, td){
+  const R = 'text-align:right;white-space:nowrap;';
+  const f = (dc.dias || []).map(x => `<tr><td style="${td}white-space:nowrap;">${ciEsc(ciFechaLarga(x.fecha))}</td><td style="${td}">${ciEsc(x.tarea)}</td><td style="${td}">${ciEsc(x.etiqueta)}</td><td style="${td}">${x.jornada === 0.5 ? 'Medio día' : 'Día completo'}</td><td style="${td}${R}">${ciCOP(x.valor)}</td></tr>`).join('');
+  const p = (dc.pagos || []).map(x => `<tr><td style="${td}white-space:nowrap;">${ciEsc(ciFechaLarga(x.fecha))}</td><td style="${td}${R}font-weight:bold;">${ciCOP(x.monto)}</td><td style="${td}">${ciEsc(x.medio)}</td><td style="${td}">${ciEsc(x.nota)}${ciUrlCloud(x.url) ? `<div><img src="${ciEsc(x.url)}" alt="Comprobante" style="max-width:120px;margin-top:6px;border-radius:6px;"></div>` : ''}</td></tr>`).join('');
+  return `<h3 class="st">Días trabajados</h3><div class="tw"><table><thead><tr><th>Fecha</th><th>Tarea</th><th>Etiqueta</th><th>Jornada</th><th style="text-align:right;">Valor</th></tr></thead><tbody>${f}</tbody></table></div>
+    <h3 class="st">Pagos</h3><div class="tw"><table><thead><tr><th>Fecha</th><th style="text-align:right;">Monto</th><th>Medio</th><th>Nota</th></tr></thead><tbody>${p}</tbody></table></div>`;
+}
+function ciDiasInfoPdf(dc){
+  const c = (k, v) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  return c('Días', ciNd(dc.nDias)) + c('Ganado', ciCOP(dc.ganado)) + c('Pagado', ciCOP(dc.pagado)) + c((dc.saldo || 0) >= 0 ? 'Saldo pendiente' : 'Pagado de más', ciCOP(Math.abs(dc.saldo || 0)));
+}
 function ciResumenHTML(dc, esEditor, sinSesiones){
   if(!dc) return '';
+  if(dc.tipo === 'dias') return ciDiasHTML(dc);
   if(!dc.nSesiones){
     return esEditor ? '<div class="empty">No hay sesiones en el contador para este proyecto y día.</div>' : '';
   }
@@ -740,14 +1056,14 @@ function ciSesionesBloquesHTML(rep){
     }).join('') + '</div>';
   }
   const gen = g.gen.map(ciBloqueHTML).join('');
-  if(gen) h += hayVinc ? `<div class="rp-sec"><h3>Material adicional</h3>${gen}</div>` : gen;
+  if(gen) h += hayVinc ? `<div class="rp-sec cerrado"><h3>Material adicional</h3>${gen}</div>` : gen;
   return h;
 }
 function ciBloqueHTML(b){
   const t = b.titulo ? `<div class="rp-bt">${ciEsc(b.titulo)}</div>` : '';
   switch(b.tipo){
     case 'texto':
-      return b.texto ? `<div class="rp-bloque rp-texto">${ciEsc(b.texto).replace(/\n/g, '<br>')}</div>` : '';
+      return b.texto ? (b.formato === 'md' ? `<div class="rp-bloque rp-texto rp-md md">${ciMd(b.texto)}</div>` : `<div class="rp-bloque rp-texto">${ciEsc(b.texto).replace(/\n/g, '<br>')}</div>`) : '';
     case 'imagen': {
       if(!ciUrlImg(b.url)) return '';
       const ext = !ciUrlCloud(b.url);   // URL externa: sin transformación ni srcset
@@ -778,12 +1094,12 @@ function ciReporteHTML(rep, esEditor, conPdf){
     ? '<div class="aviso warn rp-edit-aviso">Este reporte fue actualizado después de tu aprobación. Revísalo y confirma de nuevo si todo sigue bien.</div>' : '';
   const resumen = ciResumenHTML(rep.datosContador, esEditor, true);
   const bl = ciSesionesBloquesHTML(rep);
-  return `<div class="rp">
-    <div class="rp-cab"><div class="rp-marca">${ciLogo(26, true)}</div><h1>${ciEsc(rep.titulo || 'Reporte')}</h1>
-      <div class="rp-meta">${ciEsc(rep.proyectoNombre || '')} · ${ciEsc(ciFechaLarga(rep.fecha))}</div>
+  return `<div class="rp ${CI_TIPO[ciTipoDe(rep)].c}">
+    <div class="rp-cab"><div class="rp-marca">${ciLogo(26, true)}</div><div class="rp-tipo">${CI_TIPO[ciTipoDe(rep)].ico} ${CI_TIPO[ciTipoDe(rep)].nom}</div><h1>${ciEsc(rep.titulo || 'Reporte')}</h1>
+      <div class="rp-meta">${ciEsc(rep.proyectoNombre || '')} · ${rep.datosContador && rep.datosContador.tipo === 'dias' ? 'Actualizado ' + ciEsc(ciFechaLarga(fechaLocal(rep.datosContador.actualizadoMs))) : ciEsc(ciFechaLarga(rep.fecha))}</div>
       ${conPdf ? '<div class="rp-acc no-print"><button class="btn-ghost" onclick="ciGenerarPDF()" title="Descargar resumen en PDF">📄 Resumen PDF</button><button class="btn-ghost" id="btnTema" onclick="ciCambiarTema()" title="Cambiar entre tema claro y oscuro">' + ciTextoTema() + '</button></div>' : ''}</div>
     ${avisoEd}
-    ${resumen ? `<div class="rp-sec"><h3>Tiempo trabajado</h3>${resumen}</div>` : ''}
+    ${resumen ? `<div class="rp-sec rp-fija"><h3>${rep.datosContador && rep.datosContador.tipo === 'dias' ? 'Estado de cuenta' : 'Tiempo trabajado'}</h3>${resumen}</div>` : ''}
     ${bl}
   </div>`;
 }
@@ -795,6 +1111,32 @@ window.addEventListener('beforeprint', () => {
 window.addEventListener('afterprint', () => {
   document.querySelectorAll('.rp details[data-ci-reabrir]').forEach(d => { d.open = false; d.removeAttribute('data-ci-reabrir'); });
 });
+// v2.3: plegar secciones del reporte (cliente: acordeón; editor: independientes)
+document.addEventListener('click', e => {
+  const h = e.target.closest && e.target.closest('.rp .rp-sec:not(.rp-fija) > h3'); if(!h) return;
+  const sec = h.parentElement, abrir = sec.classList.contains('cerrado');
+  if(abrir && window.CI_CLIENTE) document.querySelectorAll('.rp .rp-sec:not(.rp-fija)').forEach(o => { if(o !== sec) o.classList.add('cerrado'); });
+  sec.classList.toggle('cerrado', !abrir);
+});
+const CI_SEC_ABIERTAS = ['reporte', 'titulo-y-link-para-el-cliente', 'datos-del-contador', 'bloques'];
+const ciSecSlug = t => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function ciSecEstado(){ try{ return JSON.parse(localStorage.getItem('ci_sec') || '{}'); }catch(e){ return {}; } }
+function ciSecAbrir(p, k, ab, guardar){
+  p.classList.toggle('cerrado', !ab); const h = p.querySelector('.col-head'); if(h) h.setAttribute('aria-expanded', String(!!ab));
+  if(guardar){ const e = ciSecEstado(); e[k] = !!ab; try{ localStorage.setItem('ci_sec', JSON.stringify(e)); }catch(_){} }
+}
+function ciSecInit(){
+  const est = ciSecEstado();
+  document.querySelectorAll('.panel.pa-g,.panel.pa-b,.panel.pa-v,.panel.pa-r').forEach(p => {
+    const h3 = p.querySelector('h3'); if(!h3) return;
+    const k = ciSecSlug(h3.firstChild ? h3.firstChild.textContent : h3.textContent), head = h3.closest('.panel-header-row') || h3;
+    head.classList.add('col-head'); head.setAttribute('role', 'button'); head.setAttribute('tabindex', '0');
+    const tog = () => ciSecAbrir(p, k, p.classList.contains('cerrado'), true);
+    head.addEventListener('click', e => { if(e.target.closest('button,a,select,input,label')) return; tog(); });
+    head.addEventListener('keydown', e => { if((e.key === 'Enter' || e.key === ' ') && e.target === head){ e.preventDefault(); tog(); } });
+    ciSecAbrir(p, k, k in est ? est[k] : CI_SEC_ABIERTAS.includes(k), false);
+  });
+}
 // Clics delegados: ampliar imagen y cargar YouTube solo al tocar (no carga nada de YouTube antes).
 document.addEventListener('click', e => {
   const z = e.target.closest && e.target.closest('[data-zoom]');
@@ -870,7 +1212,7 @@ async function ciInitCliente(){
     const d = await colInfo().doc(CI_TOKEN).get();
     if(!d.exists){ noDisp(); return; }
     CL.rep = d.data();
-    document.title = (CL.rep.titulo || 'Reporte') + ' — Audiolink';
+    document.title = CI_TIPO[ciTipoDe(CL.rep)].nom + ' — ' + (CL.rep.titulo || 'Reporte');
     ciPintarCliente();
     ciHistRegistrar(CL.rep); ciPintarHist();
   }catch(e){ console.error('CompartirInfo cliente:', e); noDisp(); }
@@ -916,9 +1258,9 @@ function ciEditarRespuesta(){
 // sin jsPDF). Documento claro e independiente del tema; solo se ofrece en la vista del cliente.
 function ciGenerarPDF(){
   const rep = CL.rep; if(!rep) return;
-  const ac = '#c9a24b', acTxt = '#1a1509', acOsc = '#8a6a1f';
+  const _dd = ciTipoDe(rep) === 'dias', ac = _dd ? '#c9a24b' : '#3d6fb5', acTxt = _dd ? '#1a1509' : '#ffffff', acOsc = _dd ? '#8a6a1f' : '#2c5287';
   const LG = window.alLogoDoc ? alLogoDoc(30) : null;   // logo estático y claro, con su CSS y sprite
-  const dc = rep.datosContador || null, tot = dc ? (dc.totalSeg || 0) : 0, hayTiempo = !!(dc && dc.nSesiones);
+  const dc = rep.datosContador || null, tot = dc ? (dc.totalSeg || 0) : 0, hayTiempo = !!(dc && dc.nSesiones), esDias = !!(dc && dc.tipo === 'dias');
   const hoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
   const gr = ciAgruparBloques(rep), hayVinc = Object.keys(gr.por).length > 0;   // v1.7
   const td = 'padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top;';
@@ -931,9 +1273,10 @@ function ciGenerarPDF(){
     resumen = `<h3 class="st">Tiempo por tipo</h3><div class="tw"><table><thead><tr><th>Tipo</th><th style="text-align:right;">Tiempo</th><th style="text-align:right;">%</th></tr></thead><tbody>${filasTipo}</tbody></table></div>${hayVinc ? '' : `
       <h3 class="st">Sesiones</h3><div class="tw"><table><thead><tr><th>Hora</th><th>Tipo</th><th>Tiempo</th><th>Nota</th></tr></thead><tbody>${filasSes}</tbody></table></div>`}`;
   }
+  if(esDias) resumen = ciDiasPdf(dc, td);
   const bloqueHTML = b => {
     const t = b.titulo ? `<div class="bt">${ciEsc(b.titulo)}</div>` : '';
-    if(b.tipo === 'texto') return b.texto ? `<div class="bl"><p>${ciEsc(b.texto).replace(/\n/g, '<br>')}</p></div>` : '';
+    if(b.tipo === 'texto') return b.texto ? (b.formato === 'md' ? `<div class="bl md">${ciMd(b.texto)}</div>` : `<div class="bl"><p>${ciEsc(b.texto).replace(/\n/g, '<br>')}</p></div>`) : '';
     if(b.tipo === 'imagen' && ciUrlImg(b.url)) return `<div class="bl">${t}<img referrerpolicy="no-referrer" src="${ciEsc(ciThumb(b, 1200))}" alt="${ciEsc(b.titulo || 'Imagen')}"></div>`;
     if(b.tipo === 'video' && ciUrlCloud(b.url)) return `<div class="bl">${t}<img src="${ciEsc(ciThumb(b, 800))}" alt="" onerror="this.style.display='none'"><div class="lk">🎬 Video: <a href="${ciEsc(b.url)}">${ciEsc(b.url)}</a></div></div>`;
     if(b.tipo === 'youtube'){
@@ -959,8 +1302,8 @@ function ciGenerarPDF(){
   const resp = rc ? `<div class="resp ${rc.aprobado ? 'ok' : ''}"><b>${rc.aprobado ? '✓ Aprobado' : 'Comentario enviado'}</b> <span class="mt">${rc.nombre ? ciEsc(rc.nombre) + ' · ' : ''}${ciEsc(ciFechaHora(rc.fecha))}</span>${rc.comentario ? `<div class="rc">${ciEsc(rc.comentario).replace(/\n/g, '<br>')}</div>` : ''}</div>` : '';
   const aviso = ciEditadoDespues(rep) ? '<div class="avs">Este reporte se actualizó después de la aprobación.</div>' : '';
   const info = `<div><div class="k">Proyecto</div><div class="v">${ciEsc(rep.proyectoNombre || '—')}</div></div>
-    <div><div class="k">Día</div><div class="v">${ciEsc(ciFechaLarga(rep.fecha))}</div></div>` +
-    (hayTiempo ? `<div><div class="k">Tiempo total</div><div class="v">${ciDur(tot)}</div></div><div><div class="k">Sesiones</div><div class="v">${dc.nSesiones}</div></div>` : '');
+    <div><div class="k">${esDias ? 'Actualizado' : 'Día'}</div><div class="v">${ciEsc(ciFechaLarga(esDias ? fechaLocal(dc.actualizadoMs) : rep.fecha))}</div></div>` +
+    (hayTiempo ? `<div><div class="k">Tiempo total</div><div class="v">${ciDur(tot)}</div></div><div><div class="k">Sesiones</div><div class="v">${dc.nSesiones}</div></div>` : '') + (esDias ? ciDiasInfoPdf(dc) : '');
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reporte — ${ciEsc(rep.titulo || 'Audiolink')}</title>
 <style>
 ${LG ? LG.css : ''}
@@ -981,6 +1324,26 @@ table{width:100%;border-collapse:collapse;font-size:0.9rem;}
 th{background:${ac};color:${acTxt};padding:10px;text-align:left;font-size:0.82rem;}
 .bl{margin:16px 0;break-inside:avoid;page-break-inside:avoid;}
 .bl p{margin:0;font-size:1rem;line-height:1.65;overflow-wrap:anywhere;}
+.md{font-size:1rem;line-height:1.6;overflow-wrap:anywhere;}
+.md>:first-child{margin-top:0;}
+.md h2,.md h3,.md h4,.md h5,.md h6{margin:18px 0 6px;line-height:1.3;break-after:avoid;page-break-after:avoid;}
+.md h2{font-size:1.25rem;border-bottom:1px solid #e2e8f0;padding-bottom:4px;}
+.md h3{font-size:1.1rem;}
+.md h4,.md h5,.md h6{font-size:1rem;}
+.md p{margin:0 0 8px;}
+.md ul,.md ol{margin:4px 0 10px;padding-left:22px;}
+.md li{margin:3px 0;}
+.md li.tk{list-style:none;margin-left:-20px;}
+.md blockquote{margin:8px 0;padding:6px 12px;border-left:4px solid ${ac};background:#f8fafc;color:#334155;}
+.md code{font-family:'JetBrains Mono',monospace;font-size:0.86em;background:#f1f5f9;padding:1px 5px;border-radius:4px;}
+.md pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;word-break:break-word;break-inside:avoid;page-break-inside:avoid;}
+.md pre code{background:none;padding:0;}
+.md .md-tw{overflow-x:auto;margin:8px 0;}
+.md td{border-bottom:1px solid #e2e8f0;padding:6px 8px;vertical-align:top;}
+.md th{padding:8px;}
+.md tr{break-inside:avoid;page-break-inside:avoid;}
+.md hr{border:0;border-top:1px solid #cbd5e1;margin:14px 0;}
+.md a{color:${acOsc};}
 .bt{font-weight:700;margin-bottom:6px;}
 .ses{margin:14px 0 6px;}
 .sh{border-top:1px dashed #cbd5e1;padding:10px 0 4px;font-size:0.95rem;break-after:avoid;page-break-after:avoid;}
@@ -1013,7 +1376,7 @@ th{background:${ac};color:${acTxt};padding:10px;text-align:left;font-size:0.82re
 }
 </style></head><body>
 <button class="btnp no-print" id="bp" onclick="imprimir()">🖨️ Imprimir / Guardar como PDF</button>
-<div class="header"><div>${LG ? LG.html : '<h1>AUDIOLINK</h1>'}<div class="sub">REPORTE DE TRABAJO</div></div><div class="gen">Generado: ${hoy}</div></div>
+<div class="header"><div>${LG ? LG.html : '<h1>AUDIOLINK</h1>'}<div class="sub">${esDias ? 'ESTADO DE CUENTA' : 'REPORTE DE HORAS'}</div></div><div class="gen">Generado: ${hoy}</div></div>
 <h2 class="t">${ciEsc(rep.titulo || 'Reporte')}</h2>
 <div class="info">${info}</div>
 ${aviso}${resumen}${bloques}${resp}
@@ -1112,6 +1475,40 @@ async function ciIniciarEditor(){
   if(p && proyectos.some(x => x.id === p)) $('selProy').value = p;
   if(d && /^\d{4}-\d{2}-\d{2}$/.test(d)) $('selFecha').value = d;
   if(p && d && proyectos.some(x => x.id === p)) ciAbrirReporte();
+  ciSecInit();
+  const cid = q.get('c'); if(cid && /^[A-Za-z0-9]{10,40}$/.test(cid)) ciAbrirReporteCliente(cid);   // v1.9
+}
+// ---- v1.9: estado de cuenta por días (un reporte acumulado por cliente del contador) ----
+async function ciLeerDias(cid){
+  const [cs, ds, ps] = await Promise.all([db.collection('contadorClientes').doc(cid).get(), db.collection('contadorDias').where('clienteId', '==', cid).get(), db.collection('contadorPagos').where('clienteId', '==', cid).get()]);
+  const dias = [], pagos = []; let nd = 0, gan = 0, pag = 0;
+  ds.forEach(d => { const x = d.data(); dias.push({ fecha: x.fecha || '', tarea: x.tarea || '', etiqueta: x.etiqueta || '', jornada: x.jornada || 1, valor: x.valor || 0 }); nd += x.jornada || 1; gan += x.valor || 0; });
+  ps.forEach(d => { const x = d.data(); pagos.push({ fecha: x.fecha || '', monto: x.monto || 0, medio: x.medio || '', nota: x.nota || '', url: (x.comprobante && x.comprobante.url) || '' }); pag += x.monto || 0; });
+  dias.sort((a, b) => a.fecha.localeCompare(b.fecha)); pagos.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  return { tipo: 'dias', clienteNombre: cs.exists ? (cs.data().nombre || '') : '', nDias: nd, ganado: gan, pagado: pag, saldo: gan - pag, dias: dias, pagos: pagos, actualizadoMs: Date.now() };
+}
+async function ciAbrirReporteCliente(cid){
+  if(subiendo){ avisar('Espera a que termine la subida en curso.', true); return; }
+  if(sucio && !confirm('Hay cambios sin guardar en el reporte abierto. ¿Descartarlos?')) return;
+  try{
+    const cd = await db.collection('contadorClientes').doc(cid).get();
+    if(!cd.exists){ avisar('Ese cliente no existe en el contador.', true); return; }
+    const nombre = cd.data().nombre || '', pid = 'cli_' + cid;
+    await ciDescartarBorrador();
+    const snap = await colInfo().where('proyectoId', '==', pid).limit(1).get();
+    _conocidos.clear(); _bAbiertos.clear(); _gAbiertos.clear();
+    const dc = await ciLeerDias(cid);
+    if(!snap.empty){
+      ciArmarDesdeDoc(snap.docs[0]); R.datosContador = dc; marcarSucio();
+      avisar('Estado de cuenta abierto con los datos al día (falta guardar).');
+    }else{
+      R = { token: ciToken(), existe: false, proyectoId: pid, proyectoNombre: nombre, fecha: fechaLocal(Date.now()), titulo: 'Estado de cuenta — ' + nombre, visibleCliente: false,
+            datosContador: dc, bloques: [], respuestaCliente: null, editadoEn: null, enviadoEn: null, enviadoPor: '' };
+      _hashGuardado = ''; sucio = false;
+      avisar('Estado de cuenta nuevo armado con los datos de días.');
+    }
+    pintarEditor();
+  }catch(e){ console.error('CompartirInfo abrir cliente:', e); avisar('No se pudo abrir el estado de cuenta.', true); }
 }
 function pintarAviso(){
   let t = '';
@@ -1196,7 +1593,7 @@ async function ciActualizarContador(){
   if(!R) return;
   if(!confirm('Se reemplazan los datos del contador de este reporte por los actuales. ¿Continuar?')) return;
   try{
-    R.datosContador = await ciLeerContador(R.proyectoId, R.fecha);
+    R.datosContador = String(R.proyectoId).indexOf('cli_') === 0 ? await ciLeerDias(R.proyectoId.slice(4)) : await ciLeerContador(R.proyectoId, R.fecha);
     marcarSucio(); pintarDatos(); pintarBloques(); avisar('Datos del contador actualizados (falta guardar).');
   }catch(e){ console.error(e); avisar('No se pudo leer el contador.', true); }
 }
@@ -1206,11 +1603,13 @@ function pintarEditor(){
   const w = $('edWrap');
   if(!R){ w.style.display = 'none'; return; }
   w.style.display = '';
+  const ti = CI_TIPO[ciTipoDe(R)]; w.className = ti.c; $('edTipo').textContent = ti.ico + ' ' + ti.nom; $('edTipo').className = 'tipo-chip ' + ti.k;
   $('rTitulo').value = R.titulo; $('chkVis').checked = !!R.visibleCliente;
   pintarDatos(); pintarLink(); pintarBloques(); pintarRespuestaEd(); pintarBarra();
 }
 function pintarDatos(){
   const dc = R.datosContador;
+  if(dc && dc.tipo === 'dias'){ $('edDatos').innerHTML = ciDiasHTML(dc); return; }
   if(!dc || !dc.nSesiones){ $('edDatos').innerHTML = ciResumenHTML(dc, true); return; }
   $('edDatos').innerHTML = `<details class="ci-col"><summary><span class="ci-col-t"><b>${ciDur(dc.totalSeg || 0)} · ${dc.nSesiones} ${dc.nSesiones === 1 ? 'sesión' : 'sesiones'}</b><span>Toca para ver el detalle</span></span></summary><div class="ci-col-cuerpo">${ciResumenHTML(dc, true)}</div></details>`;
 }
@@ -1273,7 +1672,7 @@ function ciNuevoBloque(tipo, sid){
   return { id: ciIdBloque(), tipo: tipo, sesionId: sid || '', titulo: '', texto: '', url: '', publicId: '', resourceType: '', nombre: '', formato: '', bytes: 0, paginas: 0 };
 }
 // v1.7: estado de lo abierto en el editor (sobrevive a los repintados) y utilidades de sesión.
-let _bAbiertos = new Set(), _gAbiertos = new Set(), _arr = null, _bloqueErr = '';
+let _bAbiertos = new Set(), _gAbiertos = new Set(), _arr = null, _bloqueErr = '', _bPrev = new Set();   // v1.8: _bPrev = bloques de texto en vista previa
 function ciClaveGrupo(sid){ return sid ? 's:' + sid : 'gen'; }
 function ciIdsSesion(){
   const st = new Set();
@@ -1296,6 +1695,36 @@ function ciAgregar(tipo, sid){
   _bAbiertos.add(b.id); _gAbiertos.add(ciClaveGrupo(sid || ''));
   marcarSucio(); pintarBloques(); ciVerBloque(b.id);
 }
+// v1.8: formato del bloque de texto (Texto simple / Markdown), vista previa y carga de archivos .md
+const LIM_MD_KB = 100;   // ESTIMADO: aviso por tamaño; el documento del reporte en Firestore tiene tope de 1 MiB en total
+function ciFormatoTexto(id, val){
+  const b = ciBuscar(id); if(!b || b.tipo !== 'texto') return;
+  b.formato = (val === 'md') ? 'md' : '';
+  if(b.formato !== 'md') _bPrev.delete(id);
+  _bAbiertos.add(id);
+  marcarSucio(); pintarBloques();
+}
+function ciTogPrev(id){
+  if(_bPrev.has(id)) _bPrev.delete(id); else _bPrev.add(id);
+  _bAbiertos.add(id);
+  pintarBloques();
+}
+async function ciCargarMd(sid, inp){
+  const files = Array.from(inp.files || []); inp.value = '';
+  if(!files.length) return;
+  let n = 0;
+  for(const f of files){
+    if(!/\.(md|markdown|txt)$/i.test(f.name) && !/^text\//.test(f.type || '')){ avisar('"' + f.name + '" no parece un archivo de texto o Markdown.', true); continue; }
+    try{
+      const txt = (await f.text()).replace(/^\uFEFF/, '');
+      if(!txt.trim()){ avisar('"' + f.name + '" está vacío.', true); continue; }
+      if(f.size > LIM_MD_KB * 1024) avisar('"' + f.name + '" pesa ' + Math.round(f.size / 1024) + ' KB; el reporte completo no puede pasar de 1 MB en total.', true);
+      const b = ciNuevoBloque('texto', sid); b.texto = txt; b.formato = 'md';
+      R.bloques.push(b); _gAbiertos.add(ciClaveGrupo(sid || '')); n++;
+    }catch(e){ console.error('Cargar .md:', e); avisar('No se pudo leer "' + f.name + '".', true); }
+  }
+  if(n){ marcarSucio(); pintarBloques(); avisar(n + (n === 1 ? ' bloque Markdown agregado' : ' bloques Markdown agregados') + ' (falta guardar).'); }
+}
 function ciAsignarSesion(id, val){
   const b = ciBuscar(id); if(!b) return;
   b.sesionId = val || '';
@@ -1309,7 +1738,7 @@ function ciAsignarSesion(id, val){
 }
 function ciTogGrupo(key, abierto){ if(abierto) _gAbiertos.add(key); else _gAbiertos.delete(key); }
 function ciResBloque(b){
-  if(b.tipo === 'texto') return (b.texto || '').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Vacío';
+  if(b.tipo === 'texto') return (b.formato === 'md' ? (b.texto || '').replace(/^[ \t]{0,3}(?:#{1,6}|>|[-*+]|\d+[.)]|\|)[ \t]*/gm, '').replace(/(\*\*|__|`)/g, '') : (b.texto || '')).replace(/\s+/g, ' ').trim().slice(0, 60) || 'Vacío';
   if(b.titulo) return b.titulo;
   if(b.tipo === 'youtube' || b.tipo === 'enlace') return b.url ? b.url.replace(/^https?:\/\//, '').slice(0, 60) : 'Sin enlace';
   return b.nombre || (b.url ? 'Archivo cargado' : 'Sin archivo');
@@ -1450,7 +1879,10 @@ function ciBloqueEditorHTML(b, i, n){
   const titulo = `<input type="text" maxlength="140" placeholder="Título (opcional)" value="${ciEsc(b.titulo)}" oninput="ciCampo('${b.id}','titulo',this.value)">`;
   let cuerpo = '';
   if(b.tipo === 'texto'){
-    cuerpo = `<textarea placeholder="Escribe el texto para el cliente" oninput="ciCampo('${b.id}','texto',this.value)">${ciEsc(b.texto)}</textarea>`;
+    const md = b.formato === 'md', prev = md && _bPrev.has(b.id);   // v1.8
+    cuerpo = `<div class="bq-fmt"><select aria-label="Formato del texto" onchange="ciFormatoTexto('${b.id}',this.value)"><option value="">Texto simple</option><option value="md" ${md ? 'selected' : ''}>Markdown</option></select>${md ? `<button type="button" class="btn-ghost" onclick="ciTogPrev('${b.id}')">${prev ? '✏️ Editar' : '👁 Vista previa'}</button>` : ''}</div>` +
+      (prev ? `<div class="rp-texto rp-md md bq-md-prev">${(b.texto || '').trim() ? ciMd(b.texto) : '<span class="mini">Sin texto todavía.</span>'}</div>`
+            : `<textarea placeholder="${md ? 'Escribe o pega Markdown (# títulos, **negrita**, - listas, tablas con |)' : 'Escribe el texto para el cliente'}" oninput="ciCampo('${b.id}','texto',this.value)">${ciEsc(b.texto)}</textarea>`);
   }else if(b.tipo === 'imagen' || b.tipo === 'video' || b.tipo === 'pdf'){
     const accept = b.tipo === 'imagen' ? 'image/*' : b.tipo === 'video' ? 'video/*' : 'application/pdf,.pdf';
     let zona = '';
@@ -1490,7 +1922,7 @@ function ciGrupoEditorHTML(x, bls, huerf){
   const LBL = { texto: 'Texto', imagen: 'Imagen', video: 'Video', youtube: 'YouTube', pdf: 'PDF', enlace: 'Enlace' };
   const lista = bls.map((b, i) => ciBloqueEditorHTML(b, i, bls.length)).join('') || '<div class="empty" style="padding:14px 6px;">Sin bloques todavía.</div>';
   const av = huerf ? `<div class="aviso warn">⚠ ${huerf} bloque${huerf === 1 ? ' estaba' : 's estaban'} en una sesión que ya no está en el contador; ${huerf === 1 ? 'queda' : 'quedan'} aquí como general${huerf === 1 ? '' : 'es'}.</div>` : '';
-  const add = ['texto', 'imagen', 'video', 'youtube', 'pdf', 'enlace'].map(t => `<button class="btn-ghost" onclick="ciAgregar('${t}','${ciEsc(sid)}')">${TIPOS_BLOQUE[t].ico} ${LBL[t]}</button>`).join('');
+  const add = ['texto', 'imagen', 'video', 'youtube', 'pdf', 'enlace'].map(t => `<button class="btn-ghost" onclick="ciAgregar('${t}','${ciEsc(sid)}')">${TIPOS_BLOQUE[t].ico} ${LBL[t]}</button>`).join('') + `<label class="btn-ghost">📎 Cargar .md<input type="file" hidden multiple accept=".md,.markdown,.txt,text/markdown,text/plain" onchange="ciCargarMd('${ciEsc(sid)}',this)"></label>`;   // v1.8
   const cuerpo = `${av}<div class="grp-bloques" data-g="${ciEsc(key)}">${lista}</div><div class="add-row">${add}</div>`;
   if(!x && !hayS) return `<div class="ci-plano">${cuerpo}</div>`;   // sin sesiones vinculables: lista única, sin colapsar
   let tit, sub;
@@ -1567,7 +1999,7 @@ async function ciElegirArchivo(id, input){
 function ciLimpiarBloque(b){
   const o = { id: b.id, tipo: b.tipo };
   if(b.sesionId) o.sesionId = String(b.sesionId);
-  if(b.tipo === 'texto'){ o.texto = (b.texto || '').trim(); return o; }
+  if(b.tipo === 'texto'){ o.texto = (b.texto || '').trim(); if(b.formato === 'md') o.formato = 'md'; return o; }
   o.titulo = (b.titulo || '').trim();
   if(b.tipo === 'imagen' || b.tipo === 'video' || b.tipo === 'pdf'){
     Object.assign(o, { url: b.url || '', publicId: b.publicId || '', resourceType: b.resourceType || '', nombre: b.nombre || '', formato: b.formato || '', bytes: b.bytes || 0 });
@@ -1712,7 +2144,8 @@ function ciPintarHistorial(){
       ciEditadoTrasEnvio(h) ? '<span class="badge-estado warn">Editado tras enviar</span>' : ''
     ].join('');
     const ok = /^[A-Za-z0-9]{32}$/.test(h.id);
-    return `<div class="hrow"><div style="flex:1;min-width:220px;">
+    return `<div class="hrow ${CI_TIPO[ciTipoDe(h)].c}"><div style="flex:1;min-width:220px;">
+      <div style="margin-bottom:6px;"><span class="tipo-chip ${CI_TIPO[ciTipoDe(h)].k}">${CI_TIPO[ciTipoDe(h)].ico} ${CI_TIPO[ciTipoDe(h)].nom}</span></div>
       <div class="tit">${ciEsc(h.titulo || 'Reporte')}</div>
       <div class="meta">${ciEsc(h.proyectoNombre || '')} · ${ciEsc(ciFechaLarga(h.fecha))}</div>
       <div class="bds">${bd}</div>
