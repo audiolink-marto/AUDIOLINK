@@ -555,6 +555,36 @@ rules_version = '2';
 //     la limpieza manual (verificador portado de ensayo.html v3.293). Lista
 //     COMPARTIDA del equipo: solo esStaff() lee y escribe, sin componente público.
 // No se tocó ninguna otra regla, función, condición, match ni colección existente.
+// v2.44 (header-config.html v1.7 / header-config.js v1.10 — presets del header):
+// se agrega 1 colección raíz plana, /headerPresets/{id}: presets de ajustes del
+// header de PDF (nombre, config, creadoPor, fecha) COMPARTIDOS por el equipo.
+// MISMO PATRÓN EXACTO que headerImagenes: solo esStaff() lee y escribe, sin
+// componente público. No se tocó ninguna otra regla, función, condición, match
+// ni colección existente.
+// v2.45 (header-config.js v1.8/v1.9 — sincronización del header): se agrega
+// 1 colección raíz plana, /configHeader/{id} (hoy un solo doc, 'global'),
+// que header-config.js escribe y que las páginas consumidoras leen para ver
+// el header configurado sin depender del localStorage de cada navegador.
+//   - Equipo interno (esStaff()): lee y escribe.
+//   - Sin login: SOLO `get` de un documento puntual (nunca `list`). El doc
+//     solo contiene rutas de imagen, color, opacidades y medidas del header,
+//     sin datos personales ni de clientes. No pueden escribir.
+// No se tocó ninguna otra regla, función, condición, match ni colección
+// existente.
+// v2.46 (contador.html v1.8 / compartirinfo.html v1.9 — trabajo por días de clientes
+// externos): se agregan 3 colecciones raíz planas: contadorClientes, contadorDias y
+// contadorPagos (campos definidos en contador.html v1.8). Mismo patrón exacto que
+// contadorProyectos/contadorSesiones/contadorTipos: solo equipo interno (esStaff()),
+// sin componente público. compartirInfo NO cambia: el reporte por días guarda una
+// copia de los datos dentro del documento compartirInfo/{token} ya existente, que
+// sigue cubierto por las reglas v2.43. No se tocó ninguna otra regla, función,
+// condición, match ni colección existente.
+// v2.47 (checklist.html v1.0 — checklist por bloque y etapa): se agrega el match
+// /checklist/{checklistId} dentro de proyectos/{proyectoId}. La hoja guarda UN solo
+// documento (checklist/plan) con items, custom y bloques. Mismo patrón exacto que
+// /produccion: solo equipo interno (esStaff()) lee y escribe; el cliente no tiene
+// acceso ni componente público. No se tocó ninguna otra regla, función, condición,
+// match ni colección existente.
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -766,6 +796,11 @@ service cloud.firestore {
       // interno lee y escribe; el campo visibleCliente queda guardado para
       // uso futuro en el portal, pero hoy el cliente no tiene lectura aquí.
       match /produccion/{produccionId} {
+        allow read, write: if esStaff();
+      }
+      // ---------- CHECKLIST (subcolección, v2.47 — checklist.html v1.0) ----------
+      // Un solo documento "plan" por proyecto. Solo equipo interno, igual que /produccion.
+      match /checklist/{checklistId} {
         allow read, write: if esStaff();
       }
       // ---------- TEMAS (subcolección, v2.8 — logistica.html v2.39) ----------
@@ -1048,6 +1083,22 @@ service cloud.firestore {
     // ninguna otra regla, función, condición, match ni colección
     // existente — ni siquiera avataresIconos, justo arriba.
     match /headerImagenes/{id} {
+      allow read, write: if esStaff();
+    }
+    // ---------- HEADER PRESETS (v2.44 — header-config.html v1.7) ----------
+    // Presets de ajustes del header de PDF, compartidos por el equipo (ver
+    // presetHeader* en header-config.js v1.10). Mismo patrón que
+    // headerImagenes, justo arriba: solo equipo interno lee y escribe.
+    match /headerPresets/{id} {
+      allow read, write: if esStaff();
+    }
+    // ---------- CONFIG HEADER (v2.45 — header-config.js v1.8/v1.9) ----------
+    // Doc 'global' con la config del header de PDF que sincroniza
+    // sincronizarConfigHeaderFirestore() y lee inicializarHeaderConfig().
+    // Staff lee y escribe; lectura pública SOLO puntual (get, nunca list),
+    // para que páginas abiertas fuera del equipo vean el mismo header.
+    match /configHeader/{id} {
+      allow get: if true;
       allow read, write: if esStaff();
     }
     // ---------- COCINA (v2.31 — cocina.html v1.4) ----------
@@ -1474,6 +1525,16 @@ service cloud.firestore {
     }
     // v2.42: tipos de tarea por proyecto (contador.html v1.2+).
     match /contadorTipos/{tipoId} {
+      allow read, write: if esStaff();
+    }
+    // v2.46: trabajo por días de clientes externos (contador.html v1.8+).
+    match /contadorClientes/{clienteId} {
+      allow read, write: if esStaff();
+    }
+    match /contadorDias/{diaId} {
+      allow read, write: if esStaff();
+    }
+    match /contadorPagos/{pagoId} {
       allow read, write: if esStaff();
     }
     // ---------- COMPARTIRINFO (v2.43 — compartirinfo.html v1.0) ----------

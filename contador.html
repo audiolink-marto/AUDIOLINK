@@ -4,7 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Contador de tiempo</title>
-<!-- AUDIOLINK · contador.html · v1.15
+<!-- AUDIOLINK · contador.html · v1.17
+     v1.17: (a pedido) Cliente opcional en cada proyecto de Horas, tomado de la misma lista de clientes de la vista Días (contadorClientes; no se duplican clientes).
+     El proyecto guarda clienteId (o null). "Crear proyecto" tiene selector "Cliente (opcional)"; la tarjeta del proyecto muestra una etiqueta 👤 con el cliente y un
+     selector para cambiarlo o quitarlo. La lista se actualiza sola al crear o borrar clientes; si el cliente se borra, el proyecto queda sin cliente sin romperse.
+     Los proyectos existentes quedan "sin cliente". Sin cambios en cronómetro, pomodoro, bolsa, tarifas, tipos de tarea, bitácora, CSV, PDF, reportes ni vista Días.
+     Requiere que las reglas de contadorProyectos permitan el campo clienteId.
+     v1.16: (a pedido) Corrección de maquetación en "Bitácora y resumen": el título quedaba aplastado y tapado por la barra de controles (proyecto, CSV, fecha,
+     copiar datos, PDF) porque .col-head h3 (flex:1; min-width:0) hacía que el título midiera 0 y flex-wrap nunca bajara los controles. Se agrega una sola regla CSS
+     (.panel-header-row.col-head h3) para que el título conserve el ancho de su texto y los controles pasen a la línea siguiente si no caben. Sin cambios en JS,
+     HTML, plegado, Firebase, Cloudinary, impresión ni en las demás tarjetas.
      v1.15: (a pedido, mobile first) Etiquetado rápido de la tarea en el panel "Hoy": en vez de frases largas, dos filas de chips cortos, Acción (varias) y Lugar
      (varios), más una nota opcional. La tarea se arma con tu estilo: "ACCIÓN Y ACCIÓN - LUGAR Y LUGAR, nota" (ej. RESANAR Y MARCAR - PISO 1). Vista previa "Se
      registrará: ...". Las listas se guardan en el documento del cliente (contadorClientes: acciones, lugares; sin reglas nuevas): las acciones se muestran
@@ -142,6 +151,7 @@ else{ ['app','auth','firestore'].forEach(function(n){ document.write('<script sr
 .col-head{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
 .panel:not(.cerrado)>.col-head{margin-bottom:8px;}
 .col-head h3{margin:0 !important;display:flex;align-items:center;flex:1;min-width:0;}
+.panel-header-row.col-head h3{flex:1 1 auto;min-width:max-content;}
 .col-head h3::before{content:"▸";display:inline-block;width:1.2em;color:var(--ac,var(--gold));transition:transform .2s;}
 .panel:not(.cerrado)>.col-head h3::before{transform:rotate(90deg);}
 .col-res{margin-left:auto;padding-left:10px;font-size:0.78rem;color:var(--muted);font-weight:500;letter-spacing:0;text-transform:none;white-space:nowrap;}
@@ -370,6 +380,7 @@ window.NAV_CONFIG = { activo: 'contador' };
         <div class="form-row"><label>Nombre del proyecto</label><input type="text" id="npNombre"></div>
         <div class="form-row"><label>Bolsa (horas)</label><input type="number" id="npHoras" value="2" min="0.5" step="0.5"></div>
         <div class="form-row"><label>Tarifa por hora (opcional)</label><input type="number" id="npTarifa" min="0" inputmode="numeric"></div>
+        <div class="form-row"><label>Cliente (opcional)</label><select id="npCliente"><option value="">Sin cliente</option></select></div>
       </div>
       <button class="btn" onclick="crearProyecto()">Crear proyecto</button>
     </div>
@@ -546,7 +557,7 @@ function iniciarDias(){
     const el = $('cliSel'), x = el.value;
     el.innerHTML = clientes.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
     if(x && clientes.some(c => c.id === x)) el.value = x;
-    restaurarUlt(); renderDias();
+    restaurarUlt(); renderDias(); llenarClientesProy(); renderProyectos();
   }, e => console.error('Error cargando clientes:', e));
   refDias.onSnapshot(sn => { diasT = []; sn.forEach(d => diasT.push({ id: d.id, ...d.data() })); diasT.sort(ord); renderDias(); }, e => console.error('Error cargando días:', e));
   refPag.onSnapshot(sn => { pagos = []; sn.forEach(d => pagos.push({ id: d.id, ...d.data() })); pagos.sort(ord); renderDias(); }, e => console.error('Error cargando pagos:', e));
@@ -1124,11 +1135,14 @@ function renderProyectos(){
     const rest = bolsa - usado;
     const costo = p.tarifaHora ? ' · ' + formatCOP(usado / 3600 * p.tarifaHora) : '';
     const est = { ok: 'En margen', warn: 'Casi agotada', err: 'Bolsa agotada' }[cl];
+    const cli = clientes.find(c => c.id === p.clienteId);
+    const cliBadge = cli ? ` <span class="badge-estado" style="background:rgba(120,160,220,0.15);color:var(--info);">👤 ${escapeHtml(cli.nombre)}</span>` : '';
+    const cliSelH = clientes.length ? `<div class="no-print" style="margin-top:8px;"><select class="btn-ghost" style="min-height:32px;padding:4px 10px;max-width:100%;" title="Cliente del proyecto" onchange="cambiarClienteProyecto('${p.id}', this.value)"><option value="">Sin cliente</option>${clientes.map(c => `<option value="${c.id}"${c.id === p.clienteId ? ' selected' : ''}>${escapeHtml(c.nombre)}</option>`).join('')}</select></div>` : '';
     return `<div class="nota-item"><div class="cuerpo">
-      <div class="texto"><strong>${escapeHtml(p.nombre)}</strong> <span class="badge-estado ${cl}">${est}</span></div>
+      <div class="texto"><strong>${escapeHtml(p.nombre)}</strong> <span class="badge-estado ${cl}">${est}</span>${cliBadge}</div>
       <div class="barra"><i class="${cl}" style="width:${Math.min(100, pct).toFixed(1)}%"></i></div>
       <div class="nota-meta"><span>${txtDur(usado)} de ${txtDur(bolsa)} (${pct.toFixed(0)} %)</span>
-      <span>${rest >= 0 ? 'quedan ' + txtDur(rest) : 'excedida en ' + txtDur(-rest)}</span>${costo ? '<span class="fecha">' + costo.slice(3) + '</span>' : ''}</div>
+      <span>${rest >= 0 ? 'quedan ' + txtDur(rest) : 'excedida en ' + txtDur(-rest)}</span>${costo ? '<span class="fecha">' + costo.slice(3) + '</span>' : ''}</div>${cliSelH}
       </div><div class="nota-acciones no-print">
       <button class="icon-btn" title="+30 min de bolsa" onclick="ampliarBolsa('${p.id}')">➕</button>
       <button class="icon-btn" title="Editar bolsa y tarifa" onclick="editarProyecto('${p.id}')">✏️</button></div></div>`;
@@ -1140,8 +1154,18 @@ async function crearProyecto(){
   const nombre = $('npNombre').value.trim(), horas = parseFloat($('npHoras').value);
   if(!nombre || !(horas > 0)){ alert('Escribe el nombre y las horas de la bolsa.'); return; }
   const r = await seguro(() => refProy.add({ nombre, bolsaMin: Math.round(horas * 60), tarifaHora: +$('npTarifa').value || null,
+                                              clienteId: $('npCliente').value || null,
                                               creadoEn: firebase.firestore.Timestamp.now() }));
-  if(r){ $('npNombre').value = ''; $('npTarifa').value = ''; $('npHoras').value = 2; }
+  if(r){ $('npNombre').value = ''; $('npTarifa').value = ''; $('npHoras').value = 2; $('npCliente').value = ''; }
+}
+// v1.17: cliente opcional del proyecto (misma lista que la vista Días)
+function llenarClientesProy(){
+  const el = $('npCliente'), v = el.value;
+  el.innerHTML = '<option value="">Sin cliente</option>' + clientes.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
+  if(v && clientes.some(c => c.id === v)) el.value = v;
+}
+function cambiarClienteProyecto(id, v){
+  seguro(() => refProy.doc(id).update({ clienteId: v || null }));
 }
 function ampliarBolsa(id){
   const p = proyectos.find(x => x.id === id);

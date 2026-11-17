@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0d">
+<meta name="color-scheme" content="dark light">
+<meta name="robots" content="noindex,nofollow">
+<title>Audiolink — Preguntas del proyecto</title>
+<!-- AUDIOLINK · checklist-cliente.html · v1.5
+     v1.5: (a pedido) si una pregunta trae fecha propuesta y/o responsable (campos fecha y responsable del documento
+     publicado, solo los que el equipo marcó con "Mostrar la fecha al cliente" / "Mostrar el responsable al cliente"
+     en checklist.html v1.8), se ven en una línea pequeña bajo el enunciado, y si falta poco o ya pasó la fecha y la
+     pregunta no tiene respuesta, una alerta suave en ámbar (sin rojo). Lo pinta checklist-vista.js v1.3. Solo
+     cambia el CSS (.fecha-cli, .alerta-cli y el color --warn); sin cambios en JS, tema, Firestore, respuestas ni
+     envío; sin reglas nuevas (firestore.rules v2.48). La alerta se calcula al abrir la página: tras enviar una
+     respuesta desaparece la próxima vez que se abra el link.
+     v1.4: (a pedido) si una pregunta trae ejemplo (campo ejemplo del documento publicado), se ve como guía dentro de
+     la caja de respuesta (placeholder); sin ejemplo sigue "Tu respuesta...". Lo pinta checklist-vista.js v1.2.
+     Sin cambios en CSS, tema, Firestore, respuestas ni envío; sin reglas nuevas (firestore.rules v2.48).
+     v1.3: (a pedido) si una pregunta trae nota del equipo (campo nota del documento publicado, solo las que el equipo
+     marcó con "Mostrar la nota al cliente" en checklist.html v1.6), se ve bajo el enunciado en un recuadro de solo
+     lectura "Nota de Audiolink". Requiere checklist-vista.js v1.1. Sin otros cambios; sin reglas nuevas
+     (firestore.rules v2.48 no valida los campos del documento publicado).
+     v1.2: (a pedido) el HTML de la página (cabecera con logo, intro, nombre, preguntas agrupadas y logo del pie)
+     ahora lo arma el módulo checklist-vista.js v1.0 (clVistaHTML), el mismo que usa la vista previa del editor
+     checklist.html v1.5, para que ambas se vean siempre igual. Debe estar en la misma carpeta. El resultado en
+     pantalla es el mismo de v1.1; sin cambios en CSS, tema, Firestore, respuestas ni envío.
+     v1.1: (a pedido) (1) Logo Audiolink igual que compartirinfo.html (audiolink-logo.js v2.11.30, debe estar en la
+     misma carpeta): horizontal animado de 26 px en la cabecera, horizontal estático de 20 px (opacidad .8) al final
+     del contenido y favicon con alLogoFavicon('auto'). Si el módulo no carga, se ve el texto AUDIOLINK como antes.
+     (2) Botón de tema claro/oscuro en la cabecera, mismo mecanismo de compartirinfo: atributo data-tema en <html>,
+     guardado en localStorage 'audiolink_tema' (dark/light; también acepta 'oscuro'/'claro'). Sin elección guardada
+     sigue el tema del dispositivo, como en v1.0. Reemplaza el bloque @media (prefers-color-scheme) por
+     :root[data-tema="light"] con los mismos colores. Sin cambios en Firestore, respuestas, reglas ni lógica de envío.
+     v1.0: primera versión. Vista PÚBLICA (sin login, solo el link) del checklist
+     compartido: checklist-cliente.html?r=TOKEN. Lee UN documento puntual
+     checklistCompartidos/{token} (solo si el equipo lo dejó visible) y deja una
+     respuesta de texto por pregunta en checklistCompartidos/{token}/respuestas/{id}.
+     El cliente puede volver al mismo link y cambiar sus respuestas; no puede
+     listar, borrar ni ver nada más. Mobile first (táctil 44px, campos a 16px).
+     No carga nav.js ni offline-mock.js: es una página standalone.
+     Requiere firestore.rules v2.48. -->
+<script>
+(function(){
+  var tema = null;
+  try{ tema = localStorage.getItem('audiolink_tema'); }catch(e){}
+  if(tema === 'oscuro') tema = 'dark'; else if(tema === 'claro') tema = 'light';
+  if(tema !== 'dark' && tema !== 'light') tema = (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="audiolink-logo.js"></script>
+<script src="checklist-vista.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0b0d; --surf:#151517; --surf-light:#1d1d20; --brd:#2a2a2e;
+  --gold:#c9a24b; --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6; --muted:#9a978f; --faint:#5c5a55; --ok:#4caf7d; --err:#d4574a; --warn:#d9a441;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4; --surf:#ffffff; --surf-light:#f3f0e8; --brd:#e2ddd0;
+  --gold:#a8823a; --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620; --muted:#7a756a; --faint:#a39d8f; --ok:#3a8f63; --err:#b8453a; --warn:#b8842f;
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100dvh;padding-bottom:calc(96px + env(safe-area-inset-bottom));}
+.wrap{max-width:680px;margin:0 auto;padding:20px 16px;}
+.cab{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.marca{font-family:var(--T);color:var(--gold);letter-spacing:0.12em;font-size:0.8rem;}
+.marca .al-h{vertical-align:middle;}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);border-radius:10px;padding:10px 14px;font-size:0.88rem;cursor:pointer;min-height:44px;font-family:var(--S);display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;white-space:nowrap;}
+.pie-logo{text-align:center;color:var(--faint);font-size:0.72rem;padding:26px 0 10px;}
+.pie-logo .al-h{opacity:.8;}
+h1{font-family:var(--T);font-size:1.4rem;line-height:1.25;margin-bottom:8px;}
+.intro{color:var(--muted);font-size:0.9rem;line-height:1.5;margin-bottom:18px;}
+.campo{width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);padding:12px;border-radius:8px;font-size:16px;font-family:inherit;}
+.campo:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+textarea.campo{resize:vertical;min-height:84px;}
+.lbl-nombre{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
+.grupo{margin-top:22px;}
+.grupo h2{font-size:0.82rem;color:var(--gold);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:10px;}
+.q{background:var(--surf);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:10px;}
+.q label{display:block;font-size:0.95rem;line-height:1.4;margin-bottom:10px;font-weight:500;}
+.q .meta{font-size:0.72rem;color:var(--faint);margin-top:6px;min-height:1em;}
+.q .meta.ok{color:var(--ok);}
+.q .meta.err{color:var(--err);}
+.q .nota-cli{margin:0 0 10px;padding:10px 12px;background:var(--gold-bg);border-left:3px solid var(--gold);border-radius:6px;font-size:0.85rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
+.q .nota-cli small{display:block;color:var(--muted);font-size:0.72rem;margin-bottom:4px;}
+.q .fecha-cli{margin:0 0 10px;font-size:0.8rem;color:var(--muted);line-height:1.4;}
+.q .alerta-cli{margin:0 0 10px;padding:8px 12px;background:rgba(217,164,65,0.14);border-left:3px solid var(--warn);border-radius:6px;font-size:0.82rem;line-height:1.4;}
+.barra{position:fixed;left:0;right:0;bottom:0;background:var(--surf);border-top:1px solid var(--brd);padding:12px 16px calc(12px + env(safe-area-inset-bottom));}
+.barra-in{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:12px;}
+.btn{background:var(--gold);color:var(--bg);border:none;border-radius:8px;padding:0 22px;min-height:48px;font-size:1rem;font-weight:700;font-family:inherit;cursor:pointer;}
+.btn:disabled{opacity:0.55;cursor:default;}
+#estado{font-size:0.82rem;color:var(--muted);flex:1;}
+#estado.ok{color:var(--ok);}
+#estado.err{color:var(--err);}
+.aviso{text-align:center;padding:60px 20px;color:var(--muted);line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="aviso">Cargando...</div></div>
+<div class="barra" id="barra" style="display:none;">
+  <div class="barra-in">
+    <span id="estado"></span>
+    <button class="btn" id="btnEnviar" onclick="enviarRespuestas()">Enviar respuestas</button>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const TOKEN = (new URLSearchParams(location.search).get('r') || '').trim();
+const $ = (id) => document.getElementById(id);
+const MAX_TEXTO = 480; // las reglas aceptan hasta 500; margen para emojis
+
+// ---- Logo y tema (mismo mecanismo de compartirinfo.html) ----
+function clLogo(px, anim){ return window.alLogo ? alLogo('h', px, anim) : 'AUDIOLINK'; }
+function clLogoInit(){ if(window.alLogoInit) alLogoInit(); }
+function clFavicon(){
+  if(!window.alLogoFavicon) return;
+  let l = document.querySelector('link[rel="icon"]'); if(!l){ l = document.createElement('link'); l.rel = 'icon'; document.head.appendChild(l); }
+  l.type = 'image/svg+xml'; l.href = alLogoFavicon('auto');
+}
+clFavicon();
+function clTextoTema(){ return document.documentElement.getAttribute('data-tema') === 'light' ? '🌙 Tema oscuro' : '☀️ Tema claro'; }
+function clCambiarTema(){
+  const r = document.documentElement, nuevo = r.getAttribute('data-tema') === 'light' ? 'dark' : 'light';
+  r.setAttribute('data-tema', nuevo);
+  try{ localStorage.setItem('audiolink_tema', nuevo); }catch(e){}
+  const b = document.getElementById('btnTema'); if(b) b.textContent = clTextoTema();
+}
+
+function esc(s){
+  return String(s === null || s === undefined ? '' : s)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+function noDisponible(){
+  $('barra').style.display = 'none';
+  $('app').innerHTML = '<div class="aviso">Este link no está disponible.<br>Pídele a quien te lo envió que lo revise.</div>';
+}
+
+let DOC = null;
+const ORIG = {};   // id -> texto tal como está guardado
+const CAMPOS = []; // [{id, el, meta}]
+
+function respuestaRef(id){
+  return db.collection('checklistCompartidos').doc(TOKEN).collection('respuestas').doc(id);
+}
+
+async function iniciar(){
+  if(!/^[A-Za-z0-9]{32}$/.test(TOKEN)){ noDisponible(); return; }
+  try{
+    const snap = await db.collection('checklistCompartidos').doc(TOKEN).get();
+    if(!snap.exists){ noDisponible(); return; }
+    DOC = snap.data();
+  } catch(e){
+    console.error('Checklist cliente:', e);
+    noDisponible(); return;
+  }
+  const preguntas = Array.isArray(DOC.preguntas) ? DOC.preguntas : [];
+  if(DOC.visibleCliente !== true || preguntas.length === 0){ noDisponible(); return; }
+
+  // Respuestas ya enviadas (una lectura puntual por pregunta; listar no está permitido)
+  let nombrePrevio = '';
+  await Promise.all(preguntas.map(async p => {
+    try{
+      const d = await respuestaRef(p.id).get();
+      if(d.exists){
+        const v = d.data();
+        ORIG[p.id] = typeof v.texto === 'string' ? v.texto : '';
+        if(!nombrePrevio && v.nombre) nombrePrevio = v.nombre;
+      }
+    } catch(e){ console.warn('No se pudo leer respuesta', p.id, e); }
+  }));
+  let nombre = nombrePrevio;
+  try{ if(!nombre) nombre = localStorage.getItem('cc_nombre') || ''; } catch(e){}
+
+  document.title = 'Audiolink — ' + (DOC.titulo || 'Preguntas del proyecto');
+  $('app').innerHTML = clVistaHTML(DOC.titulo, preguntas, {
+    nombre: nombre,
+    respuestas: ORIG,
+    maxTexto: MAX_TEXTO,
+    botonTema: `<button class="btn-ghost" id="btnTema" onclick="clCambiarTema()" title="Cambiar entre tema claro y oscuro">${clTextoTema()}</button>`
+  });
+  clLogoInit();
+  let n = 0;
+  preguntas.forEach(p => {
+    const i = n++;
+    const el = $('t' + i);
+    el.value = ORIG[p.id] || '';
+    CAMPOS.push({ id: p.id, el, meta: $('m' + i) });
+  });
+  $('barra').style.display = '';
+}
+
+async function enviarRespuestas(){
+  const nombre = ($('nombre').value || '').trim().slice(0, 100);
+  try{ localStorage.setItem('cc_nombre', nombre); } catch(e){}
+  const cambios = CAMPOS.filter(c => c.el.value !== (ORIG[c.id] || ''));
+  const est = $('estado');
+  if(cambios.length === 0){ est.textContent = 'No hay cambios nuevos.'; est.className = ''; return; }
+  const btn = $('btnEnviar');
+  btn.disabled = true; est.textContent = 'Enviando…'; est.className = '';
+  let fallos = 0;
+  await Promise.all(cambios.map(async c => {
+    try{
+      await respuestaRef(c.id).set({
+        texto: c.el.value,
+        nombre: nombre,
+        fecha: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      ORIG[c.id] = c.el.value;
+      c.meta.textContent = 'Enviada ✓'; c.meta.className = 'meta ok';
+    } catch(e){
+      console.error('Error enviando respuesta', c.id, e);
+      fallos++;
+      c.meta.textContent = 'No se pudo enviar'; c.meta.className = 'meta err';
+    }
+  }));
+  btn.disabled = false;
+  if(fallos){ est.textContent = fallos + ' sin enviar. Revisa tu conexión y vuelve a intentar.'; est.className = 'err'; }
+  else { est.textContent = '¡Listo, gracias! Respuestas enviadas ✓'; est.className = 'ok'; }
+}
+
+iniciar();
+</script>
+</body>
+</html>

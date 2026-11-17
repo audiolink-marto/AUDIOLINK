@@ -300,3 +300,239 @@ el navegador (pendiente de verificar).
   documentos") antes de escribir a Firestore — última oportunidad de
   cancelar.
 
+---
+
+## 7. Estado de lo planeado (nota de actualización, noviembre 2026)
+
+La sección 6 (modo offline) dice "planeado — no implementado aún". Eso
+quedó desactualizado: la **Fase 1 ya está en uso** en varias hojas. Los
+encabezados de versión de `pagos.html` (v2.4/v2.5), `recordatorios.html`
+(v1.9/v1.10) y `logistica.html` (v2.72) describen la migración al patrón:
+`<script src="offline-mock.js">` antes de `firebase-config.js`,
+`const db = crearDB()` en vez de `firebase.firestore()`, y el guard
+`if(estaModoOfflineActivo())` alrededor de `auth.onAuthStateChanged()`.
+Con el flag en `false` (default) `crearDB()` devuelve Firestore real.
+
+Se deja el texto de la sección 6 tal cual (es el diseño completo, incluida
+la Fase 2 que sí sigue pendiente) y esta nota sola corrige el estado.
+Pendiente de confirmar con el dueño del proyecto: qué hojas faltan por
+migrar y si la Fase 2 sigue en el plan.
+
+---
+
+## 8. Patrón: hoja de ecosistema "por proyecto" con un solo documento (noviembre 2026)
+
+Implementado por primera vez con `checklist.html` (v1.0 → v1.4). Es una
+hoja que sirve para **todos** los proyectos, no solo uno, y vive a nivel
+de proyecto (como `produccion.html`). Queda documentado para que la
+próxima hoja del mismo tipo (por proyecto, con datos editables y poco
+volumen) copie el patrón.
+
+### Piezas
+- **Entrada:** `hoja.html?id={proyectoId}`. Si falta el `?id=`, la hoja
+  se detiene con un mensaje (no intenta adivinar). Botón de acceso en
+  `proyecto.html` junto a Producción (`window.open(... + proyectoActualId)`,
+  v5.45). No va en el menú lateral de `nav.js`: es global y no sabe qué
+  proyecto se está viendo.
+- **Cabecera estándar:** `nav.js`/`nav.css`, `offline-mock.js`,
+  `firebase-config.js`, `utils.js`, guard de sesión contra
+  `equipoInterno/{email}.activo`, `crearDB()` (ver sección 7).
+- **Un solo documento:** `proyectos/{id}/checklist/plan` con `items`,
+  `custom`, `bloques` y `compartir`. Se escribe completo con `set()`
+  (un único editor a la vez en la práctica). Guardado automático con
+  espera de 0,7 s tras el último cambio; también se guarda al ocultar la
+  pestaña (`visibilitychange`). `JSON.parse(JSON.stringify(...))` antes
+  de escribir para que nunca viaje un `undefined` (Firestore rechaza el
+  documento entero).
+- **Solo se guarda lo que tiene contenido:** si una casilla queda sin
+  marca, nota, responsable ni fecha, su clave se borra de `items`.
+- **Regla de Firestore:** subcolección dentro de `proyectos/{proyectoId}`
+  con el mismo patrón que `/produccion`: `allow read, write: if esStaff();`
+  (v2.47).
+
+### La plantilla vive en el código, con ids estables
+Las casillas base están definidas en el JS de la hoja, cada una con un
+**id explícito** (`A1`, `B3`, y por bloque `{idBloque}.pre.2`...). Lo que
+el usuario anota se guarda por id, no por posición. Consecuencias:
+- Agregar casillas nuevas a la plantilla es seguro si llevan un id nuevo
+  (se agregan al final del grupo): todos los proyectos y bloques ya
+  existentes las muestran vacías y conservan lo anotado.
+- **Nunca reutilizar ni renombrar un id existente** con otro significado.
+  Cambiar solo el texto visible de una casilla es seguro (pasó con
+  Preproducción 5 en v1.2).
+- Cada casilla puede llevar una **"pista" de dónde se llena el dato**
+  (hoja y campo del ecosistema). Es solo para el equipo y no viaja al
+  cliente.
+- El usuario puede agregar ítems propios por grupo (se guardan en
+  `custom`, con id `c{...}` generado) y bloques propios (`bloques`).
+
+### Qué NO se hace
+- No se escribe nada fuera del documento `plan` salvo lo que
+  explícitamente documentan las secciones 9 y 10.
+- Esta hoja no reemplaza a `recordatorios.html` (que ya tiene su propio
+  checklist con subítems y visibilidad): son cosas distintas y conectarlas
+  sin cuidado terminaría duplicando listas. Ver sección 11.
+
+---
+
+## 9. Patrón: compartir con el cliente por link con token + respuesta por pregunta (noviembre 2026)
+
+Hermano de `compartirinfo.html` (que comparte reportes del contador con
+un único bloque "respuesta del cliente"). Se creó aparte porque
+`compartirinfo.html` está atado al modelo del contador; aquí el cliente
+responde **cada pregunta por separado**. Archivos: `checklist.html`
+(lado equipo, desde v1.1), `checklist-cliente.html` (vista pública) y
+`firestore.rules` v2.48.
+
+### Piezas
+**1. Documento público: `checklistCompartidos/{token}`**
+El id es el token: 32 caracteres aleatorios a–z, A–Z, 0–9 generados con
+`crypto.getRandomValues()` (mismo esquema que `compartirinfo.html`). Campos:
+`proyectoId`, `titulo`, `visibleCliente`, `preguntas[{id, grupo, label}]`,
+`ids[]` (los mismos ids, solo para que las reglas puedan validar
+pertenencia) y `actualizadoEn`. **Es una copia (snapshot)**: solo viaja
+el texto de cada pregunta y su bloque/etapa. Nunca notas, responsables,
+fechas ni pistas internas. Actualizar = volver a publicar; el token no
+cambia, así el link ya enviado sigue valiendo.
+
+**2. Respuestas: `checklistCompartidos/{token}/respuestas/{preguntaId}`**
+Un documento por pregunta, con el id de la pregunta como id del
+documento y campos exactos `texto`, `nombre`, `fecha`.
+
+**3. Reglas (v2.48)**
+```
+match /checklistCompartidos/{token} {
+  allow read, write: if esStaff();
+  allow get: if resource.data.visibleCliente == true;   // nunca list
+  match /respuestas/{preguntaId} {
+    allow read, write: if esStaff();
+    allow get: if <padre>.visibleCliente == true;
+    allow create, update: if <padre>.visibleCliente == true
+      && preguntaId in <padre>.ids
+      && keys exactas ['texto','nombre','fecha']
+      && texto string <= 500 && nombre string <= 100
+      && fecha == request.time;
+  }
+}
+```
+(`<padre>` = `get(/databases/$(database)/documents/checklistCompartidos/$(token)).data`.)
+Puntos clave: el cliente **no puede listar ni borrar**; solo puede
+escribir respuestas a preguntas que figuran en `ids` (evita que alguien
+con el token llene la subcolección con documentos arbitrarios); pausar
+el link = `visibleCliente: false` (no se borra nada).
+
+**4. Vista del cliente: `checklist-cliente.html?r=TOKEN`**
+Página standalone, sin login ni `nav.js` ni `offline-mock.js`. Lee el
+documento con un `get()` puntual y cada respuesta previa también con
+`get()` por pregunta (no puede listar). Escribe con `serverTimestamp()`
+en `fecha`. El cliente puede volver al mismo link y editar. Primero móvil
+(táctil 48 px, campos a 16 px, barra de envío fija), tema claro/oscuro por
+`prefers-color-scheme`. Un token con formato inválido, un documento
+inexistente o un link en pausa muestran el mismo mensaje ("no está
+disponible"), sin distinguir los casos.
+
+**5. Lado equipo**
+Panel "Compartir con el cliente" en `checklist.html`: Publicar/Actualizar,
+Copiar link, Dejar de compartir, ↻ Respuestas. El token se guarda en el
+plan (`compartir.token`) **antes** de crear el documento público, para no
+dejar un link huérfano si falla el guardado. Las respuestas se leen con
+un `get()` por pregunta marcada y se muestran bajo cada casilla.
+
+### Costo de lectura conocido (decidir si crece)
+`checklist.html` carga las respuestas del cliente **al abrir la hoja**
+cuando ya existe un token (1 lectura por pregunta marcada). Con ~10–40
+preguntas es aceptable y coincide con el criterio "carga única" de la
+sección 1, pero si un proyecto llega a cientos de preguntas conviene
+moverlo detrás del botón "↻ Respuestas" con caché, como ya se hizo en
+la sección 10.
+
+### Verificación
+Las reglas v2.48 **no se probaron en el emulador de Firebase** (no estaba
+disponible en el entorno de desarrollo); se verificaron con una simulación
+propia y el usuario confirmó el flujo funcionando en uso real (v1.1). Si
+se cambian estas reglas, probarlas en el simulador de la consola de
+Firebase antes de publicar.
+
+---
+
+## 10. Mapa de datos: sesiones, asistencia y consentimientos + lista interna (noviembre 2026)
+
+Documentación de lo que **ya existe** en el ecosistema y de la primera
+hoja que lo junta. Verificado leyendo `logistica.html` (v2.131),
+`musico.html` (v3.234), `consentimiento.html` (v1.1) y `firestore.rules`.
+
+### Dónde vive cada dato
+- **Sesión:** `proyectos/{id}/sesiones/{sid}` — `fecha`, `horaInicio`,
+  `horaFin`, `estudioId`/`estudioNombre`, `sala`, `temaId`/`temaNombre`,
+  `actividad`, `tiempoSetupMin`, `musicosAsignados[]`,
+  `tecnicosAsignados[]`, instrumentación, `inputList`, etc.
+- **Músico asignado** (dentro de la sesión): `nombre`, `correo`,
+  `telefono`, `instrumento`, `tarifa`.
+- **Asistencia (RSVP):** mapa `rsvp` en el propio documento de la sesión,
+  `{ "correo@dominio": "confirmado" | "rechazado" }`. Lo escribe el músico
+  desde `musico.html` con `set({rsvp:{[correo]: valor}}, {merge:true})`.
+  **No usar `update()` con una ruta tipo `'rsvp.correo@x.com'`**: los
+  puntos del correo se interpretan como separadores de campo (ya está
+  comentado en `musico.html`).
+- **Consentimiento firmado:** `sesiones/{sid}/consentimientos/{cid}` con
+  `nombre`, `correo`, `tarifa`, `aceptado`, `creadoEn`. Lo crea la
+  persona sin login desde `consentimiento.html?p=&s=&nombre=&correo=&tarifa=`
+  (el link lo arma `logistica.html` → "📝 Generar link de consentimiento", o
+  lo abre el propio músico desde su panel). Reglas: crear sin login con
+  esquema exacto; leer/editar/borrar solo `esStaff()`.
+
+### Lista interna de consentimientos (`checklist.html` v1.3, pestaña "✍️ Consentimientos")
+- Solo **lee**; no escribe nada en sesiones ni consentimientos. No
+  requiere reglas nuevas (el equipo ya lee ambas con `esStaff()`).
+- **Bajo demanda:** no lee al abrir la hoja ni la pestaña. El botón
+  "🔄 Calcular" hace 1 lectura de las sesiones + 1 por sesión (firmas) y
+  guarda el resultado ~15 min en `localStorage` por proyecto
+  (`al_checklist_consent_{proyectoId}`). Mismo criterio que
+  `cargarRegistradosMusicos()` (sección 1).
+- **Cruce:** músico ↔ firma por `correo` (sin importar mayúsculas) o, si
+  el músico no tiene correo o no coincide, por nombre normalizado (sin
+  tildes ni mayúsculas, espacios colapsados). Músico ↔ asistencia solo
+  por correo; sin correo se avisa que no se puede saber su asistencia.
+- Marca con ⚠ cuando la tarifa firmada difiere de la asignada, y lista
+  aparte las firmas de personas no asignadas a esa sesión.
+
+### Pendientes conocidos
+- `consentimiento.html` v1.1 tiene el texto legal como **PLACEHOLDER**
+  ("pendiente redactar el texto legal"). Mientras siga así, lo que firma
+  el músico es un texto vacío. `checklist.html` lo recuerda en la casilla
+  A8, pero no lo resuelve.
+- `logistica.html` solo **genera y envía** el link; no tiene una vista de
+  quién firmó (esa vista hoy es la pestaña de `checklist.html`).
+- No existe un campo de **rider técnico** del músico en ninguna hoja
+  (`estudios.html` guarda backline y preamps por sala, no el rider de
+  cada artista). Hoy se anota en una casilla del checklist.
+
+---
+
+## 11. Cosas explícitamente descartadas o diferidas (noviembre 2026)
+
+- **Coordinar con el cliente desde `portal.html`.** Hoy el portal es casi
+  solo de lectura: muestra proyectos visibles, etapas, sesiones visibles
+  con sus tomas, cotización y pagos; **su única escritura es aceptar una
+  cotización**. Agregarle un bloque "Pendientes contigo" implicaría que el
+  portal escriba en una colección nueva y reglas nuevas con más
+  superficie. Se eligió el link con token (sección 9). Reconsiderar solo
+  si el flujo del link se queda corto con clientes reales.
+- **Reusar `compartirinfo.html` para el checklist.** Está atado al modelo
+  de reportes del contador (horas/días), no a preguntas con respuesta
+  individual. Se copió el *patrón*, no el archivo.
+- **Conectar las fechas límite del checklist con `recordatorios.html`.**
+  Esa hoja ya tiene su propio checklist con subítems y visibilidad
+  (fecha, hora, texto): conectarlas sin diseño previo duplicaría listas.
+  Diferido; si se retoma, diseñarlo aparte.
+- **Una lista de consentimientos *manual* dentro del checklist** (casillas
+  por músico): se descartó a favor de la lista automática, porque una
+  lista manual se desactualiza.
+- **Vista de "quién firmó" dentro de `logistica.html`.** Se resolvió en
+  `checklist.html` para no tocar la lógica de guardado de esa hoja (ver
+  también la nota sobre `logistica.html` en la sección 3).
+
+### Archivos nuevos o cambiados en este bloque de trabajo
+`checklist.html` v1.4 · `checklist-cliente.html` v1.0 · `proyecto.html`
+v5.45 (solo el botón "✅ Checklist") · `firestore.rules` v2.47
+(`/checklist/`) y v2.48 (`/checklistCompartidos/` + `/respuestas/`).

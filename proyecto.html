@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.44
+<!-- AUDIOLINK · proyecto.html · v5.45
+     v5.45: (a pedido) se agrega el botón "✅ Checklist" en las acciones del
+     detalle del proyecto, justo después de "🎵 Producción" — abre
+     checklist.html?id={proyectoActualId} en pestaña nueva (mismo patrón
+     que Producción). Es la única línea de código que cambia; la hoja
+     nueva (checklist.html v1.0) vive aparte. No se tocó nada más.
      v5.44: (a pedido) el sprite grande de los 3 "Cargando..." queda con el
      texto DEBAJO: .al-dial-grande pasa a display:block (antes era inline-block
      y el texto quedaba al lado). Solo CSS, ninguna función cambia.
@@ -1505,6 +1510,7 @@ window.NAV_CONFIG = {
       <button class="btn btn-ghost" onclick="editarProyectoActual()">✎ Editar</button>
       <button class="btn btn-ghost" onclick="window.open('cotizacion-rapida.html?id=' + proyectoActualId, '_blank')">🧾 Cotizador</button>
       <button class="btn btn-ghost" onclick="window.open('produccion.html?id=' + proyectoActualId, '_blank')">🎵 Producción</button>
+      <button class="btn btn-ghost" onclick="window.open('checklist.html?id=' + proyectoActualId, '_blank')">✅ Checklist</button>
       <button class="btn btn-ghost" onclick="abrirModalIngenieros()">🎧 Ingenieros</button>
       <button class="btn btn-ghost" onclick="abrirModalMusicos()">🎸 Músicos (portal)</button>
     </div>

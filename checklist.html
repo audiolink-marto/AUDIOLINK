@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolink — Checklist del proyecto</title>
+<!-- AUDIOLINK · checklist.html · v2.0
+     v2.0: (a pedido) (1) Chip "💬 respondida" en la fila de cada casilla cuando el cliente ya dejó una respuesta
+     con texto (usa lo ya cargado en R; no se guarda nada y NO se marca nada solo: la casilla la marcas tú).
+     (2) Recordatorio de equipo opcional y sincronizado por casilla: en el detalle (✎), bajo "Fecha límite", aparece
+     "🔔 Recordatorio de equipo con esta fecha" (solo si la casilla tiene fecha válida, o si ya tiene uno enlazado).
+     Al marcarla crea un documento en la colección recordatorios con los mismos campos que usa recordatorios.html
+     v1.11 (texto "Checklist · {proyecto}: {casilla}", fecha, hora null, subitems [], visibilidad 'equipo',
+     completado = estado de la casilla, autorId, autorNombre, creadoEn) y guarda su id en el ítem (campo recId).
+     Sincronización en un solo sentido (checklist -> recordatorio): al cambiar la fecha se actualiza la fecha (si
+     se borra la fecha, el recordatorio sigue enlazado con fecha null); al marcar/desmarcar "hecho" se actualiza
+     completado; al desmarcar 🔔, al quitar un ítem propio (✕) o al borrar un bloque se borran los recordatorios
+     enlazados. Si el recordatorio ya no existe (p. ej. "Limpiar completados" en Recordatorios) se quita el enlace
+     y se avisa; no se recrea solo. Si una escritura falla se avisa y la casilla del checklist no cambia.
+     Chip "🔔 recordatorio" en la fila cuando hay uno enlazado. Cambios internos: setItem() ya no descarta un
+     ítem que solo tenga recId; el guard de sesión ahora guarda usuarioActual (uid, email, nombre) como en
+     recordatorios.html (offline: usuario genérico). recId no viaja al documento público del cliente. Sin cambios
+     en plantilla (ids y textos), guardado, consentimientos, CSS, utils.js, checklist-vista.js,
+     checklist-cliente.html ni reglas (firestore v2.48: recordatorios lo escribe todo el staff).
+     v1.9: (a pedido) la marca "Pregunta para el cliente" sale del detalle (✎) y queda en la fila de cada casilla,
+     como un botón tipo píldora "🗨️ Cliente" (azul, a la derecha, antes del ✎) para marcarla sin abrir el detalle y
+     distinguirla del check de "hecho" (cuadrado, dorado, a la izquierda). Sigue guardándose en el mismo campo
+     cliente del ítem, así que lo ya marcado se conserva. Se quita el chip "🗨️ cliente" (repetido con la píldora).
+     Los extras que dependen de ella (mostrar nota, fecha, responsable y ejemplo) siguen en el detalle y aparecen
+     con la píldora encendida. En pantallas angostas la píldora se reduce al ícono. Sin cambios en filtros,
+     publicación, vista previa, plantilla, guardado, consentimientos ni reglas; checklist-vista.js v1.3 y
+     checklist-cliente.html v1.5 no cambian.
+     v1.8: (a pedido) manejo de fechas. (1) El chip de fecha de cada casilla se ve legible ("15 dic 2026"; el valor
+     guardado sigue siendo AAAA-MM-DD) y con color: rojo si venció, ámbar si es hoy o vence en 3 días o menos,
+     normal si falta más; una casilla marcada como hecha no cuenta como vencida. Usa hoyISO() de utils.js v1.6
+     (fecha local). (2) Filtro nuevo "Solo con fecha o vencidas" (casillas que tienen fecha, vencidas incluidas)
+     junto al de preguntas para el cliente; ambos se combinan. (3) Resumen arriba ("⚠ 3 vencidas · 2 vencen
+     pronto"); al pulsarlo se activa ese filtro. (4) Pestaña nueva "📅 Fechas": agenda de todas las casillas con
+     fecha (General y todos los bloques), vencidas primero, luego las próximas y al final las hechas; botón para
+     ir a la casilla. Se arma con lo ya cargado, sin lecturas nuevas a Firestore. (5) Insignia ⚠N de vencidas en
+     cada pestaña. (6) Texto de ayuda en el campo "Fecha límite" de las casillas de plantilla Edición 2, Mezcla 4
+     y Mastering 4, que son preguntas distintas con nombre parecido. (7) En el detalle (✎) de una casilla marcada
+     "Pregunta para el cliente" aparecen "Mostrar la fecha al cliente" (campo fechaCli) y "Mostrar el responsable
+     al cliente" (campo respCli): solo viaja lo que se marque y solo si hay valor, al Publicar/Actualizar (campos
+     fecha y responsable de la pregunta publicada). El cliente ve la fecha como "Fecha propuesta", con alertas
+     suaves sin rojo (lo pinta checklist-vista.js v1.3); la vista previa lo muestra igual. Al elegir una fecha en
+     el detalle ahora se redibuja la hoja para que el chip, el resumen y las insignias se actualicen. Sin cambios
+     en plantilla (ids y textos), guardado, consentimientos, utils.js ni reglas (firestore v2.48). Recordatorios
+     queda para una versión posterior.
+     v1.7: (a pedido) ejemplo/guía en la caja de respuesta del cliente (placeholder), en lenguaje cercano y neutro.
+     Las casillas de la plantilla traen un ejemplo por defecto (constante EJEMPLOS; 35 de las 46; las internas o
+     técnicas no, y las casillas propias tampoco) y cada casilla marcada "Pregunta para el cliente" tiene en su
+     detalle (✎) el campo "Ejemplo para el cliente" para reemplazarlo o escribir uno propio (campo ejemplo del
+     ítem, máx. 120 caracteres). Viaja al Publicar/Actualizar junto a la pregunta y se ve en la vista previa. Sin
+     ejemplo la caja dice "Tu respuesta...". Usa checklist-vista.js v1.2. Sin reglas nuevas (firestore v2.48).
+     Sin cambios en plantilla (ids y textos), guardado, notas, consentimientos ni lo demás.
+     v1.6: (a pedido) se puede mostrar al cliente (y a quien tenga el mismo link, p. ej. Alejo) la nota de una casilla:
+     en el detalle (✎) de una casilla marcada "Pregunta para el cliente" aparece la casilla nueva "Mostrar la nota al
+     cliente" (campo notaCli del ítem). Solo viaja el TEXTO de la nota (nunca responsable ni fecha) y solo la de las
+     casillas marcadas; viaja al pulsar Publicar/Actualizar (editar la nota después no cambia el link hasta volver a
+     publicar). Se ve bajo la pregunta como "Nota de Audiolink" (solo lectura), también en la vista previa. Chip
+     "📝 nota visible" en la casilla. Usa checklist-vista.js v1.1. Sin reglas nuevas (firestore v2.48 no valida los
+     campos del documento publicado: el equipo escribe sin restricción y el público solo lo lee). Sin cambios en
+     plantilla, guardado, consentimientos ni lo demás.
+     v1.5: (a pedido) botón "👁 Vista previa" en el panel "Compartir con el cliente" (visible siempre, también antes
+     de publicar): abre una ventana con las preguntas marcadas para el cliente tal como él las ve (logo, agrupación,
+     campo de nombre), con las respuestas que ya envió en solo lectura (las que ya están cargadas con "Respuestas";
+     no lee nada nuevo de Firestore). Usa el módulo nuevo checklist-vista.js v1.0, el mismo que checklist-cliente.html
+     v1.2. Carga también audiolink-logo.js. La vista previa no lleva botón de tema: se ve con el tema del editor.
+     Sin cambios en plantilla, guardado, publicar/compartir, consentimientos ni reglas (firestore v2.48).
+     v1.4: (a pedido) ajustes de plantilla tras revisar bitacora.html y estudios.html
+     (sin ids existentes cambiados: lo ya anotado se conserva). Casillas nuevas al
+     final de Grabación: 8 rider técnico de cada músico (no existe una hoja para el
+     rider: se anota en la casilla), 9 convención de nombres de pistas en el DAW
+     (pista: bitacora.html → Nombre/código en el DAW) y 10 formato de la sesión
+     (frecuencia de muestreo y profundidad de bits; tampoco hay hoja que lo guarde).
+     Pistas nuevas en casillas existentes: Grabación 4 backline (estudios.html →
+     Backline general y de la sala), Mezcla 2 referencias y Mastering 2 loudness y
+     plataforma (bitacora.html). Solo cambia la plantilla; la pestaña de
+     consentimientos, compartir y guardado quedan igual que v1.3.
+     v1.3: (a pedido) pestaña nueva "✍️ Consentimientos": lista INTERNA y automática
+     de los músicos del proyecto, sesión por sesión. Cruza (1) musicosAsignados de
+     cada sesión, (2) el mapa rsvp de la sesión (asistencia que el músico marca en
+     musico.html) y (3) la subcolección sesiones/{id}/consentimientos (firmas de
+     consentimiento.html). Muestra por músico: asistencia (confirmó / no asiste /
+     pendiente), consentimiento (firmó con fecha / pendiente) y la tarifa firmada
+     frente a la asignada (aviso si difieren); y aparte las firmas de personas que
+     no están asignadas a la sesión. Filtro "Solo pendientes". Criterio de lectura
+     de ARQUITECTURA.md §1: NO se lee al abrir la hoja; solo con el botón
+     "🔄 Calcular" (1 lectura de sesiones + 1 por sesión) y el resultado se guarda
+     ~15 min en localStorage (por proyecto), igual que los "Registrado" de
+     musicos.html. Solo LEE: no escribe nada en sesiones ni consentimientos. Sin
+     reglas nuevas (el equipo ya lee ambas con esStaff(), firestore v2.48). El resto
+     (plantilla, guardado, compartir con el cliente) queda igual que v1.2.
+     v1.2: (a pedido) la plantilla gana (a) una "pista" debajo de las casillas que
+     indica DÓNDE se llena cada dato (hoja y campo del ecosistema) — solo visible
+     para el equipo, NUNCA viaja al cliente (checklist-cliente solo recibe el
+     texto de la pregunta); y (b) casillas nuevas al final de sus grupos, sin
+     cambiar ningún id existente (lo ya anotado se conserva): A8 texto legal del
+     consentimiento (hoy placeholder en consentimiento.html), A9 cotización
+     aceptada y anticipo, Preproducción 9 guía PDF de estructura, Grabación 7
+     consentimiento y asistencia de cada músico, Mastering 5 saldo final pagado.
+     Cambia el texto de Preproducción 5 (instrumentación y lista de canales).
+     Solo cambia la plantilla y el pintado de la pista; compartir, guardado y
+     reglas siguen igual que v1.1 (firestore v2.48).
+     v1.1: (a pedido) compartir con el cliente por link con token, mismo patrón
+     que compartirinfo.html. Panel nuevo "Compartir con el cliente" (arriba, en
+     todas las pestañas): Publicar/Actualizar (copia a checklistCompartidos/{token}
+     SOLO las casillas marcadas "Pregunta para el cliente", con su texto y su
+     bloque/etapa; ninguna nota, responsable ni fecha viaja), Copiar link
+     (checklist-cliente.html?r=TOKEN), Dejar de compartir (visibleCliente=false) y
+     Recargar respuestas. Las respuestas del cliente (una por pregunta) se ven
+     debajo de cada casilla. El token se guarda en el plan (campo compartir) y
+     el link no cambia al volver a publicar. Requiere firestore.rules v2.48 y
+     la página checklist-cliente.html v1.0. Lo demás queda igual que en v1.0.
+     v1.0: primera versión. Hoja nueva del ecosistema (sirve para TODOS los
+     proyectos, no solo uno): checklist por bloque y etapa. Se abre con
+     checklist.html?id={proyectoId}, mismo patrón que produccion.html
+     (nav.js/nav.css, guard de sesión de equipoInterno, crearDB()).
+     Estructura: pestaña "General" (A proyecto + B personas, una sola vez) y
+     una pestaña por BLOQUE de temas (cada bloque avanza por Preproducción,
+     Grabación, Edición, Mezcla y Mastering). Cada casilla tiene detalle
+     opcional (respuesta/nota, responsable, fecha) y la marca "Pregunta para
+     el cliente" (con filtro para ver solo esas). Se pueden agregar ítems
+     propios en cualquier grupo y agregar/renombrar/borrar bloques.
+     Datos: UN solo documento proyectos/{id}/checklist/plan (items, custom,
+     bloques). Se guarda solo (con 0,7 s de espera tras el último cambio).
+     Requiere la regla nueva de firestore.rules v2.47 (match /checklist/
+     dentro de proyectos/{proyectoId}, solo equipo interno).
+     No se tocó ninguna otra hoja. El portal del cliente NO lee esta
+     colección (la coordinación con el cliente queda para el patrón de
+     compartirinfo.html en una versión posterior). -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="offline-mock.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<script src="audiolink-logo.js"></script>
+<script src="checklist-vista.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --cli:#5b9bd5;
+  --cli-bg:rgba(91,155,213,0.16);
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+  --cli:#2f6fa8;
+  --cli-bg:rgba(47,111,168,0.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;position:relative;overflow-x:hidden;}
+header,main{position:relative;z-index:1;}
+header{padding:16px 20px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;background:var(--surf);flex-wrap:wrap;gap:12px;}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+main{padding:20px;max-width:900px;margin:0 auto;}
+.btn{background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;transition:all 0.2s;font-weight:500;min-height:44px;font-family:inherit;}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);background:transparent;}
+.btn-sm{padding:6px 12px;font-size:0.8rem;min-height:36px;}
+.back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:12px;display:inline-block;}
+.back-link:hover{color:var(--gold);}
+h2.titulo{font-size:1.1rem;color:var(--gold);margin-bottom:4px;}
+.sub{font-size:0.8rem;color:var(--muted);margin-bottom:14px;}
+.barra-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.estado-guardado{font-size:0.75rem;color:var(--faint);margin-left:auto;}
+.estado-guardado.ok{color:var(--ok);}
+.estado-guardado.err{color:var(--err);}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;border-bottom:1px solid var(--brd);-webkit-overflow-scrolling:touch;}
+.tab{flex:0 0 auto;background:transparent;border:1px solid var(--brd);color:var(--muted);padding:8px 14px;border-radius:20px;font-size:0.82rem;cursor:pointer;min-height:40px;font-family:inherit;white-space:nowrap;}
+.tab.activa{border-color:var(--gold);color:var(--gold);background:var(--gold-bg);}
+.tab small{margin-left:6px;opacity:0.8;font-family:var(--M);font-size:0.7rem;}
+.card{background:var(--surf);border:1px solid var(--brd);border-radius:12px;padding:16px;margin-bottom:14px;}
+.card h3{font-size:0.95rem;color:var(--txt);display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.prog{font-family:var(--M);font-size:0.72rem;color:var(--muted);font-weight:400;}
+.prog.completo{color:var(--ok);}
+.it{border-top:1px solid var(--brd);padding:4px 0;}
+.it:first-of-type{border-top:none;}
+.it-fila{display:flex;align-items:center;gap:6px;min-height:44px;}
+.chk{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-height:44px;}
+.txt{display:flex;flex-direction:column;gap:2px;padding:4px 0;}
+.pista{font-size:0.72rem;color:var(--muted);line-height:1.35;}
+.chk input{width:22px;height:22px;flex:0 0 22px;accent-color:var(--gold);}
+.lbl{font-size:0.9rem;line-height:1.35;}
+.it.hecho .lbl{color:var(--faint);text-decoration:line-through;}
+.chip{font-size:0.68rem;padding:2px 8px;border-radius:12px;background:var(--gold-bg);color:var(--gold);white-space:nowrap;}
+.ic{background:transparent;border:1px solid transparent;color:var(--muted);min-width:44px;min-height:44px;border-radius:6px;cursor:pointer;font-size:1rem;font-family:inherit;}
+.ic:hover{color:var(--gold);border-color:var(--brd);}
+.ic.on{color:var(--gold);}
+.det{padding:4px 0 12px 32px;display:grid;gap:10px;}
+.det label.t{display:block;font-size:0.74rem;color:var(--muted);margin-bottom:4px;}
+.det input[type=text],.det input[type=date],.det textarea,.campo{width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);padding:10px 12px;border-radius:6px;font-size:16px;font-family:inherit;}
+.det textarea{resize:vertical;min-height:70px;}
+.det input:focus,.det textarea:focus,.campo:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+.fila2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.chkcliente{display:flex;align-items:center;gap:10px;font-size:0.86rem;min-height:44px;cursor:pointer;}
+.chkcliente input{width:22px;height:22px;accent-color:var(--gold);}
+.add-it{margin-top:6px;}
+.bloque-datos{display:grid;gap:10px;margin-bottom:14px;}
+.vacio{text-align:center;padding:40px 20px;color:var(--faint);}
+.cons-ses{margin-bottom:14px;}
+.cons-m{padding:10px 0;border-top:1px solid var(--brd);}
+.cons-m:first-of-type{border-top:none;}
+.cons-nom{font-size:0.92rem;font-weight:500;}
+.cons-sub{font-size:0.75rem;color:var(--muted);margin-top:2px;}
+.cons-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.chip.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.chip.no{background:rgba(212,87,74,0.15);color:var(--err);}
+.chip.wait{background:var(--surf-light);color:var(--muted);}
+.chip.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+/* ---- Píldora "Cliente" en la fila (v1.9) ---- */
+.pill-cli{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid var(--brd);border-radius:20px;color:var(--muted);font-size:0.78rem;cursor:pointer;white-space:nowrap;user-select:none;flex:0 0 auto;}
+.pill-cli:hover{border-color:var(--cli);color:var(--cli);}
+.pill-cli input{position:absolute;opacity:0;width:100%;height:100%;left:0;top:0;margin:0;cursor:pointer;}
+.pill-cli:focus-within{box-shadow:0 0 0 3px var(--cli-bg);}
+.pill-cli.on{background:var(--cli-bg);border-color:var(--cli);color:var(--cli);font-weight:500;}
+/* ---- Fechas (v1.8) ---- */
+.chip.venc{background:rgba(212,87,74,0.15);color:var(--err);}
+.chip.pronto{background:rgba(217,164,65,0.15);color:var(--warn);}
+.tab small.venc-tab{color:var(--err);opacity:1;}
+.resumen-fechas{font-size:0.82rem;margin-bottom:14px;display:none;}
+.resumen-fechas button{background:transparent;border:1px solid var(--brd);color:var(--muted);border-radius:20px;padding:6px 14px;font-size:0.82rem;cursor:pointer;min-height:36px;font-family:inherit;}
+.resumen-fechas button:hover{border-color:var(--gold);color:var(--gold);}
+.resumen-fechas button.alerta{border-color:var(--err);color:var(--err);}
+.ag-fila{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--brd);}
+.ag-fila:first-of-type{border-top:none;}
+.ag-fila.hecha .ag-txt{color:var(--faint);text-decoration:line-through;}
+.ag-txt{flex:1;min-width:180px;}
+.ag-lbl{font-size:0.9rem;line-height:1.35;}
+.ag-sub{font-size:0.72rem;color:var(--muted);margin-top:2px;}
+.ayuda-fecha{display:block;margin-top:4px;font-size:0.72rem;color:var(--muted);line-height:1.35;}
+.cons-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+.share-estado{font-size:0.82rem;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+.share-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.resp-cli{margin:0 0 8px 32px;padding:10px 12px;background:var(--gold-bg);border-left:3px solid var(--gold);border-radius:6px;font-size:0.85rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
+.resp-cli small{display:block;color:var(--muted);font-size:0.72rem;margin-bottom:4px;}
+.peligro{color:var(--err);border-color:var(--brd);}
+/* ---- Vista previa (v1.5): ventana + CSS de la vista del cliente, acotado a #vpCuerpo ---- */
+.vp-ov{position:fixed;inset:0;background:rgba(0,0,0,0.62);z-index:100000;display:none;align-items:flex-start;justify-content:center;padding:16px 10px;overflow-y:auto;}
+.vp-ov.on{display:flex;}
+.vp-box{background:var(--bg);border:1px solid var(--brd);border-radius:12px;width:100%;max-width:720px;margin:auto;}
+.vp-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--brd);background:var(--surf);border-radius:12px 12px 0 0;position:sticky;top:0;z-index:2;}
+.vp-cab h3{font-size:0.9rem;color:var(--gold);font-weight:500;}
+#vpCuerpo{max-width:680px;margin:0 auto;padding:20px 16px 12px;}
+#vpCuerpo .cab{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
+#vpCuerpo .marca{font-family:var(--T);color:var(--gold);letter-spacing:0.12em;font-size:0.8rem;}
+#vpCuerpo .marca .al-h{vertical-align:middle;}
+#vpCuerpo h1{font-family:var(--T);font-size:1.4rem;line-height:1.25;margin-bottom:8px;font-weight:700;}
+#vpCuerpo .intro{color:var(--muted);font-size:0.9rem;line-height:1.5;margin-bottom:18px;}
+#vpCuerpo .campo{width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);padding:12px;border-radius:8px;font-size:16px;font-family:inherit;}
+#vpCuerpo textarea.campo{resize:vertical;min-height:84px;}
+#vpCuerpo .lbl-nombre{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
+#vpCuerpo .grupo{margin-top:22px;}
+#vpCuerpo .grupo h2{font-size:0.82rem;color:var(--gold);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:10px;font-weight:700;}
+#vpCuerpo .q{background:var(--surf);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:10px;}
+#vpCuerpo .q label{display:block;font-size:0.95rem;line-height:1.4;margin-bottom:10px;font-weight:500;}
+#vpCuerpo .q .meta{font-size:0.72rem;color:var(--faint);margin-top:6px;min-height:1em;}
+#vpCuerpo .pie-logo{text-align:center;color:var(--faint);font-size:0.72rem;padding:26px 0 10px;}
+#vpCuerpo .pie-logo .al-h{opacity:.8;}
+#vpCuerpo .q .nota-cli{margin:0 0 10px;padding:10px 12px;background:var(--gold-bg);border-left:3px solid var(--gold);border-radius:6px;font-size:0.85rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
+#vpCuerpo .q .nota-cli small{display:block;color:var(--muted);font-size:0.72rem;margin-bottom:4px;}
+#vpCuerpo .q .fecha-cli{margin:0 0 10px;font-size:0.8rem;color:var(--muted);line-height:1.4;}
+#vpCuerpo .q .alerta-cli{margin:0 0 10px;padding:8px 12px;background:rgba(217,164,65,0.14);border-left:3px solid var(--warn);border-radius:6px;font-size:0.82rem;line-height:1.4;}
+@media (max-width:600px){ main{padding:14px;} .fila2{grid-template-columns:1fr;} .det{padding-left:8px;} .resp-cli{margin-left:8px;} .pill-cli{padding:0 10px;} .pill-cli .pc-tx{display:none;} }
+</style>
+</head>
+<body>
+
+<div id="nav-mount"></div>
+<script>
+window.NAV_CONFIG = { activo: "proyecto" };
+</script>
+<script src="nav.js"></script>
+
+<div class="main-wrap" id="mainWrap">
+<header>
+  <div class="brand" style="visibility:hidden;position:absolute;"></div>
+  <div class="header-actions">
+    <span id="proyectoTitulo" style="color:var(--muted);font-size:0.85rem;"></span>
+  </div>
+</header>
+
+<main>
+  <span class="back-link" onclick="volverAlProyecto()">← Volver al proyecto</span>
+  <h2 class="titulo">✅ Checklist del proyecto</h2>
+  <div class="sub">Qué hay que averiguar o resolver, por bloque de temas y por etapa.</div>
+
+  <div class="barra-top">
+    <label class="chkcliente" style="min-height:44px;">
+      <input type="checkbox" id="filtroCliente" data-act="filtro">
+      <span>Solo preguntas para el cliente</span>
+    </label>
+    <label class="chkcliente" style="min-height:44px;">
+      <input type="checkbox" id="filtroFecha" data-act="filtrofecha">
+      <span>Solo con fecha o vencidas</span>
+    </label>
+    <span class="estado-guardado" id="estadoGuardado"></span>
+  </div>
+  <div class="resumen-fechas" id="resumenFechas"></div>
+
+  <div class="card" id="panelCompartir"></div>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="contenido"><div class="vacio">Cargando...</div></div>
+</main>
+</div>
+
+<div class="vp-ov" id="vpOv" onclick="if(event.target===this)cerrarVistaPrevia()">
+  <div class="vp-box">
+    <div class="vp-cab"><h3>Vista previa (así lo ve el cliente)</h3><button class="btn btn-ghost btn-sm" data-act="vcerrar">✕ Cerrar</button></div>
+    <div id="vpCuerpo"></div>
+  </div>
+</div>
+
+<script>
+// ============ FIREBASE ============
+firebase.initializeApp(firebaseConfig);
+const db = crearDB();
+const auth = firebase.auth();
+const proyectosRef = db.collection('proyectos');
+
+// ============ GUARD DE SESIÓN (mismo patrón que produccion.html v1.4) ============
+let usuarioActual = null; // v2.0: para autorId/autorNombre de los recordatorios
+if(estaModoOfflineActivo()){
+  console.info('AUDIOLINK: modo offline activo — guard de sesión omitido.');
+  usuarioActual = { uid: 'offline', email: 'offline@audiolink', nombre: 'Modo offline' };
+} else {
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){ window.location.href = 'login.html'; return; }
+    try{
+      const doc = await db.collection('equipoInterno').doc(user.email).get();
+      if(!doc.exists || doc.data().activo !== true){
+        await auth.signOut();
+        window.location.href = 'login.html';
+        return;
+      }
+      usuarioActual = { uid: user.uid, email: user.email, nombre: (doc.data().nombre || user.email) };
+    } catch(e){
+      console.error('Error validando sesión:', e);
+      window.location.href = 'login.html';
+    }
+  });
+}
+
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+
+// ============ CONTEXTO (?id=) ============
+const proyectoActualId = new URLSearchParams(window.location.search).get('id');
+if(!proyectoActualId){
+  document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);">Falta el parámetro ?id= del proyecto. Abre esta página desde el detalle de un proyecto en proyecto.html.</div>';
+  throw new Error('Falta ?id=');
+}
+function volverAlProyecto(){
+  window.location.href = 'proyecto.html?id=' + proyectoActualId;
+}
+let tituloProyecto = '';
+proyectosRef.doc(proyectoActualId).get().then(doc => {
+  if(doc.exists){
+    const p = doc.data();
+    tituloProyecto = p.nombre || p.clienteArtista || '';
+    document.getElementById('proyectoTitulo').textContent = '📁 ' + (p.nombre || p.clienteArtista || proyectoActualId);
+  }
+}).catch(err => console.error('Error cargando proyecto:', err));
+
+// ============ PLANTILLA BASE (se reutiliza en cada proyecto) ============
+const GRUPOS_GENERAL = [
+  { k:'A', titulo:'A · Proyecto (una sola vez)', items:[
+    ['A1','Nombre del proyecto y formato (EP, álbum o singles)','proyecto.html → ✎ Editar'],
+    ['A2','Nombre artístico/legal y correo para el portal','proyecto.html → ✎ Editar · el acceso al portal se activa en clientes.html'],
+    ['A3','Lista final de temas y su reparto en bloques','Los temas se cargan en proyecto.html · los bloques se arman aquí, en las pestañas'],
+    ['A4','Fecha de entrega final y plataformas (define el loudness del mastering)','Fecha: proyecto.html → «Entrega estimada» · entregables de mastering: bitacora.html'],
+    ['A5','Presupuesto total y quién aprueba','proyecto.html → «Presupuesto (interno)» · cotización en 🧾 Cotizador'],
+    ['A6','Estudio y sala para cada tipo de sesión','Catálogo en estudios.html · se asigna en cada sesión de logistica.html'],
+    ['A7','Referencias sonoras generales del proyecto','Se anota aquí (✎ nota de la casilla)'],
+    ['A8','Texto legal del consentimiento redactado (hoy es un placeholder)','consentimiento.html → reemplazar el bloque PLACEHOLDER'],
+    ['A9','Cotización aceptada y anticipo acordado','Cotización: 🧾 Cotizador · abonos: pagos.html']
+  ]},
+  { k:'B', titulo:'B · Personas (se reutiliza en todos los bloques)', items:[
+    ['B1','Músicos: instrumento, tarifa acordada, cédula, correo y teléfono','Catálogo en musicos.html · la tarifa de cada sesión se pone en logistica.html'],
+    ['B2','Qué temas toca cada músico','logistica.html → músicos de cada sesión'],
+    ['B3','Ingeniero de grabación','Catálogo en equipo-tecnico.html · se asigna al proyecto en proyecto.html → 🎧 Ingenieros'],
+    ['B4','Quién edita','equipo-tecnico.html (campo Rol)'],
+    ['B5','Quién mezcla','equipo-tecnico.html (campo Rol)'],
+    ['B6','Mastering: responsable, tarifa, plazo por bloque y formato de entrega','equipo-tecnico.html (Rol y tarifa) · entregables: bitacora.html']
+  ]}
+];
+const ETAPAS = [
+  { k:'pre', titulo:'Preproducción', items:[
+    ['1','Maqueta o demo en audio (link)','guia-practica.html → maquetas del tema'],
+    ['2','BPM, compás y tonalidad (¿cambian a mitad del tema?)','Se llena en guia-practica.html'],
+    ['3','Estructura: secciones, repeticiones e intro antes del compás 1','Se llena en guia-practica.html (secciones y offset del compás 1)'],
+    ['4','Letra y acordes (o partitura)','guia-practica.html (score y PDF de estructura)'],
+    ['5','Instrumentación y lista de canales (grupos y piezas del catálogo de instrumentación)','logistica.html → «Instrumentación de la sesión»'],
+    ['6','Grabación a click, con maqueta o en vivo'],
+    ['7','Referencias sonoras del tema'],
+    ['8','Ensayo previo: lugar y fecha','logistica.html (se agenda como sesión)'],
+    ['9','Guía PDF de estructura generada (acordes y percusión)','guia-practica.html (exportar PDF de estructura)']
+  ]},
+  { k:'gra', titulo:'Grabación', items:[
+    ['1','Fecha y horario de la sesión','logistica.html (sesión)'],
+    ['2','Estudio y sala','logistica.html (sesión) · catálogo en estudios.html'],
+    ['3','Músicos confirmados y tarifa acordada','logistica.html (músicos de la sesión)'],
+    ['4','Backline: lo que se alquila y lo que trae cada músico','estudios.html → Backline general y de la sala'],
+    ['5','Set-up y lista de canales','logistica.html → «Set-up necesario» · canales en bitacora.html'],
+    ['6','Orden de grabación dentro del bloque'],
+    ['7','Consentimiento y asistencia de cada músico: link enviado y firma verificada','logistica.html → 📝 Generar link de consentimiento · o el músico lo confirma en musico.html → ✅ Asistencia y consentimiento'],
+    ['8','Rider técnico de cada músico (instrumentos propios y requerimientos)','Se anota aquí (✎ nota de la casilla): no hay una hoja para el rider'],
+    ['9','Convención de nombres de pistas en el DAW','bitacora.html → Nombre/código en el DAW'],
+    ['10','Formato de la sesión: frecuencia de muestreo y profundidad de bits (ej. 48 kHz / 24 bits)','Se anota aquí (✎ nota de la casilla)']
+  ]},
+  { k:'edi', titulo:'Edición', items:[
+    ['1','Responsable'],
+    ['2','Fecha límite'],
+    ['3','Criterios de edición (tiempo, afinación, comps)']
+  ]},
+  { k:'mez', titulo:'Mezcla', items:[
+    ['1','Responsable'],
+    ['2','Referencias de mezcla','bitacora.html → referencias'],
+    ['3','Rondas de revisión incluidas'],
+    ['4','Fecha de entrega de la mezcla']
+  ]},
+  { k:'mas', titulo:'Mastering', items:[
+    ['1','Responsable'],
+    ['2','Loudness y plataforma destino','bitacora.html → Loudness (LUFS) y Plataforma destino'],
+    ['3','Entregables (WAV, stems, versión instrumental...)','bitacora.html → Entregables (Mastering)'],
+    ['4','Fecha de entrega'],
+    ['5','Saldo final pagado antes de entregar los archivos','pagos.html']
+  ]}
+];
+
+// v1.7: ejemplo por defecto (placeholder) de la caja de respuesta del cliente, por casilla de la plantilla.
+// Clave: id de la casilla general (A1, B2...) o "etapa.número" para las de bloque (pre.3, gra.10...).
+// Las casillas sin entrada (internas/técnicas y las propias) usan "Tu respuesta...". Cada casilla puede
+// reemplazarlo con su campo "Ejemplo para el cliente" (S.items[id].ejemplo).
+const EJEMPLOS = {
+  A1:'Ej: Noches de Cali, un EP de 5 temas',
+  A2:'Ej: Juan Pérez, artístico JP Son, juanp@correo.com',
+  A3:'Ej: Son 10 temas: primero los 6 de salsa y después las 4 baladas',
+  A4:'Ej: Sale el 15 de diciembre, en Spotify y YouTube',
+  A5:'Ej: Tenemos unos 5 millones y yo apruebo los cambios',
+  A6:'Ej: La banda en la sala grande y las voces en la cabina',
+  A7:'Ej: Quiero un sonido como este tema: pega el link',
+  B1:'Ej: Pedro Gómez, bajo, pedro@correo.com, cel 300 000 0000',
+  B2:'Ej: Pedro toca en todos y Laura solo en el 3 y el 5',
+  'pre.1':'Ej: Pega aquí el link de Drive con el demo',
+  'pre.2':'Ej: 96 BPM, 4/4, La menor; el tema 3 cambia en el puente',
+  'pre.3':'Ej: Intro de 4 compases, verso, coro, verso, coro y puente',
+  'pre.4':'Ej: Les mando la letra y los acordes en foto o PDF',
+  'pre.5':'Ej: Voz, bajo, piano, congas y 3 trompetas',
+  'pre.6':'Ej: A click con maqueta, y los vientos en vivo',
+  'pre.7':'Ej: Me gusta cómo suena este tema: pega el link',
+  'pre.8':'Ej: Ensayamos el sábado 12, a las 3 p. m., en mi casa',
+  'gra.1':'Ej: Sábado 5, de 9 a. m. a 3 p. m.',
+  'gra.2':'Ej: La sala grande, si está libre',
+  'gra.3':'Ej: Ya hablé con los 5 y todos pueden ese día',
+  'gra.4':'Ej: Yo llevo mi bajo y los timbales se alquilan',
+  'gra.6':'Ej: Primero la base en vivo y después las voces',
+  'gra.8':'Ej: Mateo necesita su amplificador y un monitor aparte',
+  'gra.10':'Ej: No sé de eso: que me recomienden ustedes',
+  'edi.1':'Ej: Que lo edite el mismo ingeniero de la grabación',
+  'edi.2':'Ej: La necesito lista antes del 20 de noviembre',
+  'edi.3':'Ej: Afinar las voces suave y dejar el tiempo natural',
+  'mez.1':'Ej: Que mezcle el mismo ingeniero que grabó',
+  'mez.2':'Ej: La quiero limpia, como este tema: pega el link',
+  'mez.3':'Ej: Con dos rondas de cambios estamos bien',
+  'mez.4':'Ej: Mezcla lista para el 5 de diciembre',
+  'mas.1':'Ej: Que lo haga el estudio, no tengo a nadie en mente',
+  'mas.2':'Ej: Lo subo a Spotify y YouTube: ¿qué volumen me recomiendan?',
+  'mas.3':'Ej: El WAV final y la versión instrumental',
+  'mas.4':'Ej: El 15 de diciembre, porque sale el 20'
+};
+function ejemploDe(id){
+  if(EJEMPLOS[id]) return EJEMPLOS[id];
+  const m = String(id).match(/\.(pre|gra|edi|mez|mas)\.(\d+)$/);
+  return m ? (EJEMPLOS[m[1] + '.' + m[2]] || '') : '';
+}
+
+// ============ ESTADO ============
+// S.items[id] = { hecho, nota, resp, fecha, cliente, notaCli, ejemplo, fechaCli, respCli, recId } (solo se guardan los que tienen algo)
+// S.custom[grupoKey] = [{ id, label }]
+// S.bloques = [{ id, nombre, temas }]
+// S.compartir = { token, visible, publicadoEn, n }  (v1.1)
+let S = { items:{}, custom:{}, bloques:[], compartir:{} };
+let R = {}; // respuestas del cliente: id -> { texto, nombre, fecha } (solo lectura, no se guardan en el plan)
+const UI = { tab:'general', abiertos:new Set(), soloCliente:false, soloFecha:false };
+let cargado = false;
+
+function checklistDocRef(){
+  return proyectosRef.doc(proyectoActualId).collection('checklist').doc('plan');
+}
+function nuevoId(pref){
+  return pref + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+}
+function getItem(id){ return S.items[id] || {}; }
+function setItem(id, patch){
+  const it = Object.assign({}, S.items[id] || {}, patch);
+  const vacio = !it.hecho && !it.cliente && !(it.nota||'').trim() && !(it.resp||'').trim() && !it.fecha && !(it.ejemplo||'').trim() && !it.recId;
+  if(vacio) delete S.items[id]; else S.items[id] = it;
+}
+
+// ============ RECORDATORIOS ENLAZADOS (v2.0) ============
+// Sincronización en un solo sentido: checklist -> colección recordatorios (visibilidad 'equipo').
+const recordatoriosRef = db.collection('recordatorios');
+const REC_EN_CURSO = new Set();
+function labelDeCasilla(id){
+  const c = todasLasCasillas().find(x => x.id === id);
+  return c ? c.label : id;
+}
+function textoRecordatorio(id){
+  return 'Checklist' + (tituloProyecto ? ' · ' + tituloProyecto : '') + ': ' + labelDeCasilla(id);
+}
+// Crea el recordatorio y guarda recId en el ítem. Devuelve true si se creó.
+async function recCrear(id){
+  const d = getItem(id);
+  if(!esFechaISO(d.fecha)) return false;
+  if(!usuarioActual){ alert('La sesión aún se está validando. Intenta de nuevo en un momento.'); return false; }
+  try{
+    const ref = await recordatoriosRef.add({
+      texto: textoRecordatorio(id),
+      fecha: d.fecha,
+      hora: null,
+      subitems: [],
+      visibilidad: 'equipo',
+      completado: !!d.hecho,
+      autorId: usuarioActual.uid,
+      autorNombre: usuarioActual.nombre,
+      creadoEn: firebase.firestore.Timestamp.now()
+    });
+    if(!ref || !ref.id) throw new Error('El recordatorio se creó sin id');
+    setItem(id, { recId: ref.id });
+    return true;
+  } catch(e){
+    console.error('Error creando recordatorio:', e);
+    alert('No se pudo crear el recordatorio. La casilla del checklist no cambió.');
+    return false;
+  }
+}
+function quitarRecId(id){
+  const it = S.items[id];
+  if(it){ delete it.recId; setItem(id, {}); }
+}
+// Actualiza el recordatorio enlazado (fecha o completado). Si ya no existe, quita el enlace y avisa.
+async function recActualizar(id, patch){
+  const rid = getItem(id).recId;
+  if(!rid) return;
+  try{
+    await recordatoriosRef.doc(rid).update(patch);
+  } catch(e){
+    if(e && e.code === 'not-found'){
+      quitarRecId(id); render(); programarGuardado();
+      alert('El recordatorio enlazado ya no existe (¿se limpió en Recordatorios?). Se quitó el enlace; puedes volver a marcar 🔔 si lo necesitas.');
+    } else {
+      console.error('Error actualizando recordatorio:', e);
+      alert('No se pudo actualizar el recordatorio enlazado. Revisa tu conexión; el checklist sí quedó guardado.');
+    }
+  }
+}
+async function recBorrar(rid){
+  if(!rid) return;
+  try{ await recordatoriosRef.doc(rid).delete(); }
+  catch(e){
+    console.error('Error borrando recordatorio:', e);
+    alert('No se pudo borrar el recordatorio enlazado. Quítalo a mano en Recordatorios.');
+  }
+}
+
+// ---- Guardado automático (un solo documento, con espera) ----
+let tGuardar = null, guardando = false, pendiente = false;
+function marcarEstado(txt, cls){
+  const e = document.getElementById('estadoGuardado');
+  e.textContent = txt; e.className = 'estado-guardado' + (cls ? ' ' + cls : '');
+}
+function programarGuardado(){
+  if(!cargado) return;
+  marcarEstado('Cambios sin guardar…','');
+  clearTimeout(tGuardar);
+  tGuardar = setTimeout(guardarAhora, 700);
+}
+async function guardarAhora(){
+  if(!cargado) return;
+  if(guardando){ pendiente = true; return; }
+  guardando = true; pendiente = false;
+  clearTimeout(tGuardar);
+  marcarEstado('Guardando…','');
+  try{
+    const data = JSON.parse(JSON.stringify({
+      version: 1,
+      items: S.items,
+      custom: S.custom,
+      bloques: S.bloques,
+      compartir: S.compartir || {},
+      actualizadoEn: new Date().toISOString()
+    }));
+    await checklistDocRef().set(data);
+    marcarEstado('Guardado ✓','ok');
+  } catch(e){
+    console.error('Error guardando checklist:', e);
+    marcarEstado('No se pudo guardar — revisa la conexión o las reglas','err');
+  }
+  guardando = false;
+  if(pendiente) guardarAhora();
+}
+document.addEventListener('visibilitychange', () => { if(document.hidden) guardarAhora(); });
+
+// ---- Carga ----
+async function cargarChecklist(){
+  try{
+    const doc = await checklistDocRef().get();
+    if(doc.exists){
+      const d = doc.data();
+      S.items = d.items || {};
+      S.custom = d.custom || {};
+      S.bloques = Array.isArray(d.bloques) ? d.bloques : [];
+      S.compartir = d.compartir || {};
+    }
+  } catch(e){
+    console.error('Error cargando checklist:', e);
+    document.getElementById('contenido').innerHTML =
+      '<div class="vacio">No se pudo cargar el checklist. Verifica que la regla v2.47 de firestore.rules esté publicada.</div>';
+    return;
+  }
+  if(S.bloques.length === 0){
+    S.bloques.push({ id: nuevoId('b'), nombre:'Bloque 1', temas:'' });
+  }
+  cargado = true;
+  render();
+  if(S.compartir && S.compartir.token){ cargarRespuestas().then(render); }
+}
+
+// ============ CÁLCULO DE PROGRESO ============
+function itemsDeGrupo(clavePref, plantilla, customKey){
+  const base = plantilla.map(([n, label, hint]) => ({ id: clavePref + n, label, hint: hint || '', custom:false }));
+  const extra = (S.custom[customKey] || []).map(c => ({ id: c.id, label: c.label, custom:true }));
+  return base.concat(extra);
+}
+function progreso(lista){
+  const total = lista.length;
+  const hechos = lista.filter(i => getItem(i.id).hecho).length;
+  return { hechos, total };
+}
+function progresoBloque(b){
+  let h = 0, t = 0;
+  ETAPAS.forEach(e => {
+    const p = progreso(itemsDeGrupo(b.id + '.' + e.k + '.', e.items, b.id + '.' + e.k));
+    h += p.hechos; t += p.total;
+  });
+  return { hechos:h, total:t };
+}
+function progresoGeneral(){
+  let h = 0, t = 0;
+  GRUPOS_GENERAL.forEach(g => {
+    const p = progreso(itemsDeGrupo('', g.items, g.k));
+    h += p.hechos; t += p.total;
+  });
+  return { hechos:h, total:t };
+}
+
+// ============ FECHAS (v1.8) ============
+// "Vence pronto" = hoy o dentro de DIAS_PRONTO días. Una casilla hecha no cuenta como vencida ni como próxima.
+const DIAS_PRONTO = 3;
+const MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+// Devuelve [año, mes, día] si f es AAAA-MM-DD válida; si no, null.
+function partesFecha(f){
+  const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return null;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if(mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return [y, mo, d];
+}
+function esFechaISO(f){ return !!partesFecha(f); }
+function fechaLegible(f){
+  const p = partesFecha(f);
+  return p ? p[2] + ' ' + MESES_CORTOS[p[1] - 1] + ' ' + p[0] : String(f || '');
+}
+// Días desde hoy (hoyISO() de utils.js, fecha local): 0 = hoy, negativo = ya pasó. null si la fecha no es válida.
+function diasHasta(f){
+  const p = partesFecha(f), h = partesFecha(hoyISO());
+  if(!p || !h) return null;
+  return Math.round((new Date(p[0], p[1] - 1, p[2]) - new Date(h[0], h[1] - 1, h[2])) / 86400000);
+}
+// Estado de la fecha de una casilla: null sin fecha; si no, { k:'hecha'|'venc'|'pronto'|'ok', dias, fecha }.
+function estadoFecha(id){
+  const d = getItem(id);
+  if(!d.fecha) return null;
+  const dias = diasHasta(d.fecha);
+  if(dias === null) return { k:'ok', dias:null, fecha:d.fecha };
+  if(d.hecho) return { k:'hecha', dias, fecha:d.fecha };
+  if(dias < 0) return { k:'venc', dias, fecha:d.fecha };
+  if(dias <= DIAS_PRONTO) return { k:'pronto', dias, fecha:d.fecha };
+  return { k:'ok', dias, fecha:d.fecha };
+}
+function textoDias(dias){
+  if(dias === null) return '';
+  if(dias === 0) return 'vence hoy';
+  if(dias === 1) return 'vence mañana';
+  if(dias === -1) return 'venció ayer';
+  return dias > 0 ? 'vence en ' + dias + ' días' : 'venció hace ' + Math.abs(dias) + ' días';
+}
+// Todas las casillas (General + todos los bloques) con su pestaña, para la agenda, el resumen y las insignias.
+function todasLasCasillas(){
+  const out = [];
+  GRUPOS_GENERAL.forEach(g => {
+    itemsDeGrupo('', g.items, g.k).forEach(i => out.push({ id:i.id, label:i.label, donde:g.titulo, tab:'general' }));
+  });
+  S.bloques.forEach(b => {
+    ETAPAS.forEach(e => {
+      itemsDeGrupo(b.id + '.' + e.k + '.', e.items, b.id + '.' + e.k).forEach(i => {
+        out.push({ id:i.id, label:i.label, donde:(b.nombre || 'Bloque') + ' · ' + e.titulo, tab:b.id });
+      });
+    });
+  });
+  return out;
+}
+// Conteos: { conFecha, venc, pronto, porTab:{ tab: vencidas } }
+function resumenFechas(){
+  const r = { conFecha:0, venc:0, pronto:0, porTab:{} };
+  todasLasCasillas().forEach(c => {
+    const e = estadoFecha(c.id);
+    if(!e) return;
+    r.conFecha++;
+    if(e.k === 'venc'){ r.venc++; r.porTab[c.tab] = (r.porTab[c.tab] || 0) + 1; }
+    else if(e.k === 'pronto') r.pronto++;
+  });
+  return r;
+}
+function chipFecha(id){
+  const e = estadoFecha(id);
+  if(!e) return '';
+  const cls = e.k === 'venc' ? ' venc' : (e.k === 'pronto' ? ' pronto' : '');
+  let extra = '';
+  if(e.k === 'venc') extra = ' · vencida';
+  else if(e.k === 'pronto' && e.dias === 0) extra = ' · hoy';
+  const tip = (e.k === 'hecha' ? 'Hecha · ' : '') + textoDias(e.dias);
+  return `<span class="chip${cls}" title="${escapeHtml(tip)}">📅 ${escapeHtml(fechaLegible(e.fecha))}${extra}</span>`;
+}
+function renderResumenFechas(){
+  const el = document.getElementById('resumenFechas');
+  const cb = document.getElementById('filtroFecha');
+  if(cb) cb.checked = UI.soloFecha;
+  const r = resumenFechas();
+  if(UI.tab === 'consent' || r.conFecha === 0){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  let txt, cls = '';
+  if(r.venc || r.pronto){
+    const partes = [];
+    if(r.venc) partes.push(r.venc + (r.venc === 1 ? ' vencida' : ' vencidas'));
+    if(r.pronto) partes.push(r.pronto + (r.pronto === 1 ? ' vence pronto' : ' vencen pronto'));
+    txt = '⚠ ' + partes.join(' · ');
+    if(r.venc) cls = ' alerta';
+  } else {
+    txt = '📅 ' + r.conFecha + (r.conFecha === 1 ? ' casilla con fecha' : ' casillas con fecha') + ', ninguna vencida';
+  }
+  el.innerHTML = `<button class="${cls.trim()}" data-act="resfechas" title="Ver solo las casillas con fecha">${escapeHtml(txt)}</button>`;
+  el.style.display = 'block';
+}
+// Agenda (pestaña "📅 Fechas"): vencidas (la más atrasada primero), próximas (la más cercana primero), hechas al final.
+function renderFechasHtml(){
+  const filas = [];
+  todasLasCasillas().forEach(c => {
+    const e = estadoFecha(c.id);
+    if(e) filas.push({ c, e });
+  });
+  if(!filas.length){
+    return '<div class="vacio">Aún no hay casillas con fecha.<br><small>Pon una «Fecha límite» en el detalle (✎) de una casilla y aparecerá aquí.</small></div>';
+  }
+  const grupoDe = (e) => e.k === 'hecha' ? 2 : (e.k === 'venc' ? 0 : 1);
+  filas.sort((a, b) => grupoDe(a.e) - grupoDe(b.e) || String(a.e.fecha).localeCompare(String(b.e.fecha)));
+  let html = '<div class="card"><h3>📅 Casillas con fecha <span class="prog">' + filas.length + '</span></h3>';
+  filas.forEach(({ c, e }) => {
+    const d = getItem(c.id);
+    const id = escapeHtml(c.id);
+    html += `<div class="ag-fila ${e.k === 'hecha' ? 'hecha' : ''}">
+      ${chipFecha(c.id)}
+      <div class="ag-txt"><div class="ag-lbl">${escapeHtml(c.label)}</div>
+        <div class="ag-sub">${escapeHtml(c.donde)}${(d.resp || '').trim() ? ' · 👤 ' + escapeHtml(d.resp.trim()) : ''}${e.k === 'hecha' ? ' · hecha ✓' : ''}${d.cliente ? ' · 🗨️ cliente' : ''}</div></div>
+      <button class="btn btn-ghost btn-sm" data-act="irit" data-tab="${escapeHtml(c.tab)}" data-id="${id}">Ir a la casilla</button>
+    </div>`;
+  });
+  return html + '</div>';
+}
+
+// ============ COMPARTIR CON EL CLIENTE (v1.1) ============
+function compartidosRef(){ return db.collection('checklistCompartidos'); }
+// Token de 32 caracteres aleatorios (a-z, A-Z, 0-9) con crypto; mismo esquema que compartirinfo.html.
+function generarToken(){
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let t = '';
+  while(t.length < 32){
+    const b = new Uint8Array(48); crypto.getRandomValues(b);
+    for(const x of b){ if(x < 248 && t.length < 32) t += A[x % 62]; }
+  }
+  return t;
+}
+function linkCliente(){
+  const u = new URL('checklist-cliente.html', location.href);
+  u.search = ''; u.hash = ''; u.searchParams.set('r', S.compartir.token);
+  return u.toString();
+}
+// v1.6: si la casilla tiene "Mostrar la nota al cliente" y la nota no está vacía, se agrega p.nota (solo el texto).
+// v1.7: se agrega p.ejemplo = el ejemplo propio de la casilla o, si no tiene, el de la plantilla (si existe).
+// v1.8: si la casilla tiene "Mostrar la fecha al cliente" y una fecha válida, se agrega p.fecha (AAAA-MM-DD);
+// si tiene "Mostrar el responsable al cliente" y un responsable, se agrega p.responsable (solo el texto).
+function conExtras(p){
+  const d = getItem(p.id), t = (d.nota || '').trim();
+  if(d.cliente && d.notaCli && t) p.nota = t;
+  if(d.cliente && d.fechaCli && esFechaISO(d.fecha)) p.fecha = d.fecha;
+  if(d.cliente && d.respCli && (d.resp || '').trim()) p.responsable = d.resp.trim();
+  const ej = (d.ejemplo || '').trim() || ejemploDe(p.id);
+  if(ej) p.ejemplo = ej;
+  return p;
+}
+// Solo las casillas marcadas "Pregunta para el cliente": id, grupo (bloque · etapa), texto y, si se pidió, la nota,
+// la fecha y el responsable (v1.8).
+function preguntasCliente(){
+  const out = [];
+  GRUPOS_GENERAL.forEach(g => {
+    itemsDeGrupo('', g.items, g.k).forEach(i => {
+      if(getItem(i.id).cliente) out.push(conExtras({ id: i.id, grupo: g.titulo, label: i.label }));
+    });
+  });
+  S.bloques.forEach(b => {
+    const nombre = (b.nombre || 'Bloque') + ((b.temas || '').trim() ? ' (' + b.temas.trim() + ')' : '');
+    ETAPAS.forEach(e => {
+      itemsDeGrupo(b.id + '.' + e.k + '.', e.items, b.id + '.' + e.k).forEach(i => {
+        if(getItem(i.id).cliente) out.push(conExtras({ id: i.id, grupo: nombre + ' · ' + e.titulo, label: i.label }));
+      });
+    });
+  });
+  return out;
+}
+async function cargarRespuestas(){
+  R = {};
+  const t = S.compartir && S.compartir.token;
+  if(!t) return;
+  const ids = preguntasCliente().map(p => p.id);
+  await Promise.all(ids.map(async id => {
+    try{
+      const d = await compartidosRef().doc(t).collection('respuestas').doc(id).get();
+      if(d.exists) R[id] = d.data();
+    } catch(e){ console.warn('No se pudo leer la respuesta', id, e); }
+  }));
+}
+function fechaResp(v){
+  try{ return v && v.toDate ? v.toDate().toLocaleString('es-CO') : ''; } catch(e){ return ''; }
+}
+async function publicarCompartido(){
+  const preguntas = preguntasCliente();
+  if(preguntas.length === 0){
+    alert('Marca al menos una casilla como "Pregunta para el cliente" (botón 🗨️ Cliente de la casilla).');
+    return;
+  }
+  if(!S.compartir) S.compartir = {};
+  if(!S.compartir.token) S.compartir.token = generarToken();
+  marcarEstado('Publicando…','');
+  try{
+    await guardarAhora(); // el token queda guardado en el plan antes de crear el documento público
+    await compartidosRef().doc(S.compartir.token).set(JSON.parse(JSON.stringify({
+      proyectoId: proyectoActualId,
+      titulo: tituloProyecto,
+      visibleCliente: true,
+      preguntas: preguntas,
+      ids: preguntas.map(p => p.id),
+      actualizadoEn: new Date().toISOString()
+    })));
+    S.compartir.visible = true;
+    S.compartir.publicadoEn = new Date().toISOString();
+    S.compartir.n = preguntas.length;
+    await guardarAhora();
+    await cargarRespuestas();
+    render();
+    marcarEstado('Publicado ✓','ok');
+  } catch(e){
+    console.error('Error publicando checklist:', e);
+    marcarEstado('No se pudo publicar — revisa la conexión o las reglas v2.48','err');
+  }
+}
+async function pausarCompartido(){
+  if(!S.compartir || !S.compartir.token) return;
+  if(!confirm('El cliente dejará de ver el link (no se borra nada). ¿Continuar?')) return;
+  try{
+    await compartidosRef().doc(S.compartir.token).update({ visibleCliente: false });
+    S.compartir.visible = false;
+    await guardarAhora();
+    render();
+  } catch(e){
+    console.error('Error pausando link:', e);
+    marcarEstado('No se pudo dejar de compartir','err');
+  }
+}
+async function copiarLinkCliente(){
+  if(!S.compartir || !S.compartir.token) return;
+  const url = linkCliente();
+  try{
+    await navigator.clipboard.writeText(url);
+    marcarEstado('Link copiado ✓','ok');
+  } catch(e){
+    prompt('Copia el link:', url);
+  }
+}
+function renderCompartir(){
+  const c = S.compartir || {};
+  const n = preguntasCliente().length;
+  const contestadas = preguntasCliente().filter(p => R[p.id] && (R[p.id].texto || '').trim()).length;
+  let estado;
+  if(!c.token) estado = '⚪ Aún no compartido.';
+  else if(c.visible) estado = '🟢 Compartido' + (c.publicadoEn ? ' (publicado ' + new Date(c.publicadoEn).toLocaleString('es-CO') + ')' : '') + '.';
+  else estado = '⚪ Link en pausa: el cliente no lo ve.';
+  let html = `<h3>🔗 Compartir con el cliente</h3>
+    <div class="share-estado">${estado}<br>Hay ${n} pregunta${n===1?'':'s'} marcada${n===1?'':'s'} para el cliente${c.token ? ' · respuestas: ' + contestadas + ' de ' + n : ''}.<br>Solo viaja el texto de cada pregunta, su ejemplo y lo que marques con «Mostrar la nota al cliente», «Mostrar la fecha al cliente» o «Mostrar el responsable al cliente»; el resto de tus notas, responsables y fechas no.</div>
+    <div class="share-btns">
+      <button class="btn btn-sm" data-act="pub">${c.visible ? 'Actualizar preguntas' : (c.token ? 'Volver a compartir' : 'Publicar')}</button>
+      <button class="btn btn-ghost btn-sm" data-act="vprev">👁 Vista previa</button>`;
+  if(c.token) html += `<button class="btn btn-ghost btn-sm" data-act="copylink">Copiar link</button>
+      <button class="btn btn-ghost btn-sm" data-act="recresp">↻ Respuestas</button>`;
+  if(c.token && c.visible) html += `<button class="btn btn-ghost btn-sm peligro" data-act="despub">Dejar de compartir</button>`;
+  html += '</div>';
+  document.getElementById('panelCompartir').innerHTML = html;
+}
+
+// ============ VISTA PREVIA DEL CLIENTE (v1.5) ============
+// Misma vista que checklist-cliente.html (módulo checklist-vista.js), con lo que hay en pantalla.
+// Muestra las respuestas ya cargadas en R (solo lectura); no lee nada de Firestore.
+function abrirVistaPrevia(){
+  const preguntas = preguntasCliente();
+  if(preguntas.length === 0){
+    alert('Marca al menos una casilla como "Pregunta para el cliente" (botón 🗨️ Cliente de la casilla).');
+    return;
+  }
+  if(typeof clVistaHTML !== 'function'){ alert('No se cargó checklist-vista.js (debe estar en la misma carpeta).'); return; }
+  const resp = {};
+  let nombre = '';
+  preguntas.forEach(p => {
+    const r = R[p.id];
+    if(r && typeof r.texto === 'string') resp[p.id] = r.texto;
+    if(!nombre && r && r.nombre) nombre = r.nombre;
+  });
+  const cuerpo = document.getElementById('vpCuerpo');
+  cuerpo.innerHTML = clVistaHTML(tituloProyecto, preguntas, { prefijo: 'vp-', nombre: nombre, respuestas: resp });
+  cuerpo.querySelectorAll('textarea[data-id]').forEach(t => { t.value = resp[t.dataset.id] || ''; t.readOnly = true; });
+  const inp = cuerpo.querySelector('input'); if(inp) inp.readOnly = true;
+  if(window.alLogoInit) alLogoInit();
+  document.getElementById('vpOv').classList.add('on');
+}
+function cerrarVistaPrevia(){
+  const ov = document.getElementById('vpOv'); if(ov) ov.classList.remove('on');
+  const c = document.getElementById('vpCuerpo'); if(c) c.innerHTML = '';
+}
+document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') cerrarVistaPrevia(); });
+
+// ============ CONSENTIMIENTOS DE MÚSICOS — lista interna (v1.3) ============
+// Solo LEE. Estructura leída (ver logistica.html / musico.html / consentimiento.html):
+//   proyectos/{id}/sesiones/{sid}: fecha, actividad, sala, temaNombre, horaInicio,
+//       musicosAsignados[{nombre, correo, instrumento, tarifa}], rsvp{ correo: 'confirmado'|'rechazado' }
+//   proyectos/{id}/sesiones/{sid}/consentimientos/{cid}: nombre, correo, tarifa, aceptado, creadoEn
+const CONS_TTL_MS = 15 * 60 * 1000;
+const C = { sesiones:[], ts:0, cargando:false, error:'', fallos:0 };
+UI.soloPend = false;
+function consKey(){ return 'al_checklist_consent_' + proyectoActualId; }
+function normNombre(t){
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+}
+function leerCacheConsent(){
+  try{
+    const raw = localStorage.getItem(consKey());
+    if(!raw) return false;
+    const o = JSON.parse(raw);
+    if(!o || !Array.isArray(o.sesiones)) return false;
+    C.sesiones = o.sesiones; C.ts = o.ts || 0; C.fallos = o.fallos || 0;
+    return (Date.now() - C.ts) < CONS_TTL_MS;
+  } catch(e){ return false; }
+}
+function guardarCacheConsent(){
+  try{ localStorage.setItem(consKey(), JSON.stringify({ ts:C.ts, sesiones:C.sesiones, fallos:C.fallos })); } catch(e){}
+}
+async function calcularConsent(){
+  if(C.cargando) return;
+  C.cargando = true; C.error = ''; render();
+  try{
+    const sesRef = proyectosRef.doc(proyectoActualId).collection('sesiones');
+    const snap = await sesRef.get();
+    const base = [];
+    snap.forEach(doc => {
+      const s = doc.data() || {};
+      base.push({
+        id: doc.id,
+        fecha: s.fecha || '',
+        hora: s.horaInicio || '',
+        actividad: s.actividad || '',
+        sala: s.sala || '',
+        tema: s.temaNombre || '',
+        musicos: (Array.isArray(s.musicosAsignados) ? s.musicosAsignados : []).map(m => ({
+          nombre: m.nombre || '', correo: m.correo || '', instrumento: m.instrumento || '',
+          tarifa: (typeof m.tarifa === 'number') ? m.tarifa : (m.tarifa ? Number(m.tarifa) || null : null)
+        })),
+        rsvp: (s.rsvp && typeof s.rsvp === 'object') ? s.rsvp : {},
+        firmas: []
+      });
+    });
+    let fallos = 0;
+    await Promise.all(base.map(async ses => {
+      try{
+        const cs = await sesRef.doc(ses.id).collection('consentimientos').get();
+        cs.forEach(d => {
+          const f = d.data() || {};
+          let iso = '';
+          try{ iso = f.creadoEn && f.creadoEn.toDate ? f.creadoEn.toDate().toISOString() : ''; } catch(e){}
+          ses.firmas.push({ nombre: f.nombre || '', correo: f.correo || '', tarifa: (typeof f.tarifa === 'number') ? f.tarifa : null, fecha: iso });
+        });
+      } catch(e){ fallos++; console.warn('No se pudieron leer las firmas de la sesión', ses.id, e); }
+    }));
+    // solo sesiones con músicos asignados o con alguna firma
+    C.sesiones = base
+      .filter(x => x.musicos.length || x.firmas.length)
+      .sort((a, b) => (a.fecha + ' ' + a.hora).localeCompare(b.fecha + ' ' + b.hora));
+    C.ts = Date.now(); C.fallos = fallos;
+    guardarCacheConsent();
+  } catch(e){
+    console.error('Error calculando consentimientos:', e);
+    C.error = 'No se pudieron leer las sesiones. Revisa la conexión.';
+  }
+  C.cargando = false;
+  render();
+}
+function consRsvp(ses, m){
+  if(!m.correo) return 'sin-correo';
+  const c = m.correo.toLowerCase().trim();
+  const k = Object.keys(ses.rsvp || {}).find(x => x.toLowerCase().trim() === c);
+  return k ? ses.rsvp[k] : 'pendiente';
+}
+function consFirma(ses, m){
+  const c = (m.correo || '').toLowerCase().trim();
+  const n = normNombre(m.nombre);
+  return (ses.firmas || []).find(f =>
+    (c && (f.correo || '').toLowerCase().trim() === c) || (n && normNombre(f.nombre) === n)) || null;
+}
+function fmtCOP(n){ return '$' + Number(n).toLocaleString('es-CO'); }
+function fechaCorta(iso){
+  try{ return new Date(iso).toLocaleDateString('es-CO', { day:'2-digit', month:'short' }); } catch(e){ return ''; }
+}
+function renderConsentHtml(){
+  let html = '<div class="cons-top"><button class="btn btn-sm" data-act="conscalc"' + (C.cargando ? ' disabled' : '') + '>' +
+    (C.cargando ? 'Leyendo…' : '🔄 Calcular') + '</button>' +
+    '<label class="chkcliente" style="min-height:44px;"><input type="checkbox" data-act="consfiltro" ' + (UI.soloPend ? 'checked' : '') + '><span>Solo pendientes</span></label></div>';
+  if(C.error) html += '<div class="vacio" style="color:var(--err);padding:14px;">' + escapeHtml(C.error) + '</div>';
+  if(!C.ts){
+    return html + '<div class="vacio">Pulsa <b>Calcular</b> para leer las sesiones del proyecto y sus firmas.<br><small>Lee 1 vez las sesiones y 1 vez las firmas de cada sesión; el resultado se guarda 15 minutos.</small></div>';
+  }
+  let totM = 0, totFirmo = 0, totConf = 0;
+  const bloques = [];
+  C.sesiones.forEach(ses => {
+    const usadas = new Set();
+    const filas = ses.musicos.map(m => {
+      const f = consFirma(ses, m);
+      if(f) usadas.add(f);
+      const rs = consRsvp(ses, m);
+      totM++; if(f) totFirmo++; if(rs === 'confirmado') totConf++;
+      const pend = !f || rs !== 'confirmado';
+      return { m, f, rs, pend };
+    });
+    const extras = (ses.firmas || []).filter(f => !usadas.has(f));
+    const visibles = UI.soloPend ? filas.filter(x => x.pend) : filas;
+    if(UI.soloPend && visibles.length === 0) return;
+    const titulo = [ses.fecha, ses.actividad || 'Sesión', ses.sala, ses.tema].filter(Boolean).join(' · ');
+    const firmados = filas.filter(x => x.f).length;
+    let h = '<div class="card cons-ses"><h3>' + escapeHtml(titulo) + ' <span class="prog ' + (filas.length && firmados === filas.length ? 'completo' : '') + '">firmas ' + firmados + '/' + filas.length + '</span></h3>';
+    if(filas.length === 0) h += '<div class="cons-sub">Esta sesión no tiene músicos asignados.</div>';
+    visibles.forEach(x => {
+      const { m, f, rs } = x;
+      const chipRs = rs === 'confirmado' ? '<span class="chip ok">✓ Confirmó asistencia</span>'
+        : rs === 'rechazado' ? '<span class="chip no">✕ No asiste</span>'
+        : rs === 'sin-correo' ? '<span class="chip warn">Sin correo: no se sabe su asistencia</span>'
+        : '<span class="chip wait">… Asistencia pendiente</span>';
+      const chipF = f ? '<span class="chip ok">✓ Firmó' + (f.fecha ? ' ' + escapeHtml(fechaCorta(f.fecha)) : '') + '</span>'
+        : '<span class="chip wait">… Consentimiento pendiente</span>';
+      let chipT = '';
+      if(f && f.tarifa !== null && m.tarifa !== null && f.tarifa !== m.tarifa){
+        chipT = '<span class="chip warn">⚠ Firmó ' + escapeHtml(fmtCOP(f.tarifa)) + ' · asignada ' + escapeHtml(fmtCOP(m.tarifa)) + '</span>';
+      } else if(f && f.tarifa !== null){
+        chipT = '<span class="chip">' + escapeHtml(fmtCOP(f.tarifa)) + '</span>';
+      }
+      h += '<div class="cons-m"><div class="cons-nom">' + escapeHtml(m.nombre || 'Sin nombre') + '</div>' +
+        '<div class="cons-sub">' + escapeHtml([m.instrumento, m.correo].filter(Boolean).join(' · ') || 'Sin instrumento ni correo') + '</div>' +
+        '<div class="cons-chips">' + chipRs + chipF + chipT + '</div></div>';
+    });
+    if(!UI.soloPend && extras.length){
+      h += '<div class="cons-sub" style="margin-top:8px;">Firmas de personas que no están asignadas a esta sesión:</div>';
+      extras.forEach(f => {
+        h += '<div class="cons-m"><div class="cons-nom">' + escapeHtml(f.nombre || 'Sin nombre') + '</div>' +
+          '<div class="cons-sub">' + escapeHtml(f.correo || 'Sin correo') + '</div>' +
+          '<div class="cons-chips"><span class="chip ok">✓ Firmó' + (f.fecha ? ' ' + escapeHtml(fechaCorta(f.fecha)) : '') + '</span>' +
+          (f.tarifa !== null ? '<span class="chip">' + escapeHtml(fmtCOP(f.tarifa)) + '</span>' : '') + '</div></div>';
+      });
+    }
+    bloques.push(h + '</div>');
+  });
+  const edad = Math.max(0, Math.round((Date.now() - C.ts) / 60000));
+  let resumen = '<div class="share-estado">Músicos en sesiones: <b>' + totM + '</b> · consentimientos firmados: <b>' + totFirmo + '</b> · asistencias confirmadas: <b>' + totConf + '</b>.<br>Calculado hace ' + edad + ' min' +
+    (C.fallos ? ' · <span style="color:var(--err)">' + C.fallos + ' sesión(es) sin poder leer sus firmas</span>' : '') + '.</div>';
+  if(!C.sesiones.length) return html + resumen + '<div class="vacio">Este proyecto aún no tiene sesiones con músicos asignados.</div>';
+  if(UI.soloPend && bloques.length === 0) return html + resumen + '<div class="vacio">No hay pendientes. 🎉</div>';
+  return html + resumen + bloques.join('');
+}
+
+// ============ RENDER ============
+function renderTabs(){
+  const pg = progresoGeneral();
+  const rf = resumenFechas();
+  const insignia = (k) => rf.porTab[k] ? `<small class="venc-tab" title="Casillas vencidas">⚠${rf.porTab[k]}</small>` : '';
+  let html = `<button class="tab ${UI.tab==='general'?'activa':''}" data-act="tab" data-tab="general">General<small>${pg.hechos}/${pg.total}</small>${insignia('general')}</button>`;
+  S.bloques.forEach(b => {
+    const p = progresoBloque(b);
+    html += `<button class="tab ${UI.tab===b.id?'activa':''}" data-act="tab" data-tab="${escapeHtml(b.id)}">${escapeHtml(b.nombre || 'Bloque')}<small>${p.hechos}/${p.total}</small>${insignia(b.id)}</button>`;
+  });
+  html += `<button class="tab ${UI.tab==='fechas'?'activa':''}" data-act="tab" data-tab="fechas">📅 Fechas<small>${rf.conFecha}</small>${rf.venc ? `<small class="venc-tab" title="Casillas vencidas">⚠${rf.venc}</small>` : ''}</button>`;
+  html += `<button class="tab ${UI.tab==='consent'?'activa':''}" data-act="tab" data-tab="consent">✍️ Consentimientos</button>`;
+  html += `<button class="tab" data-act="addb">+ Bloque</button>`;
+  document.getElementById('tabs').innerHTML = html;
+}
+
+// v1.8: casillas de plantilla cuyo texto es una fecha (Edición 2, Mezcla 4, Mastering 4); no son el campo "Fecha límite".
+const AYUDA_FECHA_RE = /\.(edi\.2|mez\.4|mas\.4)$/;
+function renderItem(i){
+  const d = getItem(i.id);
+  const abierto = UI.abiertos.has(i.id);
+  const tieneDetalle = !!((d.nota||'').trim() || (d.resp||'').trim() || d.fecha);
+  const chips = [];
+  if(d.cliente && d.notaCli && (d.nota||'').trim()) chips.push('<span class="chip">📝 nota visible</span>');
+  if(d.cliente && d.fechaCli && esFechaISO(d.fecha)) chips.push('<span class="chip">👁 fecha visible</span>');
+  if(d.cliente && d.respCli && (d.resp||'').trim()) chips.push('<span class="chip">👁 responsable visible</span>');
+  if((d.resp||'').trim()) chips.push(`<span class="chip">${escapeHtml(d.resp.trim())}</span>`);
+  const cf = chipFecha(i.id); if(cf) chips.push(cf);
+  const rr = R[i.id]; if(rr && (rr.texto || '').trim()) chips.push('<span class="chip ok" title="El cliente ya respondió">💬 respondida</span>');
+  if(d.recId) chips.push('<span class="chip" title="Tiene un recordatorio de equipo enlazado">🔔 recordatorio</span>');
+  const id = escapeHtml(i.id);
+  let html = `<div class="it ${d.hecho?'hecho':''}" data-id="${id}">
+    <div class="it-fila">
+      <label class="chk"><input type="checkbox" data-act="hecho" data-id="${id}" ${d.hecho?'checked':''}><span class="txt"><span class="lbl">${escapeHtml(i.label)}</span>${i.hint ? `<small class="pista">${escapeHtml(i.hint)}</small>` : ''}</span></label>
+      ${chips.join('')}
+      <label class="pill-cli ${d.cliente?'on':''}" title="${d.cliente ? 'Es una pregunta para el cliente (toca para quitarla)' : 'Marcar como pregunta para el cliente'}"><input type="checkbox" data-act="cliente" data-id="${id}" ${d.cliente?'checked':''} aria-label="Pregunta para el cliente"><span class="pc-ic">🗨️</span><span class="pc-tx">${d.cliente ? 'Cliente ✓' : 'Cliente'}</span></label>
+      <button class="ic ${(abierto||tieneDetalle)?'on':''}" data-act="det" data-id="${id}" title="Detalle">✎</button>
+      ${i.custom ? `<button class="ic" data-act="delc" data-id="${id}" title="Quitar ítem">✕</button>` : ''}
+    </div>`;
+  const rc = R[i.id];
+  if(rc && (rc.texto || '').trim()){
+    html += `<div class="resp-cli"><small>💬 ${escapeHtml(rc.nombre || 'Cliente')}${fechaResp(rc.fecha) ? ' · ' + escapeHtml(fechaResp(rc.fecha)) : ''}</small>${escapeHtml(rc.texto)}</div>`;
+  }
+  if(abierto){
+    html += `<div class="det">
+      <div><label class="t">Respuesta / nota</label><textarea data-f="nota" data-id="${id}" placeholder="Lo que se acordó o falta averiguar...">${escapeHtml(d.nota||'')}</textarea></div>
+      <div class="fila2">
+        <div><label class="t">Responsable</label><input type="text" data-f="resp" data-id="${id}" value="${escapeHtml(d.resp||'')}" placeholder="Quién lo resuelve"></div>
+        <div><label class="t">Fecha límite</label><input type="date" data-f="fecha" data-id="${id}" value="${escapeHtml(d.fecha||'')}">${AYUDA_FECHA_RE.test(i.id) ? '<small class="ayuda-fecha">Ojo: esta casilla de la plantilla es una pregunta sobre una fecha (anota esa respuesta en la nota). Este campo es la fecha límite interna de la casilla.</small>' : ''}</div>
+      </div>
+      ${(esFechaISO(d.fecha) || d.recId) ? `<label class="chkcliente"><input type="checkbox" data-act="rec" data-id="${id}" ${d.recId?'checked':''}><span>🔔 Recordatorio de equipo con esta fecha (se mantiene sincronizado: fecha y hecho)</span></label>` : ''}
+      ${d.cliente ? `<label class="chkcliente"><input type="checkbox" data-act="notacli" data-id="${id}" ${d.notaCli?'checked':''}><span>Mostrar la nota al cliente</span></label>` : ''}
+      ${d.cliente ? `<label class="chkcliente"><input type="checkbox" data-act="fechacli" data-id="${id}" ${d.fechaCli?'checked':''}><span>Mostrar la fecha al cliente (la ve como «Fecha propuesta»)</span></label>` : ''}
+      ${d.cliente ? `<label class="chkcliente"><input type="checkbox" data-act="respcli" data-id="${id}" ${d.respCli?'checked':''}><span>Mostrar el responsable al cliente</span></label>` : ''}
+      ${d.cliente ? `<div><label class="t">Ejemplo para el cliente (guía dentro de su caja de respuesta)</label><input type="text" data-f="ejemplo" data-id="${id}" maxlength="120" value="${escapeHtml(d.ejemplo||'')}" placeholder="${escapeHtml(ejemploDe(i.id) || 'Ej: ...')}"></div>` : ''}
+    </div>`;
+  }
+  return html + '</div>';
+}
+
+function renderGrupo(titulo, lista, customKey){
+  const filtrando = UI.soloCliente || UI.soloFecha;
+  const visibles = lista.filter(i => (!UI.soloCliente || getItem(i.id).cliente) && (!UI.soloFecha || getItem(i.id).fecha));
+  if(filtrando && visibles.length === 0) return '';
+  const p = progreso(lista);
+  let html = `<div class="card"><h3>${escapeHtml(titulo)} <span class="prog ${p.total && p.hechos===p.total?'completo':''}">${p.hechos}/${p.total}</span></h3>`;
+  html += visibles.map(renderItem).join('');
+  if(!filtrando){
+    html += `<div class="add-it"><button class="btn btn-ghost btn-sm" data-act="addc" data-key="${escapeHtml(customKey)}">+ Ítem propio</button></div>`;
+  }
+  return html + '</div>';
+}
+
+function render(){
+  renderCompartir();
+  document.getElementById('panelCompartir').style.display = (UI.tab === 'consent') ? 'none' : '';
+  renderResumenFechas();
+  renderTabs();
+  const cont = document.getElementById('contenido');
+  let html = '';
+  if(UI.tab === 'general'){
+    GRUPOS_GENERAL.forEach(g => {
+      html += renderGrupo(g.titulo, itemsDeGrupo('', g.items, g.k), g.k);
+    });
+  } else if(UI.tab === 'consent'){
+    html = renderConsentHtml();
+  } else if(UI.tab === 'fechas'){
+    html = renderFechasHtml();
+  } else {
+    const b = S.bloques.find(x => x.id === UI.tab);
+    if(!b){ UI.tab = 'general'; return render(); }
+    html += `<div class="bloque-datos">
+      <div><label class="sub" style="display:block;margin-bottom:4px;">Nombre del bloque</label>
+        <input class="campo" type="text" data-bf="nombre" data-bid="${escapeHtml(b.id)}" value="${escapeHtml(b.nombre||'')}"></div>
+      <div><label class="sub" style="display:block;margin-bottom:4px;">Temas de este bloque</label>
+        <input class="campo" type="text" data-bf="temas" data-bid="${escapeHtml(b.id)}" value="${escapeHtml(b.temas||'')}" placeholder="Ej: Tema 1, Tema 2"></div>
+    </div>`;
+    ETAPAS.forEach(e => {
+      html += renderGrupo(e.titulo, itemsDeGrupo(b.id + '.' + e.k + '.', e.items, b.id + '.' + e.k), b.id + '.' + e.k);
+    });
+    if(!UI.soloCliente && !UI.soloFecha){
+      html += `<div style="margin-top:8px;"><button class="btn btn-ghost btn-sm peligro" data-act="delb" data-bid="${escapeHtml(b.id)}">Borrar este bloque</button></div>`;
+    }
+  }
+  if(UI.tab !== 'consent' && UI.tab !== 'fechas' && (UI.soloCliente || UI.soloFecha)){
+    const hayCasillas = /class="card"/.test(html);
+    if(!hayCasillas){
+      html += (UI.soloCliente && UI.soloFecha)
+        ? '<div class="vacio">No hay casillas para el cliente con fecha en esta pestaña.</div>'
+        : (UI.soloFecha
+          ? '<div class="vacio">No hay casillas con fecha en esta pestaña.</div>'
+          : '<div class="vacio">Aún no marcaste preguntas para el cliente en esta pestaña.</div>');
+    }
+  }
+  cont.innerHTML = html;
+}
+
+// ============ EVENTOS (delegación) ============
+document.addEventListener('click', (ev) => {
+  const el = ev.target.closest('[data-act]');
+  if(!el) return;
+  const act = el.dataset.act;
+  if(act === 'tab'){
+    UI.tab = el.dataset.tab;
+    if(UI.tab === 'consent' && !C.ts){ leerCacheConsent(); } // solo caché local, sin leer Firestore
+    render(); return;
+  }
+  if(act === 'conscalc'){ calcularConsent(); return; }
+  if(act === 'resfechas'){
+    UI.soloFecha = true;
+    if(UI.tab === 'fechas') UI.tab = 'general';
+    render(); return;
+  }
+  if(act === 'irit'){
+    UI.tab = el.dataset.tab;
+    UI.soloFecha = false; UI.soloCliente = false;
+    const fc = document.getElementById('filtroCliente'); if(fc) fc.checked = false;
+    UI.abiertos.add(el.dataset.id);
+    render();
+    const nodo = Array.from(document.querySelectorAll('.it')).find(x => x.dataset.id === el.dataset.id);
+    if(nodo) nodo.scrollIntoView({ block:'center' });
+    return;
+  }
+  if(act === 'det'){
+    const id = el.dataset.id;
+    if(UI.abiertos.has(id)) UI.abiertos.delete(id); else UI.abiertos.add(id);
+    render(); return;
+  }
+  if(act === 'vprev'){ abrirVistaPrevia(); return; }
+  if(act === 'vcerrar'){ cerrarVistaPrevia(); return; }
+  if(act === 'pub'){ publicarCompartido(); return; }
+  if(act === 'despub'){ pausarCompartido(); return; }
+  if(act === 'copylink'){ copiarLinkCliente(); return; }
+  if(act === 'recresp'){ marcarEstado('Leyendo respuestas…',''); cargarRespuestas().then(() => { render(); marcarEstado('Respuestas al día ✓','ok'); }); return; }
+  if(act === 'addb'){
+    const b = { id: nuevoId('b'), nombre: 'Bloque ' + (S.bloques.length + 1), temas:'' };
+    S.bloques.push(b); UI.tab = b.id; render(); programarGuardado(); return;
+  }
+  if(act === 'delb'){
+    const b = S.bloques.find(x => x.id === el.dataset.bid);
+    if(!b) return;
+    if(!confirm(`¿Borrar "${b.nombre}" y todo lo anotado en él? No se puede deshacer.`)) return;
+    const pref = b.id + '.';
+    Object.keys(S.items).forEach(k => { if(k.startsWith(pref)){ recBorrar(S.items[k].recId); delete S.items[k]; } });
+    Object.keys(S.custom).forEach(k => { if(k.startsWith(pref)) delete S.custom[k]; });
+    S.bloques = S.bloques.filter(x => x.id !== b.id);
+    if(S.bloques.length === 0) S.bloques.push({ id: nuevoId('b'), nombre:'Bloque 1', temas:'' });
+    UI.tab = 'general'; render(); programarGuardado(); return;
+  }
+  if(act === 'addc'){
+    const label = (prompt('Nuevo ítem:') || '').trim();
+    if(!label) return;
+    const key = el.dataset.key;
+    if(!S.custom[key]) S.custom[key] = [];
+    const id = nuevoId('c');
+    S.custom[key].push({ id, label });
+    UI.abiertos.add(id);
+    render(); programarGuardado(); return;
+  }
+  if(act === 'delc'){
+    const id = el.dataset.id;
+    if(!confirm('¿Quitar este ítem?')) return;
+    Object.keys(S.custom).forEach(k => { S.custom[k] = S.custom[k].filter(c => c.id !== id); if(!S.custom[k].length) delete S.custom[k]; });
+    recBorrar(getItem(id).recId);
+    delete S.items[id]; UI.abiertos.delete(id);
+    render(); programarGuardado(); return;
+  }
+});
+
+document.addEventListener('change', (ev) => {
+  const el = ev.target;
+  const act = el.dataset && el.dataset.act;
+  if(act === 'filtro'){ UI.soloCliente = el.checked; render(); return; }
+  if(act === 'filtrofecha'){ UI.soloFecha = el.checked; render(); return; }
+  if(act === 'consfiltro'){ UI.soloPend = el.checked; render(); return; }
+  // v1.8: al elegir una fecha se redibuja para actualizar chip, resumen e insignias (el valor ya se guardó en 'input')
+  if(el.dataset && el.dataset.f === 'fecha'){ recActualizar(el.dataset.id, { fecha: esFechaISO(el.value) ? el.value : null }); render(); return; }
+  if(act === 'rec'){
+    const id = el.dataset.id;
+    if(REC_EN_CURSO.has(id)) return;
+    if(el.checked){
+      REC_EN_CURSO.add(id); el.disabled = true;
+      recCrear(id).then(ok => { REC_EN_CURSO.delete(id); render(); if(ok) programarGuardado(); });
+    } else {
+      const rid = getItem(id).recId;
+      quitarRecId(id); render(); programarGuardado(); recBorrar(rid);
+    }
+    return;
+  }
+  if(act === 'hecho'){ setItem(el.dataset.id, { hecho: el.checked }); render(); programarGuardado(); recActualizar(el.dataset.id, { completado: el.checked }); return; }
+  if(act === 'cliente'){ setItem(el.dataset.id, { cliente: el.checked }); render(); programarGuardado(); return; }
+  if(act === 'notacli'){ setItem(el.dataset.id, { notaCli: el.checked }); render(); programarGuardado(); return; }
+  if(act === 'fechacli'){ setItem(el.dataset.id, { fechaCli: el.checked }); render(); programarGuardado(); return; }
+  if(act === 'respcli'){ setItem(el.dataset.id, { respCli: el.checked }); render(); programarGuardado(); return; }
+});
+
+document.addEventListener('input', (ev) => {
+  const el = ev.target;
+  if(el.dataset && el.dataset.f){
+    setItem(el.dataset.id, { [el.dataset.f]: el.value });
+    programarGuardado();
+    return;
+  }
+  if(el.dataset && el.dataset.bf){
+    const b = S.bloques.find(x => x.id === el.dataset.bid);
+    if(!b) return;
+    b[el.dataset.bf] = el.value;
+    programarGuardado();
+    return;
+  }
+});
+cargarChecklist();
+</script>
+</body>
+</html>
