@@ -2,9 +2,26 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Audiolink — Checklist del proyecto</title>
-<!-- AUDIOLINK · checklist.html · v2.0
+<!-- AUDIOLINK · checklist.html · v2.2
+     v2.2: (a pedido) los chips de cada casilla (responsable, fecha, 💬, 🔔, etc.) bajan a una segunda línea bajo el
+     texto en TODOS los anchos, no solo en móvil: en escritorio una casilla con muchos chips dejaba el enunciado en
+     una columna angosta partido palabra por palabra. El enunciado ocupa el ancho disponible; la píldora "Cliente"
+     y los botones ✎/✕ siguen a la derecha en la primera línea. Solo CSS: .it-chips pasa de display:contents a flex
+     con envoltura (reglas movidas del bloque móvil al general). Sin cambios en JS, plantilla, guardado,
+     consentimientos, recordatorios, fechas, publicación ni reglas.
+     v2.1: (a pedido) optimización mobile first. Solo CSS, el viewport y un envoltorio de chips en renderItem().
+     (1) viewport-fit=cover y márgenes laterales/inferior con env(safe-area-inset-*) en header y main (no se toca
+     el borde superior para no chocar con nav.js). (2) body usa 100dvh (con 100vh de respaldo). (3) Los :hover van
+     dentro de @media (hover:hover) para que no queden "pegados" al tocar. (4) En pantallas de 600px o menos los
+     controles táctiles suben a 44px (.btn-sm, .pill-cli, .tab, botón del resumen de fechas). (5) En esas pantallas
+     .chip, .pista y .det label.t suben de tamaño. (6) La vista previa ocupa toda la pantalla en móvil, con
+     overscroll-behavior:contain y respeto de safe-area. (7) Los botones de "Compartir con el cliente" ocupan el
+     ancho completo en móvil. (8) Fila de cada casilla (B1a): los chips (responsable, fecha, 💬, 🔔, etc.) se agrupan
+     en <span class="it-chips">; en escritorio se comportan igual que antes (display:contents) y en móvil bajan a
+     una segunda línea bajo el texto, alineados con él. Sin cambios en plantilla, guardado, consentimientos,
+     recordatorios, fechas, publicación ni reglas; checklist-vista.js y nav.js no cambian.
      v2.0: (a pedido) (1) Chip "💬 respondida" en la fila de cada casilla cuando el cliente ya dejó una respuesta
      con texto (usa lo ya cargado en R; no se guarda nada y NO se marca nada solo: la casilla la marcas tú).
      (2) Recordatorio de equipo opcional y sincronizado por casilla: en el detalle (✎), bajo "Fecha límite", aparece
@@ -184,18 +201,15 @@
   --cli-bg:rgba(47,111,168,0.12);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;position:relative;overflow-x:hidden;}
+body{background:var(--bg);color:var(--txt);font-family:var(--S);min-height:100vh;min-height:100dvh;position:relative;overflow-x:hidden;}
 header,main{position:relative;z-index:1;}
-header{padding:16px 20px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;background:var(--surf);flex-wrap:wrap;gap:12px;}
+header{padding:16px max(20px,env(safe-area-inset-right)) 16px max(20px,env(safe-area-inset-left));border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;background:var(--surf);flex-wrap:wrap;gap:12px;}
 .header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-main{padding:20px;max-width:900px;margin:0 auto;}
+main{padding:20px max(20px,env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));max-width:900px;margin:0 auto;}
 .btn{background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;transition:all 0.2s;font-weight:500;min-height:44px;font-family:inherit;}
-.btn:hover{background:var(--gold);color:var(--bg);}
 .btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
-.btn-ghost:hover{border-color:var(--muted);color:var(--txt);background:transparent;}
 .btn-sm{padding:6px 12px;font-size:0.8rem;min-height:36px;}
 .back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:12px;display:inline-block;}
-.back-link:hover{color:var(--gold);}
 h2.titulo{font-size:1.1rem;color:var(--gold);margin-bottom:4px;}
 .sub{font-size:0.8rem;color:var(--muted);margin-bottom:14px;}
 .barra-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
@@ -221,7 +235,6 @@ h2.titulo{font-size:1.1rem;color:var(--gold);margin-bottom:4px;}
 .it.hecho .lbl{color:var(--faint);text-decoration:line-through;}
 .chip{font-size:0.68rem;padding:2px 8px;border-radius:12px;background:var(--gold-bg);color:var(--gold);white-space:nowrap;}
 .ic{background:transparent;border:1px solid transparent;color:var(--muted);min-width:44px;min-height:44px;border-radius:6px;cursor:pointer;font-size:1rem;font-family:inherit;}
-.ic:hover{color:var(--gold);border-color:var(--brd);}
 .ic.on{color:var(--gold);}
 .det{padding:4px 0 12px 32px;display:grid;gap:10px;}
 .det label.t{display:block;font-size:0.74rem;color:var(--muted);margin-bottom:4px;}
@@ -246,7 +259,6 @@ h2.titulo{font-size:1.1rem;color:var(--gold);margin-bottom:4px;}
 .chip.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
 /* ---- Píldora "Cliente" en la fila (v1.9) ---- */
 .pill-cli{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid var(--brd);border-radius:20px;color:var(--muted);font-size:0.78rem;cursor:pointer;white-space:nowrap;user-select:none;flex:0 0 auto;}
-.pill-cli:hover{border-color:var(--cli);color:var(--cli);}
 .pill-cli input{position:absolute;opacity:0;width:100%;height:100%;left:0;top:0;margin:0;cursor:pointer;}
 .pill-cli:focus-within{box-shadow:0 0 0 3px var(--cli-bg);}
 .pill-cli.on{background:var(--cli-bg);border-color:var(--cli);color:var(--cli);font-weight:500;}
@@ -256,7 +268,6 @@ h2.titulo{font-size:1.1rem;color:var(--gold);margin-bottom:4px;}
 .tab small.venc-tab{color:var(--err);opacity:1;}
 .resumen-fechas{font-size:0.82rem;margin-bottom:14px;display:none;}
 .resumen-fechas button{background:transparent;border:1px solid var(--brd);color:var(--muted);border-radius:20px;padding:6px 14px;font-size:0.82rem;cursor:pointer;min-height:36px;font-family:inherit;}
-.resumen-fechas button:hover{border-color:var(--gold);color:var(--gold);}
 .resumen-fechas button.alerta{border-color:var(--err);color:var(--err);}
 .ag-fila{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--brd);}
 .ag-fila:first-of-type{border-top:none;}
@@ -272,7 +283,7 @@ h2.titulo{font-size:1.1rem;color:var(--gold);margin-bottom:4px;}
 .resp-cli small{display:block;color:var(--muted);font-size:0.72rem;margin-bottom:4px;}
 .peligro{color:var(--err);border-color:var(--brd);}
 /* ---- Vista previa (v1.5): ventana + CSS de la vista del cliente, acotado a #vpCuerpo ---- */
-.vp-ov{position:fixed;inset:0;background:rgba(0,0,0,0.62);z-index:100000;display:none;align-items:flex-start;justify-content:center;padding:16px 10px;overflow-y:auto;}
+.vp-ov{position:fixed;inset:0;background:rgba(0,0,0,0.62);z-index:100000;display:none;align-items:flex-start;justify-content:center;padding:16px 10px;overflow-y:auto;overscroll-behavior:contain;}
 .vp-ov.on{display:flex;}
 .vp-box{background:var(--bg);border:1px solid var(--brd);border-radius:12px;width:100%;max-width:720px;margin:auto;}
 .vp-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--brd);background:var(--surf);border-radius:12px 12px 0 0;position:sticky;top:0;z-index:2;}
@@ -290,14 +301,48 @@ h2.titulo{font-size:1.1rem;color:var(--gold);margin-bottom:4px;}
 #vpCuerpo .grupo h2{font-size:0.82rem;color:var(--gold);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:10px;font-weight:700;}
 #vpCuerpo .q{background:var(--surf);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:10px;}
 #vpCuerpo .q label{display:block;font-size:0.95rem;line-height:1.4;margin-bottom:10px;font-weight:500;}
-#vpCuerpo .q .meta{font-size:0.72rem;color:var(--faint);margin-top:6px;min-height:1em;}
+#vpCuerpo .q .meta{font-size:0.78rem;color:var(--muted);margin-top:6px;min-height:1em;}
 #vpCuerpo .pie-logo{text-align:center;color:var(--faint);font-size:0.72rem;padding:26px 0 10px;}
 #vpCuerpo .pie-logo .al-h{opacity:.8;}
 #vpCuerpo .q .nota-cli{margin:0 0 10px;padding:10px 12px;background:var(--gold-bg);border-left:3px solid var(--gold);border-radius:6px;font-size:0.85rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
-#vpCuerpo .q .nota-cli small{display:block;color:var(--muted);font-size:0.72rem;margin-bottom:4px;}
+#vpCuerpo .q .nota-cli small{display:block;color:var(--muted);font-size:0.78rem;margin-bottom:4px;}
 #vpCuerpo .q .fecha-cli{margin:0 0 10px;font-size:0.8rem;color:var(--muted);line-height:1.4;}
 #vpCuerpo .q .alerta-cli{margin:0 0 10px;padding:8px 12px;background:rgba(217,164,65,0.14);border-left:3px solid var(--warn);border-radius:6px;font-size:0.82rem;line-height:1.4;}
-@media (max-width:600px){ main{padding:14px;} .fila2{grid-template-columns:1fr;} .det{padding-left:8px;} .resp-cli{margin-left:8px;} .pill-cli{padding:0 10px;} .pill-cli .pc-tx{display:none;} }
+/* ---- Fila de la casilla (v2.2): chips en segunda línea en todos los anchos ---- */
+.it-fila{flex-wrap:wrap;}
+.chk{min-width:0;}
+.it-chips{display:flex;flex-wrap:wrap;gap:6px;order:5;flex:0 0 100%;padding:0 0 8px 32px;}
+/* ---- Hover solo en dispositivos con puntero (v2.1) ---- */
+@media (hover:hover){
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);background:transparent;}
+.back-link:hover{color:var(--gold);}
+.ic:hover{color:var(--gold);border-color:var(--brd);}
+.pill-cli:hover{border-color:var(--cli);color:var(--cli);}
+.resumen-fechas button:hover{border-color:var(--gold);color:var(--gold);}
+}
+@media (max-width:600px){
+  main{padding:14px max(14px,env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));}
+  .fila2{grid-template-columns:1fr;}
+  .det{padding-left:8px;}
+  .resp-cli{margin-left:8px;}
+  .pill-cli{padding:0 10px;}
+  .pill-cli .pc-tx{display:none;}
+  /* v2.1: táctil de 44px */
+  .btn-sm,.pill-cli,.tab,.resumen-fechas button{min-height:44px;}
+  .pill-cli{min-width:44px;justify-content:center;}
+  /* v2.1: textos pequeños más legibles */
+  .chip{font-size:0.76rem;padding:3px 9px;}
+  .pista{font-size:0.78rem;}
+  .det label.t{font-size:0.8rem;}
+  /* v2.1: compartir con ancho completo */
+  .share-btns .btn{flex:1 1 100%;}
+  /* v2.1: vista previa a pantalla completa */
+  .vp-ov{padding:0;align-items:stretch;}
+  .vp-box{max-width:none;margin:0;border:0;border-radius:0;min-height:100dvh;}
+  .vp-cab{border-radius:0;padding-top:max(10px,env(safe-area-inset-top));padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));}
+  #vpCuerpo{padding-bottom:calc(12px + env(safe-area-inset-bottom));}
+}
 </style>
 </head>
 <body>
@@ -1175,7 +1220,7 @@ function renderItem(i){
   let html = `<div class="it ${d.hecho?'hecho':''}" data-id="${id}">
     <div class="it-fila">
       <label class="chk"><input type="checkbox" data-act="hecho" data-id="${id}" ${d.hecho?'checked':''}><span class="txt"><span class="lbl">${escapeHtml(i.label)}</span>${i.hint ? `<small class="pista">${escapeHtml(i.hint)}</small>` : ''}</span></label>
-      ${chips.join('')}
+      ${chips.length ? '<span class="it-chips">' + chips.join('') + '</span>' : ''}
       <label class="pill-cli ${d.cliente?'on':''}" title="${d.cliente ? 'Es una pregunta para el cliente (toca para quitarla)' : 'Marcar como pregunta para el cliente'}"><input type="checkbox" data-act="cliente" data-id="${id}" ${d.cliente?'checked':''} aria-label="Pregunta para el cliente"><span class="pc-ic">🗨️</span><span class="pc-tx">${d.cliente ? 'Cliente ✓' : 'Cliente'}</span></label>
       <button class="ic ${(abierto||tieneDetalle)?'on':''}" data-act="det" data-id="${id}" title="Detalle">✎</button>
       ${i.custom ? `<button class="ic" data-act="delc" data-id="${id}" title="Quitar ítem">✕</button>` : ''}
