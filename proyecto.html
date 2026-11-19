@@ -4,7 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.45
+<!-- AUDIOLINK · proyecto.html · v5.47
+     v5.47: (a pedido) iconos por grupo de instrumentacion. Se agrega
+     <script src="iconos-instrumentacion.js"> (antes de instrumentacion.js,
+     que pasa a v1.6 con selector de icono por grupo y campo `icono`) y, en
+     el Dashboard, cada tarjeta de grupo (renderDashInstrumentacion) muestra
+     el icono del grupo junto al nombre + CSS minimo (.dash-instr-card .nombre
+     pasa a flex). Si el modulo de iconos no carga, la tarjeta queda como
+     antes. guardarInstrumentacion() NO se toco: ya escribe todo
+     instrumentacionGrupos, asi que conserva el campo `icono`.
+     v5.46: (a pedido) el modal de proyecto suma "Labor de producción
+     (interno)": modo (por tema / valor fijo), tarifa por tema y valor fijo.
+     Se guarda en el documento del proyecto como
+     produccionMarto: { modo, tarifaTema, valorFijo } y lo hereda
+     cotizador.html v9.59 al vincular el proyecto. Proyectos viejos sin el
+     campo siguen igual (valores vacíos, modo 'tema'). Reglas de Firestore
+     sin cambios (staff tiene write total sobre proyectos). No se tocó
+     nada más.
      v5.45: (a pedido) se agrega el botón "✅ Checklist" en las acciones del
      detalle del proyecto, justo después de "🎵 Producción" — abre
      checklist.html?id={proyectoActualId} en pestaña nueva (mismo patrón
@@ -784,6 +800,7 @@
 <script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
+<script src="iconos-instrumentacion.js"></script>
 <script src="instrumentacion.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -1383,7 +1400,7 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   background:var(--surf-2,rgba(255,255,255,0.03));border:1px solid var(--brd);
   border-radius:8px;padding:10px 12px;
 }
-.dash-instr-card .nombre{font-size:0.88rem;font-weight:600;margin-bottom:6px;}
+.dash-instr-card .nombre{font-size:0.88rem;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
 .dash-instr-chips{display:flex;gap:6px;flex-wrap:wrap;}
 .dash-instr-vacio{font-size:0.85rem;color:var(--muted);}
 .dash-card-click{cursor:pointer;}
@@ -1612,6 +1629,23 @@ window.NAV_CONFIG = {
         <label>Notas internas (confidencial)</label>
         <input type="text" id="fNotasInternas">
       </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Labor de producción (interno) — modo</label>
+        <select id="fProdModo">
+          <option value="tema">Por tema</option>
+          <option value="fijo">Valor fijo del proyecto</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tarifa por tema (COP)</label>
+        <input type="number" id="fProdTarifaTema" placeholder="0" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label>Valor fijo del proyecto (COP)</label>
+      <input type="number" id="fProdValorFijo" placeholder="0" min="0">
     </div>
     <div class="modal-actions float-chip" id="modalActionsFloat">
       <button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>
@@ -2594,7 +2628,7 @@ function renderDashInstrumentacion(instr, gruposProyecto, etapaActual){
         <div class="dash-instr-grid">
           ${grupos.map(g => `
             <div class="dash-instr-card">
-              <div class="nombre">${escapeHtml(g.label)}</div>
+              <div class="nombre">${typeof iconoGrupo === 'function' ? iconoGrupo(iconoClave(g.key, catalogo[g.key]), { size: 24, titulo: g.label }) : ''}${escapeHtml(g.label)}</div>
               <div class="dash-instr-chips">
                 ${g.piezas.map(p => `<span class="chip-mini con-notas">${escapeHtml(p.nombre)}</span>`).join('')}
               </div>
@@ -2931,6 +2965,9 @@ function limpiarFormulario(){
   document.getElementById('fNarrativa').value = '';
   document.getElementById('fPresupuesto').value = '';
   document.getElementById('fNotasInternas').value = '';
+  document.getElementById('fProdModo').value = 'tema';
+  document.getElementById('fProdTarifaTema').value = '';
+  document.getElementById('fProdValorFijo').value = '';
   document.getElementById('equipoContainer').innerHTML = '';
   agregarFilaEquipo();
 }
@@ -3007,6 +3044,11 @@ async function guardarProyecto(){
     costos: {
       presupuesto: Number(document.getElementById('fPresupuesto').value) || 0,
       notasInternas: document.getElementById('fNotasInternas').value.trim()
+    },
+    produccionMarto: {
+      modo: document.getElementById('fProdModo').value === 'fijo' ? 'fijo' : 'tema',
+      tarifaTema: Number(document.getElementById('fProdTarifaTema').value) || 0,
+      valorFijo: Number(document.getElementById('fProdValorFijo').value) || 0
     },
     visibleCliente: true
   };
@@ -3246,6 +3288,10 @@ function editarProyectoActual(){
   document.getElementById('fNarrativa').value = p.narrativa || '';
   document.getElementById('fPresupuesto').value = (p.costos && p.costos.presupuesto) || '';
   document.getElementById('fNotasInternas').value = (p.costos && p.costos.notasInternas) || '';
+  const pmEd = p.produccionMarto || {};
+  document.getElementById('fProdModo').value = pmEd.modo === 'fijo' ? 'fijo' : 'tema';
+  document.getElementById('fProdTarifaTema').value = pmEd.tarifaTema || '';
+  document.getElementById('fProdValorFijo').value = pmEd.valorFijo || '';
   document.getElementById('equipoContainer').innerHTML = '';
   if(p.equipo && p.equipo.length){
     p.equipo.forEach(e => agregarFilaEquipo(e.rol, e.nombre, e.tecnicoId || ''));

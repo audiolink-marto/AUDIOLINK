@@ -1,4 +1,14 @@
-/* AUDIOLINK · instrumentacion.js · v1.5
+/* AUDIOLINK · instrumentacion.js · v1.6
+   v1.6: cada GRUPO gana un campo `icono` (id de icono de iconos-instrumentacion.js,
+   ej. 'cuerdas', 'otros'). En el encabezado del grupo aparece el icono actual
+   (clic = abre una cuadricula para elegir otro). Grupo nuevo arranca con 'otros'.
+   Grupos guardados sin `icono` NO se migran: el icono sale de su clave
+   (iconoClave) y se guarda al elegir uno. CATALOGO_INSTRUMENTACION_DEFAULT trae
+   el icono de sus 7 grupos y la etiqueta de `bronces` pasa a "Vientos" (la CLAVE
+   no cambia; proyectos con catalogo propio guardado conservan su etiqueta).
+   Si iconos-instrumentacion.js no esta cargado, el editor funciona igual, sin
+   iconos. No se tocaron piezas, `orden`, opciones del selector ni el guardado.
+
    v1.5: se agrega un campo `orden` (number) a cada GRUPO, para que el
    orden visual ya no dependa de cómo Firestore devuelva las claves del
    mapa `instrumentacionGrupos` (los mapas en Firestore NO garantizan
@@ -79,13 +89,13 @@
    mientras se prueba esto. */
 
 const CATALOGO_INSTRUMENTACION_DEFAULT = {
-  bateria: { label: 'Batería', orden: 0, piezas: ['Kick','Redoblante','Tom 1','Tom 2','Tom de piso','Hi-hat','Overhead L','Overhead R','Ride'] },
-  percusionLatina: { label: 'Percusión latina', orden: 1, piezas: ['Congas','Bongó','Timbales','Campana','Güiro','Maracas','Clave'] },
-  cuerdas: { label: 'Cuerdas', orden: 2, piezas: ['Bajo eléctrico','Contrabajo','Baby bass','Guitarra eléctrica','Guitarra acústica','Tres','Cuatro'] },
-  bronces: { label: 'Bronces', orden: 3, piezas: ['Trompeta','Trombón','Saxofón','Flauta traversa'] },
-  voces: { label: 'Voces', orden: 4, piezas: ['Voz principal','Coro 1','Coro 2','Coro 3'] },
-  teclas: { label: 'Teclas', orden: 5, piezas: ['Piano','Teclado/Sintetizador'] },
-  otros: { label: 'Otros', orden: 6, piezas: [] }
+  bateria: { label: 'Batería', icono: 'bateria', orden: 0, piezas: ['Kick','Redoblante','Tom 1','Tom 2','Tom de piso','Hi-hat','Overhead L','Overhead R','Ride'] },
+  percusionLatina: { label: 'Percusión latina', icono: 'percusionLatina', orden: 1, piezas: ['Congas','Bongó','Timbales','Campana','Güiro','Maracas','Clave'] },
+  cuerdas: { label: 'Cuerdas', icono: 'cuerdas', orden: 2, piezas: ['Bajo eléctrico','Contrabajo','Baby bass','Guitarra eléctrica','Guitarra acústica','Tres','Cuatro'] },
+  bronces: { label: 'Vientos', icono: 'bronces', orden: 3, piezas: ['Trompeta','Trombón','Saxofón','Flauta traversa'] },
+  voces: { label: 'Voces', icono: 'voces', orden: 4, piezas: ['Voz principal','Coro 1','Coro 2','Coro 3'] },
+  teclas: { label: 'Teclas', icono: 'teclas', orden: 5, piezas: ['Piano','Teclado/Sintetizador'] },
+  otros: { label: 'Otros', icono: 'otros', orden: 6, piezas: [] }
 };
 
 function catalogoInstrumentacionDefaultCopy(){
@@ -103,6 +113,8 @@ let instrumentacionState = {};
 let instrGruposAbiertos = {};
 // v1.1: qué grupos tienen visible el editor de opciones fijas del <select>
 let instrOpcionesAbiertas = {};
+// v1.6: qué grupos tienen abierto el selector de icono
+let instrIconosAbiertos = {};
 
 function instrumentacionVacia(){
   const st = {};
@@ -178,11 +190,19 @@ function renderInstrumentacion(){
         </div>
       </div>` : '';
 
+    // v1.6: icono del grupo (solo si el modulo de iconos esta cargado)
+    const hayIconos = typeof iconoGrupo === 'function' && typeof iconoClave === 'function';
+    const ik = hayIconos ? iconoClave(key, grupo) : '';
+    const icoHtml = hayIconos
+      ? `<span style="cursor:pointer;display:inline-flex;" onclick="event.stopPropagation(); toggleIconoPickerInstr('${key}')" title="Cambiar icono del grupo">${iconoGrupo(ik, { size: 26, titulo: 'Cambiar icono del grupo' })}</span>` : '';
+    const pickerHtml = (hayIconos && instrIconosAbiertos[key])
+      ? `<div class="ig-picker">${iconoPickerHtml(ik, 'elegirIconoInstr', key)}</div>` : '';
+
     return `
       <div class="instr-grupo ${abierto ? 'abierto' : ''}">
         <div class="instr-grupo-header">
           <div class="instr-grupo-titulo">
-            <strong class="instr-grupo-label-click" onclick="event.stopPropagation(); renombrarGrupoInstrPrompt('${key}')" title="Clic para renombrar grupo">${escapeHtml(grupo.label)} ✎</strong>
+            ${icoHtml}<strong class="instr-grupo-label-click" onclick="event.stopPropagation(); renombrarGrupoInstrPrompt('${key}')" title="Clic para renombrar grupo">${escapeHtml(grupo.label)} ✎</strong>
             <span onclick="toggleGrupoInstr('${key}')" style="cursor:pointer;">${piezas.length ? piezas.length + ' pieza(s)' : 'sin piezas'} ▾</span>
           </div>
           <div class="instr-grupo-acciones">
@@ -192,6 +212,7 @@ function renderInstrumentacion(){
             <button onclick="event.stopPropagation(); eliminarGrupoInstr('${key}')" title="Eliminar grupo">🗑️</button>
           </div>
         </div>
+        ${pickerHtml}
         <div class="instr-grupo-body">
           ${filas}
           <div class="instr-footer-row">
@@ -280,7 +301,7 @@ function agregarGrupoInstrPrompt(){
   const key = generarIdInstr('custom');
   const ordenes = Object.values(instrumentacionGruposState).map(g => g.orden || 0);
   const ordenNuevo = ordenes.length ? Math.max(...ordenes) + 1 : 0;
-  instrumentacionGruposState[key] = { label: nombre.trim(), orden: ordenNuevo, piezas: [] };
+  instrumentacionGruposState[key] = { label: nombre.trim(), icono: 'otros', orden: ordenNuevo, piezas: [] };
   instrumentacionState[key] = [];
   instrGruposAbiertos[key] = true;
   renderInstrumentacion();
@@ -311,6 +332,7 @@ function eliminarGrupoInstr(key){
   delete instrumentacionState[key];
   delete instrGruposAbiertos[key];
   delete instrOpcionesAbiertas[key];
+  delete instrIconosAbiertos[key];
   renderInstrumentacion();
 }
 
@@ -362,6 +384,19 @@ function agregarOpcionInstrPrompt(key){
   if(!nombre || !nombre.trim()) return;
   if(!grupo.piezas) grupo.piezas = [];
   grupo.piezas.push(nombre.trim());
+  renderInstrumentacion();
+}
+// ---- v1.6: icono por grupo ----
+function toggleIconoPickerInstr(key){
+  instrIconosAbiertos[key] = !instrIconosAbiertos[key];
+  renderInstrumentacion();
+}
+
+function elegirIconoInstr(key, idIcono){
+  const grupo = instrumentacionGruposState[key];
+  if(!grupo) return;
+  grupo.icono = idIcono;
+  instrIconosAbiertos[key] = false;
   renderInstrumentacion();
 }
 /* ============ FIN INSTRUMENTACIÓN ============ */

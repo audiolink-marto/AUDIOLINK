@@ -3,8 +3,149 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Logística (v2.131)</title>
-<!-- AUDIOLINK · logistica.html · v2.131
+<title>Audiolink — Logística (v2.141)</title>
+<!-- AUDIOLINK · logistica.html · v2.141
+     v2.141: (a pedido) solo los PDF: exportarPDFSesionHTML() (ficha),
+     PH_PRINT_CSS y exportarPDF() (resumen / informe interno). (1) Bloque
+     de título del header, en ficha y resumen: tres líneas a la derecha
+     en vez del texto pequeño: "LOGÍSTICA" (dorado, chico, con
+     espaciado), "FICHA DE SESIÓN" / "RESUMEN DE SESIONES" / "INFORME
+     INTERNO" (más grande, negrita) y la fecha de generación (gris o
+     crema atenuado). Con HEADER_SIN_FONDO el título va oscuro y la
+     fecha gris; con header de color, crema (como antes). Logo y ajustes
+     de header-config.js sin cambios; el header sigue en 28 mm. En la
+     ficha interna el badge CONFIDENCIAL sube (top 9mm -> 2.5mm) y se
+     compacta (padding vertical 2.5mm -> 1.8mm) para no chocar con las
+     tres líneas. (2) Ficha: print-color-adjust: exact en
+     PH_PRINT_CSS para que Chrome conserve los fondos crema y el pill
+     oscuro al guardar como PDF. (3) Resumen: "Pág. N de M" centrado en
+     el pie de cada hoja (se pinta al final, cuando ya se conoce M); el
+     resto del pie igual. La ficha no lleva numeración (casi siempre es
+     una sola hoja y en HTML depende del navegador). NO se tocó el
+     cálculo, los datos, exportarPDFSesion() ni header-config.js.
+     v2.140: (a pedido) solo el PDF general "Resumen de sesiones" /
+     "Informe interno" (exportarPDF(), jsPDF): (1) header 38mm -> 28mm
+     (textos de la derecha reubicados para ese alto; mismos ajustes de
+     header-config.js). (2) Sesiones agrupadas por día: título de fecha
+     (dorado, con línea fina) y debajo las sesiones de ese día sin repetir
+     la fecha; se agrupa por fechas CONSECUTIVAS, así el orden de las
+     sesiones es exactamente el de antes. Si un día continúa en otra hoja
+     se repite su título. (3) Tarjeta compacta: actividad a la izquierda
+     y horario dorado grande a la derecha; debajo sala, técnicos y
+     músicos (con salto de línea si no caben, antes se salían de la
+     tarjeta) y nota interna en modo interno. (4) Una columna, sin iconos.
+     El pie y el título del proyecto quedan igual; ninguna tarjeta se
+     parte entre páginas. NO se tocó exportarPDFSesion(), la ficha de
+     sesión (v2.138/v2.139), los datos ni header-config.js.
+     v2.139: (a pedido) corrección en el PDF de sesión: el texto de la
+     derecha del header ("LOGÍSTICA · FICHA DE SESIÓN" y la fecha) es
+     crema, pensado para fondos oscuros (v2.128), y con HEADER_SIN_FONDO
+     quedaba casi invisible sobre blanco. Ahora, solo cuando el header es
+     sin fondo, ese texto usa gris cálido #7a7060 (clase
+     ph-header-textos-sf). Con fondo de color no cambia nada. Sin otros
+     cambios respecto a v2.138.
+     v2.138: (a pedido) solo el PDF de sesión (exportarPDFSesionHTML() y
+     PH_PRINT_CSS): mejor uso del espacio y estética. (1) Header 40mm ->
+     28mm (mismos ajustes de header-config.js, sin tocarlo). (2) Hero y
+     horario/fecha fusionados en una sola franja: actividad a la
+     izquierda, horario dorado a la derecha y debajo proyecto · cliente ·
+     fecha · sala · estudio · tema en columnas pequeñas con etiqueta
+     arriba (mismos datos que antes). (3) Músicos y técnicos lado a lado
+     en 2 columnas (una sola columna si solo hay uno de los dos).
+     (4) Instrumentación en cuadrícula de 2 columnas, una tarjeta por
+     grupo (cada tarjeta no se parte; la sección sí puede continuar en
+     la página siguiente). (5) Estética: secciones sin fondo crema (solo
+     línea dorada), fondo solo en la franja principal y en la nota
+     interna; etiquetas de fila en gris, dorado solo en horario, títulos
+     y nombres de grupo; filas más compactas (2.5mm -> 1.5mm). Footer
+     igual. NO se tocó exportarPDF(), exportarPDFSesion() (jsPDF), datos,
+     lógica de modo cliente/interno ni header-config.js.
+     v2.137: (a pedido) (1) Duplicar sesion ahora CONSERVA la fecha de la
+     original (antes quedaba vacia); el resto del comportamiento no cambia:
+     se abre como "Nueva Sesion (copia)" y no guarda nada hasta pulsar
+     Guardar. (2) El orden del listado (Fecha ↑ / ↓) se recuerda en
+     localStorage (audiolink_orden_sesiones) y se restaura al recargar; los
+     demas filtros siguen reiniciandose en cada carga y "Limpiar filtros" no
+     cambia el orden elegido. (3) NUEVO editar fecha y hora desde la fila,
+     sin abrir la sesion: clic en la fecha de la fila abre un flotante con
+     Fecha, Hora inicio y Hora fin (las horas usan el mismo picker de ruedas
+     del editor). Guardar hace update() solo de fecha, horaInicio, horaFin y
+     actualizadoEn en esa sesion (proyecto o agenda global); el listado se
+     refresca por el onSnapshot de siempre. No se toco: guardarSesion(), el
+     editor, el set-up, Firestore rules, los PDF ni el resto de la lista.
+     v2.136:
+     v2.136: (a pedido) listado de sesiones SOLO en vista Lista. (1) Se
+     elimina la vista Cards: se quitan htmlCardSesion(), htmlCardGlobal(),
+     el interruptor Cards/Lista, setVistaSes(), la clave localStorage
+     audiolink_vista_sesiones y el CSS .ses-vista; pintarListadoSes() ahora
+     siempre pinta htmlFilaSesion(). (2) En cada fila se quitan los chips de
+     TECNICOS (quedan los de musicos, max 2 + "+N"). (3) Se quita el badge
+     de Setup. (4) El badge de visibilidad solo se muestra cuando la sesion
+     es "Privada" (ya no se pinta "Visible"). No se toco: tiempoSetupMin
+     (sigue en el editor y se guarda igual), badgeSetup() (queda definida,
+     sin uso en el listado), visibleCliente, el filtro de visibilidad, el
+     filtro de tecnico, el aviso "Sin equipo" (sigue contando tecnicos),
+     el dash, Firestore, guardarSesion(), duplicar ni los PDF.
+     v2.135:
+     v2.135: (a pedido) iconos por grupo de instrumentacion en las cartas de
+     sesion: vista Lista (nueva columna .sf-instr entre fecha y titulo),
+     htmlCardSesion y htmlCardGlobal (a la izquierda del titulo). Solo los
+     grupos marcados de la sesion (instrumentacionSesion), maximo 3 + "+N",
+     ordenados por el `orden` del grupo en el proyecto. El icono sale de
+     instrumentacionGrupos[clave].icono (elegido en el editor de proyecto.html)
+     y si no existe, de la clave del grupo. Se agrega <script
+     src="iconos-instrumentacion.js">, helpers labelGrupoProy() e
+     iconosSesionHtml() y CSS .sf-instr. En el diccionario fijo
+     GRUPOS_INSTRUMENTACION_LABELS la etiqueta de `bronces` pasa a "Vientos"
+     (la clave no cambia). No se toco instrSesionKeys, toggleGrupoSesion(),
+     el check de grupos ni el guardado. Si el modulo de iconos no carga, las
+     cartas quedan como antes.
+     v2.134: FIX desborde en la vista Lista (escritorio) — los chips de
+     equipo de cada fila (.sf-equipo) pasan a dos líneas: rol/instrumento
+     arriba (más pequeño) y nombre debajo, con radio de borde 10px en
+     vez de píldora. Cada chip mide lo que mide su línea más larga, así
+     que la fila ya no empuja los botones (⧉, ING) fuera de pantalla.
+     Cambios: (a) CSS nuevo solo para `.sf-equipo .equipo-chip`
+     (.ec-rol / .ec-nom); (b) htmlFilaSesion() separa cada chip en rol y
+     nombre (el chip "+N" y su tooltip no cambian). No toca las cards,
+     el modal, la versión móvil (.sf-equipo ya se oculta ≤640px),
+     Firestore ni el resto de la lógica.
+     v2.133: (1) FIX tema — la hoja nunca declaraba `color-scheme`, así
+     que el calendario nativo de los campos de fecha y la lista
+     desplegable de los <select> salían con colores del navegador y no
+     del tema. Ahora :root declara color-scheme dark y
+     :root[data-tema="light"] declara light; además `select option`
+     toma --surf-light/--txt. Se quitó el filter:invert(0.8) del ícono
+     del calendario (era solo para fondo oscuro y, con color-scheme
+     bien declarado, lo dejaba oscuro/invisible). (2) NUEVO Duplicar
+     sesión: botón "⧉ Duplicar sesión" en el editor y botón ⧉ en cada
+     card/fila (proyecto y agenda global). Copia todo (estudio, sala,
+     tema, horarios, set-up, visibilidad, notas internas, instrumentación
+     con su input list, músicos y técnicos) EXCEPTO la fecha (queda
+     vacía y es obligatoria) y se abre como "Nueva Sesión (copia)" sin
+     guardar nada hasta pulsar Guardar. Desde la agenda global navega
+     al proyecto con ?duplicar=<id>. (3) NUEVO listado: interruptor
+     Cards/Lista (se recuerda en localStorage), barra de color por
+     estado (hecha/hoy/próxima/sin fecha), avisos "Sin horario"/"Sin
+     equipo" y filtros (estado, visibilidad, estudio, técnico, texto,
+     orden) tanto en el proyecto como en la agenda global. Solo cambia
+     lo que se muestra: no toca Firestore, guardarSesion(), el dash de
+     resumen ni el resto del formulario.
+     v2.132: FIX — el check de cada grupo de "Instrumentación de la
+     sesión" (.instr-card-check) no se veía y no se podía marcar. Usaba
+     <i class="ti ti-square|ti-check"> (Tabler Icons), pero ni esta hoja
+     ni nav.css/nav.js cargan esa librería, así que el <i> quedaba vacío.
+     Sin poder marcar grupos no se generaba el Input List y, al expandir
+     una tarjeta, no había nada que mostrar (el detalle solo aparece en
+     grupos marcados — comportamiento de v2.100, se deja tal cual).
+     Cambio: el <i> se reemplaza por un SVG inline (cuadro redondeado;
+     marcado = relleno dorado con check, sin marcar = contorno tenue) +
+     role/aria-checked en el span, y CSS nuevo (.instr-chk) con hover,
+     transición suave y colores por variables (--gold/--muted/--bg), así
+     funciona en tema oscuro y claro. Se quitan las 2 reglas CSS
+     `.instr-card-head i` (ya sin uso). No se tocó toggleGrupoSesion(),
+     toggleInstrGrupoColapsado(), calcularInputListSesion(), Firestore,
+     ni los checkboxes al-chk de v2.131.
      v2.131: (a pedido) los 5 checkboxes de esta hoja pasan a verse como el
      switch del dial (.al-chk): "Modo interno" del PDF en dorado; "Visible
      para el cliente" en azul; "Solo marcados", las piezas de sesión y el
@@ -1395,6 +1536,7 @@
 <script src="offline-mock.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
+<script src="iconos-instrumentacion.js"></script>
 <script src="header-config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
@@ -1432,8 +1574,10 @@ document.addEventListener('DOMContentLoaded', function(){
   --T:"Playfair Display",Georgia,serif;
   --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
   --M:"JetBrains Mono",monospace;
+  color-scheme:dark; /* v2.133 */
 }
 :root[data-tema="light"]{
+  color-scheme:light; /* v2.133 */
   --bg:#faf8f4;
   --surf:#ffffff;
   --surf-light:#f3f0e8;
@@ -1697,8 +1841,9 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
    comportamiento, solo el ícono. */
 .field input[type="time"]::-webkit-calendar-picker-indicator,
 .field input[type="date"]::-webkit-calendar-picker-indicator{
-  filter:invert(0.8);cursor:pointer;
+  cursor:pointer; /* v2.133: sin invert — lo resuelve color-scheme de :root */
 }
+select option,select optgroup{background:var(--surf-light);color:var(--txt);} /* v2.133 */
 /* v2.18: ruedas del picker de hora propio (reemplaza al <input
    type="time"> nativo, ver abrirPickerHora()). scroll-snap centra un
    valor a la vez; el valor "activo" (centrado) se resalta con la clase
@@ -1731,8 +1876,14 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
 .instr-card:not(.marcado){opacity:0.62;}
 .instr-card.marcado{border-color:var(--gold);background:var(--gold-bg);}
 .instr-card-head{display:flex;align-items:center;gap:10px;}
-.instr-card-head i{font-size:17px;color:var(--muted);flex-shrink:0;}
-.instr-card.marcado .instr-card-head i{color:var(--gold);}
+/* v2.132: check SVG inline (reemplaza al <i class="ti"> que no cargaba) */
+.instr-chk{width:22px;height:22px;display:block;color:var(--muted);transition:color .15s,transform .15s;}
+.instr-chk .chk-box{fill:transparent;stroke:currentColor;stroke-width:1.6;transition:fill .15s,stroke .15s;}
+.instr-chk .chk-tick{fill:none;stroke:var(--bg);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .22s ease .05s;}
+.instr-card-check:hover .instr-chk{color:var(--gold);transform:scale(1.08);}
+.instr-card.marcado .instr-chk{color:var(--gold);}
+.instr-card.marcado .instr-chk .chk-box{fill:currentColor;}
+.instr-card.marcado .instr-chk .chk-tick{stroke-dashoffset:0;}
 .instr-card-nombre{font-size:0.85rem;color:var(--txt);flex:1;}
 .instr-card.marcado .instr-card-nombre{font-weight:600;}
 .instr-card-badge{font-size:0.7rem;color:var(--muted);background:var(--surf);border-radius:10px;padding:2px 8px;flex-shrink:0;}
@@ -2002,6 +2153,57 @@ input[type="checkbox"].al-chk.ok{--chk-on:#2f6b4a; --chk-led:#6fe0a4; --chk-glow
 input[type="checkbox"].al-chk.cli{--chk-on:#2d5a85; --chk-led:#7fbcf2; --chk-glow:rgba(127,188,242,.60);}
 input[type="checkbox"].al-chk.oculto{--chk-on:#8a3a32; --chk-led:#ff8a7a; --chk-glow:rgba(255,138,122,.60);}
 input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glow:rgba(185,162,240,.60);}
+
+/* ===== v2.133: listado de sesiones — vista Cards/Lista, estados y filtros ===== */
+.ses-barra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;}
+.ses-barra input,.ses-barra select{background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);padding:8px 10px;border-radius:6px;font-size:0.82rem;font-family:inherit;min-height:36px;}
+.ses-barra input{flex:1 1 220px;min-width:160px;}
+.ses-barra input:focus,.ses-barra select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+.ses-resumen{font-size:0.78rem;color:var(--faint);margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.ses-resumen button{background:none;border:0;color:var(--gold);cursor:pointer;font-size:0.78rem;text-decoration:underline;padding:0;}
+.est-hecha{--est:var(--faint);}
+.est-hoy{--est:var(--gold);}
+.est-proxima{--est:var(--ok);}
+.est-aviso{--est:var(--warn);}
+.card.ses-item{border-left:4px solid var(--est,var(--brd));}
+.card.ses-item.est-hecha,.ses-fila.est-hecha{opacity:0.75;}
+.card.ses-item.est-hecha:hover,.ses-fila.est-hecha:hover{opacity:1;}
+.ses-estado{font-size:0.68rem;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:var(--est,var(--muted));margin-left:6px;}
+.ses-aviso{font-size:0.68rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(217,164,65,0.15);color:var(--warn);white-space:nowrap;}
+.grid.lista{display:flex;flex-direction:column;gap:6px;}
+.ses-fila{display:flex;align-items:center;gap:14px;background:var(--surf);border:1px solid var(--brd);border-left:4px solid var(--est,var(--brd));border-radius:8px;padding:10px 14px;cursor:pointer;transition:border-color 0.2s,background 0.2s;}
+.ses-fila:hover{border-color:var(--gold);border-left-color:var(--est,var(--gold));background:var(--surf-light);}
+.sf-fecha{flex:0 0 118px;}
+.sf-fecha b{display:block;font-size:0.85rem;color:var(--est,var(--txt));font-weight:600;text-transform:capitalize;}
+.sf-fecha small{font-family:var(--M);font-size:0.72rem;color:var(--muted);}
+.sf-fecha{cursor:pointer;border-radius:6px;padding:2px 4px;margin:-2px -4px;transition:background 0.15s;}
+.sf-fecha:hover{background:var(--gold-bg);}
+.sf-fecha:hover b{text-decoration:underline dotted;}
+/* v2.137: flotante para editar fecha/hora desde la fila */
+.ses-pop{position:absolute;z-index:90;width:272px;max-width:calc(100vw - 16px);background:var(--surf);border:1px solid var(--gold);border-radius:10px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,0.4);}
+.ses-pop h4{font-size:0.78rem;color:var(--gold);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ses-pop label{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:4px;}
+.ses-pop input{width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);padding:9px 10px;border-radius:6px;font-size:0.88rem;font-family:inherit;}
+.ses-pop input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+.ses-pop .sp-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.ses-pop .sp-acc{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}
+.sf-instr{flex:0 0 auto;min-width:92px;display:flex;align-items:center;} /* v2.135 */
+.sf-main{flex:1 1 auto;min-width:0;}
+.sf-titulo{font-size:0.95rem;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sf-sub{font-size:0.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sf-equipo{display:flex;gap:4px;flex:0 1 auto;}
+.sf-equipo .equipo-chip{white-space:nowrap;display:flex;flex-direction:column;justify-content:center;gap:1px;border-radius:10px;padding:3px 10px;line-height:1.2;} /* v2.134: dos líneas */
+.sf-equipo .ec-rol{font-size:0.62rem;opacity:0.8;letter-spacing:0.02em;}
+.sf-equipo .ec-nom{font-size:0.72rem;font-weight:600;}
+.sf-acc{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+@media (max-width:640px){
+  .ses-fila{flex-wrap:wrap;gap:6px 10px;padding:10px 12px;}
+  .sf-fecha{flex:0 0 auto;}
+  .sf-instr{min-width:0;}
+  .sf-main{flex:1 1 55%;}
+  .sf-equipo{display:none;}
+  .sf-acc{flex:1 1 100%;justify-content:flex-end;flex-wrap:wrap;}
+}
 </style>
 </head>
 <body>
@@ -2061,12 +2263,14 @@ window.NAV_CONFIG = { activo: 'logistica' };
 
   <div class="sesiones-dash" id="sesionesDash" style="display:none;"></div>
 
+  <div id="barraSesiones" style="display:none;"></div>
   <div class="grid" id="gridSesiones"></div>
   <div class="empty" id="emptyState" style="display:none;">No hay sesiones registradas aún.</div>
   <div id="sinProyecto" style="display:none;">
     <div class="top-actions" style="margin-bottom:6px;">
       <h2 style="font-size:0.95rem;color:var(--muted);letter-spacing:0.04em;" id="sinProyectoTexto">AGENDA — TODOS LOS PROYECTOS</h2>
     </div>
+    <div id="barraAgenda"></div>
     <div class="grid" id="gridAgendaGlobal"></div>
     <div class="empty" id="emptyAgendaGlobal" style="display:none;">No hay sesiones registradas en ningún proyecto todavía.</div>
     <div style="max-width:360px;margin:32px auto 0;text-align:center;">
@@ -2114,6 +2318,7 @@ window.NAV_CONFIG = { activo: 'logistica' };
       <label class="chk-pdf-modo" style="display:none;" id="wrapChkPdfSesionInterno" title="Marca esta opción para incluir tarifas y notas internas en el PDF">
         <input type="checkbox" class="al-chk" id="chkPdfSesionInterno"> Modo interno
       </label>
+      <button class="btn btn-ghost" style="display:none;" id="btnDuplicar" onclick="duplicarSesion(sesionActualId)" title="Abre una Nueva Sesión con todo lo de esta (menos la fecha)">⧉ Duplicar sesión</button>
       <button class="btn btn-ghost" style="color:var(--err);border-color:var(--err);display:none;" id="btnEliminar" onclick="eliminarSesion()">Eliminar</button>
     </div>
     <div style="margin-bottom:8px;"></div>
@@ -2534,27 +2739,16 @@ function badgeSetup(s){
 function renderAgendaGlobal(){
   const grid = document.getElementById('gridAgendaGlobal');
   const empty = document.getElementById('emptyAgendaGlobal');
+  const barra = document.getElementById('barraAgenda');
   if(!grid) return;
   if(agendaGlobal.length === 0){
     grid.innerHTML = '';
     empty.style.display = 'block';
+    if(barra) barra.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
-  grid.innerHTML = agendaGlobal.map(s => {
-    const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
-    const proy = proyectosCache[s.proyectoId];
-    return `
-    <div class="card" onclick="window.location.href='logistica.html?id=${s.proyectoId}&origen=agenda&sesion=${s.id}'">
-      <div class="card-top">
-        <h3>${escapeHtml(s.actividad || 'Sesión')}</h3>
-        <span class="badge ${s.visibleCliente ? 'vis' : 'priv'}">${s.visibleCliente ? 'Visible' : 'Privada'}</span>
-      </div>
-      <div class="meta">📁 ${escapeHtml(proy ? proy.nombre : 'Proyecto')}</div>
-      <div class="meta">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')}</div>
-      <div class="meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">⏱️ ${textoHorarioConLlegada(s)} ${badgeSetup(s)}</div>
-    </div>`;
-  }).join('');
+  pintarListadoSes('gridAgendaGlobal', 'barraAgenda', 'ag', agendaGlobal, 'global'); // v2.133
 }
 
 async function initLogistica(){
@@ -2562,6 +2756,8 @@ async function initLogistica(){
   proyectoId = urlParams.get('id');
   origenAgenda = urlParams.get('origen') === 'agenda';
   const sesionQueryId = urlParams.get('sesion');
+  const duplicarQueryId = urlParams.get('duplicar'); // v2.133
+  let duplicarAbierto = false; // v2.133
   const fechaQuery = urlParams.get('fecha');
   let sesionQueryAbierta = false;
 
@@ -2614,6 +2810,11 @@ async function initLogistica(){
         sesionQueryAbierta = true;
         abrirModalEditar(sesionQueryId);
       }
+      // v2.133: ?duplicar=<id> (viene del botón ⧉ de la agenda global)
+      if(duplicarQueryId && !duplicarAbierto && sesiones.some(s => s.id === duplicarQueryId)){
+        duplicarAbierto = true;
+        duplicarSesion(duplicarQueryId);
+      }
     }, err => console.error('Error cargando sesiones:', err));
 }
 
@@ -2658,39 +2859,365 @@ function renderSesionesDash(){
     </div>`;
 }
 
+// ============ v2.133: COLORES POR ESTADO Y FILTROS (v2.136: solo vista Lista) ============
+const FILTROS_SES_DEFAULT = { estado:'todas', vis:'todas', estudio:'', tecnico:'', texto:'', orden:'asc' };
+const CLAVE_ORDEN_SES = 'audiolink_orden_sesiones'; // v2.137
+let filtrosSes = { ...FILTROS_SES_DEFAULT, orden: (function(){
+  try{ const o = localStorage.getItem(CLAVE_ORDEN_SES); return (o === 'asc' || o === 'desc') ? o : FILTROS_SES_DEFAULT.orden; }catch(e){ return FILTROS_SES_DEFAULT.orden; }
+})() };
+
+function hoyLocalISO(){
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// Estado derivado de la fecha (no hay campo de estado en el modelo).
+function estadoSesion(s){
+  if(!s.fecha) return { cls:'aviso', txt:'Sin fecha' };
+  const hoy = hoyLocalISO();
+  if(s.fecha < hoy) return { cls:'hecha', txt:'Hecha' };
+  if(s.fecha === hoy) return { cls:'hoy', txt:'Hoy' };
+  return { cls:'proxima', txt:'Próxima' };
+}
+
+function avisosSesionHtml(s, est){
+  if(est.cls === 'hecha') return '';
+  const av = [];
+  if(!s.horaInicio || !s.horaFin) av.push('Sin horario');
+  if(!(s.musicosAsignados && s.musicosAsignados.length) && !(s.tecnicosAsignados && s.tecnicosAsignados.length)) av.push('Sin equipo');
+  return av.map(t => `<span class="ses-aviso">⚠ ${t}</span>`).join('');
+}
+
+function fechaCortaSes(f){
+  if(!f) return '—';
+  const d = new Date(f + 'T00:00:00');
+  let t = d.toLocaleDateString('es-CO', { weekday:'short', day:'2-digit', month:'short' }).replace(/[.,]/g, '');
+  if(d.getFullYear() !== new Date().getFullYear()) t += ' ' + d.getFullYear();
+  return t;
+}
+
+function filtrarOrdenarSesiones(arr){
+  const f = filtrosSes;
+  const q = f.texto.trim().toLowerCase();
+  const out = arr.filter(s => {
+    const est = estadoSesion(s);
+    if(f.estado === 'proximas' && !(est.cls === 'proxima' || est.cls === 'hoy')) return false;
+    if(f.estado === 'hoy' && est.cls !== 'hoy') return false;
+    if(f.estado === 'hechas' && est.cls !== 'hecha') return false;
+    if(f.estado === 'sinfecha' && est.cls !== 'aviso') return false;
+    if(f.vis === 'visible' && !s.visibleCliente) return false;
+    if(f.vis === 'privada' && s.visibleCliente) return false;
+    if(f.estudio && (s.estudioNombre || '') !== f.estudio) return false;
+    if(f.tecnico && !(s.tecnicosAsignados || []).some(t => t.nombre === f.tecnico)) return false;
+    if(q){
+      const proy = proyectosCache[s.proyectoId];
+      const txt = [
+        s.actividad, s.sala, s.estudioNombre, s.temaNombre, proy && proy.nombre,
+        ...(s.musicosAsignados || []).map(m => m.nombre),
+        ...(s.tecnicosAsignados || []).map(t => t.nombre)
+      ].filter(Boolean).join(' ').toLowerCase();
+      if(!txt.includes(q)) return false;
+    }
+    return true;
+  });
+  const dir = f.orden === 'desc' ? -1 : 1;
+  out.sort((a, b) => {
+    if(!a.fecha && !b.fecha) return 0;
+    if(!a.fecha) return 1;
+    if(!b.fecha) return -1;
+    const ka = a.fecha + (a.horaInicio || '');
+    const kb = b.fecha + (b.horaInicio || '');
+    return ka < kb ? -dir : (ka > kb ? dir : 0);
+  });
+  return out;
+}
+
+function barraSesionesHtml(p){
+  return `
+    <div class="ses-barra">
+      <input type="search" id="${p}Texto" placeholder="Buscar actividad, sala, tema, músico…" oninput="setFiltroSes('texto', this.value)">
+      <select id="${p}Estado" onchange="setFiltroSes('estado', this.value)">
+        <option value="todas">Todas</option>
+        <option value="proximas">Próximas (incl. hoy)</option>
+        <option value="hoy">Hoy</option>
+        <option value="hechas">Hechas</option>
+        <option value="sinfecha">Sin fecha</option>
+      </select>
+      <select id="${p}Vis" onchange="setFiltroSes('vis', this.value)">
+        <option value="todas">Visibles y privadas</option>
+        <option value="visible">Solo visibles</option>
+        <option value="privada">Solo privadas</option>
+      </select>
+      <select id="${p}Estudio" onchange="setFiltroSes('estudio', this.value)"></select>
+      <select id="${p}Tecnico" onchange="setFiltroSes('tecnico', this.value)"></select>
+      <select id="${p}Orden" onchange="setFiltroSes('orden', this.value)">
+        <option value="asc">Fecha ↑ (antigua primero)</option>
+        <option value="desc">Fecha ↓ (reciente primero)</option>
+      </select>
+    </div>
+    <div class="ses-resumen" id="${p}Resumen"></div>`;
+}
+
+function poblarFiltrosSes(p, datos){
+  const estudios = [...new Set(datos.map(s => s.estudioNombre).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const tecnicos = new Set();
+  datos.forEach(s => (s.tecnicosAsignados || []).forEach(t => { if(t.nombre) tecnicos.add(t.nombre); }));
+  const tecArr = [...tecnicos].sort((a, b) => a.localeCompare(b));
+  if(filtrosSes.estudio && !estudios.includes(filtrosSes.estudio)) filtrosSes.estudio = '';
+  if(filtrosSes.tecnico && !tecnicos.has(filtrosSes.tecnico)) filtrosSes.tecnico = '';
+  const llenar = (id, primera, vals, actual) => {
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const sig = vals.join('|');
+    if(sel.dataset.sig !== sig){
+      sel.innerHTML = `<option value="">${primera}</option>` + vals.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+      sel.dataset.sig = sig;
+    }
+    sel.value = actual;
+  };
+  llenar(p + 'Estudio', 'Todos los estudios', estudios, filtrosSes.estudio);
+  llenar(p + 'Tecnico', 'Todos los técnicos', tecArr, filtrosSes.tecnico);
+  const set = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
+  set(p + 'Estado', filtrosSes.estado);
+  set(p + 'Vis', filtrosSes.vis);
+  set(p + 'Orden', filtrosSes.orden);
+}
+
+function setFiltroSes(clave, valor){
+  filtrosSes[clave] = valor;
+  if(clave === 'orden'){ try{ localStorage.setItem(CLAVE_ORDEN_SES, valor); }catch(e){} } // v2.137
+  rerenderListadoSes();
+}
+
+function limpiarFiltrosSes(){
+  filtrosSes = { ...FILTROS_SES_DEFAULT, orden: filtrosSes.orden }; // v2.137: el orden elegido se conserva
+  ['psTexto', 'agTexto'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  rerenderListadoSes();
+}
+
+function rerenderListadoSes(){
+  if(proyectoId) renderSesiones(); else renderAgendaGlobal();
+}
+
+function filtrosSesActivos(){
+  const f = filtrosSes;
+  return f.estado !== 'todas' || f.vis !== 'todas' || f.estudio || f.tecnico || f.texto.trim();
+}
+
+// v2.135: etiqueta de un grupo para el proyecto dado (en la agenda global
+// proyectoData no es el de la sesion). Mismo orden que labelGrupo().
+function labelGrupoProy(key, proy){
+  const gp = (proy && proy.instrumentacionGrupos) || {};
+  if(gp[key] && gp[key].label) return gp[key].label;
+  return GRUPOS_INSTRUMENTACION_LABELS[key] || key;
+}
+
+// v2.135: iconos de los grupos marcados de la sesion (max 3 + "+N"),
+// ordenados por el `orden` del grupo en el proyecto (fallback: al final).
+function iconosSesionHtml(s, proy){
+  if(typeof iconosSesion !== 'function') return '';
+  const claves = Array.isArray(s.instrumentacionSesion) ? s.instrumentacionSesion : [];
+  if(!claves.length) return '';
+  const gp = (proy && proy.instrumentacionGrupos) || {};
+  const ord = k => (gp[k] && typeof gp[k].orden === 'number') ? gp[k].orden : 99;
+  const ordenadas = [...claves].sort((a, b) => ord(a) - ord(b));
+  return iconosSesion(ordenadas, { max: 3, size: 26, labelFn: k => labelGrupoProy(k, proy), iconoFn: k => iconoClave(k, gp[k]) });
+}
+
+function htmlFilaSesion(s, ctx){
+  const est = estadoSesion(s);
+  const global = ctx === 'global';
+  const proy = global ? proyectosCache[s.proyectoId] : null;
+  const sub = [];
+  if(global) sub.push('📁 ' + escapeHtml(proy ? proy.nombre : 'Proyecto'));
+  if(s.sala) sub.push('🎚️ ' + escapeHtml(s.sala));
+  if(s.estudioNombre) sub.push('🏢 ' + escapeHtml(s.estudioNombre));
+  if(s.temaNombre) sub.push('🎵 ' + escapeHtml(s.temaNombre));
+  // v2.134: cada integrante se guarda como {rol, nom} para pintar el chip en dos líneas
+  // v2.136: solo músicos (los chips de técnicos ya no se muestran)
+  const equipoObj = [
+    ...(s.musicosAsignados || []).map(m => ({ rol: m.instrumento || 'Músico', nom: m.nombre }))
+  ];
+  const equipo = equipoObj.map(e => `${e.rol}: ${e.nom}`);
+  const chips = equipoObj.slice(0, 2).map(e => `<span class="equipo-chip" title="${escapeHtml(e.rol + ': ' + e.nom)}"><span class="ec-rol">${escapeHtml(e.rol)}</span><span class="ec-nom">${escapeHtml(e.nom)}</span></span>`).join('') +
+    (equipo.length > 2 ? `<span class="equipo-chip" title="${escapeHtml(equipo.join(' · '))}">+${equipo.length - 2}</span>` : '');
+  const abrir = global
+    ? `window.location.href='logistica.html?id=${s.proyectoId}&origen=agenda&sesion=${s.id}'`
+    : `abrirModalEditar('${s.id}')`;
+  const dup = global
+    ? `window.location.href='logistica.html?id=${s.proyectoId}&origen=agenda&duplicar=${s.id}'`
+    : `duplicarSesion('${s.id}')`;
+  return `
+    <div class="ses-fila est-${est.cls}" onclick="${abrir}">
+      <div class="sf-fecha" title="Clic para editar fecha y hora" onclick="event.stopPropagation(); abrirPopFecha(event, '${s.id}', '${global ? s.proyectoId : proyectoId}')"><b title="${escapeHtml(est.txt)}">${fechaCortaSes(s.fecha)}</b><small>${textoHorarioConLlegada(s)}</small></div>
+      <div class="sf-instr">${iconosSesionHtml(s, global ? proy : proyectoData)}</div>
+      <div class="sf-main">
+        <div class="sf-titulo">${escapeHtml(s.actividad || 'Sesión')}</div>
+        <div class="sf-sub">${sub.join(' · ') || '—'}</div>
+      </div>
+      <div class="sf-equipo">${chips}</div>
+      <div class="sf-acc">
+        ${avisosSesionHtml(s, est)}
+        ${s.visibleCliente ? '' : '<span class="badge priv">Privada</span>'}
+        <button class="btn-reportes" title="Duplicar esta sesión (todo menos la fecha)" onclick="event.stopPropagation(); ${dup}">⧉</button>
+        ${global ? '' : `<button class="btn-reportes" title="Reportes de ingeniería (bitacora.html)" onclick="event.stopPropagation(); abrirBitacoraReportes('${s.id}')">📋 ING</button>`}
+      </div>
+    </div>`;
+}
+
+function pintarListadoSes(gridId, barraId, p, datos, ctx){
+  const grid = document.getElementById(gridId);
+  const barra = document.getElementById(barraId);
+  if(barra){
+    if(!barra.dataset.montada){
+      barra.innerHTML = barraSesionesHtml(p);
+      barra.dataset.montada = '1';
+    }
+    const panelAbierto = document.getElementById('modalBg').classList.contains('active');
+    barra.style.display = panelAbierto ? 'none' : '';
+    poblarFiltrosSes(p, datos);
+  }
+  const lista = filtrarOrdenarSesiones(datos);
+  grid.className = 'grid lista';
+  const resumen = document.getElementById(p + 'Resumen');
+  if(resumen){
+    resumen.innerHTML = `<span>${lista.length} de ${datos.length} sesiones</span>` +
+      (filtrosSesActivos() ? `<button type="button" onclick="limpiarFiltrosSes()">Limpiar filtros</button>` : '');
+  }
+  if(!lista.length){
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1;">Ninguna sesión coincide con los filtros.</div>';
+    return;
+  }
+  grid.innerHTML = lista.map(s => htmlFilaSesion(s, ctx)).join('');
+}
+
+// v2.133: duplicar sesión. Reutiliza abrirModalEditar() (que ya carga
+// TODO el formulario: estudio, sala, tema, horarios, set-up, notas,
+// visibilidad, instrumentación + input list, músicos y técnicos) y
+// después lo convierte en una sesión NUEVA: editando=false, sin id, sin
+// botones de sesión existente, fecha vacía (obligatoria al guardar) y
+// actividad con sufijo " (copia)". No guarda nada hasta pulsar Guardar.
+async function duplicarSesion(id){
+  if(!proyectoId || !id) return;
+  const s = sesiones.find(x => x.id === id);
+  if(!s) return;
+  await abrirModalEditar(id);
+  editando = false;
+  sesionActualId = null;
+  actualizarUrlSesion(null);
+  document.getElementById('modalTitulo').textContent = 'Nueva Sesión (copia)';
+  ['btnEliminar', 'btnAbrirBitacora', 'btnLinkBitacora', 'btnLinkConsentimiento',
+   'btnPdfSesionCliente', 'btnPdfSesionInterno', 'btnPdfSesionPiloto', 'btnDuplicar', 'wrapChkPdfSesionInterno']
+    .forEach(i => { const el = document.getElementById(i); if(el) el.style.display = 'none'; });
+  // v2.137: la fecha se conserva (ya la dejó cargada abrirModalEditar)
+  document.getElementById('fActividad').value = (s.actividad || 'Sesión') + ' (copia)';
+  actualizarSubtituloModal();
+  gruposColapsadosLog = cargarGruposColapsadosLog(); // clave 'nueva' (sesionActualId ya es null)
+  instrGruposColapsadosSesion = cargarInstrGruposColapsados();
+  renderChecklistInstrumentacion();
+}
+
+// ============ v2.137: editar fecha/hora desde la fila (flotante) ============
+let popFechaCtx = null; // { id, pid }
+function asegurarPopFecha(){
+  let pop = document.getElementById('sesPop');
+  if(pop) return pop;
+  pop = document.createElement('div');
+  pop.id = 'sesPop';
+  pop.className = 'ses-pop';
+  pop.style.display = 'none';
+  pop.innerHTML = `
+    <h4 id="sesPopTitulo">Fecha y hora</h4>
+    <label for="popFecha">Fecha</label>
+    <input type="date" id="popFecha">
+    <div class="sp-row">
+      <div><label for="popHoraInicio">Hora inicio</label><input type="text" id="popHoraInicio" readonly placeholder="--:--" style="cursor:pointer;" onclick="abrirPickerHora('popHoraInicio')"></div>
+      <div><label for="popHoraFin">Hora fin</label><input type="text" id="popHoraFin" readonly placeholder="--:--" style="cursor:pointer;" onclick="abrirPickerHora('popHoraFin')"></div>
+    </div>
+    <div class="sp-acc">
+      <button type="button" class="btn btn-ghost" onclick="cerrarPopFecha()">Cancelar</button>
+      <button type="button" class="btn" id="sesPopGuardar" onclick="guardarPopFecha()">Guardar</button>
+    </div>`;
+  pop.addEventListener('click', e => e.stopPropagation());
+  document.body.appendChild(pop);
+  // cierra al hacer clic fuera (el picker de hora es un modal aparte: no cuenta como "fuera")
+  document.addEventListener('click', e => {
+    if(!popFechaCtx) return;
+    if(e.target.closest && (e.target.closest('#sesPop') || e.target.closest('#modalHoraBg'))) return;
+    cerrarPopFecha();
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && popFechaCtx && !document.getElementById('modalHoraBg').classList.contains('active')) cerrarPopFecha();
+  });
+  return pop;
+}
+
+function abrirPopFecha(ev, id, pid){
+  const s = (proyectoId ? sesiones : agendaGlobal).find(x => x.id === id && (proyectoId || x.proyectoId === pid));
+  if(!s) return;
+  const pop = asegurarPopFecha();
+  popFechaCtx = { id, pid };
+  document.getElementById('sesPopTitulo').textContent = s.actividad || 'Sesión';
+  document.getElementById('popFecha').value = s.fecha || '';
+  document.getElementById('popHoraInicio').value = s.horaInicio || '';
+  document.getElementById('popHoraFin').value = s.horaFin || '';
+  pop.style.display = 'block';
+  const r = ev.currentTarget.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  let left = r.left + window.scrollX;
+  left = Math.max(8, Math.min(left, window.scrollX + document.documentElement.clientWidth - w - 8));
+  let top = r.bottom + window.scrollY + 6;
+  if(r.bottom + h + 12 > window.innerHeight && r.top - h - 6 > 8) top = r.top + window.scrollY - h - 6;
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
+function cerrarPopFecha(){
+  const pop = document.getElementById('sesPop');
+  if(pop) pop.style.display = 'none';
+  popFechaCtx = null;
+}
+
+async function guardarPopFecha(){
+  if(!popFechaCtx) return;
+  const fecha = document.getElementById('popFecha').value;
+  if(!fecha){
+    alert('La fecha es obligatoria.');
+    return;
+  }
+  const { id, pid } = popFechaCtx;
+  const btn = document.getElementById('sesPopGuardar');
+  btn.disabled = true;
+  try{
+    await db.collection('proyectos').doc(pid).collection('sesiones').doc(id).update({
+      fecha,
+      horaInicio: document.getElementById('popHoraInicio').value,
+      horaFin: document.getElementById('popHoraFin').value,
+      actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    cerrarPopFecha();
+  } catch(err){
+    console.error(err);
+    alert('No se pudo guardar la fecha y hora. Revisa la consola.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function renderSesiones(){
   const grid = document.getElementById('gridSesiones');
   const empty = document.getElementById('emptyState');
+  const barra = document.getElementById('barraSesiones');
   renderSesionesDash();
   if(sesiones.length === 0){
     grid.innerHTML = '';
     empty.style.display = 'block';
+    if(barra) barra.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
-  grid.innerHTML = sesiones.map(s => {
-    const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
-    return `
-    <div class="card" onclick="abrirModalEditar('${s.id}')">
-      <div class="card-top">
-        <h3>${escapeHtml(s.actividad || 'Sesión')}</h3>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          <button class="btn-reportes" title="Reportes de ingeniería (bitacora.html)" onclick="event.stopPropagation(); abrirBitacoraReportes('${s.id}')">📋 ING</button>
-          <span class="badge ${s.visibleCliente ? 'vis' : 'priv'}">${s.visibleCliente ? 'Visible' : 'Privada'}</span>
-        </div>
-      </div>
-      <div class="meta">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')}</div>
-      <div class="meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600;color:var(--gold);">⏱️ ${textoHorarioConLlegada(s)} ${badgeSetup(s)}</div>
-      ${(s.estudioNombre || s.temaNombre) ? `
-        <div class="meta">${s.estudioNombre ? '🏢 ' + escapeHtml(s.estudioNombre) : ''}${s.estudioNombre && s.temaNombre ? ' · ' : ''}${s.temaNombre ? '🎵 ' + escapeHtml(s.temaNombre) : ''}</div>` : ''}
-      ${s.notasInternas ? `<div class="meta">📝 con notas internas</div>` : ''}
-      ${(s.musicosAsignados?.length || s.tecnicosAsignados?.length) ? `
-        <div class="equipo-list">
-          ${(s.musicosAsignados||[]).map(m => `<span class="equipo-chip">${escapeHtml(m.instrumento || 'Músico')}: ${escapeHtml(m.nombre)}</span>`).join('')}
-          ${(s.tecnicosAsignados||[]).map(t => `<span class="equipo-chip">${escapeHtml(t.rol || 'Técnico')}: ${escapeHtml(t.nombre)}</span>`).join('')}
-        </div>` : ''}
-    </div>`;
-  }).join('');
+  pintarListadoSes('gridSesiones', 'barraSesiones', 'ps', sesiones, 'proyecto');
 }
 
 // ============ MODAL ============
@@ -2717,6 +3244,7 @@ function abrirModalNuevo(){
   sesionActualId = null;
   document.getElementById('modalTitulo').textContent = 'Nueva Sesión';
   document.getElementById('btnEliminar').style.display = 'none';
+  document.getElementById('btnDuplicar').style.display = 'none';
   document.getElementById('btnAbrirBitacora').style.display = 'none';
   document.getElementById('btnLinkBitacora').style.display = 'none';
   document.getElementById('btnLinkConsentimiento').style.display = 'none';
@@ -2762,6 +3290,7 @@ async function abrirModalEditar(id){
   actualizarUrlSesion(id);
   document.getElementById('modalTitulo').textContent = 'Editar Sesión';
   document.getElementById('btnEliminar').style.display = 'inline-block';
+  document.getElementById('btnDuplicar').style.display = 'inline-block';
   document.getElementById('btnAbrirBitacora').style.display = 'inline-block';
   document.getElementById('btnLinkBitacora').style.display = 'inline-block';
   document.getElementById('btnLinkConsentimiento').style.display = 'inline-block';
@@ -2862,6 +3391,8 @@ function mostrarPanelSesion(){
   document.getElementById('gridSesiones').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('sesionesDash').style.display = 'none';
+  const barraSesPanel = document.getElementById('barraSesiones'); // v2.133
+  if(barraSesPanel) barraSesPanel.style.display = 'none';
   const topActions = document.querySelector('.top-actions');
   if(topActions) topActions.style.display = 'none';
   aplicarEstadoSeccionesForm();
@@ -3345,7 +3876,7 @@ function renderTecnicosAsignados(){
    proyecto.html, para que ambos archivos queden alineados. */
 const GRUPOS_INSTRUMENTACION_LABELS = {
   bateria: 'Batería', percusionLatina: 'Percusión latina', cuerdas: 'Cuerdas',
-  bronces: 'Bronces', voces: 'Voces', teclas: 'Teclas', otros: 'Otros'
+  bronces: 'Vientos', voces: 'Voces', teclas: 'Teclas', otros: 'Otros'
 };
 
 // v2.54: etiqueta de un grupo — primero busca en proyectoData.instrumentacionGrupos
@@ -3580,8 +4111,8 @@ function renderChecklistInstrumentacion(){
     return `
       <div class="instr-card${marcado ? ' marcado' : ''}${colapsada ? ' instr-colapsada' : ''}">
         <div class="instr-card-head">
-          <span class="instr-card-check" onclick="toggleGrupoSesion('${key}', !${marcado ? 'true' : 'false'})">
-            <i class="ti ${marcado ? 'ti-check' : 'ti-square'}" aria-hidden="true"></i>
+          <span class="instr-card-check" role="checkbox" aria-checked="${marcado ? 'true' : 'false'}" aria-label="Marcar grupo" onclick="toggleGrupoSesion('${key}', !${marcado ? 'true' : 'false'})">
+            <svg class="instr-chk" viewBox="0 0 24 24" aria-hidden="true"><rect class="chk-box" x="2.5" y="2.5" width="19" height="19" rx="6"/><path class="chk-tick" d="M7.2 12.4l3.3 3.3 6.3-6.9"/></svg>
           </span>
           <div class="instr-card-abrir" onclick="toggleInstrGrupoColapsado('${key}')">
             <span class="instr-card-nombre">${labelGrupo(key)}</span>
@@ -4298,7 +4829,7 @@ function exportarPDF(modo){
   const pageW = 215.9;
   const pageHFull = 279.4;
   const marginX = 18;
-  const headerH = 38;
+  const headerH = 28; // v2.140: antes 38
 
   const sesionesFiltradas = modo === 'interno' ? sesiones : sesiones.filter(s => s.visibleCliente !== false);
 
@@ -4351,13 +4882,27 @@ function exportarPDF(modo){
       else logoX = marginX;
       doc.addImage(imgLogo, 'PNG', logoX, logoY, logoW, logoH);
     }
-    // Subtítulo derecha
-    doc.setFontSize(8.5);
+    // v2.141: bloque de título en 3 líneas (antes 2 textos pequeños).
+    // jsPDF no cuenta el charSpace al alinear a la derecha, por eso la X
+    // se calcula a mano (ancho + espaciado entre letras).
+    const cremaRGB = [250, 247, 238];
+    const colTitulo = HEADER_SIN_FONDO ? [30, 30, 30] : cremaRGB;
+    const colFecha  = HEADER_SIN_FONDO ? [120, 112, 96] : [225, 221, 210];
+    function textoDerecha(txt, y, charSpace){
+      const w = doc.getTextWidth(txt) + charSpace * (txt.length - 1);
+      doc.text(txt, pageW - marginX - w, y, { charSpace: charSpace });
+    }
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...goldRGB);
+    textoDerecha('LOGÍSTICA', 9, 0.9);
+    doc.setFontSize(12);
+    doc.setTextColor(...colTitulo);
+    textoDerecha(modo === 'interno' ? 'INFORME INTERNO' : 'RESUMEN DE SESIONES', 15.5, 0.15);
     doc.setFont(undefined, 'normal');
-    doc.setTextColor(...mutedRGB);
-    doc.text(modo === 'interno' ? 'LOGÍSTICA · INFORME INTERNO' : 'LOGÍSTICA · RESUMEN DE SESIONES', pageW - marginX, 20, { align:'right' });
     doc.setFontSize(8);
-    doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - marginX, 28, { align:'right' });
+    doc.setTextColor(...colFecha);
+    doc.text(new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }), pageW - marginX, 21.5, { align:'right' });
   }
 
   function pintarFooter(){
@@ -4372,7 +4917,13 @@ function exportarPDF(modo){
   }
 
   pintarHeader();
-  let y = 52;
+  // v2.140: contenido arranca más arriba (header 28mm)
+  const contentTop = headerH + 14;
+  const pageBottom = pageHFull - 22;
+  const cardW = pageW - marginX*2;
+  const innerX = marginX + 5;
+  const innerW = cardW - 10;
+  let y = contentTop;
   doc.setTextColor(20, 20, 20);
   doc.setFont(undefined, 'bold');
   doc.setFontSize(17);
@@ -4382,11 +4933,11 @@ function exportarPDF(modo){
   doc.setFont(undefined, 'normal');
   doc.setTextColor(...mutedRGB);
   doc.text('CLIENTE/ARTISTA: ' + (proyectoData.clienteArtista || '—').toUpperCase(), marginX, y);
-  y += 10;
+  y += 8;
   doc.setDrawColor(230, 230, 230);
   doc.setLineWidth(0.3);
   doc.line(marginX, y, pageW - marginX, y);
-  y += 10;
+  y += 9;
 
   if(sesionesFiltradas.length === 0){
     doc.setFontSize(10);
@@ -4394,73 +4945,115 @@ function exportarPDF(modo){
     doc.text('No hay sesiones para mostrar.', marginX, y);
   }
 
-  sesionesFiltradas.forEach(s => {
-    const notasHeight = (modo === 'interno' && s.notasInternas) ? doc.splitTextToSize(s.notasInternas, pageW - marginX*2 - 4).length * 5 + 8 : 0;
-    const equipoHeight = (s.tecnicosAsignados && s.tecnicosAsignados.length) ? 6.5 : 0;
-    // v2.95: músicos asignados — línea adicional por sesión
-    const musicosHeight = (s.musicosAsignados && s.musicosAsignados.length) ? 6.5 : 0;
-    const bloqueAltura = 30 + equipoHeight + musicosHeight + notasHeight;
+  // v2.140: mide la tarjeta de una sesión (líneas con salto + altura)
+  function medirSesion(s){
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(12);
+    const horario = `${s.horaInicio || '--:--'} – ${s.horaFin || '--:--'}`;
+    const horarioW = doc.getTextWidth(horario);
+    doc.setFontSize(10.5);
+    const actLines = doc.splitTextToSize(s.actividad || 'Sesión', innerW - horarioW - 6);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(8.5);
+    const tecStr = (s.tecnicosAsignados && s.tecnicosAsignados.length)
+      ? s.tecnicosAsignados.map(e => `${e.rol}: ${e.nombre}`).join('  ·  ') : '';
+    const musStr = (s.musicosAsignados && s.musicosAsignados.length)
+      ? s.musicosAsignados.map(m => (m.instrumento ? `${m.instrumento}: ${m.nombre}` : m.nombre)).join('  ·  ') : '';
+    const tecLines = tecStr ? doc.splitTextToSize(tecStr, innerW) : [];
+    const musLines = musStr ? doc.splitTextToSize(musStr, innerW) : [];
+    const notaLines = (modo === 'interno' && s.notasInternas) ? doc.splitTextToSize(s.notasInternas, innerW) : [];
+    const h = 4 + Math.max(actLines.length, 1) * 5 + 5.5
+            + tecLines.length * 4.3 + musLines.length * 4.3
+            + (notaLines.length ? 5 + notaLines.length * 4.3 : 0) + 3.5;
+    return { horario, actLines, tecLines, musLines, notaLines, h };
+  }
 
-    if(y + bloqueAltura > pageHFull - 22){
+  let fechaPrev = null;
+  sesionesFiltradas.forEach(s => {
+    const fechaKey = s.fecha || '';
+    const m = medirSesion(s);
+    let mostrarFecha = (fechaKey !== fechaPrev);
+    const altoFecha = 10;
+
+    if(y + (mostrarFecha ? altoFecha : 0) + m.h > pageBottom){
       pintarFooter();
       doc.addPage();
       pintarHeader();
-      y = 52;
+      y = contentTop;
+      mostrarFecha = true; // se repite el título del día en la hoja nueva
     }
+
+    if(mostrarFecha){
+      if(fechaPrev !== null && y > contentTop) y += 2.5; // aire entre días
+      const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'}) : 'SIN FECHA';
+      doc.setFontSize(8.5);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(140, 108, 40);
+      doc.text(fechaLegible.toUpperCase(), marginX, y + 3.5);
+      doc.setDrawColor(...goldRGB);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, y + 5.5, pageW - marginX, y + 5.5);
+      y += altoFecha;
+    }
+    fechaPrev = fechaKey;
 
     doc.setFillColor(246, 244, 239);
-    doc.roundedRect(marginX, y - 6, pageW - marginX*2, bloqueAltura - 4, 2, 2, 'F');
+    doc.roundedRect(marginX, y, cardW, m.h, 2, 2, 'F');
 
-    const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'}) : '—';
-
-    doc.setFontSize(11);
+    let yy = y + 4 + 4;
     doc.setFont(undefined, 'bold');
+    doc.setFontSize(10.5);
     doc.setTextColor(30, 30, 30);
-    doc.text(s.actividad || 'Sesión', marginX + 6, y + 2);
+    doc.text(m.actLines, innerX, yy);
+    doc.setFontSize(12);
+    doc.setTextColor(...goldRGB);
+    doc.text(m.horario, marginX + cardW - 5, yy, { align:'right' });
+    yy += (Math.max(m.actLines.length, 1) - 1) * 5 + 5.5;
 
-    doc.setFontSize(8.5);
     doc.setFont(undefined, 'normal');
-    doc.setTextColor(140, 108, 40);
-    doc.text(`${fechaLegible}  ·  Sala: ${s.sala || '—'}  ·  ${s.horaInicio || '--:--'}–${s.horaFin || '--:--'}`, marginX + 6, y + 9);
+    doc.setFontSize(8.5);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Sala: ${s.sala || '—'}`, innerX, yy);
+    yy += 4.8;
 
-    let yy = y + 16;
-    // v2.50: texto del PDF migrado a tecnicosAsignados (quedó apuntando a
-    // equipoTecnico tras el fix de v2.49, mostrando el bloque vacío)
-    if(s.tecnicosAsignados && s.tecnicosAsignados.length){
-      doc.setFontSize(9);
+    if(m.tecLines.length){
       doc.setTextColor(70, 70, 70);
-      const equipoStr = s.tecnicosAsignados.map(e => `${e.rol}: ${e.nombre}`).join('  ·  ');
-      doc.text(equipoStr, marginX + 6, yy);
-      yy += 7;
+      doc.text(m.tecLines, innerX, yy);
+      yy += m.tecLines.length * 4.3;
     }
-
-    // v2.95: músicos asignados por sesión
-    if(s.musicosAsignados && s.musicosAsignados.length){
-      doc.setFontSize(9);
-      doc.setFont(undefined, 'normal');
+    if(m.musLines.length){
       doc.setTextColor(140, 108, 40);
-      const musicosStr = s.musicosAsignados.map(m => (m.instrumento ? `${m.instrumento}: ${m.nombre}` : m.nombre)).join('  ·  ');
-      doc.text(musicosStr, marginX + 6, yy);
-      yy += 7;
+      doc.text(m.musLines, innerX, yy);
+      yy += m.musLines.length * 4.3;
     }
-
-    if(modo === 'interno' && s.notasInternas){
+    if(m.notaLines.length){
+      yy += 1;
       doc.setFontSize(8);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(180, 60, 50);
-      doc.text('NOTA INTERNA:', marginX + 6, yy);
-      yy += 4.5;
+      doc.text('NOTA INTERNA:', innerX, yy);
+      yy += 4.3;
       doc.setFont(undefined, 'normal');
       doc.setTextColor(90, 90, 90);
-      const splitNotas = doc.splitTextToSize(s.notasInternas, pageW - marginX*2 - 12);
-      doc.text(splitNotas, marginX + 6, yy);
-      yy += splitNotas.length * 5;
+      doc.text(m.notaLines, innerX, yy);
     }
 
-    y += bloqueAltura + 6;
+    y += m.h + 3;
   });
 
   pintarFooter();
+
+  // v2.141: numeración "Pág. N de M" centrada en el pie de cada hoja.
+  // Se pinta aquí, al final, porque M solo se conoce cuando termina el
+  // documento.
+  const totalPags = doc.getNumberOfPages();
+  for(let pg = 1; pg <= totalPags; pg++){
+    doc.setPage(pg);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...mutedRGB);
+    doc.text(`Pág. ${pg} de ${totalPags}`, pageW / 2, pageHFull - 10, { align:'center' });
+  }
 
   const blobUrl = doc.output('bloburl');
   window.open(blobUrl, '_blank');
@@ -4905,8 +5498,9 @@ function exportarPDFSesionHTML(sesionId, modo){
   let htmlInstrumentacion = '';
   const gruposInstr = Array.isArray(s.instrumentacionSesion) ? s.instrumentacionSesion : [];
   if(gruposInstr.length){
-    htmlInstrumentacion = `<div class="ph-seccion">
+    htmlInstrumentacion = `<div class="ph-seccion ph-seccion-instr">
       <div class="ph-titulo-seccion">Instrumentación</div>
+      <div class="ph-instr-grid">
       ${gruposInstr.map(key => {
         const piezas = (s.instrumentacionSesionPiezas && s.instrumentacionSesionPiezas[key]) || [];
         const items = piezas.map(p => (p && typeof p === 'object') ? (p.nombre||'') : p).filter(Boolean);
@@ -4915,8 +5509,14 @@ function exportarPDFSesionHTML(sesionId, modo){
           ${items.length ? `<ul class="ph-lista">${items.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : `<div class="ph-sin-piezas">Sin piezas registradas</div>`}
         </div>`;
       }).join('')}
+      </div>
     </div>`;
   }
+
+  // ---- Equipo: músicos y técnicos lado a lado si hay ambos ----
+  const htmlEquipo = (htmlMusicos && htmlTecnicos)
+    ? `<div class="ph-equipo-2col">${htmlMusicos}${htmlTecnicos}</div>`
+    : htmlMusicos + htmlTecnicos;
 
   // ---- Nota interna ----
   let htmlNota = '';
@@ -4926,8 +5526,8 @@ function exportarPDFSesionHTML(sesionId, modo){
 
   // ---- Extras (estudio / tema) ----
   let htmlExtras = '';
-  if(s.estudioNombre) htmlExtras += `<div class="ph-extra"><span>ESTUDIO</span>${esc(s.estudioNombre)}</div>`;
-  if(s.temaNombre) htmlExtras += `<div class="ph-extra"><span>TEMA</span>${esc(s.temaNombre)}</div>`;
+  if(s.estudioNombre) htmlExtras += `<div class="ph-dato"><span>ESTUDIO</span>${esc(s.estudioNombre)}</div>`;
+  if(s.temaNombre) htmlExtras += `<div class="ph-dato"><span>TEMA</span>${esc(s.temaNombre)}</div>`;
 
   const setupMin = Number(s.tiempoSetupMin) || 0;
 
@@ -4940,29 +5540,30 @@ function exportarPDFSesionHTML(sesionId, modo){
         ${!LOGO_SIN_LOGO ? `<img class="ph-header-logo" src="${esc(rutaLogo)}" style="height:${LOGO_SIZE}mm;transform:translateY(${LOGO_OFFSET_Y}mm)${LOGO_ROTACION !== 0 ? ` rotate(${LOGO_ROTACION}deg)` : ''};opacity:${LOGO_OPACITY};filter:${construirFiltroLogo()};">` : ''}
       </div>
       ${modo === 'interno' ? `<div class="ph-badge-confidencial">CONFIDENCIAL</div>` : ''}
-      <div class="ph-header-textos">
-        <div>LOGÍSTICA · FICHA DE SESIÓN</div>
-        <div>${esc(fechaGeneracion)}</div>
+      <div class="ph-header-textos${HEADER_SIN_FONDO ? ' ph-header-textos-sf' : ''}">
+        <div class="ph-ht-marca">LOGÍSTICA</div>
+        <div class="ph-ht-titulo">FICHA DE SESIÓN</div>
+        <div class="ph-ht-fecha">${esc(fechaGeneracion)}</div>
       </div>
     </div>
 
-    <div class="ph-hero">
-      <div class="ph-hero-actividad">${esc(s.actividad || 'Sesión')}</div>
-      <div class="ph-hero-label">PROYECTO</div>
-      <div class="ph-hero-proyecto">${esc((proyectoData.nombre || '—').toUpperCase())}</div>
-      ${proyectoData.clienteArtista ? `<div class="ph-hero-cliente">${esc(proyectoData.clienteArtista.toUpperCase())}</div>` : ''}
-    </div>
-
-    <div class="ph-datos">
-      <div class="ph-horario">${esc(s.horaInicio || '--:--')} – ${esc(s.horaFin || '--:--')}
-        ${setupMin > 0 ? `<span class="ph-setup-pill">⏱ ${esc(setupMin)} min</span>` : ''}
+    <div class="ph-franja">
+      <div class="ph-franja-top">
+        <div class="ph-hero-actividad">${esc(s.actividad || 'Sesión')}</div>
+        <div class="ph-horario">${esc(s.horaInicio || '--:--')} – ${esc(s.horaFin || '--:--')}
+          ${setupMin > 0 ? `<span class="ph-setup-pill">⏱ ${esc(setupMin)} min</span>` : ''}
+        </div>
       </div>
-      <div class="ph-fecha-sala">${esc(fechaLegible)} · Sala: ${esc(s.sala || '—')}</div>
-      ${htmlExtras}
+      <div class="ph-franja-datos">
+        <div class="ph-dato"><span>PROYECTO</span>${esc((proyectoData.nombre || '—').toUpperCase())}</div>
+        ${proyectoData.clienteArtista ? `<div class="ph-dato"><span>CLIENTE</span>${esc(proyectoData.clienteArtista.toUpperCase())}</div>` : ''}
+        <div class="ph-dato"><span>FECHA</span>${esc(fechaLegible)}</div>
+        <div class="ph-dato"><span>SALA</span>${esc(s.sala || '—')}</div>
+        ${htmlExtras}
+      </div>
     </div>
 
-    ${htmlMusicos}
-    ${htmlTecnicos}
+    ${htmlEquipo}
     ${htmlInstrumentacion}
     ${htmlNota}
 
@@ -5036,6 +5637,9 @@ function exportarPDFSesionHTML(sesionId, modo){
 // sin cambios de diseño.
 const PH_PRINT_CSS = `
 @page{ size:letter; margin:20mm 18mm; }
+/* v2.141: Chrome omite fondos al guardar como PDF salvo que se le pida
+   lo contrario (se perdían el fondo crema de la franja y el pill oscuro). */
+*{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 /* v2.119: fondo gris + centrado, para que la ventana de preview simule
    una hoja de papel real en pantalla (antes era blanco plano, sin
    contexto visual). Se anula por completo al imprimir. */
@@ -5071,7 +5675,7 @@ body{
 }
 .ph-header{
   position:relative; width:calc(100% + 36mm); margin:-20mm -18mm 8mm -18mm;
-  height:40mm; overflow:hidden; border-bottom:0.7mm solid #c9a24b; box-sizing:border-box;
+  height:28mm; overflow:hidden; border-bottom:0.7mm solid #c9a24b; box-sizing:border-box;
 }
 .ph-header-diffuser{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .ph-header-overlay{ position:absolute; inset:0; }
@@ -5081,8 +5685,8 @@ body{
 }
 .ph-header-logo{ width:auto; object-fit:contain; }
 .ph-badge-confidencial{
-  position:absolute; top:9mm; right:18mm; background:#a03228; color:#fff;
-  font-size:6.5pt; font-weight:700; padding:2.5mm 4mm; border-radius:1.5mm;
+  position:absolute; top:2.5mm; right:18mm; background:#a03228; color:#fff;
+  font-size:6.5pt; font-weight:700; padding:1.8mm 4mm; border-radius:1.5mm;
   letter-spacing:0.03em;
 }
 .ph-header-textos{
@@ -5091,50 +5695,67 @@ body{
      blanco/crema con opacidad para mantenerse legible sin competir
      con el dorado de otros elementos (línea inferior, cifras). */
   position:absolute; right:18mm; bottom:5mm; text-align:right;
-  font-size:7.5pt; color:rgba(250,247,238,0.85); line-height:1.7;
+  font-size:7.5pt; color:rgba(250,247,238,0.85); line-height:1.3;
 }
-.ph-hero{
-  margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:6mm;
-}
-.ph-hero-actividad{ font-size:16pt; font-weight:700; color:#1e1e1e; margin-bottom:3mm; }
-.ph-hero-label{ font-size:7.5pt; color:#9a978f; margin-bottom:1mm; }
-.ph-hero-proyecto{ font-size:9pt; color:#a8823a; font-weight:500; }
-.ph-hero-cliente{ font-size:8pt; color:#9a978f; margin-top:2mm; }
-.ph-datos{
-  margin:0 0 6mm; background:#f6f4ef; border-radius:2.5mm; padding:6mm;
+/* v2.141: bloque de título en 3 líneas (marca / título / fecha) */
+.ph-ht-marca{ font-size:6.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.18em; }
+.ph-ht-titulo{ font-size:11pt; font-weight:700; color:rgb(250,247,238); letter-spacing:0.02em; margin:0.4mm 0 0.6mm; }
+.ph-ht-fecha{ font-size:7.5pt; }
+.ph-franja{
+  margin:0 0 6mm; background:#fcf8ee; border-radius:2.5mm; padding:5mm 6mm;
   break-inside:avoid;
 }
-.ph-horario{ font-size:26pt; font-weight:700; color:#c9a24b; }
+.ph-franja-top{
+  display:flex; align-items:center; justify-content:space-between; gap:6mm;
+  padding-bottom:3.5mm; margin-bottom:3.5mm; border-bottom:0.3mm solid #c9a24b;
+}
+.ph-header-textos-sf{ color:#7a7060; }
+.ph-header-textos-sf .ph-ht-titulo{ color:#1e1e1e; }
+.ph-hero-actividad{ font-size:16pt; font-weight:700; color:#1e1e1e; min-width:0; }
+.ph-horario{ font-size:26pt; font-weight:700; color:#c9a24b; white-space:nowrap; text-align:right; }
 .ph-setup-pill{
   display:inline-block; background:#1e1e1e; color:#c9a24b; font-size:7pt; font-weight:700;
   padding:1.5mm 3mm; border-radius:1.5mm; margin-left:3mm; vertical-align:middle;
 }
-.ph-fecha-sala{ font-size:9pt; color:#505050; margin-top:3mm; }
-.ph-extra{ font-size:8.5pt; color:#505050; margin-top:3mm; }
-.ph-extra span{ display:block; font-size:7pt; font-weight:700; color:#9a978f; margin-bottom:0.5mm; }
-.ph-seccion{
-  margin:0 0 8mm; background:#f6f4ef; border-radius:2.5mm; padding:6mm;
-  break-inside:avoid;
+.ph-franja-datos{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:3mm 5mm;
 }
+.ph-dato{ font-size:9pt; color:#1e1e1e; min-width:0; overflow-wrap:anywhere; }
+.ph-dato span{
+  display:block; font-size:6.5pt; font-weight:700; color:#9a978f;
+  letter-spacing:0.05em; margin-bottom:0.5mm;
+}
+.ph-seccion{ margin:0 0 6mm; break-inside:avoid; }
+.ph-seccion-instr{ break-inside:auto; }
 .ph-titulo-seccion{
   font-size:7.5pt; font-weight:700; color:#c9a24b; letter-spacing:0.04em;
-  text-transform:uppercase; border-bottom:0.4mm solid #c9a24b; padding-bottom:2mm; margin-bottom:4mm;
+  text-transform:uppercase; border-bottom:0.4mm solid #c9a24b; padding-bottom:2mm; margin-bottom:3mm;
+  break-after:avoid;
 }
+.ph-equipo-2col{
+  display:grid; grid-template-columns:1fr 1fr; gap:0 6mm; align-items:start;
+}
+.ph-equipo-2col .ph-fila{ flex-wrap:wrap; gap:0 3mm; }
+.ph-equipo-2col .ph-fila-label{ min-width:0; }
+.ph-equipo-2col .ph-fila-nombre{ min-width:0; }
+.ph-equipo-2col .ph-fila-tarifa{ flex-basis:100%; text-align:right; }
 .ph-fila{
-  display:flex; align-items:center; gap:4mm; padding:2.5mm 3mm; font-size:9pt;
+  display:flex; align-items:center; gap:4mm; padding:1.5mm 3mm; font-size:9pt;
 }
-.ph-fila:nth-child(even){ background:#ffffff; }
-.ph-fila:nth-child(odd){ background:transparent; }
-.ph-fila-label{ font-size:8pt; font-weight:700; color:#c9a24b; min-width:32mm; }
+.ph-fila:nth-child(odd){ background:#f6f4ef; }
+.ph-fila:nth-child(even){ background:transparent; }
+.ph-fila-label{ font-size:7pt; font-weight:700; color:#9a978f; min-width:32mm; letter-spacing:0.03em; }
 .ph-fila-nombre{ flex:1; color:#1e1e1e; }
 .ph-fila-tarifa{ font-size:8pt; color:#787878; }
-.ph-grupo-instr{
-  margin-bottom:5mm; padding-left:4mm; border-left:0.6mm solid #c9a24b;
-  break-inside:avoid;
+.ph-instr-grid{
+  display:grid; grid-template-columns:repeat(2,1fr); gap:4mm 6mm; align-items:start;
 }
-.ph-grupo-instr:last-child{ margin-bottom:0; }
-.ph-grupo-nombre{ font-size:9pt; font-weight:700; color:#c9a24b; margin-bottom:2mm; }
-.ph-lista{ margin:0; padding-left:6mm; font-size:8.5pt; color:#505050; line-height:1.7; }
+.ph-grupo-instr{
+  padding:2.5mm 3mm 2.5mm 4mm; border-left:0.6mm solid #c9a24b; background:#f6f4ef;
+  border-radius:0 1.5mm 1.5mm 0; break-inside:avoid; min-width:0;
+}
+.ph-grupo-nombre{ font-size:9pt; font-weight:700; color:#c9a24b; margin-bottom:1.5mm; }
+.ph-lista{ margin:0; padding-left:5mm; font-size:8.5pt; color:#505050; line-height:1.55; }
 .ph-sin-piezas{ font-size:8pt; color:#9a978f; padding-left:2mm; }
 .ph-nota-interna{
   margin:0 0 8mm; background:#faebe8; color:#a03228; border-radius:2.5mm;

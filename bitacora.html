@@ -3,8 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audiolink — Bitácora de Grabación (v2.97)</title>
-<!-- AUDIOLINK · bitacora.html · v2.97
+<title>Audiolink — Bitácora de Grabación (v2.98)</title>
+<!-- AUDIOLINK · bitacora.html · v2.98
+     v2.98: (a pedido) Post-producción pasa a ser un MODO aparte. Antes la
+     cabecera (hora/set-up, "Resumen de la sesión" con Duración/Tomas/Notas
+     de grabación) se veía también en Edición/Mezcla/Mastering y eso hacía
+     que post se sintiera embutido en la sesión de grabación.
+     Cambios:
+     (1) Selector de modo "🎙️ Grabación | 🎚️ Post-producción" debajo del
+         título (#modoBar). Cada modo muestra solo sus pestañas:
+         Grabación = Bitácora + Grabación; Post = Edición/Mezcla/Mastering.
+     (2) Título según modo: "Bitácora / Grabación" y
+         "Bitácora / Post-producción" (#tituloPagina).
+     (3) En modo Post se ocultan actividad, fecha/sala, hora/set-up, aviso
+         de tema y "Resumen de la sesión" (solo CSS: body.modo-post), y
+         aparece #postBox: línea de sesión de origen (con enlace "Ir a
+         Grabación") + 4 tarjetas: Edición, Mezcla, Mastering (minutos
+         acumulados, nº de sesiones de trabajo y pendientes abiertos del
+         checklist) y Entregables de mastering (WAV/Streaming/Vinilo
+         hechos de 3). Sin tema asignado muestra el aviso de siempre.
+     (4) El modo se deduce de la pestaña activa, así que el ruteo por rol
+         del ingeniero (cambiarTab desde MAPA_ROL_TAB) abre el modo
+         correcto solo. El último modo se recuerda por sesión en
+         localStorage (leerEstadoLocal/guardarEstadoLocal, clave "modo").
+     (5) Se ocultan las etiquetas "Grabación"/"Post-producción" y el
+         separador entre grupos de pestañas (redundantes con el selector).
+     Cómo se hizo sin tocar funciones validadas: cambiarTab(),
+     renderDashboard(), renderChecklistEtapa(), renderSesionesEtapa() y
+     guardarEntregableMastering() NO se editaron; al final del bloque de JS
+     se envuelven (misma función + una llamada extra a lo nuevo) para que
+     las tarjetas de post se refresquen solas. Sin cambios en Firestore,
+     reglas, cronómetros, checklists, notas, referencias ni entregables.
      v2.97: (a pedido) los 4 checkboxes de esta hoja (los 3 entregables de
      mastering y el del checklist por etapa) pasan a verse como el switch
      del dial: clase .al-chk, familia verde (.ok = hecho/entregado), tamaño
@@ -1308,6 +1337,28 @@ input[type="checkbox"].al-chk.ok{--chk-on:#2f6b4a; --chk-led:#6fe0a4; --chk-glow
 input[type="checkbox"].al-chk.cli{--chk-on:#2d5a85; --chk-led:#7fbcf2; --chk-glow:rgba(127,188,242,.60);}
 input[type="checkbox"].al-chk.oculto{--chk-on:#8a3a32; --chk-led:#ff8a7a; --chk-glow:rgba(255,138,122,.60);}
 input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glow:rgba(185,162,240,.60);}
+
+/* ===== v2.98: modos Grabación / Post-producción ===== */
+.modo-bar{display:none;margin:2px 0 14px;border:1px solid var(--brd);border-radius:12px;overflow:hidden;background:var(--surf);}
+.modo-btn{flex:1;padding:11px 14px;background:transparent;border:0;color:var(--muted);font:inherit;font-weight:700;font-size:0.9rem;cursor:pointer;transition:background .15s,color .15s;}
+.modo-btn+.modo-btn{border-left:1px solid var(--brd);}
+.modo-btn:hover{color:var(--txt);}
+.modo-btn.activa[data-modo="grabacion"]{background:var(--gold-bg);color:var(--gold);}
+.modo-btn.activa[data-modo="post"]{background:var(--accent2-bg);color:var(--accent2);}
+#postBox{display:none;}
+.post-origen{padding:0 14px 10px;font-size:0.76rem;color:var(--muted);}
+.post-origen a{color:var(--accent2);text-decoration:underline;cursor:pointer;margin-left:6px;}
+.post-aviso{margin:0 14px 14px;padding:10px 12px;border:1px dashed var(--brd);border-radius:8px;color:var(--muted);font-size:0.82rem;}
+body.modo-post #postBox{display:block;}
+body.modo-post #actividadTitulo,
+body.modo-post #subtitulo,
+body.modo-post #horaSetupBox,
+body.modo-post #avisoTemaActual,
+body.modo-post #dashBox{display:none !important;}
+.tabs-groups .tabs-sep,
+.tabs-groups .tabs-grupo-tag{display:none;}
+body.modo-post .tabs-groups .tabs-grupo:not(.tabs-grupo-post){display:none;}
+body:not(.modo-post) .tabs-groups .tabs-grupo-post{display:none;}
 </style>
 </head>
 <body>
@@ -1319,7 +1370,12 @@ input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glo
 <div class="crono-flotante" id="cronoFlotante">⏱ <span id="cronoFlotanteTiempo">00:00:00</span></div>
 <div class="wrap">
   <span class="volver-link" id="volverLink" style="display:none;" onclick="location.href='ingeniero.html'">← Volver a mis proyectos</span>
-  <h1>Bitácora de Grabación</h1>
+  <h1 id="tituloPagina">Bitácora / Grabación</h1>
+  <!-- v2.98: selector de modo (visible cuando la sesión ya cargó) -->
+  <div class="modo-bar" id="modoBar" role="tablist" aria-label="Modo de la bitácora">
+    <button type="button" class="modo-btn activa" id="modoBtn_grabacion" data-modo="grabacion" role="tab" aria-selected="true" onclick="cambiarModo('grabacion')">🎙️ Grabación</button>
+    <button type="button" class="modo-btn" id="modoBtn_post" data-modo="post" role="tab" aria-selected="false" onclick="cambiarModo('post')">🎚️ Post-producción</button>
+  </div>
   <div class="actividad-titulo" id="actividadTitulo"><span class="al-dial al-dial-mini"><img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display='none'"><img class="al-dial-knob" src="logo/logo-knob-192.png" alt=""></span>Cargando…</div>
   <div class="subt" id="subtitulo"></div>
   <div class="hora-setup-box" id="horaSetupBox" style="display:none;">
@@ -1350,6 +1406,12 @@ input[type="checkbox"].al-chk.sel{--chk-on:#5a4690; --chk-led:#b9a2f0; --chk-glo
       <div class="dash-grabaciones-titulo">🎙️ Sesiones de Grabación del tema</div>
       <div id="dashGrabacionesLista"></div>
     </div>
+  </div>
+  <!-- v2.98: resumen del modo Post-producción (se pinta con renderPostResumen) -->
+  <div class="dash-box" id="postBox">
+    <div class="dash-header" style="cursor:default;"><span class="dash-header-titulo" id="postTitulo">🎚️ Post-producción</span></div>
+    <div class="post-origen" id="postOrigen"></div>
+    <div class="dash-grid" id="postGrid"></div>
   </div>
   <div id="tabsBox" class="tabs-groups" style="display:none;">
     <div class="tabs-grupo">
@@ -3524,6 +3586,100 @@ if(estaModoOfflineActivo()){
     }
   });
 }
+
+// ===== v2.98: modos Grabación / Post-producción =====
+// El modo se deduce de la pestaña activa (Edición/Mezcla/Mastering = post).
+// No se editan funciones existentes: se envuelven (ver changelog).
+const TABS_POST = ['edicion','mezcla','mastering'];
+let modoActual = 'grabacion';
+let ultimaTabModo = { grabacion: 'bitacora', post: 'edicion' };
+let modoRestaurado = false;
+
+function aplicarModo(tab){
+  const modo = TABS_POST.includes(tab) ? 'post' : 'grabacion';
+  modoActual = modo;
+  ultimaTabModo[modo] = tab;
+  document.body.classList.toggle('modo-post', modo === 'post');
+  const t = document.getElementById('tituloPagina');
+  if(t) t.textContent = modo === 'post' ? 'Bitácora / Post-producción' : 'Bitácora / Grabación';
+  ['grabacion','post'].forEach(m => {
+    const b = document.getElementById('modoBtn_' + m);
+    if(!b) return;
+    b.classList.toggle('activa', m === modo);
+    b.setAttribute('aria-selected', m === modo ? 'true' : 'false');
+  });
+  guardarEstadoLocal('modo', modo);
+  renderPostResumen();
+}
+function cambiarModo(modo){
+  cambiarTab(ultimaTabModo[modo] || (modo === 'post' ? 'edicion' : 'bitacora'));
+}
+
+function renderPostResumen(){
+  if(modoActual !== 'post') return;
+  const grid = document.getElementById('postGrid');
+  const origen = document.getElementById('postOrigen');
+  const titulo = document.getElementById('postTitulo');
+  if(!grid || !origen || !titulo) return;
+  if(sesionData){
+    const partes = [sesionData.actividad || 'Sesión', sesionData.fecha || '', sesionData.sala || ''].filter(Boolean).map(escapeHtml);
+    origen.innerHTML = `Sesión de origen: ${partes.join(' · ')} <a onclick="cambiarModo('grabacion')">Ir a Grabación</a>`;
+  } else {
+    origen.innerHTML = '';
+  }
+  if(!temaRef || !temaData){
+    titulo.textContent = '🎚️ Post-producción';
+    grid.style.display = 'block';
+    grid.innerHTML = '<div class="post-aviso">Esta sesión no tiene tema asignado. Asígnalo desde Logística para trabajar la post-producción.</div>';
+    return;
+  }
+  grid.style.display = '';
+  titulo.textContent = '🎚️ Post-producción' + (sesionData && sesionData.temaNombre ? ' · ' + escapeHtml(sesionData.temaNombre) : '');
+  const etapas = [['Edicion','✂️ Edición'], ['Mezcla','🎚️ Mezcla'], ['Mastering','🏁 Mastering']];
+  let html = etapas.map(([e, rotulo]) => {
+    const ses = temaData['sesiones' + e] || [];
+    const min = ses.reduce((a, x) => a + (Number(x.minutos) || 0), 0);
+    const pend = (temaData['checklist' + e] || []).filter(it => !it.hecho).length;
+    return `<div class="dash-card"><div class="dash-card-label">${rotulo}</div>
+      <div class="dash-card-valor accent2">${minutosATexto(min)}</div>
+      <div class="dash-card-sub">${ses.length} ${ses.length === 1 ? 'sesión' : 'sesiones'} · ${pend} ${pend === 1 ? 'pendiente' : 'pendientes'}</div></div>`;
+  }).join('');
+  const ent = temaData.entregablesMastering || {};
+  const hechos = ['wav','streaming','vinilo'].filter(k => ent[k]).length;
+  html += `<div class="dash-card"><div class="dash-card-label">📦 Entregables</div>
+    <div class="dash-card-valor ${hechos === 3 ? 'gold' : 'accent2'}">${hechos}/3</div>
+    <div class="dash-card-sub">WAV · Streaming · Vinilo</div></div>`;
+  grid.innerHTML = html;
+}
+
+// Envolturas (no se editan las funciones originales)
+const _cambiarTabBase = cambiarTab;
+cambiarTab = function(tab){ _cambiarTabBase(tab); aplicarModo(tab); };
+
+const _renderDashboardBase = renderDashboard;
+renderDashboard = function(){
+  _renderDashboardBase.apply(this, arguments);
+  const mb = document.getElementById('modoBar');
+  if(mb && sesionData) mb.style.display = 'flex';
+  if(!modoRestaurado && sesionData){
+    modoRestaurado = true;
+    if(leerEstadoLocal('modo', 'grabacion') === 'post') cambiarTab(ultimaTabModo.post);
+  }
+  renderPostResumen();
+};
+
+const _renderChecklistEtapaBase = renderChecklistEtapa;
+renderChecklistEtapa = function(){ _renderChecklistEtapaBase.apply(this, arguments); renderPostResumen(); };
+
+const _renderSesionesEtapaBase = renderSesionesEtapa;
+renderSesionesEtapa = function(){ _renderSesionesEtapaBase.apply(this, arguments); renderPostResumen(); };
+
+const _guardarEntregableBase = guardarEntregableMastering;
+guardarEntregableMastering = async function(){
+  const r = await _guardarEntregableBase.apply(this, arguments);
+  renderPostResumen();
+  return r;
+};
 </script>
 
 <!--

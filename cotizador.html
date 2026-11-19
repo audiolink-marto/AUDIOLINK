@@ -3,8 +3,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUDIOLINK - Central de Operaciones & Cotizador V9.58</title>
-<!-- AUDIOLINK · cotizador.html · v9.58
+<title>AUDIOLINK - Central de Operaciones & Cotizador V9.65</title>
+<!-- AUDIOLINK · cotizador.html · v9.65
+     v9.65: (a pedido) completa lo prometido en v9.64: aviso al cargar una
+     cotización guardada desde el selector. Tras restaurar y recalcular,
+     si el total recalculado difiere del total que tenía la cotización
+     guardada (diferencia > $1), muestra un alert con ambos montos y las
+     causas probables (editada luego en cotizacion-rapida.html, o
+     cambiaron sesiones/tarifas/catálogos). Solo en la carga manual por
+     el selector: con ?cot= las sesiones aún pueden estar cargándose y el
+     aviso saldría falso, así que ahí no se compara. Solo avisa; no
+     cambia ningún valor. Sin otros cambios respecto a v9.64.
+     v9.64: (a pedido) poder reabrir cotizaciones guardadas en el Pro.
+     (1) "Guardar Cotización en el Proyecto" suma el campo
+     `estadoFormulario` (valor de todos los controles con id, misma lógica
+     que guardarBorrador(), sin los dos selectores de vínculo). Rubros,
+     total, notas y detalleLabor se guardan exactamente igual que antes.
+     (2) Nuevo selector "Cargar cotización guardada" bajo el vínculo de
+     proyecto: lista (fecha · total · estado) las cotizaciones del
+     proyecto que tengan estadoFormulario; al elegir una pide confirmar
+     y restaura los controles como cargarBorrador() (+ modo de
+     producción, detalle de labor, nombres de salas y recálculo).
+     También se abre con ?id=PROYECTO&cot=COTIZACION (sin confirmar).
+     (3) Decisión A: cargar NO modifica la cotización original; al
+     guardar siempre se crea una nueva. Las cotizaciones guardadas antes
+     de v9.64 no tienen estadoFormulario y no aparecen en el selector
+     (siguen editables en cotizacion-rapida.html). Si una cotización se
+     edita luego en cotizacion-rapida.html, su estadoFormulario queda
+     desactualizado respecto a los rubros. No se tocó calcularSubtotales(),
+     el PDF, el Comparador, guardarBorrador() ni cargarBorrador().
+     v9.63: (a pedido) (1) "Production" -> "Producción" en el encabezado
+     del PDF ("Propuesta Operativa & Económica de Producción") y en el
+     título de la pantalla "2. Gestión de Producción y Servicios".
+     (2) PDF: las filas con tarifa $ 0 y total $ 0 (ej. salas o personal
+     incluidos) muestran "—" en la tarifa e "Incluido" en el total, en
+     vez de "$ 0 / $ 0". Solo cambia cómo se pinta; el monto sigue siendo
+     0 y los subtotales/totales no cambian. Los "Subtotal Neto Parcial"
+     siguen numéricos. Una fila con cantidad 0 y tarifa > 0 NO se marca
+     como incluida. Sin otros cambios respecto a v9.62.
+     v9.62: (a pedido) solo el PDF (exportarPDF() y su @media print).
+     (1) Totales: "· N temas" (gris, chico) junto a "Honorarios Prod.
+     General" y a "Labor de Producción"; en la labor solo cuando está en
+     modo "por tema" (en valor fijo no depende de los temas, se omite).
+     N sale de track-qty, igual que "Volumen total". (2) Bajo "Inversión
+     Estimada Total": línea gris cursiva "Equivale a $ X por tema (N
+     temas)" = totalGeneral / temas (promedio de referencia; el total
+     incluye impuestos y acompañamiento, que no dependen de los temas).
+     Solo con 2 o más temas. (3) Compactado de márgenes del @media print
+     para ganar espacio vertical: encabezado (padding 16->10, margen
+     24->14), cuadro de datos (margen 24->14), pie (margen 30->16,
+     padding 16->10) y líneas de totales (padding 5->3.5). El pie sigue
+     sin partirse entre páginas. No se tocó calcularSubtotales(), el
+     Comparador de Temas, "Guardar en proyecto" ni nada de pantalla.
+     Totales idénticos a v9.61.
+     v9.61: (a pedido) tres cambios. (1) Nuevo bloque "Acompañamiento en
+     Sesiones" (presencia del productor en las grabaciones, cobrada POR
+     HORA DE SESIÓN), debajo de Labor de Producción. Ids nuevos: chk-acomp,
+     name-acomp, horas-acomp, rate-acomp, row-acomp, val-acomp. Horas =
+     suma de las horas de las sesiones del proyecto vinculado (incluyen el
+     set-up); sin sesiones se escriben a mano. La tarifa se escribe a mano.
+     Va FUERA de la base del % de honorarios y DENTRO de la base del IVA,
+     igual que la labor. Apagado vale 0: totales idénticos a v9.60.
+     Aparece en resumen, totales del PDF y "Guardar en proyecto" (cantidad
+     = horas, precio = tarifa). El Comparador de Temas no se tocó: si el
+     bloque está activo, su "Total General" suma este rubro a las horas
+     reales en ambas columnas. (2) PDF: logo AUDIOLINK (SVG claro,
+     incrustado) en lugar del texto del título; el pie (firma y totales)
+     ya no se parte entre páginas. (3) Texto por defecto del alcance de la
+     labor (DETALLE_LABOR_DEFECTO): se reemplaza "selección de músicos
+     junto con el productor musical" por "dirección musical del proyecto" y
+     Grabación aclara que la presencia en sesiones se cotiza aparte. El
+     texto ya guardado en un borrador no cambia solo. No se tocó nada más.
+     v9.60: (a pedido) alcance de la Labor de Producción como texto para
+     el cliente. Campo nuevo (textarea id detalle-labor), visible solo con
+     el interruptor de labor activo; se rellena con un texto por defecto
+     (DETALLE_LABOR_DEFECTO) al activar la labor si está vacío, y es
+     editable por cotización. PDF: bloque "Alcance de la Labor de
+     Producción" a ancho completo, debajo de la tabla y encima de las
+     notas (HTML escapado); solo si la labor está activa y hay texto.
+     Guardar en proyecto: el documento de cotizaciones suma el campo
+     detalleLabor (solo si la labor está activa y hay texto), para que
+     el portal pueda mostrarlo después. Con la labor apagada, PDF y
+     guardado quedan idénticos a v9.59. No se tocó nada más.
+     v9.59: (a pedido) nuevo bloque "Labor de Producción" (labor del
+     productor, tarifa variable por proyecto), SEPARADO de los Honorarios
+     Producción General y Logística (%), que no cambian. Dos modos:
+     por tema (tarifa × cantidad de temas) o valor fijo del proyecto.
+     NO entra en la base del % de honorarios; SÍ entra en la base del
+     IVA (supuesto aprobado). Línea propia en pantalla (val-produccion),
+     PDF y recolectarItemsPlanos() (guardar en proyecto). Con proyecto
+     vinculado hereda de proyectos/{id}.produccionMarto
+     {modo, tarifaTema, valorFijo} (proyecto.html v5.46) y el nombre de
+     productorEjecutivo; los ajustes en la cotización no se escriben de
+     vuelta. Al cambiar de proyecto con el selector siempre hereda; al
+     recargar con el mismo proyecto solo hereda si el bloque está vacío
+     (no pisa lo que quedó en el borrador). Desactivado por defecto: con
+     el checkbox apagado todos los totales son idénticos a v9.58.
+     calcularSubtotales() devuelve laborProduccion y la suma al total
+     (el Comparador de Temas la escala con cada escenario).
+     Ids nuevos: chk-produccion, name-produccion, sel-produccion-modo,
+     rate-produccion, val-produccion-fijo, row-produccion, val-produccion.
+     cargarBorrador() llama actualizarModoProduccion() al restaurar.
      v9.58: (a pedido) los 14 checkboxes de selección de servicios (salas,
      ensamble, músicos, maquetación, dirección, arreglos, edición, mezcla,
      master) y los de backline pasan a verse como el switch del dial
@@ -410,8 +509,8 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
     align-items: center; 
     justify-content: space-between; 
     border-bottom: 3px solid #C4982C; 
-    padding-bottom: 16px; 
-    margin-bottom: 24px; 
+    padding-bottom: 10px; 
+    margin-bottom: 14px; 
   }
   .print-title { font-family: var(--T); font-size: 26px; font-weight: bold; color: #111111; letter-spacing: -0.02em; }
   
@@ -419,7 +518,7 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 14px;
   }
   .print-card {
     background: #FAFAFA !important;
@@ -503,12 +602,14 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
   }
   
   .print-footer-container {
-    margin-top: 30px;
+    margin-top: 16px;
     border-top: 2px solid #111111;
-    padding-top: 16px;
+    padding-top: 10px;
     display: block;
     width: 100%;
     clear: both;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   .print-footer-grid {
     display: grid;
@@ -517,7 +618,7 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
     align-items: start;
   }
   .print-totals { width: 100%; font-size: 12.5px; }
-  .print-totals-line { display: flex; justify-content: space-between; padding: 5px 0; color: #444; border-bottom: 1px dotted #E5E5E5; gap: 12px; }
+  .print-totals-line { display: flex; justify-content: space-between; padding: 3.5px 0; color: #444; border-bottom: 1px dotted #E5E5E5; gap: 12px; }
   .print-totals-line span:last-child { white-space: nowrap; text-align: right; font-weight: 500; }
   .print-totals-line.bold { 
     font-family: var(--M); 
@@ -530,6 +631,8 @@ details.backline-accordion[open] summary::after{ transform:translateY(-30%) rota
     color: #111111 !important; 
   }
   .print-totals-line.bold span:last-child { color: #C4982C !important; }
+  .print-totals-note { text-align: right; font-size: 10.5px; font-style: italic; color: #888 !important; padding-top: 4px; }
+  .print-temas-nota { color: #888; font-size: 0.85em; white-space: nowrap; }
 }
 
 /* ===================================================================
@@ -675,6 +778,14 @@ window.NAV_CONFIG = {
         <label class="calc-label">&nbsp;</label>
         <a href="proyecto.html" class="text-input" style="display:block;text-align:center;text-decoration:none;color:var(--gold);border-color:var(--gold);">← Volver</a>
       </div>
+    </div>
+    <!-- v9.64: reabrir una cotización guardada (solo las que tienen estadoFormulario) -->
+    <div class="info-group" id="grupo-cotizacion-guardada" style="display:none; margin-top:10px;">
+      <label class="calc-label">Cargar cotización guardada</label>
+      <select id="selector-cotizacion-guardada" class="text-input" onchange="cargarCotizacionGuardada(this.value)">
+        <option value="">— Elegir una cotización guardada —</option>
+      </select>
+      <div style="font-size:0.78rem; color:var(--muted); margin-top:4px;">Cargar solo llena el formulario. Al guardar se crea una cotización nueva; la original no se modifica.</div>
     </div>
   </div>
 
@@ -831,7 +942,7 @@ window.NAV_CONFIG = {
       <div class="panel">
         <h2 class="panel-title">
           <svg viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
-          2. Gestión de Production y Servicios
+          2. Gestión de Producción y Servicios
         </h2>
         
         <div class="calc-group">
@@ -1073,6 +1184,69 @@ window.NAV_CONFIG = {
               </div>
             </div>
           </div>
+          <div class="row-input" style="flex-wrap: wrap;">
+            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" class="al-chk sel" id="chk-produccion" onchange="actualizarDetalleLabor(true); validarYCalcular()">
+                  <label for="chk-produccion">Labor de Producción</label>
+                </div>
+                <input type="text" id="name-produccion" placeholder="Productor" class="inline-name-input" oninput="validarYCalcular()">
+              </div>
+              <div class="input-controls" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <div class="input-unit-group">
+                  <span class="input-unit-label">Modo</span>
+                  <select id="sel-produccion-modo" class="text-input" onchange="actualizarModoProduccion(); validarYCalcular()">
+                    <option value="tema">Por tema</option>
+                    <option value="fijo">Valor fijo proyecto</option>
+                  </select>
+                </div>
+                <div class="input-unit-group" id="grp-produccion-tema">
+                  <span class="input-unit-label">COP / Tema</span>
+                  <input type="number" id="rate-produccion" value="0" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+                <div class="input-unit-group" id="grp-produccion-fijo" style="display: none;">
+                  <span class="input-unit-label">COP / Proyecto</span>
+                  <input type="number" id="val-produccion-fijo" value="0" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+            <div style="padding-left: 26px; font-size: 11px; color: var(--muted); width: 100%; font-style: italic; margin-top: 4px;">
+              * Labor del productor, aparte de los honorarios de logística (%). No suma a la base de ese porcentaje.
+            </div>
+            <div id="wrap-detalle-labor" style="display: none; width: 100%; margin-top: 8px;">
+              <span class="input-unit-label">Alcance de la labor (se imprime en el PDF)</span>
+              <textarea id="detalle-labor" class="text-input" rows="8" style="resize: vertical; font-family: var(--S); width: 100%; margin-top: 4px;" oninput="validarYCalcular()"></textarea>
+            </div>
+          </div>
+          <div class="row-input" style="flex-wrap: wrap;">
+            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div class="input-main">
+                <div class="checkbox-container">
+                  <input type="checkbox" class="al-chk sel" id="chk-acomp" onchange="validarYCalcular()">
+                  <label for="chk-acomp">Acompañamiento en Sesiones</label>
+                </div>
+                <input type="text" id="name-acomp" placeholder="Productor" class="inline-name-input" oninput="validarYCalcular()">
+              </div>
+              <div class="input-controls" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <div class="input-unit-group" id="grp-acomp-horas-manual">
+                  <span class="input-unit-label">Horas de sesión</span>
+                  <input type="number" id="horas-acomp" value="0" min="0" step="0.5" class="qty-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+                <div class="input-unit-group" id="grp-acomp-horas-auto" style="display: none;">
+                  <span class="input-unit-label">Horas de sesión (automático)</span>
+                  <span id="val-horas-acomp-auto">0 h</span>
+                </div>
+                <div class="input-unit-group">
+                  <span class="input-unit-label">COP / Hora</span>
+                  <input type="number" id="rate-acomp" value="0" min="0" class="rate-input" onchange="validarYCalcular()" oninput="validarYCalcular()">
+                </div>
+              </div>
+            </div>
+            <div style="padding-left: 26px; font-size: 11px; color: var(--muted); width: 100%; font-style: italic; margin-top: 4px;">
+              * Presencia del productor en las sesiones de grabación, por horas de sesión (incluye el set-up). Aparte de los honorarios de logística (%); no suma a la base de ese porcentaje. Con proyecto vinculado las horas salen de las sesiones.
+            </div>
+          </div>
           <div class="row-input">
             <div class="input-main">
               <label>Impuestos / IVA / Retenciones</label>
@@ -1115,6 +1289,14 @@ window.NAV_CONFIG = {
           <div class="summary-line">
             <span>Honorarios Producción General y Logística:</span>
             <span id="val-honorarios">$0 COP</span>
+          </div>
+          <div class="summary-line" id="row-produccion" style="display: none;">
+            <span>Labor de Producción:</span>
+            <span id="val-produccion">$0 COP</span>
+          </div>
+          <div class="summary-line" id="row-acomp" style="display: none;">
+            <span>Acompañamiento en Sesiones:</span>
+            <span id="val-acomp">$0 COP</span>
           </div>
           <div class="summary-line">
             <span>Impuestos Calculados:</span>
@@ -1574,6 +1756,8 @@ function cargarBorrador() {
         }
       }
     });
+    actualizarModoProduccion(); // v9.59: alinea qué campo (tema/fijo) se ve con el modo guardado
+    actualizarDetalleLabor(false); // v9.60: muestra el cuadro de alcance si la labor estaba activa
   } catch (e) {
     console.error("Error cargando el borrador local", e);
   }
@@ -1621,10 +1805,96 @@ function validarYCalcular() {
 
   document.getElementById('val-subtotal').innerText = formatCOP(r.subtotal);
   document.getElementById('val-honorarios').innerText = formatCOP(r.honorarios);
+  document.getElementById('val-produccion').innerText = formatCOP(r.laborProduccion);
+  document.getElementById('row-produccion').style.display = r.laborProduccion > 0 ? 'flex' : 'none';
+  // v9.61
+  actualizarCampoHorasAcomp();
+  document.getElementById('val-acomp').innerText = formatCOP(r.acompanamiento);
+  document.getElementById('row-acomp').style.display = r.acompanamiento > 0 ? 'flex' : 'none';
   document.getElementById('val-iva').innerText = formatCOP(r.iva);
   document.getElementById('total-general').innerText = formatCOP(r.totalGeneral);
 
   guardarBorrador();
+}
+
+/* v9.59: Labor de Producción. Única fuente del monto: la usan
+   calcularSubtotales() (pantalla/PDF/comparador) y recolectarItemsPlanos()
+   (guardar en proyecto). Apagado = 0. */
+function calcularLaborProduccion(cantTemas) {
+  const chk = document.getElementById('chk-produccion');
+  if (!chk || !chk.checked) return 0;
+  const modo = document.getElementById('sel-produccion-modo').value;
+  if (modo === 'fijo') return parseFloat(document.getElementById('val-produccion-fijo').value || 0) || 0;
+  return (parseFloat(document.getElementById('rate-produccion').value || 0) || 0) * cantTemas;
+}
+
+const DETALLE_LABOR_DEFECTO = [
+  'Coordinación y supervisión integral del proceso; la ejecución técnica de cada etapa se cotiza aparte.',
+  '• Preproducción y ensamble: acompañamiento desde el ensamble; supervisión de la maquetación guía y de los scores de grabación; selección de músicos según formato y género, de acuerdo con la dirección musical del proyecto, y coordinación logística.',
+  '• Grabación: orden de grabación de instrumentos, coordinación de tomas y sesiones, distribución del tiempo en estudio, registro de técnicas y preamplificadores usados, y respaldos. La presencia del productor durante las sesiones se cotiza aparte, por horas de sesión.',
+  '• Edición y mezcla: supervisión de la calidad de consolidaciones y tomas, búsqueda del concepto y definición del diseño sonoro, y asignación de equipos de mezcla y tiempo en estudio.',
+  '• Masterización: intermediación con Camilo Silva para alcanzar el estándar de calidad del máster; envío y recepción de material de audio.',
+  '• Tareas varias: aprobaciones y revisiones con el cliente, control de cronograma y presupuesto, organización de sesiones y archivos, y entrega final con verificación de formatos y versiones.'
+].join('\n');
+
+// v9.60: muestra el cuadro de alcance solo con la labor activa. rellenar=true
+// (al activar o heredar) lo llena con el texto por defecto si está vacío;
+// rellenar=false (restaurar borrador) no toca el texto.
+function actualizarDetalleLabor(rellenar) {
+  const activo = document.getElementById('chk-produccion').checked;
+  document.getElementById('wrap-detalle-labor').style.display = activo ? '' : 'none';
+  const ta = document.getElementById('detalle-labor');
+  if (rellenar && activo && !ta.value.trim()) ta.value = DETALLE_LABOR_DEFECTO;
+}
+
+// Texto del alcance listo para PDF/guardado: '' si la labor está apagada o sin texto.
+function textoDetalleLabor() {
+  if (!document.getElementById('chk-produccion').checked) return '';
+  return document.getElementById('detalle-labor').value.trim();
+}
+
+/* v9.61: Acompañamiento en Sesiones (por hora de sesión). Horas =
+   suma de las horas de las sesiones cacheadas (incluyen el set-up, ver
+   v9.49); sin sesiones, las escribe el usuario. Apagado = 0. */
+function horasAcompanamiento() {
+  if (salasDesdeSesionesCache.length) {
+    return salasDesdeSesionesCache.reduce((acc, s) => acc + (Number(s.horas) || 0), 0);
+  }
+  return parseFloat(document.getElementById('horas-acomp').value || 0) || 0;
+}
+
+function calcularAcompanamiento() {
+  const chk = document.getElementById('chk-acomp');
+  if (!chk || !chk.checked) return 0;
+  return horasAcompanamiento() * (parseFloat(document.getElementById('rate-acomp').value || 0) || 0);
+}
+
+function etiquetaAcompanamiento() {
+  const n = document.getElementById('name-acomp').value.trim();
+  return 'Acompañamiento en Sesiones' + (n ? ' [' + n + ']' : '');
+}
+
+function textoHorasAcomp(h) {
+  return String(Number(h.toFixed(2))).replace('.', ',') + ' h';
+}
+
+// Alterna entre el campo manual y la lectura automática según haya sesiones.
+function actualizarCampoHorasAcomp() {
+  const auto = salasDesdeSesionesCache.length > 0;
+  document.getElementById('grp-acomp-horas-manual').style.display = auto ? 'none' : '';
+  document.getElementById('grp-acomp-horas-auto').style.display = auto ? '' : 'none';
+  if (auto) document.getElementById('val-horas-acomp-auto').innerText = textoHorasAcomp(horasAcompanamiento());
+}
+
+function actualizarModoProduccion() {
+  const fijo = document.getElementById('sel-produccion-modo').value === 'fijo';
+  document.getElementById('grp-produccion-tema').style.display = fijo ? 'none' : '';
+  document.getElementById('grp-produccion-fijo').style.display = fijo ? '' : 'none';
+}
+
+function etiquetaLaborProduccion() {
+  const n = document.getElementById('name-produccion').value.trim();
+  return 'Labor de Producción' + (n ? ' [' + n + ']' : '');
 }
 
 /* ===================================================================
@@ -1756,11 +2026,17 @@ function calcularSubtotales(cantTemasOverride, setupMinOverride, grabacionCostoO
   const pctHonorarios = parseFloat(document.getElementById('num-honorarios').value || 0) / 100;
   const honorarios = subtotal * pctHonorarios;
   const subtotalConHonorarios = subtotal + honorarios;
+  // v9.59: labor del productor — fuera de la base del % de honorarios,
+  // dentro de la base del IVA.
+  const laborProduccion = calcularLaborProduccion(cantTemas);
+  // v9.61: acompañamiento en sesiones — mismo criterio que la labor.
+  const acompanamiento = calcularAcompanamiento();
+  const baseIva = subtotalConHonorarios + laborProduccion + acompanamiento;
   const pctIva = parseFloat(document.getElementById('num-iva').value || 0) / 100;
-  const iva = subtotalConHonorarios * pctIva;
-  const totalGeneral = subtotalConHonorarios + iva;
+  const iva = baseIva * pctIva;
+  const totalGeneral = baseIva + iva;
 
-  return { cantTemas, subtotalSalas, subtotalSetup, subtotalBackline, subtotalEjecucion, subtotalMusicos, subtotalTecnicos, subtotalPost, subtotal, honorarios, iva, totalGeneral };
+  return { cantTemas, subtotalSalas, subtotalSetup, subtotalBackline, subtotalEjecucion, subtotalMusicos, subtotalTecnicos, subtotalPost, subtotal, honorarios, laborProduccion, acompanamiento, iva, totalGeneral };
 }
 
 function abrirComparadorTemas() {
@@ -1918,12 +2194,45 @@ function exportarPDF() {
   const cliente = document.getElementById('client-name').value.trim();
   const tema = document.getElementById('track-name').value.trim();
   const cantTemas = parseInt(document.getElementById('track-qty').value || 1);
+  const notaTemas = cantTemas + (cantTemas === 1 ? ' tema' : ' temas'); // v9.62
   const entornoIdx = document.getElementById('selector-entorno').selectedIndex;
   const entornoTxt = document.getElementById('selector-entorno').options[entornoIdx].text;
   const notas = document.getElementById('agenda-notes').value.trim();
   const fecha = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const svgHeader = `<svg width="48" height="24" viewBox="0 0 48 24" style="fill:#C4982C;"><rect x="0" y="8" width="2" height="8" rx="1"/><rect x="5" y="4" width="2" height="16" rx="1"/><rect x="10" y="0" width="2" height="24" rx="1"/><rect x="15" y="6" width="2" height="12" rx="1"/><rect x="20" y="2" width="2" height="20" rx="1"/><rect x="25" y="9" width="2" height="6" rx="1"/><rect x="30" y="4" width="2" height="16" rx="1"/><rect x="35" y="0" width="2" height="24" rx="1"/><rect x="40" y="8" width="2" height="8" rx="1"/><rect x="45" y="5" width="2" height="14" rx="1"/></svg>`;
+  // v9.61: logo AUDIOLINK (versión clara, fondo blanco), incrustado.
+  const svgLogo = `<svg style="height: 40px; width: auto; display: block;" xmlns="http://www.w3.org/2000/svg" viewBox="-24.00 -24.00 1095.39 292.59" role="img" aria-label="Audiolink"><defs><radialGradient id="al-glow2" cx="50%" cy="50%" r="50%">
+      <stop offset="0" style="stop-color:#F08400;stop-opacity:0.9000"/>
+      <stop offset="0.15" style="stop-color:#F08400;stop-opacity:0.8370"/>
+      <stop offset="0.3" style="stop-color:#F08400;stop-opacity:0.7020"/>
+      <stop offset="0.45" style="stop-color:#F08400;stop-opacity:0.5220"/>
+      <stop offset="0.6" style="stop-color:#F08400;stop-opacity:0.3420"/>
+      <stop offset="0.75" style="stop-color:#F08400;stop-opacity:0.1800"/>
+      <stop offset="0.9" style="stop-color:#F08400;stop-opacity:0.0630"/>
+      <stop offset="1" style="stop-color:#F08400" stop-opacity="0"/>
+    </radialGradient><linearGradient id="al-shade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" style="stop-color:#4a3b2c" stop-opacity="0"/>
+      <stop offset="0.5" style="stop-color:#4a3b2c" stop-opacity="0"/>
+      <stop offset="1" style="stop-color:#4a3b2c" stop-opacity="0.3"/>
+    </linearGradient><clipPath id="al-cuerpo"><path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z"/></clipPath></defs><path d="M95.6233998493976 199.8127277861446 H115.34604411966048 Q123.74792921686748 199.8127277861446 123.74792921686748 208.2146128833516 V209.894989902793 Q123.74792921686748 218.296875 132.1498143140745 218.296875 H718.3350694444445 Q733.890625 218.296875 733.890625 202.74131944444446 V193.83253012048192" fill="none" stroke="#4a3b2c" stroke-opacity=".35" stroke-width="4.861525790662651" stroke-linecap="round" stroke-linejoin="round"/><svg x="0.00" y="0.00" width="133.39" height="244.59" viewBox="86.5 79.67 83 152.33" overflow="visible">
+      <g transform="translate(128 140) scale(0.68) translate(-128 -140)">
+        <g clip-path="url(#al-cuerpo)"><circle cx="128" cy="89" r="50" fill="url(#al-glow2)"/></g>
+        <path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z" fill="url(#al-shade)" stroke="none"/>
+        <g fill="none" stroke="#4a3b2c" stroke-width="7.35" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z"/>
+          <path d="M160.3 80.5 V128.1" stroke-width="4.41" opacity=".4"/>
+        </g>
+        <circle cx="128" cy="89" r="10" style="fill:#E08A00"/>
+        <circle class="al-punto al-nucleo" cx="128" cy="89" r="4" style="fill:#F5B84A" opacity="0.95"/>
+        <path d="M95.7 116.2 V95.8 C95.7 83.9 102.5 75.4 112.7 71.15" fill="none" stroke="#ffffff" stroke-opacity="0.65" stroke-width="5.88" stroke-linecap="round"/>
+      </g>
+      <g fill="none" stroke="#4a3b2c" stroke-linecap="round" stroke-linejoin="round">
+        <g stroke-width="4.5"><path d="M110 140 V213.2"/><path d="M146 140 V213.2"/><path d="M128 140 V206"/></g>
+        <g transform="translate(110 222) scale(0.92) translate(-100 -222)"><circle cx="100" cy="222" r="6.5" stroke-width="3.25"/><path d="M96 222.4 A4.2 4.2 0 0 1 104 221.05 Z" fill="#4a3b2c" stroke-width="1.08"/></g>
+        <g transform="translate(146 222) scale(0.92) translate(-156 -222)"><circle cx="156" cy="222" r="6.5" stroke-width="3.25"/><path d="M152 221.05 A4.2 4.2 0 0 1 160 222.4 Z" fill="#4a3b2c" stroke-width="1.08"/></g>
+      </g>
+    </svg><path transform="translate(177.39 190.30) scale(0.20000 -0.20000)" fill="#4a3b2c" d="M50 89V207L139 295H396V369L359 406H202L165 369V337H54V395L156 498H405L507 395V0H404V77L324 0H139ZM313 89 396 169V211H193L161 180V119L191 89Z"/><path transform="translate(293.39 190.30) scale(0.20000 -0.20000)" fill="#4a3b2c" d="M60 101V498H173V136L212 97H299L405 203V498H518V0H413V92L320 0H161Z"/><path transform="translate(412.39 190.30) scale(0.20000 -0.20000)" fill="#4a3b2c" d="M55 100V398L154 498H350L417 440V714H530V0H423V82L341 0H154ZM328 97 417 187V333L340 401H210L168 359V139L210 97Z"/><path transform="translate(533.39 190.30) scale(0.20000 -0.20000)" fill="#4a3b2c" d="M60 605V663L101 703H162L203 663V605L162 565H101ZM75 498H188V0H75Z"/><path transform="translate(707.39 190.30) scale(0.20000 -0.20000)" fill="#A85F00" d="M70 714H183V0H70Z"/><path transform="translate(760.39 190.30) scale(0.20000 -0.20000)" fill="#A85F00" d="M60 605V663L101 703H162L203 663V605L162 565H101ZM75 498H188V0H75Z"/><path transform="translate(815.39 190.30) scale(0.20000 -0.20000)" fill="#A85F00" d="M65 498H170V407L261 498H419L524 393V0H411V362L372 401H282L178 296V0H65Z"/><path transform="translate(934.39 190.30) scale(0.20000 -0.20000)" fill="#A85F00" d="M65 714H178V307H275L408 498H533L366 258L543 0H418L273 211H178V0H65Z"/><svg x="588.39" y="90.70" width="117.00" height="99.59" viewBox="0 0 585 498" overflow="visible"><g fill="#4a3b2c"><path transform="translate(0 498) scale(1 -1)" fill-rule="evenodd" d="M55 100V398L154 498H430L530 398V100L430 0H154ZM377 95 417 135V363L377 403H208L168 363V135L208 95Z"/><path d="M232 262 C255 310 305 312 345 252" fill="none" style="stroke:#E08A00" stroke-width="38" stroke-linecap="round"/></g></svg></svg>`;
   const svgStudio = `<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
   const svgBackline = `<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
   const svgStaff = `<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5-33-8-4z"/></svg>`;
@@ -1932,8 +2241,8 @@ function exportarPDF() {
   let html = `
     <div class="print-header">
       <div>
-        <div class="print-title">AUDIOLINK</div>
-        <div style="font-size: 11px; color: #7A7060; font-family: var(--M); text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px;">Propuesta Operativa & Económica de Production</div>
+        <div class="print-title">${svgLogo}</div>
+        <div style="font-size: 11px; color: #7A7060; font-family: var(--M); text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px;">Propuesta Operativa & Económica de Producción</div>
       </div>
       <div>${svgHeader}</div>
     </div>
@@ -1985,12 +2294,15 @@ function exportarPDF() {
   ];
 
   function agregarFila(grupoIdx, descripcion, cantidadTxt, tarifaTxt, total) {
+    // v9.63: fila sin costo (tarifa $ 0 y total $ 0) => "—" / "Incluido"
+    const esIncluido = (total === 0 && tarifaTxt === formatCOP(0));
+    if (esIncluido) tarifaTxt = '—';
     grupos[grupoIdx].filas.push(
       `<tr>
         <td>${descripcion}</td>
         <td style="text-align: center; font-family: var(--M); font-size: 11.5px; white-space: nowrap;">${cantidadTxt}</td>
         <td style="text-align: right; font-family: var(--M); font-size: 11.5px; white-space: nowrap;">${tarifaTxt}</td>
-        <td style="text-align: right; font-family: var(--M); font-size: 11.5px; white-space: nowrap;">${formatCOP(total)}</td>
+        <td style="text-align: right; font-family: var(--M); font-size: 11.5px; white-space: nowrap;">${esIncluido ? '<span style="color:#7A7060;">Incluido</span>' : formatCOP(total)}</td>
       </tr>`
     );
     grupos[grupoIdx].subtotal += total;
@@ -2098,6 +2410,18 @@ function exportarPDF() {
     </table>
   `;
 
+  // v9.60: alcance de la Labor de Producción (ancho completo, texto escapado).
+  const detalleLabor = textoDetalleLabor();
+  if (detalleLabor) {
+    const detalleSeguro = detalleLabor.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html += `
+      <div style="margin-top: 12px; font-size: 11px; width: 100%; border-left: 3px solid #C4982C; padding-left: 12px; line-height: 1.5; page-break-inside: avoid;">
+        <strong style="font-family: var(--M); font-size: 9.5px; text-transform: uppercase; color: #7A7060; letter-spacing: 0.05em; display:block; margin-bottom:4px;">Alcance de la Labor de Producción</strong>
+        <p style="white-space: pre-wrap; color: #333; font-family: var(--S);">${detalleSeguro}</p>
+      </div>
+    `;
+  }
+
   if (notas) {
     html += `
       <div style="margin-top: 10px; font-size: 11.5px; width: 50%; float: left; border-left: 3px solid #C4982C; padding-left: 12px; line-height: 1.5;">
@@ -2118,8 +2442,18 @@ function exportarPDF() {
         
         <div class="print-totals">
           <div class="print-totals-line"><span>Subtotal Rubros:</span><span>${document.getElementById('val-subtotal').innerText}</span></div>
-          <div class="print-totals-line"><span>Honorarios Prod. General (${document.getElementById('num-honorarios').value}%):</span><span>${document.getElementById('val-honorarios').innerText}</span></div>
+          <div class="print-totals-line"><span>Honorarios Prod. General (${document.getElementById('num-honorarios').value}%) <span class="print-temas-nota">· ${notaTemas}</span>:</span><span>${document.getElementById('val-honorarios').innerText}</span></div>
   `;
+
+  if (document.getElementById('row-produccion').style.display !== 'none') {
+    const laborPorTema = document.getElementById('sel-produccion-modo').value !== 'fijo';
+    html += `<div class="print-totals-line"><span>${etiquetaLaborProduccion()}${laborPorTema ? ' <span class="print-temas-nota">· ' + notaTemas + '</span>' : ''}:</span><span>${document.getElementById('val-produccion').innerText}</span></div>`;
+  }
+
+  // v9.61: acompañamiento en sesiones (con las horas a la vista).
+  if (document.getElementById('row-acomp').style.display !== 'none') {
+    html += `<div class="print-totals-line"><span>${etiquetaAcompanamiento()} (${textoHorasAcomp(horasAcompanamiento())}):</span><span>${document.getElementById('val-acomp').innerText}</span></div>`;
+  }
 
   if (parseFloat(document.getElementById('num-iva').value) > 0) {
     html += `<div class="print-totals-line"><span>Impuestos / Retenciones (${document.getElementById('num-iva').value}%):</span><span>${document.getElementById('val-iva').innerText}</span></div>`;
@@ -2127,6 +2461,7 @@ function exportarPDF() {
 
   html += `
           <div class="print-totals-line bold"><span>Inversión Estimada Total:</span><span>${document.getElementById('total-general').innerText}</span></div>
+          ${cantTemas >= 2 ? `<div class="print-totals-note">Equivale a ${formatCOP(Math.round(calcularSubtotales(cantTemas).totalGeneral / cantTemas))} por tema (${cantTemas} temas)</div>` : ''}
         </div>
       </div>
     </div>
@@ -2159,6 +2494,7 @@ const proyectosRef = db.collection('proyectos');
 
 let proyectoVinculadoId = null;
 let proyectoVinculadoData = null;
+let heredarProduccionForzado = false; // v9.59: true solo al cambiar proyecto con el selector
 let proyectosDisponibles = [];
 
 // v9.2: técnicos calculados automáticamente desde las sesiones del
@@ -2255,6 +2591,7 @@ function poblarSelectorProyectos(idParamInicial) {
 function cambiarProyectoVinculado() {
   const sel = document.getElementById('selector-proyecto-vinculo');
   proyectoVinculadoId = sel.value || null;
+  heredarProduccionForzado = true; // v9.59
   aplicarDatosProyectoVinculado();
 }
 
@@ -2307,6 +2644,24 @@ function aplicarDatosProyectoVinculado() {
     if ((campoCantTemas.value === '1' || !campoCantTemas.value) && proyectoVinculadoData.cantTemas) {
       campoCantTemas.value = proyectoVinculadoData.cantTemas;
     }
+    // v9.59: hereda la labor de producción del proyecto. Cambio de proyecto
+    // por selector = siempre hereda; carga inicial/recarga = solo si el
+    // bloque está vacío (no pisa el borrador).
+    const pm = proyectoVinculadoData.produccionMarto;
+    const bloqueProdVacio = !document.getElementById('chk-produccion').checked &&
+      !(parseFloat(document.getElementById('rate-produccion').value) > 0) &&
+      !(parseFloat(document.getElementById('val-produccion-fijo').value) > 0);
+    if (pm && (heredarProduccionForzado || bloqueProdVacio)) {
+      const modoP = pm.modo === 'fijo' ? 'fijo' : 'tema';
+      document.getElementById('sel-produccion-modo').value = modoP;
+      document.getElementById('rate-produccion').value = Number(pm.tarifaTema) || 0;
+      document.getElementById('val-produccion-fijo').value = Number(pm.valorFijo) || 0;
+      document.getElementById('chk-produccion').checked = (modoP === 'fijo' ? Number(pm.valorFijo) : Number(pm.tarifaTema)) > 0;
+      if (proyectoVinculadoData.productorEjecutivo) document.getElementById('name-produccion').value = proyectoVinculadoData.productorEjecutivo;
+      actualizarModoProduccion();
+      actualizarDetalleLabor(true); // v9.60
+    }
+    heredarProduccionForzado = false;
   } else {
     // Sin proyecto vinculado (cotización suelta): se muestra de nuevo
     // para que se pueda escribir a mano, igual que antes de v9.6.
@@ -2324,6 +2679,7 @@ function aplicarDatosProyectoVinculado() {
     btnGuardar.classList.toggle('necesita-atencion', !btnPdf.disabled && !proyectoVinculadoId);
     actualizarHintGuardar(btnPdf.disabled, proyectoVinculadoId);
   }
+  cargarListaCotizacionesGuardadas(); // v9.64
 }
 
 // v9.2: escucha proyectos/{id}/sesiones del proyecto vinculado y suma
@@ -2659,8 +3015,25 @@ function recolectarItemsPlanos() {
   const honorarios = subtotal * (pctHonorarios / 100);
   if (honorarios > 0) push(`Honorarios Producción General y Logística (${pctHonorarios}%)`, 1, honorarios);
 
+  // v9.59: labor del productor — línea propia, fuera de la base del % de
+  // honorarios (subtotal ya se calculó arriba sin ella), dentro de la base del IVA.
+  const laborProduccion = calcularLaborProduccion(cantTemas);
+  if (laborProduccion > 0) {
+    if (document.getElementById('sel-produccion-modo').value === 'fijo') {
+      push(etiquetaLaborProduccion(), 1, laborProduccion);
+    } else {
+      push(etiquetaLaborProduccion(), cantTemas, Number(document.getElementById('rate-produccion').value) || 0);
+    }
+  }
+
+  // v9.61: acompañamiento en sesiones — cantidad = horas, precio = tarifa/hora.
+  const acompanamiento = calcularAcompanamiento();
+  if (acompanamiento > 0) {
+    push(etiquetaAcompanamiento(), horasAcompanamiento(), Number(document.getElementById('rate-acomp').value) || 0);
+  }
+
   const pctIva = Number(document.getElementById('num-iva').value) || 0;
-  const subtotalConHonorarios = subtotal + honorarios;
+  const subtotalConHonorarios = subtotal + honorarios + laborProduccion + acompanamiento;
   const iva = subtotalConHonorarios * (pctIva / 100);
   if (iva > 0) push(`Impuestos / Retenciones (${pctIva}%)`, 1, iva);
 
@@ -2687,6 +3060,8 @@ async function guardarCotizacionEnProyecto() {
       notas: document.getElementById('agenda-notes').value.trim(),
       items,
       total,
+      ...(textoDetalleLabor() ? { detalleLabor: textoDetalleLabor() } : {}), // v9.60
+      estadoFormulario: recolectarEstadoFormulario(), // v9.64
       creadoEn: firebase.firestore.FieldValue.serverTimestamp()
     });
     alert('Cotización guardada en el proyecto. Ya aparece en el listado de cotizaciones de proyecto.html.');
@@ -2695,6 +3070,95 @@ async function guardarCotizacionEnProyecto() {
     alert('Error guardando la cotización en el proyecto. Revisa la consola.');
   } finally {
     btn.disabled = false;
+  }
+}
+
+// ---------- v9.64: reabrir cotizaciones guardadas ----------
+const IDS_EXCLUIDOS_ESTADO = ['selector-proyecto-vinculo', 'selector-cotizacion-guardada'];
+let cotizacionesGuardadasCache = [];
+let cotParamInicial = new URLSearchParams(window.location.search).get('cot');
+
+// Mismos controles que guardarBorrador(), sin los selectores de vínculo.
+function recolectarEstadoFormulario() {
+  const estado = {};
+  document.querySelectorAll('input[type="text"], input[type="number"], select, input[type="checkbox"], textarea').forEach(input => {
+    if (input.id && !IDS_EXCLUIDOS_ESTADO.includes(input.id)) {
+      estado[input.id] = input.type === 'checkbox' ? input.checked : input.value;
+    }
+  });
+  return estado;
+}
+
+async function cargarListaCotizacionesGuardadas() {
+  const grupo = document.getElementById('grupo-cotizacion-guardada');
+  const sel = document.getElementById('selector-cotizacion-guardada');
+  if (!grupo || !sel) return;
+  cotizacionesGuardadasCache = [];
+  if (!proyectoVinculadoId) { grupo.style.display = 'none'; return; }
+  const idConsultado = proyectoVinculadoId;
+  try {
+    const snap = await proyectosRef.doc(idConsultado).collection('cotizaciones').orderBy('creadoEn', 'desc').get();
+    if (idConsultado !== proyectoVinculadoId) return; // cambió de proyecto mientras cargaba
+    snap.forEach(d => {
+      const c = d.data();
+      if (c.estadoFormulario) cotizacionesGuardadasCache.push({ id: d.id, ...c });
+    });
+  } catch (err) {
+    console.error('Error listando cotizaciones guardadas:', err);
+    grupo.style.display = 'none';
+    return;
+  }
+  if (cotizacionesGuardadasCache.length === 0) { grupo.style.display = 'none'; return; }
+  sel.innerHTML = '<option value="">— Elegir una cotización guardada —</option>' +
+    cotizacionesGuardadasCache.map(c => {
+      const f = c.creadoEn && c.creadoEn.toDate ? c.creadoEn.toDate().toLocaleDateString('es-CO') : '—';
+      return `<option value="${c.id}">${f} · ${formatCOP(c.total || 0)} · ${c.estado || 'borrador'}</option>`;
+    }).join('');
+  grupo.style.display = '';
+  if (cotParamInicial) {
+    const idCot = cotParamInicial;
+    cotParamInicial = null;
+    if (cotizacionesGuardadasCache.some(c => c.id === idCot)) {
+      sel.value = idCot;
+      aplicarCotizacionGuardada(idCot);
+    }
+  }
+}
+
+function cargarCotizacionGuardada(id) {
+  if (!id) return;
+  if (!confirm('Se reemplazarán los valores actuales del formulario por los de la cotización elegida. Al guardar se creará una cotización nueva (la original no se modifica). ¿Continuar?')) {
+    document.getElementById('selector-cotizacion-guardada').value = '';
+    return;
+  }
+  aplicarCotizacionGuardada(id, true);
+}
+
+function aplicarCotizacionGuardada(id, avisar) {
+  const c = cotizacionesGuardadasCache.find(x => x.id === id);
+  if (!c || !c.estadoFormulario) return;
+  Object.keys(c.estadoFormulario).forEach(elId => {
+    if (IDS_EXCLUIDOS_ESTADO.includes(elId)) return;
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!c.estadoFormulario[elId];
+    else el.value = c.estadoFormulario[elId];
+  });
+  actualizarModoProduccion();
+  actualizarDetalleLabor(false);
+  actualizarNombresSalas();
+  validarYCalcular();
+  // v9.65: aviso si lo recalculado no coincide con el total guardado
+  if (avisar) {
+    try {
+      const totalAhora = recolectarItemsPlanos().total;
+      const totalGuardado = Number(c.total) || 0;
+      if (Math.abs(totalAhora - totalGuardado) > 1) {
+        alert(`Aviso: al recalcular, el total del formulario es ${formatCOP(Math.round(totalAhora))} y la cotización guardada tenía ${formatCOP(Math.round(totalGuardado))}. Puede deberse a que se editó después en cotizacion-rapida.html, o a que cambiaron sesiones, tarifas o catálogos desde que se guardó. Revisa antes de volver a guardar.`);
+      }
+    } catch (e) {
+      console.error('No se pudo comparar el total al cargar la cotización:', e);
+    }
   }
 }
 

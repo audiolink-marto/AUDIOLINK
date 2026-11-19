@@ -7,7 +7,23 @@
 <link rel="apple-touch-icon" href="logo/apple-touch-icon.png">
 <meta property="og:image" content="https://audiolink-marto.github.io/AUDIOLINK/logo/logo-circular-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<!-- AUDIOLINK · portal.html · v2.6
+<!-- AUDIOLINK · portal.html · v2.7
+     v2.7: (a pedido) solo el bloque COTIZACIÓN que ve el cliente
+     (cargarCotizacionCliente() y su CSS). (1) Fecha de emisión (creadoEn)
+     y "Válida hasta" (validez, solo si existe). (2) Rubros: concepto
+     arriba y debajo "cantidad × tarifa" en gris, total a la derecha; las
+     filas con tarifa 0 y total 0 dicen "Incluido" (igual que el PDF del
+     cotizador v9.63). (3) "Alcance de la labor de producción"
+     (detalleLabor) como bloque desplegable, texto escapado y saltos de
+     línea respetados. (4) Notas de la cotización, si existen. (5) Si hay
+     varias cotizaciones visibles se ordenan por creadoEn (más reciente
+     primero): una 'aceptada' sigue teniendo prioridad sobre 'enviada', y
+     si hubiera más de una 'aceptada' (no debería pasar) se muestra la más
+     reciente. (6) Botón "Guardar / imprimir PDF": abre el diálogo de
+     impresión del navegador y un @media print deja solo el bloque de
+     cotización, en claro. No se tocó login, etapas, sesiones, pagos, la
+     confirmación (confirmarCotizacionCliente) ni la consulta a Firestore
+     (mismas reglas: solo estados 'aceptada' y 'enviada').
      v2.6: (a pedido) 2 cosas, solo aditivas:
      (1) <head>: apple-touch-icon, og:image y manifest — mismo patrón
      que index.html/ensayo.html/musico.html/ingeniero.html.
@@ -336,7 +352,30 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 .cotiz-item-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--brd);font-size:0.88rem;}
 .cotiz-item-row:last-of-type{border-bottom:none;}
 .cotiz-item-row .concepto{color:var(--txt);}
-.cotiz-item-row .cant{color:var(--muted);font-size:0.8rem;margin-left:6px;}
+.cotiz-item-row .cant{display:block;color:var(--muted);font-size:0.8rem;margin-top:2px;}
+.cotiz-monto{white-space:nowrap;text-align:right;}
+.cotiz-monto.incluido{color:var(--muted);}
+.cotiz-meta{font-size:0.78rem;color:var(--muted);margin-bottom:14px;}
+.cotiz-alcance{margin-top:16px;border:1px solid var(--brd);border-radius:8px;padding:10px 14px;}
+.cotiz-alcance summary{cursor:pointer;font-size:0.85rem;color:var(--gold);font-weight:600;}
+.cotiz-texto{white-space:pre-wrap;font-size:0.85rem;line-height:1.55;color:var(--txt);margin-top:8px;}
+.cotiz-notas{margin-top:16px;font-size:0.85rem;color:var(--muted);}
+.cotiz-notas strong{color:var(--txt);font-size:0.82rem;}
+.cotiz-acciones{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+@media (max-width:640px){
+  .cotiz-item-row{font-size:0.95rem;}
+  .cotiz-item-row .cant{font-size:0.85rem;}
+}
+@media print{
+  body *{visibility:hidden !important;}
+  #cotizacionClienteBox, #cotizacionClienteBox *{visibility:visible !important;}
+  #cotizacionClienteBox .no-print{display:none !important;}
+  #cotizacionClienteBox{position:absolute;left:0;top:0;width:100%;color:#1e1e1e;
+    --bg:#fff;--surf:#fff;--brd:#d8d2c4;--gold:#8c6c28;--txt:#1e1e1e;--muted:#555;--faint:#777;--ok:#2e7d52;}
+  html, body{background:#fff !important;}
+  #cotizacionClienteBox .resumen-box{border:none;padding:0;background:#fff;}
+  .cotiz-alcance{break-inside:avoid;}
+}
 .cotiz-total-row{display:flex;justify-content:space-between;padding-top:14px;margin-top:6px;border-top:1px solid var(--brd);font-size:1rem;font-weight:700;color:var(--gold);}
 .pago-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd);font-size:0.86rem;}
 .pago-row:last-of-type{border-bottom:none;}
@@ -771,29 +810,58 @@ function cargarCotizacionCliente(proyectoId){
         document.getElementById('pagosClienteBox').innerHTML = '';
         return;
       }
-      const docs = snap.docs;
+      // v2.7: más reciente primero (creadoEn); aceptada sigue teniendo prioridad
+      const msCreado = d => { const t = d.data().creadoEn; return t && t.toMillis ? t.toMillis() : 0; };
+      const docs = snap.docs.slice().sort((a, b) => msCreado(b) - msCreado(a));
       const docAceptada = docs.find(d => d.data().estado === 'aceptada');
       const doc = docAceptada || docs[0];
       const c = doc.data();
       const items = Array.isArray(c.items) ? c.items : [];
       const esAceptada = c.estado === 'aceptada';
 
+      // v2.7: fecha de emisión y vigencia
+      const fmtFecha = f => f.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+      const fechaEmision = c.creadoEn && c.creadoEn.toDate ? fmtFecha(c.creadoEn.toDate()) : '';
+      let fechaValidez = '';
+      if(c.validez){
+        const dv = c.validez.toDate ? c.validez.toDate() : new Date(String(c.validez).length <= 10 ? c.validez + 'T00:00:00' : c.validez);
+        if(!isNaN(dv)) fechaValidez = fmtFecha(dv);
+      }
+      const metaLinea = [fechaEmision ? 'Emitida el ' + fechaEmision : '', fechaValidez ? 'Válida hasta ' + fechaValidez : ''].filter(Boolean).join(' · ');
+
       box.innerHTML = `
         <div class="resumen-box">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${metaLinea ? '4px' : '14px'};">
             <h2 style="margin-bottom:0;">COTIZACIÓN</h2>
             <span class="badge ${esAceptada ? 'ok' : 'warn'}">${esAceptada ? 'Aceptada' : 'En revisión'}</span>
           </div>
-          ${items.map(it => `
+          ${metaLinea ? `<div class="cotiz-meta">${escapeHtml(metaLinea)}</div>` : ''}
+          ${items.map(it => {
+            const cant = Number(it.cantidad) || 0;
+            const precio = Number(it.precio) || 0;
+            const incluido = precio === 0 && cant * precio === 0;
+            const cantTxt = cant.toLocaleString('es-CO', { maximumFractionDigits: 2 });
+            return `
             <div class="cotiz-item-row">
-              <span class="concepto">${escapeHtml(it.concepto || '—')}<span class="cant">×${it.cantidad || 0}</span></span>
-              <span>${formatCOP((it.cantidad || 0) * (it.precio || 0))}</span>
-            </div>`).join('')}
+              <span class="concepto">${escapeHtml(it.concepto || '—')}${incluido ? '' : `<span class="cant">${cantTxt} × ${formatCOP(precio)}</span>`}</span>
+              <span class="cotiz-monto${incluido ? ' incluido' : ''}">${incluido ? 'Incluido' : formatCOP(cant * precio)}</span>
+            </div>`;
+          }).join('')}
           <div class="cotiz-total-row"><span>Total</span><span>${formatCOP(c.total || 0)}</span></div>
-          ${esAceptada ? '' : `
-            <button class="btn" style="width:100%;margin-top:16px;" onclick="confirmarCotizacionCliente('${proyectoId}', '${doc.id}', ${c.total || 0})">
+          ${c.detalleLabor ? `
+            <details class="cotiz-alcance">
+              <summary>Alcance de la labor de producción</summary>
+              <div class="cotiz-texto">${escapeHtml(c.detalleLabor)}</div>
+            </details>` : ''}
+          ${c.notas ? `
+            <div class="cotiz-notas"><strong>Notas</strong><div class="cotiz-texto">${escapeHtml(c.notas)}</div></div>` : ''}
+          <div class="cotiz-acciones no-print">
+            ${esAceptada ? '' : `
+            <button class="btn" style="width:100%;" onclick="confirmarCotizacionCliente('${proyectoId}', '${doc.id}', ${c.total || 0})">
               Confirmar cotización
             </button>`}
+            <button class="btn btn-ghost" style="width:100%;" onclick="imprimirCotizacionCliente()">🖨 Guardar / imprimir PDF</button>
+          </div>
         </div>
       `;
 
@@ -808,6 +876,13 @@ function cargarCotizacionCliente(proyectoId){
       console.error('Error cargando cotización del cliente:', err);
       document.getElementById('cotizacionClienteBox').innerHTML = '';
     });
+}
+
+// v2.7: imprime solo el bloque de cotización (ver @media print). Abre los
+// <details> para que el alcance de la labor salga en el PDF.
+function imprimirCotizacionCliente(){
+  document.querySelectorAll('#cotizacionClienteBox details').forEach(d => d.open = true);
+  window.print();
 }
 
 async function confirmarCotizacionCliente(proyectoId, cotizacionId, total){

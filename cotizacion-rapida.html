@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Cotización rápida</title>
-<!-- AUDIOLINK · cotizacion-rapida.html · v1.3
+<!-- AUDIOLINK · cotizacion-rapida.html · v1.4
+     v1.4: (a pedido) fix: el listado de cotizaciones salía en blanco al
+     abrir la página, porque cargarListaCotizaciones() solo se llamaba
+     desde volverListadoCotizaciones() (al volver del formulario) y
+     nunca al entrar. Se agrega una llamada inicial, solo si existe el
+     ?id= del proyecto. Sin otros cambios respecto a v1.3.
      v1.3: se agrega el guard "if(estaModoOfflineActivo())" alrededor
      de auth.onAuthStateChanged() — mismo patrón que ya usaba index.html
      desde v2.23. Sin este cambio, en modo offline (sin señal) el login
@@ -625,6 +630,8 @@ async function cargarListaCotizaciones(){
     cont.innerHTML = '<div class="empty" style="padding:20px;">No pudimos cargar las cotizaciones.</div>';
   }
 }
+// v1.4: carga inicial del listado al abrir la página
+if(proyectoActualId) cargarListaCotizaciones();
 
 function agregarFilaItem(concepto='', cantidad=1, precio=''){
   const container = document.getElementById('cotizItemsContainer');
