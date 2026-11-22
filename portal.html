@@ -5,9 +5,299 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Portal de Clientes</title>
 <link rel="apple-touch-icon" href="logo/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" sizes="any" href="logo/transistor/svg/audiolink-simbolo-claro.svg" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/svg+xml" sizes="any" href="logo/transistor/svg/audiolink-simbolo-oscuro.svg" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" sizes="500x500" href="logo/transistor/png/audiolink-simbolo-claro-500.png" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" sizes="500x500" href="logo/transistor/png/audiolink-simbolo-oscuro-500.png" media="(prefers-color-scheme: dark)">
 <meta property="og:image" content="https://audiolink-marto.github.io/AUDIOLINK/logo/logo-circular-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<!-- AUDIOLINK · portal.html · v2.7
+<!-- AUDIOLINK · portal.html · v2.30
+     v2.30: (a pedido) FAVICON: rutas corregidas a la estructura real del repo: logo/transistor/svg/ (SVG claro/oscuro) y logo/transistor/png/ (PNG 500 de respaldo). Solo cambian las 4 rutas de <link rel="icon">. Nada mas cambio.
+     v2.29: (a pedido) FAVICON. <head>: 4 <link rel="icon"> con media prefers-color-scheme (SVG claro/oscuro + PNG 500 de respaldo, ambos pares). Archivos en logo/: audiolink-simbolo-claro.svg, audiolink-simbolo-oscuro.svg, audiolink-simbolo-claro-500.png, audiolink-simbolo-oscuro-500.png. Simbolo centrado tal cual (viewBox vertical, sin SVG cuadrado). Nada mas cambio.
+     v2.28: (a pedido) MAQUETAS en el resumen, no en las tarjetas. (1) El desplegable "🎧 Maquetas (N)"
+     sale de cada tarjeta de sesión (v2.27) y pasa al bloque de resumen del proyecto (debajo de la
+     línea de tiempo), cerrado al abrir, AGRUPADO POR TEMA (nombre del tema como subtítulo, temas en el
+     mismo orden que proyecto.html: orden y luego nombre). Sin filtro por instrumento ni músico: eso vive
+     en la vista del músico; aquí el cliente ve todas las marcadas "Visible cliente" y el instrumento
+     queda solo como etiqueta. (2) Las filas de audio usan el MINI REPRODUCTOR de guia-practica.html
+     v1.14 (▶ / tiempo / barra dorada / 🔊, compacto, max-width 300px) en lugar del <audio controls>
+     nativo; con preload="none" (la guía usa "metadata"): no baja nada hasta dar play, así que el tiempo
+     total aparece al empezar. YouTube igual que antes (botón que inserta el reproductor). (3) El bloque
+     solo se repinta si cambió su contenido: no se corta una maqueta que está sonando cuando llega un
+     snapshot de sesiones. (4) volverListado() pausa las maquetas que estén sonando (antes seguían
+     sonando con la vista oculta). LECTURAS: las mismas de v2.27 (un get() puntual por tema distinto,
+     en caché mientras el proyecto está abierto); la caché ahora guarda también nombre y orden del
+     tema, que vienen en ese mismo documento. Sin reglas nuevas. No se tocó nada más (portal.html sigue
+     usando new Date(fechaEntregaEstimada) en "Entrega est.", que en Colombia puede mostrar un día antes;
+     portal-compartido.html v1.1 ya lo evita).
+     v2.27:     v2.27: (a pedido) 2 cosas. (1) MAQUETAS para el cliente: en cada tarjeta de sesión que
+     tenga tema (s.temaId) aparece "🎧 Maquetas (N)" — un desplegable (<details>, sin JS) con
+     las maquetas del tema marcadas "Visible cliente" en guia-practica.html v1.134+
+     (practicaMaquetas[].visibleCliente === true). Audio: <audio controls preload="none">
+     (no baja nada hasta dar play; controlsList="nodownload" es solo una sugerencia del
+     navegador, NO impide descargar). YouTube: botón "Ver en YouTube" que inserta el
+     reproductor solo al pulsarlo. Título de cada fila = etiqueta, o instrumento, o "Maqueta N".
+     LECTURAS: un get() puntual (sin listener) por cada tema distinto del proyecto, la primera
+     vez que se abre; queda en caché mientras el proyecto esté abierto (mismo patrón de
+     tomasCache de v2.14). Si el get falla o el tema no tiene maquetas visibles, la tarjeta
+     queda igual que antes. Solo http(s). No hay reglas nuevas: /temas permite get puntual.
+     (2) CSS MÁS LIVIANO: se QUITA por completo el fondo "cristal" de v2.24–v2.26 (.cristal-bg,
+     .cb-*, @keyframes cbCapa, variables --cb-*, y su capa en el markup): eran 4 capas fijas a
+     pantalla completa animadas sin parar. Vuelve el fondo de v2.23 (waveform-bg + grano). No
+     se tocó nada más (ver v2.26 si se quiere recuperar). Juzgado por la estructura del CSS,
+     no medido con un perfilador.
+     v2.26: (a pedido) FX de fondo "muy recargado": se deja SOLO EL COLOR. Se
+     quitan las barras, los anillos, el golpe de bombo y el parpadeo de v2.25.
+     Queda la capa .cristal-bg con las 4 luces (dorado, cobre, coral, verde)
+     que se funden una a otra en el ciclo de 14.4 s, a la intensidad de v2.25.
+     Valores ESTIMADOS (a ojo). No se tocó nada más.
+     v2.25: (a pedido) FX de fondo, otra mirada y MÁS INTENSO: "válvula /
+     bombo". REEMPLAZA el efecto de v2.24 (se quitan las luces a la deriva y el
+     barrido). Capa .cristal-bg, solo CSS y solo en el portal: (1) tres bancos
+     de barras verticales al fondo (estilo medidores de consola), cada uno a
+     su ritmo; (2) tres anillos de luz que nacen abajo al centro y se
+     expanden cada golpe de 3.6 s; (3) envolvente de bombo (ataque rápido,
+     caída lenta) en lugar de la respiración suave; (4) se conservan las 4
+     luces (ciclo 14.4 s) con más intensidad y el parpadeo cada 7.2 s.
+     Intensidades, tamaños y tiempos ESTIMADOS (a ojo). No se tocó nada más.
+     v2.24: (a pedido) FX DE FONDO "CRISTAL VIVO", solo en el portal (tras el
+     login; el login NO se tocó). "Cristal" = la mirada de AUDIOLINK, no vidrio:
+     las cards, sesiones y el header siguen sólidos. Capa nueva fija
+     (.cristal-bg) detrás de todo, solo CSS, sin JS ni imágenes: (1) cuatro
+     luces de color (dorado, cobre, coral, verde suave) que se funden una a
+     otra en un ciclo de 14.4 s, como los 4 colores del pulso del logo;
+     (2) respiración de 3.6 s (el pulso); (3) parpadeo cada 7.2 s (cada dos
+     pulsos); (4) barrido de refracción una vez por ciclo; (5) deriva lenta
+     (28.8 s). Tonos distintos para tema oscuro y claro. Solo se animan
+     opacity y transform (liviano en celular). Sin prefers-reduced-motion,
+     igual que el resto del portal. Valores ESTIMADOS (a ojo): los 4 colores,
+     las intensidades y los tiempos de respiración/parpadeo; la fase no queda
+     amarrada al SVG del logo (mismo ritmo, no mismo instante). No se tocó
+     nada más.
+     v2.23: (a pedido) (1) PDF del detalle financiero: se QUITA el salto de
+     página antes del alcance de la labor; vuelve a seguir a los abonos en el
+     flujo normal (el recuadro del alcance no se parte entre hojas). Se
+     conservan el logo, el estilo y los textos más grandes de v2.22. El pie (\"Impreso el...\") pasa a quedar fijo al fondo de cada hoja para que nunca genere una hoja solo con el pie. (2) PLAN
+     DE TRABAJO: el título pasa a \"PLAN DE TRABAJO PARA:\" (con dos puntos,
+     pequeño y gris) y debajo los temas numerados, en dorado, con la
+     tipografía de títulos y más grandes (1.3 rem, ESTIMADO); si no caben en
+     una línea pasan a la siguiente. Máximo 4 y luego \"y N más\". No se tocó
+     nada más.
+     v2.22: (a pedido) 3 cosas.     v2.22: (a pedido) 3 cosas. (1) PLAN DE TRABAJO: el título pasa a \"PLAN
+     DE TRABAJO PARA 1. Tema 2. Tema ...\", con los temas de las sesiones
+     visibles que el portal ya lee (temaNombre; sin consultas nuevas ni
+     cambios de reglas), en orden de su primera sesión, máximo 4 y luego \"y
+     N más\". Limitación aceptada: solo salen temas que tengan alguna sesión y
+     el orden es por fecha, no el del tracklist. Sin temas queda \"PLAN DE
+     TRABAJO\". (2) DETALLE FINANCIERO: se agrega el logo horizontal (modal:
+     el del tema activo; PDF: el claro; si no carga, texto AUDIOLINK) y el
+     orden pasa a rubros, total, abonos, y luego el alcance de la labor y
+     las notas. (3) PDF: estilo (cabecera con logo y línea dorada, cifras en
+     tarjetas, alcance en recuadro, pie con fecha de impresión), textos más
+     grandes para leer en el celular (13 pt base, ESTIMADO) y el ALCANCE DE
+     LA LABOR (con las notas) siempre empieza en una hoja nueva; la hoja 1
+     lleva la tabla de rubros, total y abonos. Si la tabla fuera tan larga
+     que no quepa en una hoja, continúa en la siguiente. No se tocó nada más.
+     v2.21: (a pedido) (1) Se QUITAN de la página los bloques COTIZACIÓN y
+     PAGOS: todo el detalle financiero vive ahora solo en el modal \"Ver
+     detalle financiero\". Los dos listeners (cotización y pagos) siguen
+     igual y alimentan el modal; solo se quitó el dibujo de esos bloques.
+     (2) \"Confirmar cotización\" pasa al resumen económico de la página,
+     visible solo con la cotización \"En revisión\"; el modal sigue siendo de
+     solo lectura. confirmarCotizacionCliente() no cambió. (3) FIX hojas en
+     blanco al imprimir: el @media print ocultaba el resto de la página con
+     visibility:hidden (seguía ocupando espacio y generaba hojas vacías);
+     ahora se oculta con display:none y #finImpresion queda en el flujo
+     normal. El contenido del PDF no cambia y no se aplicó ajuste A5. Se
+     elimina imprimirCotizacionCliente(), que ya no tenía botón. No se tocó
+     nada más.
+     v2.20: (a pedido) DETALLE FINANCIERO en modal, solo lectura. (1) Botón
+     nuevo \"Ver detalle financiero\" dentro del resumen económico (solo
+     aparece cuando hay una cotización visible: enviada o aceptada). (2)
+     Modal con: estado y fecha de la cotización, Total / Abonado / Saldo con
+     barra de avance del pago, rubros (cantidad × tarifa o \"Incluido\"),
+     alcance de la labor, notas y abonos con enlace al comprobante. SIN botón
+     \"Confirmar cotización\" (eso sigue solo en el bloque COTIZACIÓN). Se
+     cierra con la X, con Esc o tocando fuera; mientras está abierto se
+     bloquea el scroll del fondo. (3) Sin consultas nuevas a Firestore: los
+     listeners que ya existían (cargarCotizacionCliente y cargarPagosCliente)
+     guardan además sus datos en la variable datosFinanc y el modal se dibuja
+     desde ahí; si cambia un pago con el modal abierto, se actualiza solo. De
+     los pagos solo se guardan monto, fecha, método y comprobante: la `nota`
+     interna nunca entra. (4) FASE \"DUPLICAR\": los bloques COTIZACIÓN y PAGOS
+     de la página NO se tocaron (se quitarán en una versión posterior si se
+     aprueba). (5) IMPRESIÓN SINCRONIZADA: una sola función
+     (imprimirFinanciero) para el botón del bloque COTIZACIÓN y el del modal.
+     Imprime siempre el mismo documento: cotización + abonos y saldo (con la
+     cotización \"En revisión\" solo la cotización), en claro, con el nombre
+     del proyecto; el PDF no lleva el enlace \"Ver comprobante\". Por eso el
+     bloque @media print ahora apunta a #finImpresion en vez de
+     #cotizacionClienteBox (único bloque existente que se modificó). Valores
+     ESTIMADOS (a ojo): ancho máx. del modal 640 px y alto máx. 90vh. No se
+     tocó nada más: login, listado, sesiones, plan de trabajo, etapas,
+     consultas, confirmación de cotización ni reglas.
+     v2.19: (a pedido) tinte suave al interruptor de tema para que entre en
+     contexto con el encabezado. Solo CSS (filter sobre .btn-toggle img), sin
+     tocar las imágenes: en tema oscuro la placa se oscurece y se calienta un
+     poco para que no deslumbre sobre el fondo negro; en tema claro solo se
+     asienta apenas hacia el papel, conservando el LED ámbar. Valores
+     ESTIMADOS (a ojo): si se quiere más o menos tinte, se ajustan las dos
+     líneas de filter. No se tocó nada más.
+     v2.18: (a pedido) el logo del encabezado se agranda de 32 px a 60 px de
+     alto (44 px en pantallas de hasta 480 px, para que no desplace los
+     botones en el celular). Cambio solo de CSS (.logo-hd): como el
+     interruptor de tema ya fija la altura del encabezado (65 px), el
+     encabezado no crece más. No se tocó nada más.
+     v2.17: (a pedido) el botón de tema del encabezado (🌙/☀️) pasa a ser un
+     interruptor ilustrado: logo/toggle-tema-off.webp (palanca abajo, LED
+     apagado = tema OSCURO) y logo/toggle-tema-on.webp (palanca arriba, LED
+     ámbar = tema CLARO), recortadas de las ilustraciones a 80 px de ancho
+     y mostradas a 40 px. Las dos imágenes van apiladas y se cruzan con un
+     fundido de 0.2 s al cambiar de tema (lo decide el data-tema por CSS). El
+     botón conserva onclick=\"toggleTema()\", id=\"btnTema\" y title, y gana
+     aria-label. Si alguna imagen no carga, vuelve el botón de antes con el
+     emoji 🌙/☀️ (toggleTema() y el arranque ahora escriben el emoji en un
+     span interno #btnTemaIco, ya no en el botón entero, para no borrar las
+     imágenes). El encabezado crece unos 25 px de alto por el tamaño del
+     interruptor. No se tocó nada más: logo del encabezado, login,
+     consultas, sesiones, plan de trabajo, cotización ni pagos.
+     v2.16: (a pedido) 2 cosas. (1) DETALLE DEL PROYECTO: el badge de arriba
+     deja de mostrar el valor interno p.estado (ok/warn/err) y pasa a mostrar
+     el estado comercial legible con los mismos colores del listado
+     (Cotización = dorado; Aprobado, En curso y Finalizado = verde). Se quita
+     el chip \"Estado: X\" que lo repetía; el chip \"Entrega est.\" se queda.
+     (2) ENCABEZADO DEL PORTAL: las barritas VU y el texto AUDIOLINK se
+     reemplazan por el logo horizontal animado (32 px de alto), un archivo
+     por tema: logo/audiolink-horizontal-oscuro-animado.svg y
+     logo/audiolink-horizontal-claro-animado.svg. El CSS muestra solo el que
+     corresponde al data-tema, así que al cambiar de tema con el botón el
+     logo cambia solo. La animación va dentro del SVG (sin JS; no respeta
+     prefers-reduced-motion, igual que el resto del portal). Si el archivo
+     del tema activo no carga, se muestra el encabezado anterior (VU + texto)
+     como respaldo. El login NO se tocó (conserva su dial, VU y texto). No se
+     tocó nada más: consultas, listeners, sesiones, plan de trabajo,
+     cotización, pagos ni reglas.
+     v2.15: (a pedido) el orden y la clasificación de las sesiones ahora
+     tienen en cuenta la hora. (1) Función nueva estadoSesionPortal(s,
+     ahora) -> 'pasada' | 'encurso' | 'proxima', a partir de fecha,
+     horaInicio y horaFin contra el reloj del dispositivo: una sesión de
+     hoy pasa a Realizadas cuando ya pasó su hora de fin; entre su inicio
+     y su fin es \"En curso\" y sigue en Próximas; sin hora de fin queda en
+     Próximas todo el día (como antes); una que termina pasada la
+     medianoche cuenta hasta el día siguiente (incluida la de ayer que
+     aún no termina). (2) Orden: Próximas por fecha y hora de inicio
+     (sin hora al final de su día, sin fecha al final de todo);
+     Realizadas por fecha y hora de inicio descendente (la más reciente
+     arriba). La sesión destacada sale de ese orden. (3) El chip de la
+     sesión en curso dice \"En curso\". (4) Plan de trabajo alineado con la
+     misma regla: \"Avance\" y el color verde de las marcas de la tira
+     cuentan como realizadas las sesiones terminadas hoy; un día con
+     alguna sesión pendiente o en curso no se pinta como pasado. La
+     clasificación se calcula al cargar o cuando cambian los datos (no se
+     refresca sola cada minuto). No se tocó nada más: consultas,
+     listeners, caché de tomas, tarjetas y listado.
+     v2.14: (a pedido) menos lecturas a Firestore: el resumen de tomas por
+     sesión (total y seleccionadas) se guardaba en memoria solo durante
+     una llamada; cada cambio en las sesiones del proyecto volvía a leer
+     las tomas de TODAS las sesiones. Ahora cargarSesionesCliente() guarda
+     el resultado por sesión (tomasCache, local a cada apertura de
+     proyecto) y solo lee las sesiones que aún no están en la caché. Una
+     lectura fallida no se guarda, así que se reintenta en el siguiente
+     cambio. Consecuencia aceptada: si el equipo marca o desmarca \"usar\"
+     en una toma mientras el cliente tiene el proyecto abierto, el
+     contador se actualiza al volver a abrir el proyecto o recargar. No
+     cambia nada de lo que se ve ni de las reglas. No se tocó nada más.
+     v2.13: (a pedido) jerarquía visual en las tarjetas de sesión (la
+     \"Próxima sesión\" destacada y las demás). (1) Si la sesión tiene tema,
+     el título es el nombre del tema (más grande) y la actividad pasa a
+     una etiqueta pequeña encima; sin tema, el título sigue siendo la
+     actividad, sin etiqueta. La fila \"Tema:\" se quita porque ya es el
+     título. (2) Los músicos (quienes graban) pasan a una fila propia y
+     destacada: nombre en blanco y negrita, instrumento en gris. (3) Orden
+     de filas: Músicos, Técnicos, Estudio (antes Estudio, Técnicos,
+     Músicos); fecha, hora y duración se quedan debajo del título. No se
+     agregan lecturas ni datos: solo cambia cómo se dibujan temaNombre,
+     actividad, musicosAsignados y tecnicosAsignados. No se tocó nada más
+     (listado, chips \"Hoy/Mañana\", tomas, Plan de trabajo, consultas).
+     v2.12: (a pedido) resúmenes de las tarjetas más informativos, solo con
+     datos que el portal ya leía (sin consultas nuevas ni cambios de
+     reglas). LISTADO DE PROYECTOS: (1) el badge pasa de mostrar el valor
+     interno p.estado (ok/warn/err) a mostrar el estado comercial legible
+     (Cotización = dorado; Aprobado, En curso y Finalizado = verde) y se
+     quita la línea \"Estado: X\" que lo repetía. p.estado ya no se muestra
+     en el portal (el dato no se toca). (2) Artista bajo el nombre (si
+     existe). (3) Barra \"Etapa N de 6 · Nombre\" en vez de \"Etapa: X\"
+     (reusa .progreso-etapas). (4) Entrega (\"Faltan N días\", \"Es hoy\",
+     \"Pasó hace N días\") y Temas, solo si existen, reusando .dato-proy.
+     TARJETAS DE SESIÓN: (5) las próximas que no son la destacada muestran
+     \"Hoy / Mañana / En N días\". (6) duración junto al horario (\"4 h\";
+     si termina pasada la medianoche cuenta hasta el día siguiente, igual
+     que el Plan de trabajo). (7) sin horario -> \"Horario por confirmar\"
+     (antes --:--–--:--); si solo hay inicio o solo fin se muestra como
+     antes, sin duración. La línea de tomas queda igual. No se tocó nada
+     más: consultas, listeners (fix v2.10), login, cotización, pagos, Plan
+     de trabajo, línea de tiempo ni resumen del detalle.
+     v2.11: (a pedido) (1) etiqueta "Productor" -> "Productor ejecutivo" en
+     el resumen del proyecto. (2) Bloque nuevo "PLAN DE TRABAJO" entre la
+     tarjeta del proyecto y la cotización, calculado con las sesiones
+     visibles que el portal ya lee (sin consultas nuevas ni cambios de
+     reglas): cuatro cifras (Calendario = días entre la primera y la última
+     sesión; En estudio = horas totales, que ya incluyen el montaje;
+     Equipo = músicos y técnicos distintos; Avance = horas de sesiones ya
+     pasadas sobre el total), barra de desglose Grabación (total - montaje)
+     vs Montaje (tiempoSetupMin), frase de lectura y una tira de calendario
+     con una marca por día de sesión (altura proporcional a las horas,
+     verde = ya pasó, dorado = próxima, línea "hoy"); al tocar una marca la
+     página baja a esa sesión y la resalta un momento. Las sesiones sin
+     horario no suman horas y se avisa. Una sesión que termina después de
+     medianoche suma hasta el día siguiente. Sin tarifas ni contactos. Las
+     tarjetas de sesión solo ganan un atributo data-ses-fecha para el
+     salto. No se tocó nada más.
+     v2.10: (fix) al volver al listado y abrir otro proyecto, el listener de
+     sesiones del proyecto anterior seguía activo y podía mezclar sus
+     sesiones en la lista del nuevo (cotización y pagos ya se cancelaban).
+     Cambios: (1) variable unsubSesionesCliente; cargarSesionesCliente()
+     cancela el listener previo antes de abrir uno nuevo, y volverListado()
+     también lo cancela. (2) dentro del callback de sesiones, tras la espera
+     de las tomas, se descarta la respuesta si el proyecto abierto ya no es
+     el que se pidió (proyectoActualId !== proyectoId). No se tocó nada más:
+     consultas, diseño de v2.9, login, cotización, pagos ni reglas.
+     v2.9: (a pedido) el detalle del proyecto informa más al cliente. Solo
+     v2.9: (a pedido) el detalle del proyecto informa más al cliente. Solo
+     se muestra información que el cliente ya podía leer; no se tocan reglas
+     de Firestore. (1) Resumen arriba, dentro de la tarjeta del proyecto:
+     artista, productor, número de temas y días para la entrega (cada dato
+     solo si existe), más progreso "Etapa N de 6" con barra de 6
+     segmentos (sin porcentaje). (2) Resumen económico arriba: total,
+     abonado y saldo, alimentado por las mismas consultas de Cotización y
+     Pagos (sin consultas nuevas); con la cotización "En revisión" solo
+     muestra el total y un aviso. (3) Próxima sesión destacada, y las demás
+     sesiones separadas en "Próximas" (fecha ascendente) y "Realizadas"
+     (la más reciente primero). (4) Cada sesión suma tema, estudio, técnicos
+     (nombre · rol) y músicos (nombre · instrumento). NO se muestran
+     tarifas, correos, teléfonos, canales ni notas internas. Los días para
+     la entrega se calculan con fecha local (YYYY-MM-DD) para evitar el
+     desfase por zona horaria; el chip "Entrega est." existente no se
+     tocó. No se tocó login, vista previa de staff, ruta de etapas,
+     narrativa, bloques de Cotización y Pagos (ni el botón de confirmar),
+     estilos existentes ni las consultas con visibleCliente de v2.8.
+     v2.8: (fix) "Missing or insufficient permissions" al cargar proyectos
+     con el login real de un cliente. Causa: las reglas de Firestore (v2.48)
+     exigen `visibleCliente != false` en la lectura del cliente sobre
+     /proyectos y sobre sesiones, pero las consultas del portal no incluían
+     ese campo, así que Firestore no podía garantizar que todos los
+     resultados cumplieran la regla y rechazaba la consulta completa. La
+     vista previa de staff no lo mostraba porque entra como esStaff().
+     Cambios (solo 2 líneas de consulta): (1) cargarProyectosCliente() añade
+     .where('visibleCliente','==',true). (2) cargarSesionesCliente() añade
+     .where('visibleCliente','==',true) antes del orderBy('fecha').
+     Efecto: un proyecto o sesión SIN el campo visibleCliente ya no aparece
+     (antes se trataba como visible); proyecto.html lo escribe en true al
+     guardar y logistica.html desde la casilla "Visible para el cliente".
+     La consulta de sesiones puede pedir un índice compuesto
+     (visibleCliente + fecha): si ocurre, la consola del navegador muestra un
+     enlace para crearlo con un clic. No se tocó login, vista previa de staff,
+     etapas, cotización, pagos, tomas, estilos ni las reglas de Firestore.
      v2.7: (a pedido) solo el bloque COTIZACIÓN que ve el cliente
      (cargarCotizacionCliente() y su CSS). (1) Fecha de emisión (creadoEn)
      y "Válida hasta" (validez, solo si existe). (2) Rubros: concepto
@@ -234,6 +524,28 @@ header{
 .vu span:nth-child(4){height:100%;animation-delay:0.45s;}
 .vu span:nth-child(5){height:50%;animation-delay:0.6s;}
 @keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+/* v2.16 — logo animado del encabezado (un SVG por tema) con respaldo VU + texto */
+.logo-hd{display:none;height:60px;width:auto;}
+@media (max-width:480px){.logo-hd{height:44px;}}
+:root:not([data-tema="light"]) .logo-hd-oscuro{display:block;}
+:root[data-tema="light"] .logo-hd-claro{display:block;}
+.brand-respaldo{display:none;align-items:center;gap:14px;}
+/* v2.17 — interruptor ilustrado de tema (dos imágenes apiladas, fundido por data-tema) */
+.btn-toggle{position:relative;flex:none;width:40px;height:65px;padding:0;border:none;background:none;cursor:pointer;border-radius:6px;}
+.btn-toggle img{position:absolute;left:0;top:0;width:40px;height:65px;transition:opacity 0.2s;}
+.btn-toggle img{filter:brightness(0.78) sepia(0.3) contrast(0.96);} /* ESTIMADO: tinte tema oscuro */
+:root[data-tema="light"] .btn-toggle img{filter:sepia(0.12) brightness(0.97);} /* ESTIMADO: tinte tema claro */
+.btn-toggle .tg-on{opacity:0;}
+:root[data-tema="light"] .btn-toggle .tg-on{opacity:1;}
+:root[data-tema="light"] .btn-toggle .tg-off{opacity:0;}
+.btn-toggle-ico{display:none;font-size:1rem;}
+.btn-toggle.sin-toggle{width:38px;height:38px;border:1px solid var(--brd);color:var(--muted);}
+.btn-toggle.sin-toggle img{display:none;}
+.btn-toggle.sin-toggle .btn-toggle-ico{display:block;}
+.btn-toggle:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.brand-logo.sin-oscuro .logo-hd-oscuro,.brand-logo.sin-claro .logo-hd-claro{display:none !important;}
+:root:not([data-tema="light"]) .brand-logo.sin-oscuro .brand-respaldo{display:flex;}
+:root[data-tema="light"] .brand-logo.sin-claro .brand-respaldo{display:flex;}
 .btn{
   background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
   padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
@@ -302,6 +614,23 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 .card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
 .card h3{font-size:1.05rem;font-weight:600;margin-bottom:8px;color:var(--gold);}
 .card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;}
+/* v2.12 — cabecera y resumen de la tarjeta del listado */
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.card-head h3{margin-bottom:0;overflow-wrap:anywhere;}
+.card-head .badge{white-space:nowrap;}
+.card .progreso-etapas{margin-top:12px;}
+.card .resumen-datos{margin-top:14px;}
+.cabeza-ses{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
+.cabeza-ses h4{margin-bottom:0;}
+/* v2.13 — jerarquía en tarjetas de sesión */
+.ses-etq{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:2px;}
+.sesion-card h4.ses-tema{font-size:1.15rem;font-weight:700;}
+.sesion-destacada h4.ses-tema{font-size:1.3rem;font-weight:700;}
+.ses-musicos{margin-top:10px;}
+.ses-musicos small{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:2px;}
+.ses-musicos .mus{display:inline-block;margin-right:14px;}
+.ses-musicos .mus b{font-size:0.95rem;color:var(--txt);font-weight:700;}
+.ses-musicos .mus i{font-style:normal;font-size:0.8rem;color:var(--muted);font-weight:400;}
 .badge{font-size:0.7rem;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;}
 .badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
 .badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
@@ -313,6 +642,49 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 .detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
 .detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
 .chip{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;padding:6px 12px;font-size:0.8rem;color:var(--muted);}
+/* v2.9 — Resumen del proyecto, progreso, resumen económico y sesiones */
+.resumen-proy{margin-top:16px;display:flex;flex-direction:column;gap:14px;}
+.resumen-datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;}
+.dato-proy small{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:2px;}
+.dato-proy span{display:block;font-size:0.92rem;color:var(--txt);font-weight:600;overflow-wrap:anywhere;}
+.dato-proy span.hoy{color:var(--gold);}
+.dato-proy span.pasada{color:var(--warn);}
+.dato-proy span.pagado{color:var(--ok);}
+.dato-proy span.pendiente{color:var(--gold);}
+.progreso-etapas{display:flex;flex-direction:column;gap:6px;}
+.progreso-etapas .barra{display:flex;gap:4px;}
+.progreso-etapas .seg{flex:1;height:5px;border-radius:3px;background:var(--brd);}
+.progreso-etapas .seg.hecha{background:var(--ok);}
+.progreso-etapas .seg.actual{background:var(--gold);}
+.progreso-etapas .txt{font-size:0.78rem;color:var(--muted);}
+#resumenEcoBox:empty{display:none;}
+.eco-resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;border-top:1px solid var(--brd);padding-top:14px;}
+.eco-nota{grid-column:1/-1;font-size:0.78rem;color:var(--muted);}
+.ses-grupo{font-size:0.9rem;color:var(--muted);font-weight:500;margin:22px 0 12px;}
+.sesion-destacada{background:var(--gold-bg);border:1px solid var(--gold);border-radius:10px;padding:18px 20px;margin-bottom:12px;}
+.sesion-destacada .cabeza{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.sesion-destacada .etq{font-size:0.78rem;color:var(--muted);}
+.sesion-destacada h4{font-size:1.05rem;color:var(--gold);margin-bottom:8px;}
+.ses-det{font-size:0.82rem;color:var(--muted);margin-top:4px;line-height:1.45;}
+.ses-det strong{color:var(--txt);font-weight:600;}
+/* v2.11 — Plan de trabajo */
+.plan-cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;}
+.plan-cifras .dato-proy span.valor{font-size:1.15rem;}
+.dato-proy small.sub{margin:2px 0 0;}
+.plan-barra{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--brd);margin-top:16px;}
+.plan-barra .grab{background:var(--gold);}
+.plan-barra .mont{background:var(--faint);}
+.plan-leyenda{display:flex;gap:14px;flex-wrap:wrap;font-size:0.76rem;color:var(--muted);margin-top:6px;}
+.plan-leyenda i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;}
+.plan-frase{font-size:0.88rem;color:var(--txt);line-height:1.5;margin-top:14px;}
+.plan-aviso{font-size:0.76rem;color:var(--muted);margin-top:8px;}
+.tira{position:relative;height:64px;margin:26px 6px 4px;border-bottom:2px solid var(--brd);}
+.tira-marca{position:absolute;bottom:0;width:10px;margin-left:-5px;border:none;border-radius:3px 3px 0 0;background:var(--gold);cursor:pointer;padding:0;}
+.tira-marca.pasada{background:var(--ok);}
+.tira-hoy{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--muted);pointer-events:none;}
+.tira-hoy::after{content:'hoy';position:absolute;top:-16px;left:-12px;font-size:0.68rem;color:var(--muted);}
+.tira-ejes{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin:6px 6px 0;}
+.sesion-card.resaltada,.sesion-destacada.resaltada{outline:2px solid var(--gold);outline-offset:2px;}
 /* Línea de tiempo de etapas (v1.8) — ruta vertical */
 .etapa-ruta{margin-top:14px;}
 .etapa-nodo-row{display:flex;gap:12px;}
@@ -366,15 +738,42 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
   .cotiz-item-row{font-size:0.95rem;}
   .cotiz-item-row .cant{font-size:0.85rem;}
 }
+/* v2.20/v2.21 — la impresión sale siempre de #finImpresion */
 @media print{
-  body *{visibility:hidden !important;}
-  #cotizacionClienteBox, #cotizacionClienteBox *{visibility:visible !important;}
-  #cotizacionClienteBox .no-print{display:none !important;}
-  #cotizacionClienteBox{position:absolute;left:0;top:0;width:100%;color:#1e1e1e;
+  /* v2.21: se quita (display:none) todo lo demás en vez de ocultarlo, para que no queden hojas en blanco */
+  body > *:not(#finImpresion){display:none !important;}
+  body::after{display:none !important;}
+  body.fin-abierto{overflow:visible !important;}
+  #finImpresion{display:block !important;position:static;width:100%;color:#1e1e1e;
     --bg:#fff;--surf:#fff;--brd:#d8d2c4;--gold:#8c6c28;--txt:#1e1e1e;--muted:#555;--faint:#777;--ok:#2e7d52;}
   html, body{background:#fff !important;}
-  #cotizacionClienteBox .resumen-box{border:none;padding:0;background:#fff;}
   .cotiz-alcance{break-inside:avoid;}
+  /* v2.22 — estilo del PDF: textos más grandes (ESTIMADO, en pt) y alcance en hoja aparte */
+  #finImpresion{font-family:var(--S);font-size:13pt;line-height:1.5;}
+  #finImpresion .fin-cab{border-bottom:2px solid var(--gold);padding-bottom:10px;margin-bottom:14px;padding-right:0;}
+  #finImpresion .fin-logo{height:16mm;margin-bottom:8px;}
+  #finImpresion .fin-marca{font-size:18pt;}
+  #finImpresion .fin-tit-row h2{font-size:11pt;}
+  #finImpresion .badge{font-size:9pt;}
+  #finImpresion .fin-proy{font-size:20pt;}
+  #finImpresion .cotiz-meta{font-size:11pt;}
+  #finImpresion .fin-cifras{gap:10px;}
+  #finImpresion .dato-proy{border:1px solid var(--brd);border-radius:6px;padding:8px 10px;background:#faf8f4;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #finImpresion .dato-proy small{font-size:10pt;}
+  #finImpresion .dato-proy span{font-size:15pt;}
+  #finImpresion .fin-sec{font-size:10pt;margin:16px 0 6px;}
+  #finImpresion .cotiz-item-row{font-size:13pt;padding:9px 0;}
+  #finImpresion .cotiz-item-row .cant{font-size:11pt;}
+  #finImpresion .cotiz-total-row{font-size:15pt;}
+  #finImpresion .pago-row{font-size:13pt;}
+  #finImpresion .pago-row .meta{font-size:11pt;}
+  #finImpresion .saldo-row{font-size:14pt;}
+  #finImpresion .cotiz-texto{font-size:13pt;line-height:1.6;}
+  #finImpresion .cotiz-notas{font-size:12pt;break-inside:avoid;}
+  #finImpresion .fin-alcance{break-inside:avoid;background:#faf8f4;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* pie fijo al fondo de cada hoja: no puede generar una hoja solo con el pie */
+  #finImpresion{padding-bottom:12mm;}
+  #finImpresion .fin-pie{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--brd);background:#fff;font-size:9pt;color:var(--muted);}
 }
 .cotiz-total-row{display:flex;justify-content:space-between;padding-top:14px;margin-top:6px;border-top:1px solid var(--brd);font-size:1rem;font-weight:700;color:var(--gold);}
 .pago-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd);font-size:0.86rem;}
@@ -389,6 +788,38 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
   header{padding:14px 16px;}
   .brand h1{font-size:1.05rem;}
 }
+/* v2.23 — título del Plan de trabajo con los temas destacados (tamaños ESTIMADOS) */
+.resumen-box h2.plan-tit{display:flex;flex-direction:column;gap:6px;}
+.plan-tit-eje{font-size:0.78rem;letter-spacing:0.08em;color:var(--muted);font-weight:500;}
+.plan-temas{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 20px;}
+.plan-tema{font-family:var(--T);font-size:1.3rem;font-weight:700;color:var(--gold);letter-spacing:0.02em;overflow-wrap:anywhere;}
+.plan-tema i{font-style:normal;font-family:var(--S);font-weight:500;font-size:0.9rem;color:var(--muted);margin-right:2px;}
+.plan-mas{font-size:0.85rem;color:var(--muted);}
+/* v2.22 — logo, recuadro del alcance y estilo del PDF */
+.fin-logo{display:block;height:40px;width:auto;margin-bottom:10px;}
+.fin-marca{font-family:var(--T);letter-spacing:0.08em;font-weight:600;color:var(--gold);font-size:1.1rem;margin-bottom:10px;}
+.fin-alcance{margin-top:6px;border:1px solid var(--brd);border-left:4px solid var(--gold);border-radius:6px;padding:4px 14px 12px;background:var(--surf-light);}
+/* v2.20 — modal de detalle financiero (solo lectura) */
+.eco-acciones{grid-column:1/-1;}
+.eco-acciones .btn{width:100%;}
+#finImpresion{display:none;}
+.fin-overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;padding:16px;}
+.fin-overlay.abierto{display:flex;}
+body.fin-abierto{overflow:hidden;}
+.fin-modal{position:relative;background:var(--surf);border:1px solid var(--brd);border-radius:12px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,0.4);} /* ESTIMADO: ancho y alto máx. */
+.fin-cerrar{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:6px;border:1px solid var(--brd);background:transparent;color:var(--muted);font-size:1rem;cursor:pointer;}
+.fin-cerrar:hover{border-color:var(--muted);color:var(--txt);}
+.fin-cab{padding-right:40px;margin-bottom:6px;}
+.fin-marca{font-family:var(--T);letter-spacing:0.08em;font-weight:600;color:var(--gold);font-size:0.9rem;margin-bottom:6px;}
+.fin-tit-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.fin-tit-row h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;text-transform:uppercase;}
+.fin-proy{font-size:1.25rem;font-weight:700;color:var(--gold);margin:4px 0 4px;overflow-wrap:anywhere;}
+.fin-cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin:14px 0 10px;}
+.fin-barra{height:6px;border-radius:3px;background:var(--brd);overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.fin-barra div{height:100%;background:var(--ok);-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.fin-pct{font-size:0.74rem;color:var(--muted);margin-top:4px;}
+.fin-sec{font-size:0.78rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;text-transform:uppercase;margin:18px 0 6px;}
+.fin-modal .btn{width:100%;margin-top:18px;}
 .portal-credit{
   text-align:center;padding:18px 20px 24px;font-size:0.68rem;color:var(--faint);
   letter-spacing:0.02em;
@@ -401,6 +832,26 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
   50%  { transform:translate(-50%,-50%) rotate(405deg); }
   100% { transform:translate(-50%,-50%) rotate(360deg); }
 }
+
+/* v2.28 — maquetas en el resumen: desplegable agrupado por tema, con el mini reproductor en chip
+   de guia-practica.html v1.14 (▶ / tiempo / barra dorada / 🔊, compacto, max-width 300px) */
+.res-maquetas{margin-top:14px;border-top:1px solid var(--brd);padding-top:8px;}
+.res-maquetas summary{cursor:pointer;color:var(--gold);font-size:0.86rem;font-weight:500;list-style:none;}
+.res-maquetas summary::-webkit-details-marker{display:none;}
+.maq-tema{margin-top:12px;font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;}
+.ses-maq{margin-top:8px;}
+.ses-maq b{display:block;font-size:0.84rem;color:var(--txt);font-weight:500;}
+.ses-maq small{color:var(--muted);font-size:0.74rem;}
+.mqaudio-bar{display:flex;align-items:center;gap:6px;margin:4px 0 6px 0;max-width:300px;}
+.mqaudio-btn{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;color:var(--muted);font-size:0.88rem;padding:4px 8px;cursor:pointer;flex-shrink:0;min-width:40px;min-height:40px;}
+.mqaudio-tiempo{font-size:0.76rem;color:var(--muted);font-family:'JetBrains Mono',monospace;flex-shrink:0;white-space:nowrap;}
+.mqaudio-seek{flex:1;min-width:60px;accent-color:var(--gold);cursor:pointer;height:14px;}
+@media (max-width:640px){
+  .mqaudio-btn{font-size:0.96rem;}
+  .mqaudio-tiempo{font-size:0.85rem;}
+}
+.btn-maq-yt{margin-top:4px;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--brd);background:var(--surf-light);color:var(--gold);font:inherit;font-size:0.8rem;cursor:pointer;}
+.maq-yt{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:10px;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -434,12 +885,20 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 <!-- ============ PANTALLA PORTAL ============ -->
 <div id="portalScreen" style="display:none;">
   <header>
-    <div class="brand">
-      <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
-      <h1>AUDIOLINK</h1>
+    <div class="brand brand-logo">
+      <img class="logo-hd logo-hd-oscuro" src="logo/audiolink-horizontal-oscuro-animado.svg" alt="Audiolink" onerror="this.closest('.brand-logo').classList.add('sin-oscuro')">
+      <img class="logo-hd logo-hd-claro" src="logo/audiolink-horizontal-claro-animado.svg" alt="Audiolink" onerror="this.closest('.brand-logo').classList.add('sin-claro')">
+      <div class="brand-respaldo">
+        <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+        <h1>AUDIOLINK</h1>
+      </div>
     </div>
     <div class="header-actions" style="display:flex;gap:10px;align-items:center;">
-      <button class="btn btn-ghost btn-icon" onclick="toggleTema()" id="btnTema" title="Cambiar tema">🌙</button>
+      <button class="btn-toggle" onclick="toggleTema()" id="btnTema" title="Cambiar tema" aria-label="Cambiar tema">
+        <img class="tg-off" src="logo/toggle-tema-off.webp" alt="" width="40" height="65" onerror="this.closest('.btn-toggle').classList.add('sin-toggle')">
+        <img class="tg-on" src="logo/toggle-tema-on.webp" alt="" width="40" height="65" onerror="this.closest('.btn-toggle').classList.add('sin-toggle')">
+        <span class="btn-toggle-ico" id="btnTemaIco">🌙</span>
+      </button>
       <button class="btn btn-ghost btn-icon" onclick="cerrarSesionPortal()" title="Salir" id="btnSalirPortal">⏻</button>
     </div>
   </header>
@@ -463,8 +922,7 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
       <span class="back-link" onclick="volverListado()">← Volver a mis proyectos</span>
       <div class="detalle-head" id="detalleContent"></div>
 
-      <div id="cotizacionClienteBox"></div>
-      <div id="pagosClienteBox"></div>
+      <div id="planTrabajoBox"></div>
 
       <h2 style="font-size:1rem;color:var(--muted);font-weight:500;margin-bottom:14px;">SESIONES</h2>
       <div id="listaSesiones"></div>
@@ -473,6 +931,15 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
   </main>
   <div class="portal-credit">Marto 🧠 · martowave@gmail.com</div>
 </div>
+
+<!-- v2.20 — modal de detalle financiero (solo lectura) y documento de impresión -->
+<div class="fin-overlay" id="finOverlay" role="dialog" aria-modal="true" aria-label="Detalle financiero" onclick="if(event.target===this)cerrarFinanciero()">
+  <div class="fin-modal">
+    <button type="button" class="fin-cerrar" onclick="cerrarFinanciero()" aria-label="Cerrar">✕</button>
+    <div id="finContenido"></div>
+  </div>
+</div>
+<div id="finImpresion"></div>
 
 <script>
 // ============ FIREBASE CONFIG ============
@@ -492,12 +959,12 @@ function toggleTema(){
   const nuevo = actual === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-tema', nuevo);
   localStorage.setItem('audiolink_tema', nuevo);
-  document.getElementById('btnTema').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+  document.getElementById('btnTemaIco').textContent = nuevo === 'dark' ? '🌙' : '☀️';
 }
 document.addEventListener('DOMContentLoaded', () => {
   const t = localStorage.getItem('audiolink_tema') || 'dark';
-  const btnTema = document.getElementById('btnTema');
-  if(btnTema) btnTema.textContent = t === 'dark' ? '🌙' : '☀️';
+  const btnTemaIco = document.getElementById('btnTemaIco');
+  if(btnTemaIco) btnTemaIco.textContent = t === 'dark' ? '🌙' : '☀️';
 });
 
 // ============ ENTRADA: LOGIN NORMAL O VISTA PREVIA ============
@@ -611,7 +1078,7 @@ function mostrarPortal(){
 }
 
 function cargarProyectosCliente(){
-  proyectosRef.where('clienteEmail', '==', emailCliente).onSnapshot(snap => {
+  proyectosRef.where('clienteEmail', '==', emailCliente).where('visibleCliente', '==', true).onSnapshot(snap => {
     proyectosCliente = [];
     snap.forEach(doc => {
       const p = { id: doc.id, ...doc.data() };
@@ -675,14 +1142,295 @@ function renderListadoProyectos(){
     return;
   }
   empty.style.display = 'none';
-  grid.innerHTML = proyectosCliente.map(p => `
+  const claves = Object.keys(ETAPAS_LABEL);
+  grid.innerHTML = proyectosCliente.map(p => {
+    const idx = claves.indexOf(p.etapaActual);
+    const comercial = COMERCIAL_LABEL[p.estadoComercial] ? p.estadoComercial : 'cotizacion';
+    const badgeCls = comercial === 'cotizacion' ? 'warn' : 'ok';
+    const progresoHtml = idx >= 0 ? `
+      <div class="progreso-etapas">
+        <div class="barra">
+          ${claves.map((k, i) => `<div class="seg ${i < idx ? 'hecha' : i === idx ? 'actual' : ''}"></div>`).join('')}
+        </div>
+        <div class="txt">Etapa ${idx + 1} de ${claves.length} · ${ETAPAS_LABEL[p.etapaActual]}</div>
+      </div>` : '';
+    const datos = [];
+    if(p.fechaEntregaEstimada){
+      const n = diasDesdeHoyPortal(p.fechaEntregaEstimada);
+      if(n !== null){
+        let txt, cls = '';
+        if(n > 1) txt = 'Faltan ' + n + ' días';
+        else if(n === 1) txt = 'Falta 1 día';
+        else if(n === 0){ txt = 'Es hoy'; cls = 'hoy'; }
+        else { txt = 'Pasó hace ' + (-n) + ' ' + plural(-n, 'día', 'días'); cls = 'pasada'; }
+        datos.push(['Entrega', txt, cls]);
+      }
+    }
+    if(Number(p.cantTemas) > 0) datos.push(['Temas', String(Number(p.cantTemas)), '']);
+    const datosHtml = datos.length ? `
+      <div class="resumen-datos">
+        ${datos.map(([lbl, val, cls]) => `<div class="dato-proy"><small>${lbl}</small><span class="${cls}">${val}</span></div>`).join('')}
+      </div>` : '';
+    return `
     <div class="card" onclick="verDetalleProyecto('${p.id}')">
-      <h3>${escapeHtml(p.nombre || 'Sin nombre')}</h3>
-      <div class="meta">Etapa: ${ETAPAS_LABEL[p.etapaActual] || '—'}</div>
-      <div class="meta">Estado: ${COMERCIAL_LABEL[p.estadoComercial] || 'Cotización'}</div>
-      <span class="badge ${p.estado || 'ok'}" style="margin-top:8px;display:inline-block;">${p.estado || 'ok'}</span>
-    </div>
-  `).join('');
+      <div class="card-head">
+        <h3>${escapeHtml(p.nombre || 'Sin nombre')}</h3>
+        <span class="badge ${badgeCls}">${COMERCIAL_LABEL[comercial]}</span>
+      </div>
+      ${p.clienteArtista ? `<div class="meta">${escapeHtml(p.clienteArtista)}</div>` : ''}
+      ${progresoHtml}
+      ${datosHtml}
+    </div>`;
+  }).join('');
+}
+
+/* ============ RESUMEN DEL PROYECTO (v2.9) ============ */
+// Fechas guardadas como 'YYYY-MM-DD': se calculan en fecha local para que
+// el conteo de días no se desfase por zona horaria.
+function diasDesdeHoyPortal(fechaISO){
+  const [y, m, d] = String(fechaISO || '').split('-').map(Number);
+  if(!y || !m || !d) return null;
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  return Math.round((new Date(y, m - 1, d) - hoy) / 86400000);
+}
+// v2.15 — estado de una sesión según fecha y horas contra el reloj local.
+// 'pasada' | 'encurso' | 'proxima'. Sin fecha = proxima. Sin hora de fin
+// (hoy) = proxima todo el día. Termina pasada la medianoche si fin < inicio.
+function ahoraPortal(){
+  const d = new Date();
+  return { hoy: hoyLocalPortal(), min: d.getHours() * 60 + d.getMinutes() };
+}
+function estadoSesionPortal(s, ahora){
+  if(!s.fecha) return 'proxima';
+  const ini = hhmmAMin(s.horaInicio), fin = hhmmAMin(s.horaFin);
+  if(s.fecha > ahora.hoy) return 'proxima';
+  if(s.fecha < ahora.hoy){
+    // sesión de ayer que cruza la medianoche y aún no termina
+    if(ini !== null && fin !== null && fin < ini && ahora.min < fin && diasEntrePortal(s.fecha, ahora.hoy) === 1) return 'encurso';
+    return 'pasada';
+  }
+  if(fin === null) return 'proxima';
+  if(ini !== null && fin === ini) return 'proxima';
+  const finMin = (ini !== null && fin < ini) ? fin + 1440 : fin;
+  if(ahora.min >= finMin) return 'pasada';
+  if(ini !== null && ahora.min >= ini) return 'encurso';
+  return 'proxima';
+}
+function hoyLocalPortal(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function plural(n, uno, varios){ return n === 1 ? uno : varios; }
+
+function resumenProyectoHTML(p){
+  const claves = Object.keys(ETAPAS_LABEL);
+  const idx = claves.indexOf(p.etapaActual);
+  const datos = [];
+  if(p.clienteArtista) datos.push(['Artista', escapeHtml(p.clienteArtista), '']);
+  if(p.productorEjecutivo) datos.push(['Productor ejecutivo', escapeHtml(p.productorEjecutivo), '']);
+  if(Number(p.cantTemas) > 0) datos.push(['Temas', String(Number(p.cantTemas)), '']);
+  if(p.fechaEntregaEstimada){
+    const n = diasDesdeHoyPortal(p.fechaEntregaEstimada);
+    if(n !== null){
+      let txt, cls = '';
+      if(n > 1) txt = 'Faltan ' + n + ' días';
+      else if(n === 1) txt = 'Falta 1 día';
+      else if(n === 0){ txt = 'Es hoy'; cls = 'hoy'; }
+      else { txt = 'Pasó hace ' + (-n) + ' ' + plural(-n, 'día', 'días'); cls = 'pasada'; }
+      datos.push(['Entrega', txt, cls]);
+    }
+  }
+  const datosHtml = datos.length ? `
+    <div class="resumen-datos">
+      ${datos.map(([lbl, val, cls]) => `<div class="dato-proy"><small>${lbl}</small><span class="${cls}">${val}</span></div>`).join('')}
+    </div>` : '';
+  const progresoHtml = idx >= 0 ? `
+    <div class="progreso-etapas">
+      <div class="barra">
+        ${claves.map((k, i) => `<div class="seg ${i < idx ? 'hecha' : i === idx ? 'actual' : ''}"></div>`).join('')}
+      </div>
+      <div class="txt">Etapa ${idx + 1} de ${claves.length} · ${ETAPAS_LABEL[p.etapaActual]}</div>
+    </div>` : '';
+  return `<div class="resumen-proy">${datosHtml}${progresoHtml}<div id="resumenEcoBox"></div></div>`;
+}
+
+// Resumen económico: lo alimentan cargarCotizacionCliente() (total/estado)
+// y cargarPagosCliente() (abonado), con las mismas consultas de siempre.
+let resumenEco = null; // { id, total, aceptada, pagado }
+// v2.20: datos del detalle financiero, alimentados por los mismos listeners de cotización y pagos
+let datosFinanc = null; // { id, aceptada, total, items, detalleLabor, notas, metaLinea, pagos|null }
+let finAbierto = false;
+function renderResumenEco(){
+  const box = document.getElementById('resumenEcoBox');
+  if(!box) return;
+  if(!resumenEco){ box.innerHTML = ''; return; }
+  const e = resumenEco;
+  const celda = (lbl, val, cls) => `<div class="dato-proy"><small>${lbl}</small><span class="${cls || ''}">${val}</span></div>`;
+  let html = celda(e.aceptada ? 'Total' : 'Total cotizado', formatCOP(e.total), '');
+  if(e.aceptada && e.pagado !== null){
+    const saldo = e.total - e.pagado;
+    html += celda('Abonado', formatCOP(e.pagado), '');
+    html += saldo <= 0 ? celda('Saldo', 'Pagado ✓', 'pagado') : celda('Saldo', formatCOP(saldo), 'pendiente');
+  } else if(!e.aceptada){
+    html += '<div class="eco-nota">Cotización en revisión. Cuando la confirmes, verás tus abonos y el saldo.</div>';
+    html += `<div class="eco-acciones no-print"><button type="button" class="btn" onclick="confirmarCotizacionCliente('${proyectoActualId}', '${e.id}', ${e.total})">Confirmar cotización</button></div>`; // v2.21
+  }
+  html += '<div class="eco-acciones no-print"><button type="button" class="btn btn-ghost" onclick="abrirFinanciero()">Ver detalle financiero</button></div>'; // v2.20
+  box.innerHTML = `<div class="eco-resumen">${html}</div>`;
+}
+
+/* ============ PLAN DE TRABAJO (v2.11) ============ */
+function hhmmAMin(t){
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(t || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+function fmtHoras(min){
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  if(h === 0) return m + ' min';
+  return m ? h + ' h ' + m + ' min' : h + ' h';
+}
+function diasEntrePortal(a, b){
+  const pa = String(a).split('-').map(Number), pb = String(b).split('-').map(Number);
+  return Math.round((new Date(pb[0], pb[1] - 1, pb[2]) - new Date(pa[0], pa[1] - 1, pa[2])) / 86400000);
+}
+// Las horas (fin - inicio) ya incluyen el montaje; grabación = total - montaje.
+function calcularPlanTrabajo(sesiones, ahora){
+  const esFecha = f => /^\d{4}-\d{2}-\d{2}$/.test(String(f || ''));
+  const plan = { totalMin: 0, montajeMin: 0, realizadoMin: 0, conHorario: 0, sinHorario: 0,
+                 dias: {}, diasPend: {}, musicos: new Set(), tecnicos: new Set() };
+  sesiones.forEach(s => {
+    const ini = hhmmAMin(s.horaInicio), fin = hhmmAMin(s.horaFin);
+    let min = 0;
+    if(ini !== null && fin !== null){
+      min = fin - ini;
+      if(min < 0) min += 1440;            // termina pasada la medianoche
+    }
+    if(min > 0){
+      const mont = Math.min(Number(s.tiempoSetupMin) || 0, min);
+      plan.totalMin += min; plan.montajeMin += mont; plan.conHorario++;
+      if(estadoSesionPortal(s, ahora) === 'pasada') plan.realizadoMin += min; // v2.15
+      if(esFecha(s.fecha)) plan.dias[s.fecha] = (plan.dias[s.fecha] || 0) + min;
+    } else {
+      plan.sinHorario++;
+      if(esFecha(s.fecha) && !(s.fecha in plan.dias)) plan.dias[s.fecha] = 0;
+    }
+    if(esFecha(s.fecha) && estadoSesionPortal(s, ahora) !== 'pasada') plan.diasPend[s.fecha] = (plan.diasPend[s.fecha] || 0) + 1; // v2.15
+    (Array.isArray(s.musicosAsignados) ? s.musicosAsignados : []).forEach(m => {
+      const k = m && (m.musicoId || (m.nombre || '').trim().toLowerCase());
+      if(k) plan.musicos.add(k);
+    });
+    (Array.isArray(s.tecnicosAsignados) ? s.tecnicosAsignados : []).forEach(t => {
+      const k = t && (t.tecnicoId || (t.nombre || '').trim().toLowerCase());
+      if(k) plan.tecnicos.add(k);
+    });
+  });
+  return plan;
+}
+// v2.22: temas distintos de las sesiones visibles, en orden de primera aparición (fecha asc)
+function temasDeSesiones(sesiones){
+  const vistos = new Set(), lista = [];
+  sesiones.forEach(s => {
+    const n = String(s.temaNombre || '').trim();
+    if(n && !vistos.has(n.toLowerCase())){ vistos.add(n.toLowerCase()); lista.push(n); }
+  });
+  return lista;
+}
+// v2.23: "PLAN DE TRABAJO PARA:" y debajo los temas numerados, en dorado y tipografía de títulos (máx. 4, luego "y N más")
+function tituloPlanHTML(temas){
+  const MAX = 4; // límite pedido
+  if(!temas || !temas.length) return 'PLAN DE TRABAJO';
+  const vis = temas.slice(0, MAX).map((t, i) =>
+    '<span class="plan-tema"><i>' + (i + 1) + '.</i> ' + escapeHtml(t) + '</span>').join('');
+  const mas = temas.length - MAX;
+  return '<span class="plan-tit-eje">PLAN DE TRABAJO PARA:</span><span class="plan-temas">' + vis +
+    (mas > 0 ? '<span class="plan-mas">y ' + mas + ' más</span>' : '') + '</span>';
+}
+function planTrabajoHTML(plan, temas){
+  const hoy = hoyLocalPortal();
+  const fechas = Object.keys(plan.dias).sort();
+  if(!fechas.length && plan.conHorario === 0 && plan.musicos.size === 0 && plan.tecnicos.size === 0) return '';
+  const fmtF = (f, conAnio) => new Date(f + 'T00:00:00').toLocaleDateString('es-CO',
+    conAnio ? {day:'numeric', month:'short', year:'numeric'} : {day:'numeric', month:'short'});
+  const celda = (lbl, val, sub) => `<div class="dato-proy"><small>${lbl}</small><span class="valor">${val}</span>${sub ? `<small class="sub">${sub}</small>` : ''}</div>`;
+  let cifras = '';
+  let diasCal = 0;
+  if(fechas.length){
+    const ini = fechas[0], fin = fechas[fechas.length - 1];
+    diasCal = diasEntrePortal(ini, fin) + 1;
+    const distinto = ini.slice(0, 4) !== fin.slice(0, 4);
+    cifras += celda('Calendario', diasCal + ' ' + plural(diasCal, 'día', 'días'),
+      ini === fin ? fmtF(ini, false) : fmtF(ini, distinto) + ' – ' + fmtF(fin, distinto));
+  }
+  cifras += celda('En estudio', plan.conHorario ? fmtHoras(plan.totalMin) : '—',
+    plan.conHorario ? plan.conHorario + ' ' + plural(plan.conHorario, 'sesión', 'sesiones') : 'sin horario aún');
+  const nm = plan.musicos.size, nt = plan.tecnicos.size;
+  if(nm || nt){
+    cifras += celda('Equipo',
+      nm ? nm + ' ' + plural(nm, 'músico', 'músicos') : nt + ' ' + plural(nt, 'técnico', 'técnicos'),
+      nm && nt ? nt + ' ' + plural(nt, 'técnico', 'técnicos') : '');
+  }
+  if(plan.conHorario){
+    const pct = Math.round(plan.realizadoMin * 100 / plan.totalMin);
+    cifras += celda('Avance', fmtHoras(plan.realizadoMin) + ' de ' + fmtHoras(plan.totalMin), pct + '% realizado');
+  }
+
+  let barra = '';
+  if(plan.conHorario && plan.montajeMin > 0){
+    const grabMin = plan.totalMin - plan.montajeMin;
+    const pm = plan.montajeMin * 100 / plan.totalMin;
+    barra = `
+      <div class="plan-barra"><div class="grab" style="width:${(100 - pm).toFixed(1)}%"></div><div class="mont" style="width:${pm.toFixed(1)}%"></div></div>
+      <div class="plan-leyenda">
+        <span><i style="background:var(--gold)"></i>Grabación ${fmtHoras(grabMin)}</span>
+        <span><i style="background:var(--faint)"></i>Montaje ${fmtHoras(plan.montajeMin)}</span>
+      </div>`;
+  }
+
+  let frase = '';
+  const diasConSesion = fechas.filter(f => plan.dias[f] > 0).length;
+  if(plan.conHorario && diasConSesion){
+    frase = fmtHoras(plan.totalMin) + ' en estudio repartidas en ' + diasConSesion + ' ' + plural(diasConSesion, 'día', 'días') + ' de sesión'
+      + (diasCal > diasConSesion ? ', dentro de ' + diasCal + ' días de calendario.' : '.');
+  }
+
+  let tira = '';
+  if(fechas.length){
+    const ini = fechas[0], fin = fechas[fechas.length - 1];
+    const span = Math.max(diasEntrePortal(ini, fin), 1);
+    const maxMin = Math.max(...fechas.map(f => plan.dias[f]), 1);
+    const pos = f => ini === fin ? 50 : diasEntrePortal(ini, f) * 100 / span;
+    const marcas = fechas.map(f => {
+      const min = plan.dias[f];
+      const alto = 8 + Math.round(min * 32 / maxMin);
+      const txt = fmtF(f, false) + (min ? ' · ' + fmtHoras(min) : '');
+      return `<button type="button" class="tira-marca ${!(plan.diasPend[f] > 0) ? 'pasada' : ''}" style="left:${pos(f).toFixed(2)}%;height:${alto}px;" title="${txt}" aria-label="${txt}" onclick="irASesionPortal('${f}')"></button>`;
+    }).join('');
+    const marcaHoy = (hoy >= ini && hoy <= fin && ini !== fin)
+      ? `<div class="tira-hoy" style="left:${pos(hoy).toFixed(2)}%;"></div>` : '';
+    tira = `
+      <div class="tira">${marcaHoy}${marcas}</div>
+      <div class="tira-ejes"><span>${fmtF(ini, false)}</span>${ini !== fin ? `<span>${fmtF(fin, false)}</span>` : ''}</div>`;
+  }
+
+  const aviso = plan.sinHorario
+    ? `<div class="plan-aviso">${plan.sinHorario} ${plural(plan.sinHorario, 'sesión sin horario no suma', 'sesiones sin horario no suman')} horas.</div>` : '';
+
+  return `
+    <div class="resumen-box">
+      <h2 class="plan-tit">${tituloPlanHTML(temas)}</h2>
+      <div class="plan-cifras">${cifras}</div>
+      ${barra}
+      ${frase ? `<div class="plan-frase">${frase}</div>` : ''}
+      ${tira}
+      ${aviso}
+    </div>`;
+}
+function irASesionPortal(fecha){
+  const el = Array.from(document.querySelectorAll('[data-ses-fecha]')).find(e => e.dataset.sesFecha === fecha);
+  if(!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('resaltada');
+  setTimeout(() => el.classList.remove('resaltada'), 1800);
 }
 
 function verDetalleProyecto(id){
@@ -690,19 +1438,24 @@ function verDetalleProyecto(id){
   const p = proyectosCliente.find(x => x.id === id);
   if(!p) return;
   proyectoDetalleActual = p;
+  resumenEco = null;
+  datosFinanc = null; cerrarFinanciero(); // v2.20
+  const planBox = document.getElementById('planTrabajoBox'); if(planBox) planBox.innerHTML = '';
 
   document.getElementById('vistaListado').style.display = 'none';
   document.getElementById('vistaDetalle').style.display = 'block';
 
   const entrega = p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada).toLocaleDateString('es-CO') : '—';
+  const comercialDet = COMERCIAL_LABEL[p.estadoComercial] ? p.estadoComercial : 'cotizacion'; // v2.16: mismo criterio del listado
   document.getElementById('detalleContent').innerHTML = `
     <h2>${escapeHtml(p.nombre)}</h2>
-    <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
+    <span class="badge ${comercialDet === 'cotizacion' ? 'warn' : 'ok'}">${COMERCIAL_LABEL[comercialDet]}</span>
     <div class="detalle-meta">
-      <span class="chip">Estado: ${COMERCIAL_LABEL[p.estadoComercial] || 'Cotización'}</span>
       <span class="chip">Entrega est.: ${entrega}</span>
     </div>
+    ${resumenProyectoHTML(p)}
     <div id="etapaChipsBox"></div>
+    <div id="maquetasBox"></div>
     ${p.narrativa ? `<div style="margin-top:16px;font-size:0.88rem;color:var(--txt);line-height:1.5;border-left:2px solid var(--gold);padding-left:14px;">${escapeHtml(p.narrativa)}</div>` : ''}
   `;
 
@@ -715,12 +1468,106 @@ function volverListado(){
   document.getElementById('vistaDetalle').style.display = 'none';
   document.getElementById('vistaListado').style.display = 'block';
   proyectoActualId = null;
+  cerrarFinanciero(); datosFinanc = null; // v2.20
   if(unsubCotizCliente){ unsubCotizCliente(); unsubCotizCliente = null; }
   if(unsubPagosCliente){ unsubPagosCliente(); unsubPagosCliente = null; }
+  if(unsubSesionesCliente){ unsubSesionesCliente(); unsubSesionesCliente = null; }
+  document.querySelectorAll('#maquetasBox audio').forEach(a => a.pause()); // v2.28
 }
 
+// v2.28: maquetas en el resumen — helpers (YouTube + mini reproductor de guia-practica.html v1.14)
+function ytIdPortal(url){
+  const m = String(url || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+function abrirYtMaqueta(btn){
+  const id = btn.getAttribute('data-yt');
+  if(!id) return;
+  const f = document.createElement('iframe');
+  f.className = 'maq-yt';
+  f.src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0';
+  f.allow = 'encrypted-media; picture-in-picture';
+  f.allowFullscreen = true;
+  f.loading = 'lazy';
+  btn.replaceWith(f);
+}
+function fmtTiempoMq(s){
+  if(!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+function mqToggle(id){
+  const a = document.getElementById(id);
+  if(!a) return;
+  if(a.paused) a.play(); else a.pause();
+}
+function mqEstado(id, sonando){
+  const b = document.getElementById(id + '-play');
+  if(b) b.textContent = sonando ? '⏸' : '▶';
+}
+function mqTiempo(id){
+  const a = document.getElementById(id), t = document.getElementById(id + '-t'), s = document.getElementById(id + '-s');
+  if(!a || !t || !s) return;
+  t.textContent = fmtTiempoMq(a.currentTime) + ' / ' + fmtTiempoMq(a.duration);
+  if(a.duration) s.value = Math.round((a.currentTime / a.duration) * 1000);
+}
+function mqSeek(id, val){
+  const a = document.getElementById(id);
+  if(!a || !a.duration) return;
+  a.currentTime = (val / 1000) * a.duration;
+}
+function mqMute(id){
+  const a = document.getElementById(id), b = document.getElementById(id + '-vol');
+  if(!a || !b) return;
+  a.muted = !a.muted;
+  b.textContent = a.muted ? '🔇' : '🔊';
+}
+let mqSeq = 0;
+function mqFilaHtml(m, i){
+  const titulo = m.etiqueta || m.instrumento || ('Maqueta ' + (i + 1));
+  const sub = (m.etiqueta && m.instrumento) ? ` <small>· ${escapeHtml(m.instrumento)}</small>` : '';
+  let player;
+  if(m.tipo === 'youtube'){
+    const id = ytIdPortal(m.url);
+    player = id
+      ? `<button type="button" class="btn-maq-yt" data-yt="${id}" onclick="abrirYtMaqueta(this)">▶ Ver en YouTube</button>`
+      : `<a class="btn-maq-yt" href="${escapeHtml(m.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;">Abrir enlace</a>`;
+  } else {
+    const id = 'mq' + (++mqSeq);
+    player = `<div class="mqaudio-bar">
+      <audio id="${id}" src="${escapeHtml(m.url)}" preload="none" ontimeupdate="mqTiempo('${id}')" onloadedmetadata="mqTiempo('${id}')" onplay="mqEstado('${id}', true)" onpause="mqEstado('${id}', false)" onended="mqEstado('${id}', false)"></audio>
+      <button type="button" class="mqaudio-btn" id="${id}-play" onclick="mqToggle('${id}')" title="Reproducir / Pausar">▶</button>
+      <span class="mqaudio-tiempo" id="${id}-t">0:00 / 0:00</span>
+      <input type="range" class="mqaudio-seek" id="${id}-s" min="0" max="1000" step="1" value="0" oninput="mqSeek('${id}', this.value)">
+      <button type="button" class="mqaudio-btn" id="${id}-vol" onclick="mqMute('${id}')" title="Silenciar">🔊</button>
+    </div>`;
+  }
+  return `<div class="ses-maq"><b>${escapeHtml(titulo)}${sub}</b>${player}</div>`;
+}
+// grupos: [{ nombre, items: [{ etiqueta, instrumento, tipo, url }] }], ya ordenados por tema.
+// Solo se repinta si el contenido cambió: así no se corta una maqueta que está sonando ni se cierra el desplegable.
+function pintarMaquetas(box, grupos){
+  if(!box) return;
+  const limpios = (Array.isArray(grupos) ? grupos : []).map(g => ({
+    nombre: String((g && g.nombre) || 'Tema'),
+    items: (Array.isArray(g && g.items) ? g.items : []).filter(m => m && /^https?:\/\//i.test(String(m.url || '').trim()))
+  })).filter(g => g.items.length);
+  const firma = JSON.stringify(limpios);
+  if(box.dataset.firma === firma) return;
+  box.dataset.firma = firma;
+  if(!limpios.length){ box.innerHTML = ''; return; }
+  const total = limpios.reduce((n, g) => n + g.items.length, 0);
+  box.innerHTML = `<details class="res-maquetas"><summary>🎧 Maquetas (${total})</summary>${
+    limpios.map(g => `<div class="maq-tema">${escapeHtml(g.nombre)}</div>` + g.items.map(mqFilaHtml).join('')).join('')
+  }</details>`;
+}
+let unsubSesionesCliente = null;
 function cargarSesionesCliente(proyectoId){
-  proyectosRef.doc(proyectoId).collection('sesiones')
+  if(unsubSesionesCliente){ unsubSesionesCliente(); unsubSesionesCliente = null; }
+  const tomasCache = {}; // v2.14: resumen de tomas por sesión, vive mientras este proyecto esté abierto
+  const maquetasCache = {}; // v2.27/v2.28: { nombre, orden, items } visibles para el cliente por temaId (misma vida que tomasCache)
+  unsubSesionesCliente = proyectosRef.doc(proyectoId).collection('sesiones')
+    .where('visibleCliente', '==', true)
     .orderBy('fecha', 'asc')
     .onSnapshot(async snap => {
       const cont = document.getElementById('listaSesiones');
@@ -743,6 +1590,8 @@ function cargarSesionesCliente(proyectoId){
       renderEtapaChips(proyectoDetalleActual, rangoGrabacion);
 
       if(sesiones.length === 0){
+        pintarMaquetas(document.getElementById('maquetasBox'), []); // v2.28
+        const pb0 = document.getElementById('planTrabajoBox'); if(pb0) pb0.innerHTML = '';
         cont.innerHTML = '';
         empty.style.display = 'block';
         return;
@@ -757,31 +1606,157 @@ function cargarSesionesCliente(proyectoId){
       // publicada, sesión sin tomas, etc.), esa tarjeta se muestra igual,
       // solo sin la línea de resumen.
       const resumenes = await Promise.all(sesiones.map(async s => {
+        if(tomasCache[s.id]) return tomasCache[s.id]; // v2.14: ya leída, no se vuelve a pedir
         try{
           const tomasSnap = await proyectosRef.doc(proyectoId).collection('sesiones').doc(s.id).collection('tomas').get();
           let usar = 0;
           tomasSnap.forEach(t => { if(t.data().usar === true) usar++; });
-          return { id: s.id, total: tomasSnap.size, usar };
+          const r = { id: s.id, total: tomasSnap.size, usar };
+          tomasCache[s.id] = r;
+          return r;
         } catch(e){
           return { id: s.id, total: 0, usar: 0 };
         }
       }));
+      // v2.27: maquetas visibles para el cliente — un get() puntual por tema distinto (sin
+      // listener), en caché mientras el proyecto esté abierto. Si falla, no se cachea (se
+      // reintenta en el próximo snapshot) y el resumen queda sin ese tema.
+      const temaIdsMaq = [...new Set(sesiones.map(s => s.temaId).filter(Boolean))];
+      await Promise.all(temaIdsMaq.map(async tid => {
+        if(maquetasCache[tid]) return;
+        try{
+          const td = await proyectosRef.doc(proyectoId).collection('temas').doc(tid).get();
+          const dt = td.exists ? td.data() : {};
+          const crudas = Array.isArray(dt.practicaMaquetas) ? dt.practicaMaquetas : [];
+          maquetasCache[tid] = {
+            nombre: String(dt.nombre || '').trim(),
+            orden: (typeof dt.orden === 'number') ? dt.orden : null,
+            items: crudas
+              .filter(m => m && m.visibleCliente === true && /^https?:\/\//i.test(String(m.url || '').trim()))
+              .map(m => ({
+                etiqueta: String(m.etiqueta || '').trim(),
+                instrumento: String(m.instrumento || '').trim(),
+                tipo: m.tipo === 'youtube' ? 'youtube' : 'audio',
+                url: String(m.url).trim()
+              }))
+          };
+        } catch(e){ /* sin maquetas para el resumen */ }
+      }));
+      if(proyectoActualId !== proyectoId) return; // v2.10: respuesta tardía de otro proyecto
+      // v2.28: maquetas en el resumen, agrupadas por tema (orden, luego nombre); solo temas con sesión visible
+      const vistosMq = new Set(), gruposMq = [];
+      sesiones.forEach(s => {
+        if(!s.temaId || vistosMq.has(s.temaId)) return;
+        vistosMq.add(s.temaId);
+        const c = maquetasCache[s.temaId];
+        if(c && c.items.length) gruposMq.push({ nombre: c.nombre || s.temaNombre || 'Tema', orden: c.orden, items: c.items });
+      });
+      gruposMq.sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity) || a.nombre.localeCompare(b.nombre));
+      pintarMaquetas(document.getElementById('maquetasBox'), gruposMq);
+      const planBox2 = document.getElementById('planTrabajoBox');
+      const ahora = ahoraPortal(); // v2.15: una sola lectura del reloj para plan y listas
+      if(planBox2) planBox2.innerHTML = planTrabajoHTML(calcularPlanTrabajo(sesiones, ahora), temasDeSesiones(sesiones));
       const resumenPorId = {};
       resumenes.forEach(r => resumenPorId[r.id] = r);
 
-      cont.innerHTML = sesiones.map(s => {
-        const fechaLegible = s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'}) : '—';
+      // v2.9: tarjeta de sesión con tema, estudio, técnicos y músicos.
+      // Nunca se muestran tarifas, correos, teléfonos, canales ni notas internas.
+      const listaNombres = (arr, campoExtra) => (Array.isArray(arr) ? arr : [])
+        .filter(x => x && x.nombre)
+        .map(x => escapeHtml(x.nombre) + (x[campoExtra] ? ' · ' + escapeHtml(x[campoExtra]) : ''))
+        .join(', ');
+      const detalleSesion = (s) => {
+        const filas = [];
+        const tec = listaNombres(s.tecnicosAsignados, 'rol');
+        if(tec) filas.push(`<strong>Técnicos:</strong> ${tec}`);
+        const lugar = [s.estudioNombre, s.sala].filter(Boolean).map(escapeHtml).join(' · ');
+        if(lugar) filas.push(`<strong>Estudio:</strong> ${lugar}`);
+        const musicos = (Array.isArray(s.musicosAsignados) ? s.musicosAsignados : []).filter(x => x && x.nombre);
+        const musHtml = musicos.length ? `
+          <div class="ses-musicos"><small>Músicos</small>${musicos.map(m =>
+            `<span class="mus"><b>${escapeHtml(m.nombre)}</b>${m.instrumento ? ' <i>' + escapeHtml(m.instrumento) + '</i>' : ''}</span>`
+          ).join('')}</div>` : '';
+        return musHtml + filas.map(f => `<div class="ses-det">${f}</div>`).join('');
+      };
+      // v2.13: con tema, el título es el tema y la actividad va como etiqueta
+      const tituloSesion = (s) => s.temaNombre
+        ? `<div class="ses-etq">${escapeHtml(s.actividad || 'Sesión')}</div><h4 class="ses-tema">${escapeHtml(s.temaNombre)}</h4>`
+        : `<h4>${escapeHtml(s.actividad || 'Sesión')}</h4>`;
+      const tomasHtml = (s) => {
         const r = resumenPorId[s.id];
-        const tomasTxt = (r && r.total > 0)
+        return (r && r.total > 0)
           ? `<div class="meta" style="color:var(--gold);font-size:0.82rem;margin-top:4px;">🎙️ ${r.total} toma${r.total === 1 ? '' : 's'} registrada${r.total === 1 ? '' : 's'} · ${r.usar} seleccionada${r.usar === 1 ? '' : 's'}</div>`
           : '';
+      };
+      // v2.28: las maquetas ya no van en la tarjeta de sesión (ver el resumen del proyecto)
+      const fechaLarga = (s) => s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'}) : '—';
+      const horaTxt = (s) => {
+        if(!s.horaInicio && !s.horaFin) return 'Horario por confirmar';
+        const rango = `${escapeHtml(s.horaInicio || '--:--')}–${escapeHtml(s.horaFin || '--:--')}`;
+        const ini = hhmmAMin(s.horaInicio), fin = hhmmAMin(s.horaFin);
+        if(ini === null || fin === null) return rango;
+        let min = fin - ini;
+        if(min < 0) min += 1440; // termina pasada la medianoche
+        return min > 0 ? `${rango} · ${fmtHoras(min)}` : rango;
+      };
+      const cuandoChip = (s) => {
+        if(!s.fecha) return '';
+        if(estadoSesionPortal(s, ahora) === 'encurso') return `<span class="badge warn">En curso</span>`;
+        const n = diasDesdeHoyPortal(s.fecha);
+        if(n === null || n < 0) return '';
+        const t = n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : 'En ' + n + ' días';
+        return `<span class="badge warn">${t}</span>`;
+      };
+      const tarjetaSesion = (s, conCuando) => {
+        const chip = conCuando ? cuandoChip(s) : '';
+        const titulo = chip
+          ? `<div class="cabeza-ses"><div>${tituloSesion(s)}</div>${chip}</div>`
+          : tituloSesion(s);
         return `
-        <div class="sesion-card">
-          <h4>${escapeHtml(s.actividad || 'Sesión')}</h4>
-          <div class="meta" style="color:var(--muted);font-size:0.82rem;">📅 ${fechaLegible} · 🎚️ ${escapeHtml(s.sala || '—')} · ⏱️ ${escapeHtml(s.horaInicio || '--:--')}–${escapeHtml(s.horaFin || '--:--')}</div>
-          ${tomasTxt}
+        <div class="sesion-card" data-ses-fecha="${escapeHtml(s.fecha || '')}">
+          ${titulo}
+          <div class="meta" style="color:var(--muted);font-size:0.82rem;">📅 ${fechaLarga(s)} · ⏱️ ${horaTxt(s)}</div>
+          ${detalleSesion(s)}
+          ${tomasHtml(s)}
         </div>`;
-      }).join('');
+      };
+
+      const hoy = hoyLocalPortal();
+      // v2.15: clasificación y orden por fecha Y hora (estadoSesionPortal)
+      const proximas = sesiones.filter(s => estadoSesionPortal(s, ahora) !== 'pasada');   // sin fecha, al final de Próximas
+      const realizadas = sesiones.filter(s => estadoSesionPortal(s, ahora) === 'pasada');
+      const horaOrden = (s, vacio) => { const m = hhmmAMin(s.horaInicio); return m === null ? vacio : m; };
+      proximas.sort((a, b) =>
+        (a.fecha || '9999-12-31').localeCompare(b.fecha || '9999-12-31') || horaOrden(a, 9999) - horaOrden(b, 9999));
+      realizadas.sort((a, b) =>
+        (b.fecha || '').localeCompare(a.fecha || '') || horaOrden(b, -1) - horaOrden(a, -1)); // la más reciente primero
+
+      let html = '';
+      let resto = proximas;
+      const destacada = proximas.find(s => s.fecha);
+      if(destacada){
+        resto = proximas.filter(s => s !== destacada);
+        const n = diasDesdeHoyPortal(destacada.fecha);
+        const cuando = estadoSesionPortal(destacada, ahora) === 'encurso' ? 'En curso' : n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : 'En ' + n + ' días';
+        html += `
+        <div class="sesion-destacada" data-ses-fecha="${escapeHtml(destacada.fecha || '')}">
+          <div class="cabeza">
+            <span class="etq">Próxima sesión</span>
+            <span class="badge warn">${cuando}</span>
+          </div>
+          ${tituloSesion(destacada)}
+          <div class="meta" style="color:var(--muted);font-size:0.82rem;">📅 ${fechaLarga(destacada)} · ⏱️ ${horaTxt(destacada)}</div>
+          ${detalleSesion(destacada)}
+          ${tomasHtml(destacada)}
+        </div>`;
+      }
+      if(resto.length){
+        html += `<h3 class="ses-grupo">Próximas (${resto.length})</h3>` + resto.map(s => tarjetaSesion(s, true)).join('');
+      }
+      if(realizadas.length){
+        html += `<h3 class="ses-grupo">Realizadas (${realizadas.length})</h3>` + realizadas.map(s => tarjetaSesion(s, false)).join('');
+      }
+      cont.innerHTML = html;
     }, err => console.error('Error cargando sesiones:', err));
 }
 
@@ -804,10 +1779,9 @@ function cargarCotizacionCliente(proyectoId){
   unsubCotizCliente = proyectosRef.doc(proyectoId).collection('cotizaciones')
     .where('estado', 'in', ['aceptada', 'enviada'])
     .onSnapshot(snap => {
-      const box = document.getElementById('cotizacionClienteBox');
       if(snap.empty){
-        box.innerHTML = '';
-        document.getElementById('pagosClienteBox').innerHTML = '';
+        resumenEco = null; renderResumenEco();
+        datosFinanc = null; renderFinanciero(); // v2.20
         return;
       }
       // v2.7: más reciente primero (creadoEn); aceptada sigue teniendo prioridad
@@ -818,6 +1792,12 @@ function cargarCotizacionCliente(proyectoId){
       const c = doc.data();
       const items = Array.isArray(c.items) ? c.items : [];
       const esAceptada = c.estado === 'aceptada';
+      // v2.9: alimenta el resumen económico de arriba (conserva "abonado" si es la misma cotización)
+      resumenEco = {
+        id: doc.id, total: Number(c.total) || 0, aceptada: esAceptada,
+        pagado: (resumenEco && resumenEco.id === doc.id && esAceptada) ? resumenEco.pagado : null
+      };
+      renderResumenEco();
 
       // v2.7: fecha de emisión y vigencia
       const fmtFecha = f => f.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -829,61 +1809,150 @@ function cargarCotizacionCliente(proyectoId){
       }
       const metaLinea = [fechaEmision ? 'Emitida el ' + fechaEmision : '', fechaValidez ? 'Válida hasta ' + fechaValidez : ''].filter(Boolean).join(' · ');
 
-      box.innerHTML = `
-        <div class="resumen-box">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${metaLinea ? '4px' : '14px'};">
-            <h2 style="margin-bottom:0;">COTIZACIÓN</h2>
-            <span class="badge ${esAceptada ? 'ok' : 'warn'}">${esAceptada ? 'Aceptada' : 'En revisión'}</span>
-          </div>
-          ${metaLinea ? `<div class="cotiz-meta">${escapeHtml(metaLinea)}</div>` : ''}
-          ${items.map(it => {
-            const cant = Number(it.cantidad) || 0;
-            const precio = Number(it.precio) || 0;
-            const incluido = precio === 0 && cant * precio === 0;
-            const cantTxt = cant.toLocaleString('es-CO', { maximumFractionDigits: 2 });
-            return `
-            <div class="cotiz-item-row">
-              <span class="concepto">${escapeHtml(it.concepto || '—')}${incluido ? '' : `<span class="cant">${cantTxt} × ${formatCOP(precio)}</span>`}</span>
-              <span class="cotiz-monto${incluido ? ' incluido' : ''}">${incluido ? 'Incluido' : formatCOP(cant * precio)}</span>
-            </div>`;
-          }).join('')}
-          <div class="cotiz-total-row"><span>Total</span><span>${formatCOP(c.total || 0)}</span></div>
-          ${c.detalleLabor ? `
-            <details class="cotiz-alcance">
-              <summary>Alcance de la labor de producción</summary>
-              <div class="cotiz-texto">${escapeHtml(c.detalleLabor)}</div>
-            </details>` : ''}
-          ${c.notas ? `
-            <div class="cotiz-notas"><strong>Notas</strong><div class="cotiz-texto">${escapeHtml(c.notas)}</div></div>` : ''}
-          <div class="cotiz-acciones no-print">
-            ${esAceptada ? '' : `
-            <button class="btn" style="width:100%;" onclick="confirmarCotizacionCliente('${proyectoId}', '${doc.id}', ${c.total || 0})">
-              Confirmar cotización
-            </button>`}
-            <button class="btn btn-ghost" style="width:100%;" onclick="imprimirCotizacionCliente()">🖨 Guardar / imprimir PDF</button>
-          </div>
-        </div>
-      `;
+      // v2.20: mismos datos para el modal de detalle financiero (conserva los abonos si es la misma cotización aceptada)
+      datosFinanc = {
+        id: doc.id, aceptada: esAceptada, total: Number(c.total) || 0, items: items,
+        detalleLabor: c.detalleLabor || '', notas: c.notas || '', metaLinea: metaLinea,
+        pagos: (datosFinanc && datosFinanc.id === doc.id && esAceptada) ? datosFinanc.pagos : null
+      };
+      renderFinanciero();
 
       if(esAceptada){
         cargarPagosCliente(proyectoId, doc.id, c.total || 0);
       } else if(unsubPagosCliente){
         unsubPagosCliente();
         unsubPagosCliente = null;
-        document.getElementById('pagosClienteBox').innerHTML = '';
       }
     }, err => {
       console.error('Error cargando cotización del cliente:', err);
-      document.getElementById('cotizacionClienteBox').innerHTML = '';
+      resumenEco = null; renderResumenEco();
+      datosFinanc = null; renderFinanciero(); // v2.20
     });
 }
 
-// v2.7: imprime solo el bloque de cotización (ver @media print). Abre los
-// <details> para que el alcance de la labor salga en el PDF.
-function imprimirCotizacionCliente(){
-  document.querySelectorAll('#cotizacionClienteBox details').forEach(d => d.open = true);
+/* ============ DETALLE FINANCIERO (v2.20) — modal solo lectura ============ */
+// Arma el mismo contenido para el modal (paraImpresion=false) y para el PDF (true).
+function financieroHTML(d, paraImpresion){
+  const pagos = Array.isArray(d.pagos) ? d.pagos : null;
+  const pagado = (d.aceptada && pagos) ? pagos.reduce((a, p) => a + (p.monto || 0), 0) : null;
+  const celda = (lbl, val, cls) => `<div class="dato-proy"><small>${lbl}</small><span class="${cls || ''}">${val}</span></div>`;
+
+  let cifras = celda(d.aceptada ? 'Total' : 'Total cotizado', formatCOP(d.total), '');
+  let barra = '';
+  if(pagado !== null){
+    const saldo = d.total - pagado;
+    cifras += celda('Abonado', formatCOP(pagado), '');
+    cifras += saldo <= 0 ? celda('Saldo', 'Pagado ✓', 'pagado') : celda('Saldo', formatCOP(saldo), 'pendiente');
+    if(d.total > 0){
+      const pct = Math.max(0, Math.min(100, Math.round(pagado * 100 / d.total)));
+      barra = `<div class="fin-barra"><div style="width:${pct}%"></div></div><div class="fin-pct">${pct}% pagado</div>`;
+    }
+  } else if(!d.aceptada && !paraImpresion){
+    cifras += '<div class="eco-nota">Cotización en revisión. Cuando la confirmes en la página del proyecto, verás tus abonos y el saldo.</div>';
+  }
+
+  const rubros = d.items.map(it => {
+    const cant = Number(it.cantidad) || 0;
+    const precio = Number(it.precio) || 0;
+    const incluido = precio === 0 && cant * precio === 0;
+    const cantTxt = cant.toLocaleString('es-CO', { maximumFractionDigits: 2 });
+    return `
+    <div class="cotiz-item-row">
+      <span class="concepto">${escapeHtml(it.concepto || '—')}${incluido ? '' : `<span class="cant">${cantTxt} × ${formatCOP(precio)}</span>`}</span>
+      <span class="cotiz-monto${incluido ? ' incluido' : ''}">${incluido ? 'Incluido' : formatCOP(cant * precio)}</span>
+    </div>`;
+  }).join('');
+
+  const alcance = d.detalleLabor
+    ? `<div class="fin-alcance"><h3 class="fin-sec">Alcance de la labor de producción</h3><div class="cotiz-texto">${escapeHtml(d.detalleLabor)}</div></div>` : '';
+  const notas = d.notas
+    ? `<div class="cotiz-notas"><strong>Notas</strong><div class="cotiz-texto">${escapeHtml(d.notas)}</div></div>` : '';
+
+  let pagosHtml = '';
+  if(d.aceptada){
+    let filas;
+    if(pagos === null){
+      filas = '<div style="color:var(--muted);font-size:0.85rem;">Cargando abonos…</div>';
+    } else if(!pagos.length){
+      filas = '<div style="color:var(--muted);font-size:0.85rem;">Aún no hay abonos registrados.</div>';
+    } else {
+      filas = pagos.map(p => {
+        const fechaLegible = p.fecha ? new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+        return `
+        <div class="pago-row">
+          <div>
+            <div>${formatCOP(p.monto || 0)}</div>
+            <div class="meta">${fechaLegible} · ${escapeHtml(p.metodo || '—')}</div>
+          </div>
+          ${(!paraImpresion && p.comprobanteUrl) ? `<a href="${escapeHtml(p.comprobanteUrl)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}
+        </div>`;
+      }).join('');
+    }
+    const saldoFila = pagado === null ? '' : (() => {
+      const saldo = d.total - pagado;
+      return `<div class="saldo-row ${saldo <= 0 ? 'pagado' : 'pendiente'}"><span>${saldo <= 0 ? 'Pagado en su totalidad' : 'Saldo pendiente'}</span><span>${saldo <= 0 ? '✓' : formatCOP(saldo)}</span></div>`;
+    })();
+    pagosHtml = `<h3 class="fin-sec">Abonos</h3>${filas}${saldoFila}`;
+  }
+
+  const nombreProy = proyectoDetalleActual && proyectoDetalleActual.nombre ? proyectoDetalleActual.nombre : '';
+  // v2.22: logo (modal: el del tema activo; PDF: siempre el claro). Si no carga, texto AUDIOLINK.
+  const temaLogo = paraImpresion ? 'claro' : (document.documentElement.getAttribute('data-tema') === 'light' ? 'claro' : 'oscuro');
+  const logo = `<img class="fin-logo" src="logo/audiolink-horizontal-${temaLogo}-animado.svg" alt="Audiolink" onerror="this.outerHTML='<div class=&quot;fin-marca&quot;>AUDIOLINK</div>'">`;
+  const hoyTxt = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  return `
+    <div class="fin-doc">
+    <div class="fin-cab">
+      ${logo}
+      <div class="fin-tit-row">
+        <h2>Detalle financiero</h2>
+        <span class="badge ${d.aceptada ? 'ok' : 'warn'}">${d.aceptada ? 'Aceptada' : 'En revisión'}</span>
+      </div>
+      ${nombreProy ? `<div class="fin-proy">${escapeHtml(nombreProy)}</div>` : ''}
+      ${d.metaLinea ? `<div class="cotiz-meta">${escapeHtml(d.metaLinea)}</div>` : ''}
+    </div>
+    <div class="fin-cifras">${cifras}</div>
+    ${barra}
+    <h3 class="fin-sec">Rubros</h3>
+    ${rubros}
+    <div class="cotiz-total-row"><span>Total</span><span>${formatCOP(d.total)}</span></div>
+    ${pagosHtml}
+    ${alcance}${notas}
+    ${paraImpresion ? `<div class="fin-pie"><span>Audiolink · Detalle financiero</span><span>Impreso el ${hoyTxt}</span></div>` : '<button type="button" class="btn btn-ghost no-print" onclick="imprimirFinanciero()">🖨 Guardar / imprimir PDF</button>'}
+    </div>
+  `;
+}
+function renderFinanciero(){
+  if(!finAbierto) return;
+  if(!datosFinanc){ cerrarFinanciero(); return; }
+  const cont = document.getElementById('finContenido');
+  if(cont) cont.innerHTML = financieroHTML(datosFinanc, false);
+}
+function abrirFinanciero(){
+  if(!datosFinanc) return;
+  finAbierto = true;
+  renderFinanciero();
+  const ov = document.getElementById('finOverlay');
+  if(ov) ov.classList.add('abierto');
+  document.body.classList.add('fin-abierto');
+  const x = document.querySelector('.fin-cerrar'); if(x) x.focus();
+}
+function cerrarFinanciero(){
+  finAbierto = false;
+  const ov = document.getElementById('finOverlay');
+  if(ov) ov.classList.remove('abierto');
+  document.body.classList.remove('fin-abierto');
+}
+// Mismo documento desde el bloque COTIZACIÓN y desde el modal: cotización + abonos
+function imprimirFinanciero(){
+  if(!datosFinanc) return;
+  document.getElementById('finImpresion').innerHTML = financieroHTML(datosFinanc, true);
   window.print();
 }
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && finAbierto) cerrarFinanciero();
+});
 
 async function confirmarCotizacionCliente(proyectoId, cotizacionId, total){
   const totalTxt = formatCOP(total);
@@ -907,39 +1976,18 @@ function cargarPagosCliente(proyectoId, cotizacionId, totalCotizacion){
   unsubPagosCliente = proyectosRef.doc(proyectoId).collection('pagos')
     .where('cotizacionId', '==', cotizacionId)
     .onSnapshot(snap => {
-      const box = document.getElementById('pagosClienteBox');
       const pagos = [];
       snap.forEach(d => pagos.push(d.data()));
 
       const totalPagado = pagos.reduce((acc, p) => acc + (p.monto || 0), 0);
-      const saldo = totalCotizacion - totalPagado;
-
-      box.innerHTML = `
-        <div class="resumen-box">
-          <h2>PAGOS</h2>
-          ${pagos.length === 0
-            ? '<div class="meta" style="color:var(--muted);font-size:0.85rem;">Aún no hay abonos registrados.</div>'
-            : pagos.map(p => {
-                const fechaLegible = p.fecha ? new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
-                return `
-                <div class="pago-row">
-                  <div>
-                    <div>${formatCOP(p.monto || 0)}</div>
-                    <div class="meta">${fechaLegible} · ${escapeHtml(p.metodo || '—')}</div>
-                  </div>
-                  ${p.comprobanteUrl ? `<a href="${escapeHtml(p.comprobanteUrl)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}
-                </div>`;
-              }).join('')
-          }
-          <div class="saldo-row ${saldo <= 0 ? 'pagado' : 'pendiente'}">
-            <span>${saldo <= 0 ? 'Pagado en su totalidad' : 'Saldo pendiente'}</span>
-            <span>${saldo <= 0 ? '✓' : formatCOP(saldo)}</span>
-          </div>
-        </div>
-      `;
+      if(resumenEco && resumenEco.id === cotizacionId){ resumenEco.pagado = totalPagado; renderResumenEco(); }
+      // v2.20: abonos para el modal (solo monto, fecha, método y comprobante; la `nota` interna nunca entra)
+      if(datosFinanc && datosFinanc.id === cotizacionId){
+        datosFinanc.pagos = pagos.map(p => ({ monto: p.monto, fecha: p.fecha, metodo: p.metodo, comprobanteUrl: p.comprobanteUrl }));
+        renderFinanciero();
+      }
     }, err => {
       console.error('Error cargando pagos del cliente:', err);
-      document.getElementById('pagosClienteBox').innerHTML = '';
     });
 }
 

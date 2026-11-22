@@ -4,7 +4,75 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Guía de práctica</title>
-<!-- AUDIOLINK · guia-practica.html · v1.133
+<!-- AUDIOLINK · guia-practica.html · v1.138
+     v1.138: (a pedido) "depurador" de audios de maquetas, dentro de la sección Maquetas, en un
+     desplegable "🗂️ Audios de este tema". (1) REGISTRO: cada audio que se sube a Cloudinary se
+     anota en el documento del tema, campo practicaSubidas [{url, nombreArchivo, fecha}] (update
+     del tema; esStaff ya puede escribir ahí, sin reglas nuevas). El registro no bloquea la
+     subida: si falla, solo avisa en consola. (2) PANEL: lista los audios del tema = registrados
+     + maquetas de audio ya guardadas (así sirve desde el primer día), cada uno con
+     reproductor (preload="none"), nombre, fecha y estado: "En uso" (está en las maquetas
+     guardadas), "Sin guardar" (está en pantalla pero falta Guardar maquetas — justo el caso que
+     deja audios huérfanos) o "Sin usar". En "Sin usar": "Usar aquí" (agrega una maqueta con ese
+     audio, sin instrumento; NO guarda solo, hay que pulsar Guardar maquetas) y, si está
+     registrado, "Quitar de la lista" (con confirmación; quita solo el registro, el archivo
+     SIGUE en Cloudinary — borrarlo requiere la clave secreta, no se puede desde el navegador).
+     LÍMITE: los audios subidos ANTES de esta versión y nunca guardados no están registrados, no
+     aparecen aquí (hay que verlos/borrarlos en Cloudinary). Cambios: subirAudioMaqueta()
+     (+1 línea), pintarMaquetas() y guardarMaquetas() (refrescan el panel), 4 funciones nuevas
+     (registrarSubida, pintarSubidas, usarSubida, quitarSubida), HTML del desplegable y CSS
+     (.subida-*). No toca maquetas, scores, secciones, PDF ni los demás archivos.
+     v1.137: (a pedido) 2 cosas. (1) "GUARDANDO…" en Guardar maquetas: al pulsar, el botón se
+     deshabilita y dice "Guardando…" hasta que Firestore confirma (✓ Guardado) o falla (alerta,
+     como antes). Si pasan 8 s sin respuesta aparece un aviso ámbar ("Firestore no responde
+     todavía… no recargues") que se oculta solo al terminar; mientras la página siga abierta la
+     escritura pendiente se reenvía sola al volver la conexión. Antes un guardado colgado (p.
+     ej. bloqueador/escudo del navegador cortando la conexión) no mostraba nada y al recargar
+     se perdía. 8 s = ESTIMADO. (2) SCORES: el instrumento deja de ser lista cerrada — mismo
+     criterio de maquetas v1.135: campo de texto con sugerencias (<datalist>) de los
+     instrumentos asignados en las sesiones; se elige con un clic o se escribe cualquier otro,
+     y se guarda sin espacios sobrantes. SIN instrumentos asignados sigue siendo texto libre.
+     NO cambia guardarScores(): sigue exigiendo instrumento + PDF (un score sin instrumento
+     se descarta, como antes). Cambios: guardarMaquetas(), campoInstrumentoScoreHtml(), botón
+     de maquetas (id + aviso), 2 reglas CSS (+ este changelog). No toca subidas a Cloudinary,
+     reproductor, secciones, PDF ni pdf-*.js.
+     v1.136: (a pedido) segunda casilla por maqueta: "Visible músicos" (switch .al-chk.ok
+     verde, junto a "Visible cliente"). Se guarda como visibleMusicos (true/false) dentro
+     de cada maqueta de practicaMaquetas. Las maquetas existentes (sin el campo) cuentan
+     como visibles para los músicos (visibleMusicos !== false), así nada cambia hasta que
+     se desmarque; las filas nuevas nacen marcadas. Combinando las dos casillas: solo
+     cliente = músicos NO + cliente SÍ. guardarMaquetas() escribe visibleMusicos explícito.
+     Cambios: pintarMaquetas() (campo nuevo), agregarFilaMaqueta() (valor inicial) y
+     guardarMaquetas() (+ este changelog). OJO: musico.html debe respetar
+     visibleMusicos === false (y mostrar las generales a todos) — se ajusta aparte; hasta
+     entonces esta casilla se guarda pero musico.html la ignora. No toca la subida a
+     Cloudinary, el reproductor, colores, secciones, scores, PDF ni pdf-*.js.
+     v1.135: (a pedido) Maquetas: (1) el instrumento deja de ser una lista cerrada:
+     campo de texto con sugerencias (<datalist>) de los instrumentos asignados en las
+     sesiones del proyecto — se elige con un clic o se escribe cualquier otro. Sin
+     instrumentos asignados sigue siendo texto libre, como antes. (2) MAQUETA GENERAL:
+     instrumento vacío = maqueta para todos los instrumentos (placeholder "General
+     (todos los instrumentos)"). guardarMaquetas() ya no descarta las maquetas sin
+     instrumento: el filtro exige solo la URL (antes exigía instrumento + URL y
+     descartaba en silencio las que no lo tenían). Al guardar, el instrumento se
+     guarda sin espacios sobrantes (trim) y visibleCliente sigue explícito. Cambios:
+     campoInstrumentoHtml() y guardarMaquetas() (+ este changelog). La maqueta general
+     se guarda como instrumento '' (vacío). OJO: musico.html (busca por coincidencia
+     exacta de instrumento) hay que ajustarlo aparte para que las generales se muestren
+     a todos los músicos. No toca la casilla Visible cliente, la subida a Cloudinary, el
+     reproductor, colores, secciones, scores, PDF ni pdf-*.js.
+     v1.134: (a pedido) casilla "Visible cliente" por maqueta, para que portal.html
+     (v2.27) muestre al cliente solo las maquetas marcadas. Cada fila de Maquetas
+     gana un switch .al-chk.cli (el azul "visible al cliente" que ya existía en este
+     archivo) a continuación del color; se guarda como visibleCliente (true/false)
+     dentro de cada maqueta de practicaMaquetas. Las maquetas ya existentes quedan
+     SIN marcar (ocultas) hasta que se marquen; las filas nuevas nacen sin marcar.
+     guardarMaquetas() escribe visibleCliente explícito (true solo si está marcada)
+     y mantiene el mismo filtro (instrumento + url). Cambios: pintarMaquetas() (campo
+     nuevo), agregarFilaMaqueta() (campo inicial), guardarMaquetas() y 2 reglas CSS
+     (.maqueta-visible-campo). No toca la subida a Cloudinary, el reproductor, los
+     colores, secciones, scores, PDF ni pdf-*.js. musico.html ignora campos que no
+     conoce, así que el campo nuevo no le afecta.
      v1.133: (a pedido) tiempo real del audio en los PDF con compás de denominador
      distinto de 4 (ej. 4/8). tiemposSeccionesPDF() ahora calcula los segundos por
      compás como numerador × 4/denominador × 60/BPM, leyendo el denominador del
@@ -1742,6 +1810,21 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 @media(max-width:600px){.row-2{grid-template-columns:1fr;}}
 .vacio{color:var(--faint);font-size:0.93rem;padding:10px 0;}
 .guardado-ok{font-size:0.86rem;color:var(--ok);margin-top:6px;display:none;}
+.aviso-guardado{font-size:0.86rem;color:var(--warn);margin-top:6px;display:none;}
+.btn:disabled{opacity:0.6;cursor:wait;}
+.panel-subidas{margin-top:16px;border-top:1px solid var(--brd);padding-top:10px;}
+.panel-subidas>summary{cursor:pointer;color:var(--gold);font-size:0.9rem;font-weight:500;}
+.panel-subidas-ayuda{color:var(--muted);font-size:0.82rem;margin:8px 0;}
+.subida-fila{border:1px solid var(--brd);border-radius:12px;background:var(--surf-light);padding:10px 12px;margin-top:8px;}
+.subida-info{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.subida-info b{font-size:0.88rem;font-weight:500;color:var(--txt);word-break:break-all;}
+.subida-info small{color:var(--muted);font-size:0.76rem;}
+.subida-badge{font-size:0.72rem;padding:2px 9px;border-radius:10px;border:1px solid currentColor;}
+.subida-badge.uso{color:var(--ok);}
+.subida-badge.singuardar{color:var(--warn);}
+.subida-badge.sinusar{color:var(--muted);}
+.subida-fila audio{display:block;width:100%;height:36px;margin-top:6px;}
+.subida-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
 #previewWrap{background:var(--surf-light);border-radius:8px;padding:16px;}
 /* v1.8: botón "Subir audio" (label envolviendo un <input type=file>
    oculto, mismo patrón visual que .btn-ghost) + texto de estado de
@@ -1775,6 +1858,8 @@ input:focus, select:focus, textarea:focus{outline:none;border-color:var(--gold);
 .maqueta-color-swatches{display:flex;gap:6px;padding-bottom:2px;}
 .maqueta-color-dot{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-sizing:border-box;}
 .maqueta-color-dot.activo{border-color:var(--txt);}
+.maqueta-card .maqueta-visible-campo{flex:0 0 auto;min-width:0;}
+.maqueta-visible-campo .al-chk{display:block;margin:2px 0 3px;}
 /* v1.16: Secciones también pasaron a cards con label visible (antes
    .fila/.fila-hasta con solo placeholder — mismo criterio que
    Maquetas en v1.15). */
@@ -2146,9 +2231,15 @@ window.NAV_CONFIG = { activo: 'proyecto', sbFootExtra: [], masMobileExtra: [] };
       <div id="listaMaquetas"></div>
       <button class="btn-ghost" onclick="agregarFilaMaqueta()">+ Agregar maqueta</button>
       <div style="margin-top:12px;">
-        <button class="btn" onclick="guardarMaquetas()">Guardar maquetas</button>
+        <button class="btn" id="btnGuardarMaquetas" onclick="guardarMaquetas()">Guardar maquetas</button>
         <div class="guardado-ok" id="okMaquetas">✓ Guardado</div>
+        <div class="aviso-guardado" id="avisoMaquetas">⏳ Firestore no responde todavía. No recargues la página: revisa tu conexión o desactiva el bloqueador de anuncios / escudo del navegador para este sitio. Si la conexión vuelve, se guarda sola.</div>
       </div>
+      <details class="panel-subidas" id="panelSubidas">
+        <summary>🗂️ Audios de este tema <span id="resumenSubidas"></span></summary>
+        <p class="panel-subidas-ayuda">Todos los audios subidos para este tema. "Sin guardar" = está en pantalla pero falta pulsar Guardar maquetas. "Quitar de la lista" solo borra el registro: el archivo sigue en Cloudinary.</p>
+        <div id="listaSubidas"></div>
+      </details>
       </div>
     </div>
 
@@ -4874,15 +4965,16 @@ function renderMaquetas(maquetas){
 // opción para no perder el dato existente.
 function campoInstrumentoHtml(m, i){
   const valorActual = (m.instrumento || '').trim();
-  if(!instrumentosDelProyecto.length){
-    return `<input type="text" placeholder="Instrumento (ej: Bajo)" value="${valorActual.replace(/"/g,'&quot;')}" onchange="maquetasEnEdicion[${i}].instrumento = this.value">`;
-  }
-  const opciones = [...instrumentosDelProyecto];
-  if(valorActual && !opciones.includes(valorActual)) opciones.push(valorActual);
-  return `<select onchange="maquetasEnEdicion[${i}].instrumento = this.value">
-    <option value="">— Instrumento —</option>
-    ${opciones.map(op => `<option value="${op.replace(/"/g,'&quot;')}" ${op === valorActual ? 'selected' : ''}>${op.replace(/</g,'&lt;')}</option>`).join('')}
-  </select>`;
+  const esc = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  // v1.135: campo ABIERTO con sugerencias. Los instrumentos asignados en las
+  // sesiones del proyecto salen como sugerencia (<datalist>), pero se puede
+  // escribir cualquier otro. Vacío = maqueta general (para todos).
+  const listaId = 'mqInstrList-' + i;
+  const hayLista = instrumentosDelProyecto.length > 0;
+  const datalist = hayLista
+    ? `<datalist id="${listaId}">${instrumentosDelProyecto.map(op => `<option value="${esc(op)}"></option>`).join('')}</datalist>`
+    : '';
+  return `<input type="text" placeholder="General (todos los instrumentos)" value="${esc(valorActual)}" ${hayLista ? `list="${listaId}"` : ''} autocomplete="off" title="Vacío = maqueta general para todos los instrumentos" onchange="maquetasEnEdicion[${i}].instrumento = this.value.trim()">${datalist}`;
 }
 
 // v1.14: (a pedido) mini reproductor propio para las filas de audio de
@@ -4946,6 +5038,14 @@ function pintarMaquetas(){
             ${MAQUETA_COLORES.map(c => `<button type="button" class="maqueta-color-dot${m.color === c ? ' activo' : ''}" style="background:${c}" onclick="setMaquetaColor(${i}, '${c}')" title="Color de esta pista"></button>`).join('')}
           </div>
         </div>
+        <div class="maqueta-campo maqueta-visible-campo">
+          <label>Visible músicos</label>
+          <input type="checkbox" class="al-chk ok" ${m.visibleMusicos !== false ? 'checked' : ''} onchange="maquetasEnEdicion[${i}].visibleMusicos = this.checked" title="Si está marcada, los músicos ven esta maqueta en musico.html. Desmárcala para dejarla solo para el cliente.">
+        </div>
+        <div class="maqueta-campo maqueta-visible-campo">
+          <label>Visible cliente</label>
+          <input type="checkbox" class="al-chk cli" ${m.visibleCliente === true ? 'checked' : ''} onchange="maquetasEnEdicion[${i}].visibleCliente = this.checked" title="Si está marcada, el cliente ve esta maqueta en portal.html">
+        </div>
         <button class="btn-del maqueta-card-del" onclick="eliminarMaqueta(${i})" title="Eliminar maqueta">🗑️</button>
       </div>
       <div class="maqueta-card-fila">
@@ -4982,6 +5082,7 @@ function pintarMaquetas(){
       <div class="maqueta-tags-info" id="maquetaTagsInfo-${i}"></div>
     </div>
   `).join('');
+  pintarSubidas(); // v1.138: refresca el panel de audios (En uso / Sin guardar / Sin usar)
 }
 
 // v1.16: paleta fija de colores opcionales por maqueta (dorado, verde,
@@ -4995,7 +5096,7 @@ function setMaquetaColor(i, color){
 }
 
 function agregarFilaMaqueta(){
-  maquetasEnEdicion.push({ instrumento: '', etiqueta: '', url: '', tipo: 'youtube' });
+  maquetasEnEdicion.push({ instrumento: '', etiqueta: '', url: '', tipo: 'youtube', visibleMusicos: true, visibleCliente: false });
   pintarMaquetas();
 }
 
@@ -5039,6 +5140,74 @@ function subirArchivoACloudinary(file, onProgress){
   });
 }
 
+// ============ v1.138: DEPURADOR DE AUDIOS DE MAQUETAS ============
+let subidasPanel = []; // lista que está pintada ahora (los botones usan su índice)
+function nombreDesdeUrlSubida(url){
+  try{ return decodeURIComponent(String(url).split('?')[0].split('/').pop() || ''); }catch(e){ return ''; }
+}
+async function registrarSubida(url, nombre){
+  try{
+    const actual = Array.isArray(temaDataActual.practicaSubidas) ? temaDataActual.practicaSubidas : [];
+    if(actual.some(r => r && r.url === url)) return;
+    const nueva = actual.concat([{ url, nombreArchivo: nombre || '', fecha: Date.now() }]);
+    temaDataActual.practicaSubidas = nueva; // local primero: el panel lo muestra ya
+    pintarSubidas();
+    await temaRef.update({ practicaSubidas: nueva });
+  }catch(e){ console.warn('No se pudo registrar la subida en el tema:', e); }
+}
+function pintarSubidas(){
+  const cont = document.getElementById('listaSubidas');
+  if(!cont) return;
+  const esc = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const reg = Array.isArray(temaDataActual && temaDataActual.practicaSubidas) ? temaDataActual.practicaSubidas : [];
+  const guardadas = (temaDataActual && Array.isArray(temaDataActual.practicaMaquetas)) ? temaDataActual.practicaMaquetas : [];
+  const mapa = new Map();
+  reg.forEach(r => { if(r && r.url) mapa.set(r.url, { url: r.url, nombre: r.nombreArchivo || '', fecha: r.fecha || 0, registrada: true }); });
+  guardadas.forEach(m => { if(m && m.tipo === 'audio' && m.url && !mapa.has(m.url)) mapa.set(m.url, { url: m.url, nombre: '', fecha: 0, registrada: false }); });
+  // lo que está en pantalla y aún no se guardó (p. ej. recién subido) también cuenta
+  const urlsGuardadas = new Set(guardadas.map(m => m && m.url).filter(Boolean));
+  const urlsEnPantalla = new Set(maquetasEnEdicion.map(m => m && m.url).filter(Boolean));
+  subidasPanel = [...mapa.values()].sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
+  const sinUsar = subidasPanel.filter(it => !urlsGuardadas.has(it.url) && !urlsEnPantalla.has(it.url)).length;
+  const resumen = document.getElementById('resumenSubidas');
+  if(resumen) resumen.textContent = subidasPanel.length ? `(${subidasPanel.length}${sinUsar ? ' · ' + sinUsar + ' sin usar' : ''})` : '';
+  if(!subidasPanel.length){ cont.innerHTML = '<div class="vacio">Todavía no hay audios en este tema.</div>'; return; }
+  cont.innerHTML = subidasPanel.map((it, k) => {
+    const nombre = it.nombre || nombreDesdeUrlSubida(it.url) || 'audio';
+    const fecha = it.fecha ? new Date(it.fecha).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    let badge, acciones = '';
+    if(urlsGuardadas.has(it.url)){ badge = '<span class="subida-badge uso">En uso</span>'; }
+    else if(urlsEnPantalla.has(it.url)){ badge = '<span class="subida-badge singuardar">Sin guardar</span>'; }
+    else{
+      badge = '<span class="subida-badge sinusar">Sin usar</span>';
+      acciones = `<button type="button" class="btn-ghost" onclick="usarSubida(${k})">➕ Usar aquí</button>`
+        + (it.registrada ? `<button type="button" class="btn-ghost" onclick="quitarSubida(${k})">🗑️ Quitar de la lista</button>` : '');
+    }
+    return `<div class="subida-fila">
+      <div class="subida-info"><b>${esc(nombre)}</b>${badge}${fecha ? `<small>${esc(fecha)}</small>` : ''}</div>
+      <audio controls preload="none" src="${esc(it.url)}"></audio>
+      ${acciones ? `<div class="subida-acciones">${acciones}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+function usarSubida(k){
+  const it = subidasPanel[k];
+  if(!it) return;
+  maquetasEnEdicion.push({ instrumento: '', etiqueta: '', url: it.url, tipo: 'audio', visibleMusicos: true, visibleCliente: false });
+  pintarMaquetas(); // la fila nueva queda al final; falta pulsar "Guardar maquetas"
+}
+async function quitarSubida(k){
+  const it = subidasPanel[k];
+  if(!it || !it.registrada) return;
+  if(!confirm('¿Quitar este audio de la lista?\n\nSolo se borra el registro: el archivo seguirá en Cloudinary.')) return;
+  const nueva = (Array.isArray(temaDataActual.practicaSubidas) ? temaDataActual.practicaSubidas : []).filter(r => r && r.url !== it.url);
+  try{
+    await temaRef.update({ practicaSubidas: nueva });
+    temaDataActual.practicaSubidas = nueva;
+    pintarSubidas();
+  }catch(e){ console.error(e); alert('No se pudo quitar de la lista.'); }
+}
+
 async function subirAudioMaqueta(i, file){
   if(!file) return;
   const estado = document.getElementById('maquetaUploadStatus-' + i);
@@ -5052,6 +5221,7 @@ async function subirAudioMaqueta(i, file){
     });
     maquetasEnEdicion[i].url = url;
     maquetasEnEdicion[i].tipo = 'audio';
+    registrarSubida(url, file.name); // v1.138: anota el audio en el tema (sin esperar, no bloquea)
     pintarMaquetas();
     // v1.8: pintarMaquetas() recrea la fila (y el div de estado, vacío
     // de nuevo) — el URL ya cargado en el campo de texto es la
@@ -5095,12 +5265,27 @@ function usarTagsDetectadosEnDatosTema(bpm, key){
 }
 
 async function guardarMaquetas(){
-  const limpio = maquetasEnEdicion.filter(m => (m.instrumento || '').trim() && (m.url || '').trim());
+  const limpio = maquetasEnEdicion.filter(m => (m.url || '').trim()).map(m => ({ ...m, instrumento: (m.instrumento || '').trim(), visibleMusicos: m.visibleMusicos !== false, visibleCliente: m.visibleCliente === true }));
+  // v1.137: estado "Guardando…" + aviso si Firestore tarda (8 s ESTIMADO) sin responder
+  const btn = document.getElementById('btnGuardarMaquetas');
+  const aviso = document.getElementById('avisoMaquetas');
+  const textoBtn = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  aviso.style.display = 'none';
+  const timerAviso = setTimeout(() => { aviso.style.display = 'block'; }, 8000);
   try{
     await temaRef.update({ practicaMaquetas: limpio });
     temaDataActual.practicaMaquetas = limpio;
+    pintarSubidas();
     mostrarOk('okMaquetas');
   }catch(e){ console.error(e); alert('No se pudieron guardar las maquetas.'); }
+  finally{
+    clearTimeout(timerAviso);
+    aviso.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = textoBtn;
+  }
 }
 
 // ============ v1.118: SCORES POR INSTRUMENTO ============
@@ -5144,21 +5329,20 @@ function renderScores(scores){
   scoresEnEdicion = scores.map(s => ({ ...s }));
   pintarScores();
 }
-// Mismo criterio que campoInstrumentoHtml (maquetas): select si el
-// proyecto ya tiene instrumentos asignados en alguna sesión, texto
-// libre si no. Función separada (en vez de reusar la de maquetas) para
-// no acoplar los onchange a maquetasEnEdicion por accidente.
+// v1.137: (a pedido) mismo criterio que campoInstrumentoHtml (maquetas v1.135): campo
+// ABIERTO con sugerencias (<datalist>) de los instrumentos asignados en las sesiones del
+// proyecto; se elige con un clic o se escribe cualquier otro. Antes era una lista cerrada
+// (<select>). Función separada (en vez de reusar la de maquetas) para no acoplar los
+// onchange a maquetasEnEdicion por accidente.
 function campoInstrumentoScoreHtml(s, i){
   const valorActual = (s.instrumento || '').trim();
-  if(!instrumentosDelProyecto.length){
-    return `<input type="text" placeholder="Instrumento (ej: Trompeta)" value="${valorActual.replace(/"/g,'&quot;')}" onchange="scoresEnEdicion[${i}].instrumento = this.value">`;
-  }
-  const opciones = [...instrumentosDelProyecto];
-  if(valorActual && !opciones.includes(valorActual)) opciones.push(valorActual);
-  return `<select onchange="scoresEnEdicion[${i}].instrumento = this.value">
-    <option value="">— Instrumento —</option>
-    ${opciones.map(op => `<option value="${op.replace(/"/g,'&quot;')}" ${op === valorActual ? 'selected' : ''}>${op.replace(/</g,'&lt;')}</option>`).join('')}
-  </select>`;
+  const esc = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const listaId = 'scInstrList-' + i;
+  const hayLista = instrumentosDelProyecto.length > 0;
+  const datalist = hayLista
+    ? `<datalist id="${listaId}">${instrumentosDelProyecto.map(op => `<option value="${esc(op)}"></option>`).join('')}</datalist>`
+    : '';
+  return `<input type="text" placeholder="Instrumento (ej: Trompeta)" value="${esc(valorActual)}" ${hayLista ? `list="${listaId}"` : ''} autocomplete="off" onchange="scoresEnEdicion[${i}].instrumento = this.value.trim()">${datalist}`;
 }
 function pintarScores(){
   const cont = document.getElementById('listaScores');

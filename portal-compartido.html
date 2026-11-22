@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Audiolink — Proyecto compartido</title>
+<link rel="apple-touch-icon" href="logo/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" sizes="any" href="logo/transistor/svg/audiolink-simbolo-claro.svg" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/svg+xml" sizes="any" href="logo/transistor/svg/audiolink-simbolo-oscuro.svg" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" sizes="500x500" href="logo/transistor/png/audiolink-simbolo-claro-500.png" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" sizes="500x500" href="logo/transistor/png/audiolink-simbolo-oscuro-500.png" media="(prefers-color-scheme: dark)">
+<!-- AUDIOLINK · portal-compartido.html · v1.4
+     v1.4: (a pedido) FAVICON: rutas corregidas a la estructura real del repo: logo/transistor/svg/ (SVG claro/oscuro) y logo/transistor/png/ (PNG 500 de respaldo). Solo cambian las 4 rutas de <link rel="icon">. Nada mas cambio.
+     v1.3: (a pedido) FAVICON. <head>: 4 <link rel="icon"> con media prefers-color-scheme (SVG claro/oscuro + PNG 500 de respaldo, ambos pares). Archivos en logo/: audiolink-simbolo-claro.svg, audiolink-simbolo-oscuro.svg, audiolink-simbolo-claro-500.png, audiolink-simbolo-oscuro-500.png. Simbolo centrado tal cual (viewBox vertical, sin SVG cuadrado). Nada mas cambio.
+     v1.2: (a pedido) VISTA PREVIA de equipo, al estilo de portal.html: con &preview=1 en la URL
+     (portal-compartido.html?t=TOKEN&preview=1) aparece el banner dorado de vista previa (clase
+     .preview-banner, que ya existía) y se bloquean las acciones del cliente: "Confirmar cotización" sale
+     desactivado, abrirConfirmar() y enviarRespuesta() no hacen nada (no se escribe en Firestore) y no se
+     lee ni se guarda LS_RESP en localStorage. NO valida equipo interno (esta página no tiene Auth) y NO
+     muestra enlaces pausados o revocados: ese caso sigue mostrando "Este enlace no está disponible".
+     Además, la narrativa del proyecto (la descripción con borde dorado) va en cursiva. Nada más cambió.
+     v1.1: (a pedido) MAQUETAS en el resumen, igual que portal.html v2.28. Desplegable "🎧 Maquetas (N)"
+     en el bloque de resumen del proyecto (debajo de la línea de tiempo), cerrado al abrir, agrupado por
+     tema, sin filtro por instrumento (el instrumento es solo una etiqueta). Las filas de audio usan el
+     mini reproductor de guia-practica.html v1.14 (▶ / tiempo / barra dorada / 🔊, compacto), con
+     preload="none"; YouTube con botón que inserta el reproductor. Diferencia con portal.html: aquí NO se
+     lee /temas (no hay sesión ni regla que lo permita): las maquetas vienen ya filtradas en el snapshot
+     (campo `maquetas`, escrito por proyecto.html v5.49). Los snapshots anteriores a v5.49 no traen el
+     campo y simplemente no muestran maquetas. El bloque conserva su nodo entre actualizaciones del
+     snapshot (no se corta una maqueta que está sonando ni se cierra el desplegable) y se pausa si el
+     enlace se pausa o se revoca. Nada más cambió.
+     v1.0:     v1.0: (a pedido) página NUEVA, sin login, para que el cliente vea su proyecto con un enlace
+     (portal-compartido.html?t=TOKEN). portal.html v2.23 NO se tocó: de él se copiaron, sin cambios de
+     lógica, el CSS, el render del resumen, la línea de tiempo de etapas, el plan de trabajo, las tarjetas
+     de sesión y el detalle financiero (modal + PDF). Lo único que cambia es de dónde salen los datos.
+     DATOS: un solo onSnapshot de portalCompartidos/{token} (copia filtrada del proyecto, escrita por
+     proyecto.html v5.48; reglas v2.49). Esta página no usa Firebase Auth ni lee proyectos, sesiones,
+     tomas, cotizaciones ni pagos reales. Si el documento no existe, está pausado (visibleCliente=false) o
+     fue revocado, se muestra el mismo mensaje "Este enlace no está disponible" en todos los casos.
+     ESQUEMA que lee esta página (lo escribe proyecto.html v5.48):
+       portalCompartidos/{token}: visibleCliente (bool), tieneFinanciero (bool), actualizadoEn,
+         proyecto{ nombre, clienteArtista, productorEjecutivo, cantTemas, fechaEntregaEstimada,
+                   etapaActual, estadoComercial, narrativa },
+         sesiones[ { fecha, horaInicio, horaFin, tiempoSetupMin, temaNombre, actividad, estudioNombre, sala,
+                     musicosAsignados[{nombre, instrumento}], tecnicosAsignados[{nombre, rol}],
+                     tomasTotal, tomasUsar } ],
+         maquetas[ { tema, items[{ etiqueta, instrumento, tipo ('audio'|'youtube'), url }] } ]   (v1.1)
+       portalCompartidos/{token}/financiero/{codigo}: cotizacionId, aceptada (bool), total,
+         items[{concepto, cantidad, precio}], detalleLabor, notas, metaLinea (texto ya armado),
+         pagos[{monto, fecha, metodo, comprobanteUrl}]   (la `nota` interna de los pagos nunca entra)
+       portalCompartidos/{token}/financiero/{codigo}/respuestas/respuesta: aceptado, nombre, comentario, fecha
+     CÓDIGO FINANCIERO: 8 a 10 caracteres del alfabeto ABCDEFGHJKLMNPQRSTUVWXYZ23456789 (sin I, O, 0, 1);
+       aquí se normaliza (mayúsculas, sin espacios ni guiones). Va aparte del enlace, por otro canal.
+       Las reglas no pueden limitar intentos: la protección es la longitud del código, no un PIN.
+     CONFIRMAR COTIZACIÓN: el cliente deja UNA respuesta (id fijo "respuesta", solo create). NO cambia la
+       cotización real; el equipo la valida en proyecto.html. Se recuerda en localStorage que ya envió.
+     Diferencias con portal.html v2.23 (todas deliberadas): sin login ni botón salir; sin listado de
+       proyectos (un enlace = un proyecto); las cifras económicas y el detalle financiero aparecen solo
+       tras ingresar el código; "Entrega est." usa fecha local (new Date(f + 'T00:00:00')): portal.html
+       v2.23 usa new Date(f) y en Colombia puede mostrar un día antes (NO se corrigió allá);
+       sin manifest/PWA; el plan de trabajo cuenta músicos y técnicos por nombre porque los ids internos
+       no se publican en el snapshot. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="utils.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+(function(){
+  const tema = localStorage.getItem('audiolink_tema') || 'dark';
+  document.documentElement.setAttribute('data-tema', tema);
+})();
+</script>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --surf:#151517;
+  --surf-light:#1d1d20;
+  --brd:#2a2a2e;
+  --gold:#c9a24b;
+  --gold-bg:rgba(201,162,75,0.12);
+  --txt:#f0ede6;
+  --muted:#9a978f;
+  --faint:#5c5a55;
+  --ok:#4caf7d;
+  --warn:#d9a441;
+  --err:#d4574a;
+  --T:"Playfair Display",Georgia,serif;
+  --S:"DM Sans",'Segoe UI',system-ui,-apple-system,sans-serif;
+  --M:"JetBrains Mono",monospace;
+}
+:root[data-tema="light"]{
+  --bg:#faf8f4;
+  --surf:#ffffff;
+  --surf-light:#f3f0e8;
+  --brd:#e2ddd0;
+  --gold:#a8823a;
+  --gold-bg:rgba(168,130,58,0.10);
+  --txt:#2a2620;
+  --muted:#7a756a;
+  --faint:#a39d8f;
+  --ok:#3a8f63;
+  --warn:#b8842f;
+  --err:#b8453a;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--S);
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;opacity:0.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+.waveform-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0.5;}
+.waveform-bg svg{position:absolute;bottom:0;left:0;width:200%;height:220px;animation:wave-drift 22s linear infinite;}
+.waveform-bg svg.w-slow{animation-duration:34s;}
+.waveform-bg path{fill:none;stroke:var(--gold);stroke-width:1.2;opacity:0.14;}
+.waveform-bg path.w2{opacity:0.09;}
+.waveform-bg path.w3{opacity:0.06;}
+@keyframes wave-drift{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+header, main{position:relative;z-index:1;}
+header{
+  padding:16px 20px;border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surf);flex-wrap:wrap;gap:12px;
+}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand h1{font-family:var(--T);font-size:1.3rem;letter-spacing:0.08em;font-weight:600;color:var(--gold);}
+.vu{display:flex;gap:3px;align-items:flex-end;height:20px;}
+.vu span{width:4px;background:var(--gold);border-radius:1px;animation:vu 1.2s ease-in-out infinite;opacity:0.7;}
+.vu span:nth-child(1){height:40%;animation-delay:0s;}
+.vu span:nth-child(2){height:80%;animation-delay:0.15s;}
+.vu span:nth-child(3){height:60%;animation-delay:0.3s;}
+.vu span:nth-child(4){height:100%;animation-delay:0.45s;}
+.vu span:nth-child(5){height:50%;animation-delay:0.6s;}
+@keyframes vu{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+/* v2.16 — logo animado del encabezado (un SVG por tema) con respaldo VU + texto */
+.logo-hd{display:none;height:60px;width:auto;}
+@media (max-width:480px){.logo-hd{height:44px;}}
+:root:not([data-tema="light"]) .logo-hd-oscuro{display:block;}
+:root[data-tema="light"] .logo-hd-claro{display:block;}
+.brand-respaldo{display:none;align-items:center;gap:14px;}
+/* v2.17 — interruptor ilustrado de tema (dos imágenes apiladas, fundido por data-tema) */
+.btn-toggle{position:relative;flex:none;width:40px;height:65px;padding:0;border:none;background:none;cursor:pointer;border-radius:6px;}
+.btn-toggle img{position:absolute;left:0;top:0;width:40px;height:65px;transition:opacity 0.2s;}
+.btn-toggle img{filter:brightness(0.78) sepia(0.3) contrast(0.96);} /* ESTIMADO: tinte tema oscuro */
+:root[data-tema="light"] .btn-toggle img{filter:sepia(0.12) brightness(0.97);} /* ESTIMADO: tinte tema claro */
+.btn-toggle .tg-on{opacity:0;}
+:root[data-tema="light"] .btn-toggle .tg-on{opacity:1;}
+:root[data-tema="light"] .btn-toggle .tg-off{opacity:0;}
+.btn-toggle-ico{display:none;font-size:1rem;}
+.btn-toggle.sin-toggle{width:38px;height:38px;border:1px solid var(--brd);color:var(--muted);}
+.btn-toggle.sin-toggle img{display:none;}
+.btn-toggle.sin-toggle .btn-toggle-ico{display:block;}
+.btn-toggle:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.brand-logo.sin-oscuro .logo-hd-oscuro,.brand-logo.sin-claro .logo-hd-claro{display:none !important;}
+:root:not([data-tema="light"]) .brand-logo.sin-oscuro .brand-respaldo{display:flex;}
+:root[data-tema="light"] .brand-logo.sin-claro .brand-respaldo{display:flex;}
+.btn{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:9px 18px;border-radius:6px;font-size:0.85rem;cursor:pointer;
+  transition:all 0.2s;font-weight:500;
+}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn-ghost{background:transparent;border:1px solid var(--brd);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+.btn-icon{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;padding:0;font-size:1rem;}
+main{padding:28px;max-width:1000px;margin:0 auto;}
+
+/* ===== LOGIN ===== */
+#loginScreen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;padding:20px;
+}
+.login-bg-shimmer{position:absolute;inset:0;z-index:0;opacity:0.5;pointer-events:none;}
+.login-bg-shimmer svg{width:100%;height:100%;display:block;}
+.neuron-node{
+  animation:neuronPulse var(--d, 3s) ease-in-out infinite;
+  animation-delay:var(--delay, 0s);transform-origin:center;
+  transform-box:fill-box;filter:drop-shadow(0 0 3px currentColor);
+}
+.neuron-line{
+  stroke-dasharray:var(--len) var(--len);stroke-dashoffset:var(--len);
+  animation:neuronFire var(--fd, 4s) ease-in-out infinite;
+  animation-delay:var(--fdelay, 0s);filter:drop-shadow(0 0 2px currentColor);
+}
+@keyframes neuronPulse{0%,100%{opacity:.3;transform:scale(.7);}50%{opacity:1;transform:scale(1.35);}}
+.neuron-spark{
+  fill:#fff;transform-origin:center;transform-box:fill-box;
+  animation:sparkFlash var(--sd, 3.5s) cubic-bezier(.16,1,.3,1) infinite;
+  animation-delay:var(--sdelay, 0s);
+}
+@keyframes sparkFlash{0%,86%,100%{opacity:0;transform:scale(.2);}90%{opacity:1;transform:scale(2.4);}94%{opacity:.5;transform:scale(1.5);}97%{opacity:0;transform:scale(.6);}}
+@keyframes neuronFire{0%{stroke-dashoffset:var(--len);opacity:0;}30%{opacity:1;}70%{opacity:1;}100%{stroke-dashoffset:0;opacity:0;}}
+.login-box{
+  position:relative;z-index:1;background:var(--surf);border:1px solid var(--brd);
+  border-radius:12px;padding:40px 36px;width:100%;max-width:380px;
+  box-shadow:0 8px 40px rgba(0,0,0,0.4);
+}
+.subtitle{text-align:center;color:var(--muted);font-size:0.82rem;margin-bottom:28px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
+.field input{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);
+  padding:11px 12px;border-radius:6px;font-size:0.92rem;
+}
+.field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+.msg{font-size:0.82rem;text-align:center;margin-top:14px;min-height:18px;}
+.msg.error{color:var(--err);}
+.msg.info{color:var(--muted);}
+
+/* ===== PORTAL ===== */
+.preview-banner{
+  background:var(--gold-bg);border:1px solid var(--gold);color:var(--gold);
+  padding:10px 16px;border-radius:8px;font-size:0.82rem;text-align:center;margin-bottom:20px;
+}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+.top-actions h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.card{
+  background:var(--surf);border:1px solid var(--brd);border-radius:10px;
+  padding:20px;cursor:pointer;transition:all 0.2s;
+}
+.card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(0,0,0,0.3);}
+.card h3{font-size:1.05rem;font-weight:600;margin-bottom:8px;color:var(--gold);}
+.card .meta{font-size:0.82rem;color:var(--muted);margin-bottom:4px;}
+/* v2.12 — cabecera y resumen de la tarjeta del listado */
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.card-head h3{margin-bottom:0;overflow-wrap:anywhere;}
+.card-head .badge{white-space:nowrap;}
+.card .progreso-etapas{margin-top:12px;}
+.card .resumen-datos{margin-top:14px;}
+.cabeza-ses{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
+.cabeza-ses h4{margin-bottom:0;}
+/* v2.13 — jerarquía en tarjetas de sesión */
+.ses-etq{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:2px;}
+.sesion-card h4.ses-tema{font-size:1.15rem;font-weight:700;}
+.sesion-destacada h4.ses-tema{font-size:1.3rem;font-weight:700;}
+.ses-musicos{margin-top:10px;}
+.ses-musicos small{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:2px;}
+.ses-musicos .mus{display:inline-block;margin-right:14px;}
+.ses-musicos .mus b{font-size:0.95rem;color:var(--txt);font-weight:700;}
+.ses-musicos .mus i{font-style:normal;font-size:0.8rem;color:var(--muted);font-weight:400;}
+.badge{font-size:0.7rem;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;}
+.badge.ok{background:rgba(76,175,125,0.15);color:var(--ok);}
+.badge.warn{background:rgba(217,164,65,0.15);color:var(--warn);}
+.badge.err{background:rgba(212,87,74,0.15);color:var(--err);}
+.empty{text-align:center;padding:60px 20px;color:var(--faint);}
+.back-link{color:var(--muted);font-size:0.85rem;cursor:pointer;margin-bottom:16px;display:inline-block;}
+.back-link:hover{color:var(--gold);}
+.detalle-head{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:24px;margin-bottom:20px;}
+.detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
+.detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
+.chip{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;padding:6px 12px;font-size:0.8rem;color:var(--muted);}
+/* v2.9 — Resumen del proyecto, progreso, resumen económico y sesiones */
+.resumen-proy{margin-top:16px;display:flex;flex-direction:column;gap:14px;}
+.resumen-datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;}
+.dato-proy small{display:block;font-size:0.72rem;color:var(--muted);margin-bottom:2px;}
+.dato-proy span{display:block;font-size:0.92rem;color:var(--txt);font-weight:600;overflow-wrap:anywhere;}
+.dato-proy span.hoy{color:var(--gold);}
+.dato-proy span.pasada{color:var(--warn);}
+.dato-proy span.pagado{color:var(--ok);}
+.dato-proy span.pendiente{color:var(--gold);}
+.progreso-etapas{display:flex;flex-direction:column;gap:6px;}
+.progreso-etapas .barra{display:flex;gap:4px;}
+.progreso-etapas .seg{flex:1;height:5px;border-radius:3px;background:var(--brd);}
+.progreso-etapas .seg.hecha{background:var(--ok);}
+.progreso-etapas .seg.actual{background:var(--gold);}
+.progreso-etapas .txt{font-size:0.78rem;color:var(--muted);}
+#resumenEcoBox:empty{display:none;}
+.eco-resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;border-top:1px solid var(--brd);padding-top:14px;}
+.eco-nota{grid-column:1/-1;font-size:0.78rem;color:var(--muted);}
+.ses-grupo{font-size:0.9rem;color:var(--muted);font-weight:500;margin:22px 0 12px;}
+.sesion-destacada{background:var(--gold-bg);border:1px solid var(--gold);border-radius:10px;padding:18px 20px;margin-bottom:12px;}
+.sesion-destacada .cabeza{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.sesion-destacada .etq{font-size:0.78rem;color:var(--muted);}
+.sesion-destacada h4{font-size:1.05rem;color:var(--gold);margin-bottom:8px;}
+.ses-det{font-size:0.82rem;color:var(--muted);margin-top:4px;line-height:1.45;}
+.ses-det strong{color:var(--txt);font-weight:600;}
+/* v2.11 — Plan de trabajo */
+.plan-cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;}
+.plan-cifras .dato-proy span.valor{font-size:1.15rem;}
+.dato-proy small.sub{margin:2px 0 0;}
+.plan-barra{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--brd);margin-top:16px;}
+.plan-barra .grab{background:var(--gold);}
+.plan-barra .mont{background:var(--faint);}
+.plan-leyenda{display:flex;gap:14px;flex-wrap:wrap;font-size:0.76rem;color:var(--muted);margin-top:6px;}
+.plan-leyenda i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;}
+.plan-frase{font-size:0.88rem;color:var(--txt);line-height:1.5;margin-top:14px;}
+.plan-aviso{font-size:0.76rem;color:var(--muted);margin-top:8px;}
+.tira{position:relative;height:64px;margin:26px 6px 4px;border-bottom:2px solid var(--brd);}
+.tira-marca{position:absolute;bottom:0;width:10px;margin-left:-5px;border:none;border-radius:3px 3px 0 0;background:var(--gold);cursor:pointer;padding:0;}
+.tira-marca.pasada{background:var(--ok);}
+.tira-hoy{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--muted);pointer-events:none;}
+.tira-hoy::after{content:'hoy';position:absolute;top:-16px;left:-12px;font-size:0.68rem;color:var(--muted);}
+.tira-ejes{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin:6px 6px 0;}
+.sesion-card.resaltada,.sesion-destacada.resaltada{outline:2px solid var(--gold);outline-offset:2px;}
+/* Línea de tiempo de etapas (v1.8) — ruta vertical */
+.etapa-ruta{margin-top:14px;}
+.etapa-nodo-row{display:flex;gap:12px;}
+.etapa-nodo-col{display:flex;flex-direction:column;align-items:center;}
+.etapa-nodo{width:18px;height:18px;min-width:18px;border-radius:50%;border:2px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;background:var(--surf);}
+.etapa-nodo.hecha{border-color:var(--ok);background:var(--ok);color:var(--bg);}
+.etapa-nodo.actual{border-color:var(--gold);background:var(--gold-bg);box-shadow:0 0 0 3px var(--gold-bg);position:relative;}
+.etapa-nodo.actual::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--gold);
+  animation:etapaPulso 2.2s ease-out infinite;
+}
+@keyframes etapaPulso{
+  0%{transform:scale(0.85);opacity:0.9;}
+  100%{transform:scale(1.9);opacity:0;}
+}
+.etapa-nodo.pendiente{opacity:0.55;}
+.etapa-linea{width:2px;flex:1;min-height:22px;background:var(--brd);margin:2px 0;}
+.etapa-linea.hecha{background:var(--ok);}
+.etapa-nodo-txt{padding-bottom:18px;}
+.etapa-nodo-txt span{display:block;font-size:0.85rem;font-weight:600;color:var(--txt);}
+.etapa-nodo-txt span.pendiente{color:var(--faint);font-weight:500;}
+.etapa-nodo-txt span.actual{color:var(--gold);}
+.etapa-nodo-txt span.hecha{color:var(--ok);}
+.etapa-nodo-txt small{display:block;margin-top:2px;font-size:0.72rem;color:var(--muted);}
+.etapa-nodo-txt small.etapa-actual-tag{color:var(--gold);}
+@media (min-width:640px){
+  .etapa-ruta{display:flex;align-items:flex-start;}
+  .etapa-nodo-row{flex:1;flex-direction:column;gap:6px;}
+  .etapa-nodo-col{flex-direction:row;width:100%;align-items:center;}
+  .etapa-linea{width:auto;flex:1;height:2px;min-height:0;margin:0 4px;}
+  .etapa-nodo-txt{padding-bottom:0;text-align:center;}
+}
+.sesion-card{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:16px 20px;margin-bottom:12px;}
+.sesion-card h4{font-size:0.95rem;color:var(--gold);margin-bottom:6px;}
+.resumen-box{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:20px;margin-bottom:20px;}
+.resumen-box h2{font-size:1rem;color:var(--muted);font-weight:500;margin-bottom:14px;}
+.cotiz-item-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--brd);font-size:0.88rem;}
+.cotiz-item-row:last-of-type{border-bottom:none;}
+.cotiz-item-row .concepto{color:var(--txt);}
+.cotiz-item-row .cant{display:block;color:var(--muted);font-size:0.8rem;margin-top:2px;}
+.cotiz-monto{white-space:nowrap;text-align:right;}
+.cotiz-monto.incluido{color:var(--muted);}
+.cotiz-meta{font-size:0.78rem;color:var(--muted);margin-bottom:14px;}
+.cotiz-alcance{margin-top:16px;border:1px solid var(--brd);border-radius:8px;padding:10px 14px;}
+.cotiz-alcance summary{cursor:pointer;font-size:0.85rem;color:var(--gold);font-weight:600;}
+.cotiz-texto{white-space:pre-wrap;font-size:0.85rem;line-height:1.55;color:var(--txt);margin-top:8px;}
+.cotiz-notas{margin-top:16px;font-size:0.85rem;color:var(--muted);}
+.cotiz-notas strong{color:var(--txt);font-size:0.82rem;}
+.cotiz-acciones{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+@media (max-width:640px){
+  .cotiz-item-row{font-size:0.95rem;}
+  .cotiz-item-row .cant{font-size:0.85rem;}
+}
+/* v2.20/v2.21 — la impresión sale siempre de #finImpresion */
+@media print{
+  /* v2.21: se quita (display:none) todo lo demás en vez de ocultarlo, para que no queden hojas en blanco */
+  body > *:not(#finImpresion){display:none !important;}
+  body::after{display:none !important;}
+  body.fin-abierto{overflow:visible !important;}
+  #finImpresion{display:block !important;position:static;width:100%;color:#1e1e1e;
+    --bg:#fff;--surf:#fff;--brd:#d8d2c4;--gold:#8c6c28;--txt:#1e1e1e;--muted:#555;--faint:#777;--ok:#2e7d52;}
+  html, body{background:#fff !important;}
+  .cotiz-alcance{break-inside:avoid;}
+  /* v2.22 — estilo del PDF: textos más grandes (ESTIMADO, en pt) y alcance en hoja aparte */
+  #finImpresion{font-family:var(--S);font-size:13pt;line-height:1.5;}
+  #finImpresion .fin-cab{border-bottom:2px solid var(--gold);padding-bottom:10px;margin-bottom:14px;padding-right:0;}
+  #finImpresion .fin-logo{height:16mm;margin-bottom:8px;}
+  #finImpresion .fin-marca{font-size:18pt;}
+  #finImpresion .fin-tit-row h2{font-size:11pt;}
+  #finImpresion .badge{font-size:9pt;}
+  #finImpresion .fin-proy{font-size:20pt;}
+  #finImpresion .cotiz-meta{font-size:11pt;}
+  #finImpresion .fin-cifras{gap:10px;}
+  #finImpresion .dato-proy{border:1px solid var(--brd);border-radius:6px;padding:8px 10px;background:#faf8f4;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #finImpresion .dato-proy small{font-size:10pt;}
+  #finImpresion .dato-proy span{font-size:15pt;}
+  #finImpresion .fin-sec{font-size:10pt;margin:16px 0 6px;}
+  #finImpresion .cotiz-item-row{font-size:13pt;padding:9px 0;}
+  #finImpresion .cotiz-item-row .cant{font-size:11pt;}
+  #finImpresion .cotiz-total-row{font-size:15pt;}
+  #finImpresion .pago-row{font-size:13pt;}
+  #finImpresion .pago-row .meta{font-size:11pt;}
+  #finImpresion .saldo-row{font-size:14pt;}
+  #finImpresion .cotiz-texto{font-size:13pt;line-height:1.6;}
+  #finImpresion .cotiz-notas{font-size:12pt;break-inside:avoid;}
+  #finImpresion .fin-alcance{break-inside:avoid;background:#faf8f4;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* pie fijo al fondo de cada hoja: no puede generar una hoja solo con el pie */
+  #finImpresion{padding-bottom:12mm;}
+  #finImpresion .fin-pie{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--brd);background:#fff;font-size:9pt;color:var(--muted);}
+}
+.cotiz-total-row{display:flex;justify-content:space-between;padding-top:14px;margin-top:6px;border-top:1px solid var(--brd);font-size:1rem;font-weight:700;color:var(--gold);}
+.pago-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd);font-size:0.86rem;}
+.pago-row:last-of-type{border-bottom:none;}
+.pago-row .meta{color:var(--muted);font-size:0.78rem;}
+.pago-row a{color:var(--gold);text-decoration:none;font-size:0.78rem;}
+.pago-row a:hover{text-decoration:underline;}
+.saldo-row{display:flex;justify-content:space-between;padding-top:14px;margin-top:6px;border-top:1px solid var(--brd);font-size:0.95rem;font-weight:700;}
+.saldo-row.pagado{color:var(--ok);}
+.saldo-row.pendiente{color:var(--gold);}
+@media (max-width:640px){
+  header{padding:14px 16px;}
+  .brand h1{font-size:1.05rem;}
+}
+/* v2.23 — título del Plan de trabajo con los temas destacados (tamaños ESTIMADOS) */
+.resumen-box h2.plan-tit{display:flex;flex-direction:column;gap:6px;}
+.plan-tit-eje{font-size:0.78rem;letter-spacing:0.08em;color:var(--muted);font-weight:500;}
+.plan-temas{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 20px;}
+.plan-tema{font-family:var(--T);font-size:1.3rem;font-weight:700;color:var(--gold);letter-spacing:0.02em;overflow-wrap:anywhere;}
+.plan-tema i{font-style:normal;font-family:var(--S);font-weight:500;font-size:0.9rem;color:var(--muted);margin-right:2px;}
+.plan-mas{font-size:0.85rem;color:var(--muted);}
+/* v2.22 — logo, recuadro del alcance y estilo del PDF */
+.fin-logo{display:block;height:40px;width:auto;margin-bottom:10px;}
+.fin-marca{font-family:var(--T);letter-spacing:0.08em;font-weight:600;color:var(--gold);font-size:1.1rem;margin-bottom:10px;}
+.fin-alcance{margin-top:6px;border:1px solid var(--brd);border-left:4px solid var(--gold);border-radius:6px;padding:4px 14px 12px;background:var(--surf-light);}
+/* v2.20 — modal de detalle financiero (solo lectura) */
+.eco-acciones{grid-column:1/-1;}
+.eco-acciones .btn{width:100%;}
+#finImpresion{display:none;}
+.fin-overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;padding:16px;}
+.fin-overlay.abierto{display:flex;}
+body.fin-abierto{overflow:hidden;}
+.fin-modal{position:relative;background:var(--surf);border:1px solid var(--brd);border-radius:12px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,0.4);} /* ESTIMADO: ancho y alto máx. */
+.fin-cerrar{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:6px;border:1px solid var(--brd);background:transparent;color:var(--muted);font-size:1rem;cursor:pointer;}
+.fin-cerrar:hover{border-color:var(--muted);color:var(--txt);}
+.fin-cab{padding-right:40px;margin-bottom:6px;}
+.fin-marca{font-family:var(--T);letter-spacing:0.08em;font-weight:600;color:var(--gold);font-size:0.9rem;margin-bottom:6px;}
+.fin-tit-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.fin-tit-row h2{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;text-transform:uppercase;}
+.fin-proy{font-size:1.25rem;font-weight:700;color:var(--gold);margin:4px 0 4px;overflow-wrap:anywhere;}
+.fin-cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin:14px 0 10px;}
+.fin-barra{height:6px;border-radius:3px;background:var(--brd);overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.fin-barra div{height:100%;background:var(--ok);-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.fin-pct{font-size:0.74rem;color:var(--muted);margin-top:4px;}
+.fin-sec{font-size:0.78rem;color:var(--muted);font-weight:500;letter-spacing:0.04em;text-transform:uppercase;margin:18px 0 6px;}
+.fin-modal .btn{width:100%;margin-top:18px;}
+.portal-credit{
+  text-align:center;padding:18px 20px 24px;font-size:0.68rem;color:var(--faint);
+  letter-spacing:0.02em;
+}
+.login-dial-wrap{position:relative;width:72px;height:72px;margin:0 auto 10px;}
+.login-dial-wrap img{display:block;width:100%;height:100%;}
+.login-dial-wrap .login-dial-knob{position:absolute;top:50%;left:50%;width:43.4%;height:43.4%;aspect-ratio:1;transform:translate(-50%,-50%) rotate(135deg);animation:alBarrido 1.8s ease-in-out infinite alternate;}
+@keyframes alBarrido{
+  0%   { transform:translate(-50%,-50%) rotate(135deg); }
+  50%  { transform:translate(-50%,-50%) rotate(405deg); }
+  100% { transform:translate(-50%,-50%) rotate(360deg); }
+}
+/* v1.0 — piezas nuevas del portal compartido (el resto del CSS es el de portal.html v2.23, sin cambios) */
+.field textarea{
+  width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);
+  padding:11px 12px;border-radius:6px;font-size:0.92rem;font-family:inherit;resize:vertical;min-height:90px;box-sizing:border-box;
+}
+.field textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+.field .contador{font-size:0.72rem;color:var(--faint);text-align:right;margin-top:4px;}
+.fin-modal h2.pc-tit{font-size:1.05rem;margin:0 0 6px;padding-right:40px;}
+.fin-modal .pc-sub{font-size:0.82rem;color:var(--muted);margin-bottom:18px;line-height:1.45;}
+.fin-modal .btn.btn-ghost{margin-top:10px;}
+.fin-modal input#fCodigo{letter-spacing:0.12em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
+#estadoCarga{min-height:60vh;display:flex;align-items:center;justify-content:center;color:var(--faint);padding:20px;text-align:center;}
+.eco-enviada{grid-column:1/-1;font-size:0.82rem;color:var(--ok);}
+
+/* v2.28 — maquetas en el resumen: desplegable agrupado por tema, con el mini reproductor en chip
+   de guia-practica.html v1.14 (▶ / tiempo / barra dorada / 🔊, compacto, max-width 300px) */
+.res-maquetas{margin-top:14px;border-top:1px solid var(--brd);padding-top:8px;}
+.res-maquetas summary{cursor:pointer;color:var(--gold);font-size:0.86rem;font-weight:500;list-style:none;}
+.res-maquetas summary::-webkit-details-marker{display:none;}
+.maq-tema{margin-top:12px;font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;}
+.ses-maq{margin-top:8px;}
+.ses-maq b{display:block;font-size:0.84rem;color:var(--txt);font-weight:500;}
+.ses-maq small{color:var(--muted);font-size:0.74rem;}
+.mqaudio-bar{display:flex;align-items:center;gap:6px;margin:4px 0 6px 0;max-width:300px;}
+.mqaudio-btn{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;color:var(--muted);font-size:0.88rem;padding:4px 8px;cursor:pointer;flex-shrink:0;min-width:40px;min-height:40px;}
+.mqaudio-tiempo{font-size:0.76rem;color:var(--muted);font-family:'JetBrains Mono',monospace;flex-shrink:0;white-space:nowrap;}
+.mqaudio-seek{flex:1;min-width:60px;accent-color:var(--gold);cursor:pointer;height:14px;}
+@media (max-width:640px){
+  .mqaudio-btn{font-size:0.96rem;}
+  .mqaudio-tiempo{font-size:0.85rem;}
+}
+.btn-maq-yt{margin-top:4px;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--brd);background:var(--surf-light);color:var(--gold);font:inherit;font-size:0.8rem;cursor:pointer;}
+.maq-yt{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:10px;margin-top:4px;}
+</style>
+</head>
+<body>
+
+<!-- ============ ENLACE NO DISPONIBLE ============ -->
+<div id="loginScreen" style="display:none;">
+  <div class="login-bg-shimmer" id="login-bg-shimmer"></div>
+  <div class="login-box">
+    <div class="login-dial-wrap">
+      <img src="logo/logo-circular-192.png" alt="" onerror="this.parentElement.style.display='none'">
+      <img class="login-dial-knob" src="logo/logo-knob-192.png" alt="">
+    </div>
+    <div class="brand" style="justify-content:center;margin-bottom:8px;">
+      <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+      <h1>AUDIOLINK</h1>
+    </div>
+    <div class="subtitle" style="margin-bottom:12px;">Este enlace no está disponible.</div>
+    <div class="msg info" id="noDispMsg">Si crees que es un error, contacta a Audiolink.</div>
+  </div>
+</div>
+
+<div id="estadoCarga">Cargando…</div>
+
+<!-- ============ PROYECTO COMPARTIDO ============ -->
+<div id="portalScreen" style="display:none;">
+  <header>
+    <div class="brand brand-logo">
+      <img class="logo-hd logo-hd-oscuro" src="logo/audiolink-horizontal-oscuro-animado.svg" alt="Audiolink" onerror="this.closest('.brand-logo').classList.add('sin-oscuro')">
+      <img class="logo-hd logo-hd-claro" src="logo/audiolink-horizontal-claro-animado.svg" alt="Audiolink" onerror="this.closest('.brand-logo').classList.add('sin-claro')">
+      <div class="brand-respaldo">
+        <div class="vu"><span></span><span></span><span></span><span></span><span></span></div>
+        <h1>AUDIOLINK</h1>
+      </div>
+    </div>
+    <div class="header-actions" style="display:flex;gap:10px;align-items:center;">
+      <button class="btn-toggle" onclick="toggleTema()" id="btnTema" title="Cambiar tema" aria-label="Cambiar tema">
+        <img class="tg-off" src="logo/toggle-tema-off.webp" alt="" width="40" height="65" onerror="this.closest('.btn-toggle').classList.add('sin-toggle')">
+        <img class="tg-on" src="logo/toggle-tema-on.webp" alt="" width="40" height="65" onerror="this.closest('.btn-toggle').classList.add('sin-toggle')">
+        <span class="btn-toggle-ico" id="btnTemaIco">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div class="preview-banner" id="previewBanner" style="display:none;">
+      👁️ Estás viendo el proyecto compartido en modo vista previa (equipo interno). Las acciones del cliente están desactivadas.
+    </div>
+
+    <div id="vistaDetalle">
+      <div class="detalle-head" id="detalleContent"></div>
+
+      <div id="planTrabajoBox"></div>
+
+      <h2 style="font-size:1rem;color:var(--muted);font-weight:500;margin-bottom:14px;">SESIONES</h2>
+      <div id="listaSesiones"></div>
+      <div class="empty" id="emptySesiones" style="display:none;">No hay sesiones registradas para este proyecto.</div>
+    </div>
+  </main>
+  <div class="portal-credit">Marto 🧠 · martowave@gmail.com</div>
+</div>
+
+<!-- Modal de detalle financiero (solo lectura) y documento de impresión (igual a portal.html v2.20) -->
+<div class="fin-overlay" id="finOverlay" role="dialog" aria-modal="true" aria-label="Detalle financiero" onclick="if(event.target===this)cerrarFinanciero()">
+  <div class="fin-modal">
+    <button type="button" class="fin-cerrar" onclick="cerrarFinanciero()" aria-label="Cerrar">✕</button>
+    <div id="finContenido"></div>
+  </div>
+</div>
+<div id="finImpresion"></div>
+
+<!-- v1.0 — modal para ingresar el código financiero -->
+<div class="fin-overlay" id="codOverlay" role="dialog" aria-modal="true" aria-label="Código financiero" onclick="if(event.target===this)cerrarCodigo()">
+  <div class="fin-modal" style="max-width:420px;">
+    <button type="button" class="fin-cerrar" onclick="cerrarCodigo()" aria-label="Cerrar">✕</button>
+    <h2 class="pc-tit">Detalle financiero</h2>
+    <div class="pc-sub">Ingresa el código que Audiolink te envió por separado para ver la cotización, los abonos y el saldo.</div>
+    <div class="field">
+      <label for="fCodigo">Código</label>
+      <input type="text" id="fCodigo" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXXXXX">
+    </div>
+    <button type="button" class="btn" id="btnCodigo" onclick="validarCodigo()">Ver detalle</button>
+    <div class="msg" id="codMsg"></div>
+  </div>
+</div>
+
+<!-- v1.0 — modal para confirmar la cotización (deja una respuesta; el equipo la valida) -->
+<div class="fin-overlay" id="respOverlay" role="dialog" aria-modal="true" aria-label="Confirmar cotización" onclick="if(event.target===this)cerrarConfirmar()">
+  <div class="fin-modal" style="max-width:460px;">
+    <button type="button" class="fin-cerrar" onclick="cerrarConfirmar()" aria-label="Cerrar">✕</button>
+    <h2 class="pc-tit">Confirmar cotización</h2>
+    <div class="pc-sub" id="respSub"></div>
+    <div class="field">
+      <label for="fRespNombre">Tu nombre</label>
+      <input type="text" id="fRespNombre" maxlength="100" autocomplete="name">
+    </div>
+    <div class="field">
+      <label for="fRespComentario">Comentario (opcional si aceptas)</label>
+      <textarea id="fRespComentario" maxlength="500" oninput="document.getElementById('respCont').textContent=this.value.length+' / 500'"></textarea>
+      <div class="contador" id="respCont">0 / 500</div>
+    </div>
+    <button type="button" class="btn" id="btnRespAcepto" onclick="enviarRespuesta(true)">Acepto la cotización</button>
+    <button type="button" class="btn btn-ghost" id="btnRespCambios" onclick="enviarRespuesta(false)">Tengo cambios</button>
+    <div class="msg" id="respMsg"></div>
+  </div>
+</div>
+
+<script>
+// ============ FIREBASE (config compartida en firebase-config.js; sin Auth) ============
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const TOKEN = (new URLSearchParams(window.location.search).get('t') || '').trim();
+const TOKEN_OK = /^[A-Za-z0-9_-]{16,64}$/.test(TOKEN);
+const PREVIEW = new URLSearchParams(window.location.search).get('preview') === '1'; // v1.2: vista previa de equipo (solo banner + acciones bloqueadas)
+if(PREVIEW){ const _b = document.getElementById('previewBanner'); if(_b) _b.style.display = 'block'; }
+const portalRef = TOKEN_OK ? db.collection('portalCompartidos').doc(TOKEN) : null;
+const SS_COD = 'alk_pc_cod_' + TOKEN;   // sessionStorage: código financiero (se pierde al cerrar la pestaña)
+const LS_RESP = 'alk_pc_resp_' + TOKEN; // localStorage: ya se envió una respuesta
+
+function ssGet(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
+function ssSet(k, v){ try{ sessionStorage.setItem(k, v); }catch(e){} }
+function ssDel(k){ try{ sessionStorage.removeItem(k); }catch(e){} }
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+
+// ============ TEMA ============
+function toggleTema(){
+  const actual = document.documentElement.getAttribute('data-tema') || 'dark';
+  const nuevo = actual === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-tema', nuevo);
+  localStorage.setItem('audiolink_tema', nuevo);
+  document.getElementById('btnTemaIco').textContent = nuevo === 'dark' ? '🌙' : '☀️';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const t = localStorage.getItem('audiolink_tema') || 'dark';
+  const btnTemaIco = document.getElementById('btnTemaIco');
+  if(btnTemaIco) btnTemaIco.textContent = t === 'dark' ? '🌙' : '☀️';
+});
+
+const ETAPAS_LABEL = {
+  preproduccion: "Preproducción", grabacion: "Grabación", edicion: "Edición",
+  mezcla: "Mezcla", mastering: "Mastering", entrega: "Entrega"
+};
+const COMERCIAL_LABEL = {
+  cotizacion: "Cotización", aprobado: "Aprobado", en_curso: "En curso", finalizado: "Finalizado"
+};
+
+/* ============ LÍNEA DE TIEMPO DE ETAPAS (v1.8) ============
+   V1.8: pasa de fila de chips a ruta vertical (nodo + línea conectora
+   por etapa), más legible en el portal de cliente (sobre todo móvil,
+   que sigue el mismo patrón apilado del resto del detalle). Mismos
+   datos de v1.7, sin tocar Firestore: idxActual, rangoGrabacion y
+   entrega se calculan igual; solo cambia el markup que genera. */
+function renderEtapaChips(p, rangoGrabacion){
+  const box = document.getElementById('etapaChipsBox');
+  if(!box || !p) return;
+  const claves = Object.keys(ETAPAS_LABEL);
+  const idxActual = claves.indexOf(p.etapaActual);
+  const entrega = p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : null;
+
+  box.innerHTML = `
+    <div class="etapa-ruta">
+      ${claves.map((k, i) => {
+        const cls = i < idxActual ? 'hecha' : i === idxActual ? 'actual' : 'pendiente';
+        let sub = '';
+        if(k === 'grabacion' && rangoGrabacion) sub = rangoGrabacion;
+        if(k === 'entrega' && entrega) sub = entrega;
+        const esUltima = i === claves.length - 1;
+        return `
+          <div class="etapa-nodo-row">
+            <div class="etapa-nodo-col">
+              <div class="etapa-nodo ${cls}">${cls === 'hecha' ? '✓' : ''}</div>
+              ${!esUltima ? `<div class="etapa-linea ${i < idxActual ? 'hecha' : ''}"></div>` : ''}
+            </div>
+            <div class="etapa-nodo-txt">
+              <span class="${cls}">${ETAPAS_LABEL[k]}</span>
+              ${sub ? `<small>${sub}</small>` : (cls === 'actual' ? `<small class="etapa-actual-tag">etapa actual</small>` : '')}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+/* ============ RESUMEN DEL PROYECTO (v2.9) ============ */
+// Fechas guardadas como 'YYYY-MM-DD': se calculan en fecha local para que
+// el conteo de días no se desfase por zona horaria.
+function diasDesdeHoyPortal(fechaISO){
+  const [y, m, d] = String(fechaISO || '').split('-').map(Number);
+  if(!y || !m || !d) return null;
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  return Math.round((new Date(y, m - 1, d) - hoy) / 86400000);
+}
+// v2.15 — estado de una sesión según fecha y horas contra el reloj local.
+// 'pasada' | 'encurso' | 'proxima'. Sin fecha = proxima. Sin hora de fin
+// (hoy) = proxima todo el día. Termina pasada la medianoche si fin < inicio.
+function ahoraPortal(){
+  const d = new Date();
+  return { hoy: hoyLocalPortal(), min: d.getHours() * 60 + d.getMinutes() };
+}
+function estadoSesionPortal(s, ahora){
+  if(!s.fecha) return 'proxima';
+  const ini = hhmmAMin(s.horaInicio), fin = hhmmAMin(s.horaFin);
+  if(s.fecha > ahora.hoy) return 'proxima';
+  if(s.fecha < ahora.hoy){
+    // sesión de ayer que cruza la medianoche y aún no termina
+    if(ini !== null && fin !== null && fin < ini && ahora.min < fin && diasEntrePortal(s.fecha, ahora.hoy) === 1) return 'encurso';
+    return 'pasada';
+  }
+  if(fin === null) return 'proxima';
+  if(ini !== null && fin === ini) return 'proxima';
+  const finMin = (ini !== null && fin < ini) ? fin + 1440 : fin;
+  if(ahora.min >= finMin) return 'pasada';
+  if(ini !== null && ahora.min >= ini) return 'encurso';
+  return 'proxima';
+}
+function hoyLocalPortal(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function plural(n, uno, varios){ return n === 1 ? uno : varios; }
+
+function resumenProyectoHTML(p){
+  const claves = Object.keys(ETAPAS_LABEL);
+  const idx = claves.indexOf(p.etapaActual);
+  const datos = [];
+  if(p.clienteArtista) datos.push(['Artista', escapeHtml(p.clienteArtista), '']);
+  if(p.productorEjecutivo) datos.push(['Productor ejecutivo', escapeHtml(p.productorEjecutivo), '']);
+  if(Number(p.cantTemas) > 0) datos.push(['Temas', String(Number(p.cantTemas)), '']);
+  if(p.fechaEntregaEstimada){
+    const n = diasDesdeHoyPortal(p.fechaEntregaEstimada);
+    if(n !== null){
+      let txt, cls = '';
+      if(n > 1) txt = 'Faltan ' + n + ' días';
+      else if(n === 1) txt = 'Falta 1 día';
+      else if(n === 0){ txt = 'Es hoy'; cls = 'hoy'; }
+      else { txt = 'Pasó hace ' + (-n) + ' ' + plural(-n, 'día', 'días'); cls = 'pasada'; }
+      datos.push(['Entrega', txt, cls]);
+    }
+  }
+  const datosHtml = datos.length ? `
+    <div class="resumen-datos">
+      ${datos.map(([lbl, val, cls]) => `<div class="dato-proy"><small>${lbl}</small><span class="${cls}">${val}</span></div>`).join('')}
+    </div>` : '';
+  const progresoHtml = idx >= 0 ? `
+    <div class="progreso-etapas">
+      <div class="barra">
+        ${claves.map((k, i) => `<div class="seg ${i < idx ? 'hecha' : i === idx ? 'actual' : ''}"></div>`).join('')}
+      </div>
+      <div class="txt">Etapa ${idx + 1} de ${claves.length} · ${ETAPAS_LABEL[p.etapaActual]}</div>
+    </div>` : '';
+  return `<div class="resumen-proy">${datosHtml}${progresoHtml}<div id="resumenEcoBox"></div></div>`;
+}
+
+// ---- Resumen económico (v1.0: se alimenta del documento financiero, solo tras ingresar el código) ----
+let resumenEco = null; // { id, total, aceptada, pagado }
+// datos del detalle financiero (mismo formato que usa financieroHTML de portal.html v2.20)
+let datosFinanc = null; // { id, aceptada, total, items, detalleLabor, notas, metaLinea, pagos|null }
+let finAbierto = false;
+let proyectoDetalleActual = null;
+let snapshotPortal = null;
+let codigoFin = null;
+let unsubFin = null;
+let unsubPortal = null;
+
+function renderResumenEco(){
+  const box = document.getElementById('resumenEcoBox');
+  if(!box) return;
+  const celda = (lbl, val, cls) => `<div class="dato-proy"><small>${lbl}</small><span class="${cls || ''}">${val}</span></div>`;
+  if(!resumenEco){
+    // Bloqueado: sin código no se muestra ninguna cifra. El botón solo aparece si el proyecto tiene parte financiera.
+    if(snapshotPortal && snapshotPortal.tieneFinanciero === true){
+      box.innerHTML = '<div class="eco-resumen"><div class="eco-acciones no-print"><button type="button" class="btn btn-ghost" onclick="abrirCodigo()">🔒 Ver detalle financiero</button></div></div>';
+    } else {
+      box.innerHTML = '';
+    }
+    return;
+  }
+  const e = resumenEco;
+  let html = celda(e.aceptada ? 'Total' : 'Total cotizado', formatCOP(e.total), '');
+  if(e.aceptada && e.pagado !== null){
+    const saldo = e.total - e.pagado;
+    html += celda('Abonado', formatCOP(e.pagado), '');
+    html += saldo <= 0 ? celda('Saldo', 'Pagado ✓', 'pagado') : celda('Saldo', formatCOP(saldo), 'pendiente');
+  } else if(!e.aceptada){
+    html += '<div class="eco-nota">Cotización en revisión. Cuando la confirmes, verás tus abonos y el saldo.</div>';
+    const r = PREVIEW ? null : lsGet(LS_RESP); // v1.2: en vista previa no se lee la respuesta guardada
+    if(r === 'aceptado'){
+      html += '<div class="eco-enviada">✓ Confirmación enviada, pendiente de validación.</div>';
+    } else if(r === 'cambios'){
+      html += '<div class="eco-enviada">✓ Tus comentarios fueron enviados. El equipo de Audiolink te contactará.</div>';
+    } else if(PREVIEW){
+      html += '<div class="eco-acciones no-print"><button type="button" class="btn" disabled style="opacity:.5;cursor:not-allowed;" title="Desactivado en vista previa">Confirmar cotización (desactivado en vista previa)</button></div>';
+    } else {
+      html += '<div class="eco-acciones no-print"><button type="button" class="btn" onclick="abrirConfirmar()">Confirmar cotización</button></div>';
+    }
+  }
+  html += '<div class="eco-acciones no-print"><button type="button" class="btn btn-ghost" onclick="abrirFinanciero()">Ver detalle financiero</button></div>';
+  box.innerHTML = `<div class="eco-resumen">${html}</div>`;
+}
+
+/* ============ PLAN DE TRABAJO (v2.11) ============ */
+function hhmmAMin(t){
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(t || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+function fmtHoras(min){
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  if(h === 0) return m + ' min';
+  return m ? h + ' h ' + m + ' min' : h + ' h';
+}
+function diasEntrePortal(a, b){
+  const pa = String(a).split('-').map(Number), pb = String(b).split('-').map(Number);
+  return Math.round((new Date(pb[0], pb[1] - 1, pb[2]) - new Date(pa[0], pa[1] - 1, pa[2])) / 86400000);
+}
+// Las horas (fin - inicio) ya incluyen el montaje; grabación = total - montaje.
+function calcularPlanTrabajo(sesiones, ahora){
+  const esFecha = f => /^\d{4}-\d{2}-\d{2}$/.test(String(f || ''));
+  const plan = { totalMin: 0, montajeMin: 0, realizadoMin: 0, conHorario: 0, sinHorario: 0,
+                 dias: {}, diasPend: {}, musicos: new Set(), tecnicos: new Set() };
+  sesiones.forEach(s => {
+    const ini = hhmmAMin(s.horaInicio), fin = hhmmAMin(s.horaFin);
+    let min = 0;
+    if(ini !== null && fin !== null){
+      min = fin - ini;
+      if(min < 0) min += 1440;            // termina pasada la medianoche
+    }
+    if(min > 0){
+      const mont = Math.min(Number(s.tiempoSetupMin) || 0, min);
+      plan.totalMin += min; plan.montajeMin += mont; plan.conHorario++;
+      if(estadoSesionPortal(s, ahora) === 'pasada') plan.realizadoMin += min; // v2.15
+      if(esFecha(s.fecha)) plan.dias[s.fecha] = (plan.dias[s.fecha] || 0) + min;
+    } else {
+      plan.sinHorario++;
+      if(esFecha(s.fecha) && !(s.fecha in plan.dias)) plan.dias[s.fecha] = 0;
+    }
+    if(esFecha(s.fecha) && estadoSesionPortal(s, ahora) !== 'pasada') plan.diasPend[s.fecha] = (plan.diasPend[s.fecha] || 0) + 1; // v2.15
+    (Array.isArray(s.musicosAsignados) ? s.musicosAsignados : []).forEach(m => {
+      const k = m && (m.musicoId || (m.nombre || '').trim().toLowerCase());
+      if(k) plan.musicos.add(k);
+    });
+    (Array.isArray(s.tecnicosAsignados) ? s.tecnicosAsignados : []).forEach(t => {
+      const k = t && (t.tecnicoId || (t.nombre || '').trim().toLowerCase());
+      if(k) plan.tecnicos.add(k);
+    });
+  });
+  return plan;
+}
+// v2.22: temas distintos de las sesiones visibles, en orden de primera aparición (fecha asc)
+function temasDeSesiones(sesiones){
+  const vistos = new Set(), lista = [];
+  sesiones.forEach(s => {
+    const n = String(s.temaNombre || '').trim();
+    if(n && !vistos.has(n.toLowerCase())){ vistos.add(n.toLowerCase()); lista.push(n); }
+  });
+  return lista;
+}
+// v2.23: "PLAN DE TRABAJO PARA:" y debajo los temas numerados, en dorado y tipografía de títulos (máx. 4, luego "y N más")
+function tituloPlanHTML(temas){
+  const MAX = 4; // límite pedido
+  if(!temas || !temas.length) return 'PLAN DE TRABAJO';
+  const vis = temas.slice(0, MAX).map((t, i) =>
+    '<span class="plan-tema"><i>' + (i + 1) + '.</i> ' + escapeHtml(t) + '</span>').join('');
+  const mas = temas.length - MAX;
+  return '<span class="plan-tit-eje">PLAN DE TRABAJO PARA:</span><span class="plan-temas">' + vis +
+    (mas > 0 ? '<span class="plan-mas">y ' + mas + ' más</span>' : '') + '</span>';
+}
+function planTrabajoHTML(plan, temas){
+  const hoy = hoyLocalPortal();
+  const fechas = Object.keys(plan.dias).sort();
+  if(!fechas.length && plan.conHorario === 0 && plan.musicos.size === 0 && plan.tecnicos.size === 0) return '';
+  const fmtF = (f, conAnio) => new Date(f + 'T00:00:00').toLocaleDateString('es-CO',
+    conAnio ? {day:'numeric', month:'short', year:'numeric'} : {day:'numeric', month:'short'});
+  const celda = (lbl, val, sub) => `<div class="dato-proy"><small>${lbl}</small><span class="valor">${val}</span>${sub ? `<small class="sub">${sub}</small>` : ''}</div>`;
+  let cifras = '';
+  let diasCal = 0;
+  if(fechas.length){
+    const ini = fechas[0], fin = fechas[fechas.length - 1];
+    diasCal = diasEntrePortal(ini, fin) + 1;
+    const distinto = ini.slice(0, 4) !== fin.slice(0, 4);
+    cifras += celda('Calendario', diasCal + ' ' + plural(diasCal, 'día', 'días'),
+      ini === fin ? fmtF(ini, false) : fmtF(ini, distinto) + ' – ' + fmtF(fin, distinto));
+  }
+  cifras += celda('En estudio', plan.conHorario ? fmtHoras(plan.totalMin) : '—',
+    plan.conHorario ? plan.conHorario + ' ' + plural(plan.conHorario, 'sesión', 'sesiones') : 'sin horario aún');
+  const nm = plan.musicos.size, nt = plan.tecnicos.size;
+  if(nm || nt){
+    cifras += celda('Equipo',
+      nm ? nm + ' ' + plural(nm, 'músico', 'músicos') : nt + ' ' + plural(nt, 'técnico', 'técnicos'),
+      nm && nt ? nt + ' ' + plural(nt, 'técnico', 'técnicos') : '');
+  }
+  if(plan.conHorario){
+    const pct = Math.round(plan.realizadoMin * 100 / plan.totalMin);
+    cifras += celda('Avance', fmtHoras(plan.realizadoMin) + ' de ' + fmtHoras(plan.totalMin), pct + '% realizado');
+  }
+
+  let barra = '';
+  if(plan.conHorario && plan.montajeMin > 0){
+    const grabMin = plan.totalMin - plan.montajeMin;
+    const pm = plan.montajeMin * 100 / plan.totalMin;
+    barra = `
+      <div class="plan-barra"><div class="grab" style="width:${(100 - pm).toFixed(1)}%"></div><div class="mont" style="width:${pm.toFixed(1)}%"></div></div>
+      <div class="plan-leyenda">
+        <span><i style="background:var(--gold)"></i>Grabación ${fmtHoras(grabMin)}</span>
+        <span><i style="background:var(--faint)"></i>Montaje ${fmtHoras(plan.montajeMin)}</span>
+      </div>`;
+  }
+
+  let frase = '';
+  const diasConSesion = fechas.filter(f => plan.dias[f] > 0).length;
+  if(plan.conHorario && diasConSesion){
+    frase = fmtHoras(plan.totalMin) + ' en estudio repartidas en ' + diasConSesion + ' ' + plural(diasConSesion, 'día', 'días') + ' de sesión'
+      + (diasCal > diasConSesion ? ', dentro de ' + diasCal + ' días de calendario.' : '.');
+  }
+
+  let tira = '';
+  if(fechas.length){
+    const ini = fechas[0], fin = fechas[fechas.length - 1];
+    const span = Math.max(diasEntrePortal(ini, fin), 1);
+    const maxMin = Math.max(...fechas.map(f => plan.dias[f]), 1);
+    const pos = f => ini === fin ? 50 : diasEntrePortal(ini, f) * 100 / span;
+    const marcas = fechas.map(f => {
+      const min = plan.dias[f];
+      const alto = 8 + Math.round(min * 32 / maxMin);
+      const txt = fmtF(f, false) + (min ? ' · ' + fmtHoras(min) : '');
+      return `<button type="button" class="tira-marca ${!(plan.diasPend[f] > 0) ? 'pasada' : ''}" style="left:${pos(f).toFixed(2)}%;height:${alto}px;" title="${txt}" aria-label="${txt}" onclick="irASesionPortal('${f}')"></button>`;
+    }).join('');
+    const marcaHoy = (hoy >= ini && hoy <= fin && ini !== fin)
+      ? `<div class="tira-hoy" style="left:${pos(hoy).toFixed(2)}%;"></div>` : '';
+    tira = `
+      <div class="tira">${marcaHoy}${marcas}</div>
+      <div class="tira-ejes"><span>${fmtF(ini, false)}</span>${ini !== fin ? `<span>${fmtF(fin, false)}</span>` : ''}</div>`;
+  }
+
+  const aviso = plan.sinHorario
+    ? `<div class="plan-aviso">${plan.sinHorario} ${plural(plan.sinHorario, 'sesión sin horario no suma', 'sesiones sin horario no suman')} horas.</div>` : '';
+
+  return `
+    <div class="resumen-box">
+      <h2 class="plan-tit">${tituloPlanHTML(temas)}</h2>
+      <div class="plan-cifras">${cifras}</div>
+      ${barra}
+      ${frase ? `<div class="plan-frase">${frase}</div>` : ''}
+      ${tira}
+      ${aviso}
+    </div>`;
+}
+function irASesionPortal(fecha){
+  const el = Array.from(document.querySelectorAll('[data-ses-fecha]')).find(e => e.dataset.sesFecha === fecha);
+  if(!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('resaltada');
+  setTimeout(() => el.classList.remove('resaltada'), 1800);
+}
+
+// v2.28: maquetas en el resumen — helpers (YouTube + mini reproductor de guia-practica.html v1.14)
+function ytIdPortal(url){
+  const m = String(url || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+function abrirYtMaqueta(btn){
+  const id = btn.getAttribute('data-yt');
+  if(!id) return;
+  const f = document.createElement('iframe');
+  f.className = 'maq-yt';
+  f.src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0';
+  f.allow = 'encrypted-media; picture-in-picture';
+  f.allowFullscreen = true;
+  f.loading = 'lazy';
+  btn.replaceWith(f);
+}
+function fmtTiempoMq(s){
+  if(!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+function mqToggle(id){
+  const a = document.getElementById(id);
+  if(!a) return;
+  if(a.paused) a.play(); else a.pause();
+}
+function mqEstado(id, sonando){
+  const b = document.getElementById(id + '-play');
+  if(b) b.textContent = sonando ? '⏸' : '▶';
+}
+function mqTiempo(id){
+  const a = document.getElementById(id), t = document.getElementById(id + '-t'), s = document.getElementById(id + '-s');
+  if(!a || !t || !s) return;
+  t.textContent = fmtTiempoMq(a.currentTime) + ' / ' + fmtTiempoMq(a.duration);
+  if(a.duration) s.value = Math.round((a.currentTime / a.duration) * 1000);
+}
+function mqSeek(id, val){
+  const a = document.getElementById(id);
+  if(!a || !a.duration) return;
+  a.currentTime = (val / 1000) * a.duration;
+}
+function mqMute(id){
+  const a = document.getElementById(id), b = document.getElementById(id + '-vol');
+  if(!a || !b) return;
+  a.muted = !a.muted;
+  b.textContent = a.muted ? '🔇' : '🔊';
+}
+let mqSeq = 0;
+function mqFilaHtml(m, i){
+  const titulo = m.etiqueta || m.instrumento || ('Maqueta ' + (i + 1));
+  const sub = (m.etiqueta && m.instrumento) ? ` <small>· ${escapeHtml(m.instrumento)}</small>` : '';
+  let player;
+  if(m.tipo === 'youtube'){
+    const id = ytIdPortal(m.url);
+    player = id
+      ? `<button type="button" class="btn-maq-yt" data-yt="${id}" onclick="abrirYtMaqueta(this)">▶ Ver en YouTube</button>`
+      : `<a class="btn-maq-yt" href="${escapeHtml(m.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;">Abrir enlace</a>`;
+  } else {
+    const id = 'mq' + (++mqSeq);
+    player = `<div class="mqaudio-bar">
+      <audio id="${id}" src="${escapeHtml(m.url)}" preload="none" ontimeupdate="mqTiempo('${id}')" onloadedmetadata="mqTiempo('${id}')" onplay="mqEstado('${id}', true)" onpause="mqEstado('${id}', false)" onended="mqEstado('${id}', false)"></audio>
+      <button type="button" class="mqaudio-btn" id="${id}-play" onclick="mqToggle('${id}')" title="Reproducir / Pausar">▶</button>
+      <span class="mqaudio-tiempo" id="${id}-t">0:00 / 0:00</span>
+      <input type="range" class="mqaudio-seek" id="${id}-s" min="0" max="1000" step="1" value="0" oninput="mqSeek('${id}', this.value)">
+      <button type="button" class="mqaudio-btn" id="${id}-vol" onclick="mqMute('${id}')" title="Silenciar">🔊</button>
+    </div>`;
+  }
+  return `<div class="ses-maq"><b>${escapeHtml(titulo)}${sub}</b>${player}</div>`;
+}
+// grupos: [{ nombre, items: [{ etiqueta, instrumento, tipo, url }] }], ya ordenados por tema.
+// Solo se repinta si el contenido cambió: así no se corta una maqueta que está sonando ni se cierra el desplegable.
+function pintarMaquetas(box, grupos){
+  if(!box) return;
+  const limpios = (Array.isArray(grupos) ? grupos : []).map(g => ({
+    nombre: String((g && g.nombre) || 'Tema'),
+    items: (Array.isArray(g && g.items) ? g.items : []).filter(m => m && /^https?:\/\//i.test(String(m.url || '').trim()))
+  })).filter(g => g.items.length);
+  const firma = JSON.stringify(limpios);
+  if(box.dataset.firma === firma) return;
+  box.dataset.firma = firma;
+  if(!limpios.length){ box.innerHTML = ''; return; }
+  const total = limpios.reduce((n, g) => n + g.items.length, 0);
+  box.innerHTML = `<details class="res-maquetas"><summary>🎧 Maquetas (${total})</summary>${
+    limpios.map(g => `<div class="maq-tema">${escapeHtml(g.nombre)}</div>` + g.items.map(mqFilaHtml).join('')).join('')
+  }</details>`;
+}
+
+// v1.1: el nodo de maquetas se crea una sola vez y se re-inserta en el hueco tras cada repintado del resumen.
+// (Quitar y volver a poner un <audio> en el mismo turno no lo pausa; si el repintado lo dejara fuera del
+// documento, el navegador sí lo pausaría.)
+let maquetasNodo = null;
+function colocarMaquetas(maquetas){
+  if(!maquetasNodo){ maquetasNodo = document.createElement('div'); maquetasNodo.id = 'maquetasBox'; }
+  const slot = document.getElementById('maquetasSlot');
+  if(slot) slot.replaceWith(maquetasNodo);
+  pintarMaquetas(maquetasNodo, (Array.isArray(maquetas) ? maquetas : []).map(g => ({ nombre: g && g.tema, items: g && g.items })));
+}
+
+// ============ CARGA DEL SNAPSHOT (único origen de datos del proyecto) ============
+function mostrarNoDisponible(){
+  if(unsubPortal){ unsubPortal(); unsubPortal = null; }
+  if(unsubFin){ unsubFin(); unsubFin = null; }
+  cerrarFinanciero(); cerrarCodigo(); cerrarConfirmar();
+  document.querySelectorAll('#maquetasBox audio').forEach(a => a.pause()); // v1.1
+  document.getElementById('estadoCarga').style.display = 'none';
+  document.getElementById('portalScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  generarFondoLogin();
+}
+
+(function init(){
+  if(!TOKEN_OK){ mostrarNoDisponible(); return; }
+  unsubPortal = portalRef.onSnapshot(doc => {
+    // Mismo resultado si no existe, está pausado o fue revocado: no se revela cuál de los casos es.
+    if(!doc.exists || doc.data().visibleCliente !== true){ mostrarNoDisponible(); return; }
+    const primera = snapshotPortal === null;
+    snapshotPortal = doc.data();
+    renderPortal();
+    if(primera && snapshotPortal.tieneFinanciero === true){
+      const guardado = ssGet(SS_COD);
+      if(guardado) engancharFinanciero(guardado);
+    }
+  }, err => {
+    console.error('Error leyendo el portal compartido:', err);
+    if(err && err.code === 'permission-denied'){ mostrarNoDisponible(); return; }
+    const c = document.getElementById('estadoCarga');
+    if(c && c.style.display !== 'none') c.textContent = 'No se pudo cargar. Revisa tu conexión e intenta de nuevo.';
+  });
+})();
+
+function renderPortal(){
+  const d = snapshotPortal;
+  const p = d.proyecto || {};
+  proyectoDetalleActual = p;
+  document.getElementById('estadoCarga').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('portalScreen').style.display = 'block';
+
+  const entrega = p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada + 'T00:00:00').toLocaleDateString('es-CO') : '—';
+  const comercialDet = COMERCIAL_LABEL[p.estadoComercial] ? p.estadoComercial : 'cotizacion';
+  document.getElementById('detalleContent').innerHTML = `
+    <h2>${escapeHtml(p.nombre)}</h2>
+    <span class="badge ${comercialDet === 'cotizacion' ? 'warn' : 'ok'}">${COMERCIAL_LABEL[comercialDet]}</span>
+    <div class="detalle-meta">
+      <span class="chip">Entrega est.: ${entrega}</span>
+    </div>
+    ${resumenProyectoHTML(p)}
+    <div id="etapaChipsBox"></div>
+    <div id="maquetasSlot"></div>
+    ${p.narrativa ? `<div style="margin-top:16px;font-size:0.88rem;color:var(--txt);line-height:1.5;font-style:italic;border-left:2px solid var(--gold);padding-left:14px;">${escapeHtml(p.narrativa)}</div>` : ''}
+  `;
+  colocarMaquetas(d.maquetas);
+  renderResumenEco();
+
+  const sesiones = (Array.isArray(d.sesiones) ? d.sesiones : []).map((s, i) => ({ id: 's' + i, ...s }))
+    .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+
+  // Rango de fechas para el chip "Grabación" de la línea de tiempo
+  const conFecha = sesiones.filter(s => s.fecha);
+  let rangoGrabacion = null;
+  if(conFecha.length){
+    const fmt = f => new Date(f + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short'});
+    const primera = conFecha[0].fecha, ultima = conFecha[conFecha.length - 1].fecha;
+    rangoGrabacion = primera === ultima ? fmt(primera) : `${fmt(primera)} – ${fmt(ultima)}`;
+  }
+  renderEtapaChips(p, rangoGrabacion);
+
+  const cont = document.getElementById('listaSesiones');
+  const empty = document.getElementById('emptySesiones');
+  if(sesiones.length === 0){
+    const pb0 = document.getElementById('planTrabajoBox'); if(pb0) pb0.innerHTML = '';
+    cont.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const ahora = ahoraPortal(); // una sola lectura del reloj para plan y listas
+  const planBox2 = document.getElementById('planTrabajoBox');
+  if(planBox2) planBox2.innerHTML = planTrabajoHTML(calcularPlanTrabajo(sesiones, ahora), temasDeSesiones(sesiones));
+  const resumenPorId = {};
+  sesiones.forEach(s => { resumenPorId[s.id] = { id: s.id, total: Number(s.tomasTotal) || 0, usar: Number(s.tomasUsar) || 0 }; });
+  renderSesiones(sesiones, cont, ahora, resumenPorId);
+}
+
+// Tarjetas de sesión: cuerpo copiado sin cambios de portal.html v2.23 (cargarSesionesCliente)
+function renderSesiones(sesiones, cont, ahora, resumenPorId){
+      // v2.9: tarjeta de sesión con tema, estudio, técnicos y músicos.
+      // Nunca se muestran tarifas, correos, teléfonos, canales ni notas internas.
+      const listaNombres = (arr, campoExtra) => (Array.isArray(arr) ? arr : [])
+        .filter(x => x && x.nombre)
+        .map(x => escapeHtml(x.nombre) + (x[campoExtra] ? ' · ' + escapeHtml(x[campoExtra]) : ''))
+        .join(', ');
+      const detalleSesion = (s) => {
+        const filas = [];
+        const tec = listaNombres(s.tecnicosAsignados, 'rol');
+        if(tec) filas.push(`<strong>Técnicos:</strong> ${tec}`);
+        const lugar = [s.estudioNombre, s.sala].filter(Boolean).map(escapeHtml).join(' · ');
+        if(lugar) filas.push(`<strong>Estudio:</strong> ${lugar}`);
+        const musicos = (Array.isArray(s.musicosAsignados) ? s.musicosAsignados : []).filter(x => x && x.nombre);
+        const musHtml = musicos.length ? `
+          <div class="ses-musicos"><small>Músicos</small>${musicos.map(m =>
+            `<span class="mus"><b>${escapeHtml(m.nombre)}</b>${m.instrumento ? ' <i>' + escapeHtml(m.instrumento) + '</i>' : ''}</span>`
+          ).join('')}</div>` : '';
+        return musHtml + filas.map(f => `<div class="ses-det">${f}</div>`).join('');
+      };
+      // v2.13: con tema, el título es el tema y la actividad va como etiqueta
+      const tituloSesion = (s) => s.temaNombre
+        ? `<div class="ses-etq">${escapeHtml(s.actividad || 'Sesión')}</div><h4 class="ses-tema">${escapeHtml(s.temaNombre)}</h4>`
+        : `<h4>${escapeHtml(s.actividad || 'Sesión')}</h4>`;
+      const tomasHtml = (s) => {
+        const r = resumenPorId[s.id];
+        return (r && r.total > 0)
+          ? `<div class="meta" style="color:var(--gold);font-size:0.82rem;margin-top:4px;">🎙️ ${r.total} toma${r.total === 1 ? '' : 's'} registrada${r.total === 1 ? '' : 's'} · ${r.usar} seleccionada${r.usar === 1 ? '' : 's'}</div>`
+          : '';
+      };
+      const fechaLarga = (s) => s.fecha ? new Date(s.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'}) : '—';
+      const horaTxt = (s) => {
+        if(!s.horaInicio && !s.horaFin) return 'Horario por confirmar';
+        const rango = `${escapeHtml(s.horaInicio || '--:--')}–${escapeHtml(s.horaFin || '--:--')}`;
+        const ini = hhmmAMin(s.horaInicio), fin = hhmmAMin(s.horaFin);
+        if(ini === null || fin === null) return rango;
+        let min = fin - ini;
+        if(min < 0) min += 1440; // termina pasada la medianoche
+        return min > 0 ? `${rango} · ${fmtHoras(min)}` : rango;
+      };
+      const cuandoChip = (s) => {
+        if(!s.fecha) return '';
+        if(estadoSesionPortal(s, ahora) === 'encurso') return `<span class="badge warn">En curso</span>`;
+        const n = diasDesdeHoyPortal(s.fecha);
+        if(n === null || n < 0) return '';
+        const t = n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : 'En ' + n + ' días';
+        return `<span class="badge warn">${t}</span>`;
+      };
+      const tarjetaSesion = (s, conCuando) => {
+        const chip = conCuando ? cuandoChip(s) : '';
+        const titulo = chip
+          ? `<div class="cabeza-ses"><div>${tituloSesion(s)}</div>${chip}</div>`
+          : tituloSesion(s);
+        return `
+        <div class="sesion-card" data-ses-fecha="${escapeHtml(s.fecha || '')}">
+          ${titulo}
+          <div class="meta" style="color:var(--muted);font-size:0.82rem;">📅 ${fechaLarga(s)} · ⏱️ ${horaTxt(s)}</div>
+          ${detalleSesion(s)}
+          ${tomasHtml(s)}
+        </div>`;
+      };
+
+      const hoy = hoyLocalPortal();
+      // v2.15: clasificación y orden por fecha Y hora (estadoSesionPortal)
+      const proximas = sesiones.filter(s => estadoSesionPortal(s, ahora) !== 'pasada');   // sin fecha, al final de Próximas
+      const realizadas = sesiones.filter(s => estadoSesionPortal(s, ahora) === 'pasada');
+      const horaOrden = (s, vacio) => { const m = hhmmAMin(s.horaInicio); return m === null ? vacio : m; };
+      proximas.sort((a, b) =>
+        (a.fecha || '9999-12-31').localeCompare(b.fecha || '9999-12-31') || horaOrden(a, 9999) - horaOrden(b, 9999));
+      realizadas.sort((a, b) =>
+        (b.fecha || '').localeCompare(a.fecha || '') || horaOrden(b, -1) - horaOrden(a, -1)); // la más reciente primero
+
+      let html = '';
+      let resto = proximas;
+      const destacada = proximas.find(s => s.fecha);
+      if(destacada){
+        resto = proximas.filter(s => s !== destacada);
+        const n = diasDesdeHoyPortal(destacada.fecha);
+        const cuando = estadoSesionPortal(destacada, ahora) === 'encurso' ? 'En curso' : n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : 'En ' + n + ' días';
+        html += `
+        <div class="sesion-destacada" data-ses-fecha="${escapeHtml(destacada.fecha || '')}">
+          <div class="cabeza">
+            <span class="etq">Próxima sesión</span>
+            <span class="badge warn">${cuando}</span>
+          </div>
+          ${tituloSesion(destacada)}
+          <div class="meta" style="color:var(--muted);font-size:0.82rem;">📅 ${fechaLarga(destacada)} · ⏱️ ${horaTxt(destacada)}</div>
+          ${detalleSesion(destacada)}
+          ${tomasHtml(destacada)}
+        </div>`;
+      }
+      if(resto.length){
+        html += `<h3 class="ses-grupo">Próximas (${resto.length})</h3>` + resto.map(s => tarjetaSesion(s, true)).join('');
+      }
+      if(realizadas.length){
+        html += `<h3 class="ses-grupo">Realizadas (${realizadas.length})</h3>` + realizadas.map(s => tarjetaSesion(s, false)).join('');
+      }
+      cont.innerHTML = html;
+}
+
+// ============ PARTE FINANCIERA (v1.0): código aparte + documento financiero/{codigo} ============
+function abrirOverlay(id){
+  const ov = document.getElementById(id);
+  if(ov) ov.classList.add('abierto');
+  document.body.classList.add('fin-abierto');
+}
+function cerrarOverlay(id){
+  const ov = document.getElementById(id);
+  if(ov) ov.classList.remove('abierto');
+  if(!document.querySelector('.fin-overlay.abierto')) document.body.classList.remove('fin-abierto');
+}
+function abrirCodigo(){
+  document.getElementById('codMsg').textContent = '';
+  document.getElementById('codMsg').className = 'msg';
+  document.getElementById('fCodigo').value = '';
+  abrirOverlay('codOverlay');
+  setTimeout(() => { const i = document.getElementById('fCodigo'); if(i) i.focus(); }, 50);
+}
+function cerrarCodigo(){ cerrarOverlay('codOverlay'); }
+
+function msgCodigo(t, tipo){ const m = document.getElementById('codMsg'); m.textContent = t; m.className = 'msg ' + tipo; }
+async function validarCodigo(){
+  const cod = document.getElementById('fCodigo').value.replace(/[\s-]/g, '').toUpperCase();
+  if(!/^[A-Z0-9]{6,16}$/.test(cod)){ msgCodigo('Código incorrecto.', 'error'); return; }
+  const btn = document.getElementById('btnCodigo');
+  btn.disabled = true;
+  msgCodigo('Verificando...', 'info');
+  try{
+    const f = await portalRef.collection('financiero').doc(cod).get();
+    if(!f.exists){ msgCodigo('Código incorrecto.', 'error'); btn.disabled = false; return; }
+    ssSet(SS_COD, cod);
+    cerrarCodigo();
+    engancharFinanciero(cod);
+    msgCodigo('', 'info');
+  } catch(err){
+    console.error('Error verificando el código:', err);
+    msgCodigo(err && err.code === 'permission-denied' ? 'Código incorrecto.' : 'No se pudo verificar. Revisa tu conexión e intenta de nuevo.', 'error');
+  }
+  btn.disabled = false;
+}
+document.getElementById('fCodigo').addEventListener('keydown', (e) => { if(e.key === 'Enter') validarCodigo(); });
+
+function engancharFinanciero(cod){
+  if(unsubFin){ unsubFin(); unsubFin = null; }
+  codigoFin = cod;
+  unsubFin = portalRef.collection('financiero').doc(cod).onSnapshot(doc => {
+    if(!doc.exists){ limpiarFinanciero(); return; } // código regenerado o revocado
+    aplicarFinanciero(doc.data());
+  }, err => {
+    console.error('Error leyendo el detalle financiero:', err);
+    limpiarFinanciero();
+  });
+}
+function limpiarFinanciero(){
+  if(unsubFin){ unsubFin(); unsubFin = null; }
+  codigoFin = null; datosFinanc = null; resumenEco = null;
+  ssDel(SS_COD);
+  cerrarFinanciero(); cerrarConfirmar();
+  renderResumenEco();
+}
+function aplicarFinanciero(f){
+  const aceptada = f.aceptada === true;
+  const items = Array.isArray(f.items) ? f.items : [];
+  const pagos = (Array.isArray(f.pagos) ? f.pagos : []).map(p => ({ monto: p.monto, fecha: p.fecha, metodo: p.metodo, comprobanteUrl: p.comprobanteUrl }));
+  datosFinanc = {
+    id: f.cotizacionId || '', aceptada: aceptada, total: Number(f.total) || 0, items: items,
+    detalleLabor: f.detalleLabor || '', notas: f.notas || '', metaLinea: f.metaLinea || '',
+    pagos: aceptada ? pagos : null
+  };
+  resumenEco = {
+    id: datosFinanc.id, total: datosFinanc.total, aceptada: aceptada,
+    pagado: aceptada ? pagos.reduce((a, p) => a + (p.monto || 0), 0) : null
+  };
+  renderResumenEco();
+  renderFinanciero();
+}
+
+/* ============ DETALLE FINANCIERO (v2.20) — modal solo lectura ============ */
+// Arma el mismo contenido para el modal (paraImpresion=false) y para el PDF (true).
+function financieroHTML(d, paraImpresion){
+  const pagos = Array.isArray(d.pagos) ? d.pagos : null;
+  const pagado = (d.aceptada && pagos) ? pagos.reduce((a, p) => a + (p.monto || 0), 0) : null;
+  const celda = (lbl, val, cls) => `<div class="dato-proy"><small>${lbl}</small><span class="${cls || ''}">${val}</span></div>`;
+
+  let cifras = celda(d.aceptada ? 'Total' : 'Total cotizado', formatCOP(d.total), '');
+  let barra = '';
+  if(pagado !== null){
+    const saldo = d.total - pagado;
+    cifras += celda('Abonado', formatCOP(pagado), '');
+    cifras += saldo <= 0 ? celda('Saldo', 'Pagado ✓', 'pagado') : celda('Saldo', formatCOP(saldo), 'pendiente');
+    if(d.total > 0){
+      const pct = Math.max(0, Math.min(100, Math.round(pagado * 100 / d.total)));
+      barra = `<div class="fin-barra"><div style="width:${pct}%"></div></div><div class="fin-pct">${pct}% pagado</div>`;
+    }
+  } else if(!d.aceptada && !paraImpresion){
+    cifras += '<div class="eco-nota">Cotización en revisión. Cuando la confirmes en la página del proyecto, verás tus abonos y el saldo.</div>';
+  }
+
+  const rubros = d.items.map(it => {
+    const cant = Number(it.cantidad) || 0;
+    const precio = Number(it.precio) || 0;
+    const incluido = precio === 0 && cant * precio === 0;
+    const cantTxt = cant.toLocaleString('es-CO', { maximumFractionDigits: 2 });
+    return `
+    <div class="cotiz-item-row">
+      <span class="concepto">${escapeHtml(it.concepto || '—')}${incluido ? '' : `<span class="cant">${cantTxt} × ${formatCOP(precio)}</span>`}</span>
+      <span class="cotiz-monto${incluido ? ' incluido' : ''}">${incluido ? 'Incluido' : formatCOP(cant * precio)}</span>
+    </div>`;
+  }).join('');
+
+  const alcance = d.detalleLabor
+    ? `<div class="fin-alcance"><h3 class="fin-sec">Alcance de la labor de producción</h3><div class="cotiz-texto">${escapeHtml(d.detalleLabor)}</div></div>` : '';
+  const notas = d.notas
+    ? `<div class="cotiz-notas"><strong>Notas</strong><div class="cotiz-texto">${escapeHtml(d.notas)}</div></div>` : '';
+
+  let pagosHtml = '';
+  if(d.aceptada){
+    let filas;
+    if(pagos === null){
+      filas = '<div style="color:var(--muted);font-size:0.85rem;">Cargando abonos…</div>';
+    } else if(!pagos.length){
+      filas = '<div style="color:var(--muted);font-size:0.85rem;">Aún no hay abonos registrados.</div>';
+    } else {
+      filas = pagos.map(p => {
+        const fechaLegible = p.fecha ? new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+        return `
+        <div class="pago-row">
+          <div>
+            <div>${formatCOP(p.monto || 0)}</div>
+            <div class="meta">${fechaLegible} · ${escapeHtml(p.metodo || '—')}</div>
+          </div>
+          ${(!paraImpresion && p.comprobanteUrl) ? `<a href="${escapeHtml(p.comprobanteUrl)}" target="_blank" rel="noopener">Ver comprobante</a>` : ''}
+        </div>`;
+      }).join('');
+    }
+    const saldoFila = pagado === null ? '' : (() => {
+      const saldo = d.total - pagado;
+      return `<div class="saldo-row ${saldo <= 0 ? 'pagado' : 'pendiente'}"><span>${saldo <= 0 ? 'Pagado en su totalidad' : 'Saldo pendiente'}</span><span>${saldo <= 0 ? '✓' : formatCOP(saldo)}</span></div>`;
+    })();
+    pagosHtml = `<h3 class="fin-sec">Abonos</h3>${filas}${saldoFila}`;
+  }
+
+  const nombreProy = proyectoDetalleActual && proyectoDetalleActual.nombre ? proyectoDetalleActual.nombre : '';
+  // v2.22: logo (modal: el del tema activo; PDF: siempre el claro). Si no carga, texto AUDIOLINK.
+  const temaLogo = paraImpresion ? 'claro' : (document.documentElement.getAttribute('data-tema') === 'light' ? 'claro' : 'oscuro');
+  const logo = `<img class="fin-logo" src="logo/audiolink-horizontal-${temaLogo}-animado.svg" alt="Audiolink" onerror="this.outerHTML='<div class=&quot;fin-marca&quot;>AUDIOLINK</div>'">`;
+  const hoyTxt = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  return `
+    <div class="fin-doc">
+    <div class="fin-cab">
+      ${logo}
+      <div class="fin-tit-row">
+        <h2>Detalle financiero</h2>
+        <span class="badge ${d.aceptada ? 'ok' : 'warn'}">${d.aceptada ? 'Aceptada' : 'En revisión'}</span>
+      </div>
+      ${nombreProy ? `<div class="fin-proy">${escapeHtml(nombreProy)}</div>` : ''}
+      ${d.metaLinea ? `<div class="cotiz-meta">${escapeHtml(d.metaLinea)}</div>` : ''}
+    </div>
+    <div class="fin-cifras">${cifras}</div>
+    ${barra}
+    <h3 class="fin-sec">Rubros</h3>
+    ${rubros}
+    <div class="cotiz-total-row"><span>Total</span><span>${formatCOP(d.total)}</span></div>
+    ${pagosHtml}
+    ${alcance}${notas}
+    ${paraImpresion ? `<div class="fin-pie"><span>Audiolink · Detalle financiero</span><span>Impreso el ${hoyTxt}</span></div>` : '<button type="button" class="btn btn-ghost no-print" onclick="imprimirFinanciero()">🖨 Guardar / imprimir PDF</button>'}
+    </div>
+  `;
+}
+function renderFinanciero(){
+  if(!finAbierto) return;
+  if(!datosFinanc){ cerrarFinanciero(); return; }
+  const cont = document.getElementById('finContenido');
+  if(cont) cont.innerHTML = financieroHTML(datosFinanc, false);
+}
+function abrirFinanciero(){
+  if(!datosFinanc) return;
+  finAbierto = true;
+  renderFinanciero();
+  const ov = document.getElementById('finOverlay');
+  if(ov) ov.classList.add('abierto');
+  document.body.classList.add('fin-abierto');
+  const x = document.querySelector('.fin-cerrar'); if(x) x.focus();
+}
+function cerrarFinanciero(){
+  finAbierto = false;
+  const ov = document.getElementById('finOverlay');
+  if(ov) ov.classList.remove('abierto');
+  document.body.classList.remove('fin-abierto');
+}
+// Mismo documento desde el bloque COTIZACIÓN y desde el modal: cotización + abonos
+function imprimirFinanciero(){
+  if(!datosFinanc) return;
+  document.getElementById('finImpresion').innerHTML = financieroHTML(datosFinanc, true);
+  window.print();
+}
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && finAbierto) cerrarFinanciero();
+});
+
+// ============ CONFIRMAR COTIZACIÓN (v1.0): deja UNA respuesta; no cambia la cotización real ============
+function msgResp(t, tipo){ const m = document.getElementById('respMsg'); m.textContent = t; m.className = 'msg ' + tipo; }
+function abrirConfirmar(){
+  if(PREVIEW) return; // v1.2
+  if(!codigoFin || !datosFinanc || datosFinanc.aceptada) return;
+  document.getElementById('respSub').textContent = 'Cotización por ' + formatCOP(datosFinanc.total) + '. Tu respuesta le llega al equipo de Audiolink, que la validará; no cambia la cotización por sí sola.';
+  msgResp('', 'info');
+  abrirOverlay('respOverlay');
+}
+function cerrarConfirmar(){ cerrarOverlay('respOverlay'); }
+async function enviarRespuesta(aceptado){
+  if(PREVIEW) return; // v1.2
+  if(!codigoFin || !datosFinanc) return;
+  const nombre = document.getElementById('fRespNombre').value.trim();
+  const comentario = document.getElementById('fRespComentario').value.trim();
+  if(!nombre){ msgResp('Escribe tu nombre.', 'error'); return; }
+  if(nombre.length > 100){ msgResp('El nombre es demasiado largo (máx. 100 caracteres).', 'error'); return; }
+  if(comentario.length > 500){ msgResp('El comentario es demasiado largo (máx. 500 caracteres).', 'error'); return; }
+  if(!aceptado && !comentario){ msgResp('Cuéntanos qué cambios necesitas.', 'error'); return; }
+  if(aceptado && !confirm('¿Confirmas que aceptas esta cotización por ' + formatCOP(datosFinanc.total) + '? El equipo de Audiolink la validará.')) return;
+  const b1 = document.getElementById('btnRespAcepto'), b2 = document.getElementById('btnRespCambios');
+  b1.disabled = true; b2.disabled = true;
+  msgResp('Enviando...', 'info');
+  try{
+    await portalRef.collection('financiero').doc(codigoFin).collection('respuestas').doc('respuesta').set({
+      aceptado: aceptado,
+      nombre: nombre,
+      comentario: comentario,
+      fecha: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    lsSet(LS_RESP, aceptado ? 'aceptado' : 'cambios');
+    cerrarConfirmar();
+    renderResumenEco();
+  } catch(err){
+    console.error('Error enviando la respuesta:', err);
+    msgResp(err && err.code === 'permission-denied'
+      ? 'Ya hay una respuesta registrada para este enlace, o el enlace ya no está disponible. Contacta a Audiolink.'
+      : 'No se pudo enviar. Revisa tu conexión e intenta de nuevo.', 'error');
+  }
+  b1.disabled = false; b2.disabled = false;
+}
+document.addEventListener('keydown', (e) => {
+  if(e.key !== 'Escape') return;
+  cerrarCodigo(); cerrarConfirmar();
+});
+
+// ============ FONDO DE NEURONAS (pantalla "enlace no disponible") ============
+function generarFondoLogin(){
+  const cont = document.getElementById('login-bg-shimmer');
+  if(!cont) return;
+  const rect = cont.getBoundingClientRect();
+  const W = Math.max(rect.width, 100), H = Math.max(rect.height, 100);
+  const N = 45;
+  const pts = Array.from({length:N}, () => ({x:Math.random()*W, y:Math.random()*H}));
+  const colores = ['#c9a24b', '#e8c77a', '#f0ede6', '#d9b565'];
+  let lineas = '', nodos = '';
+  pts.forEach((p,i) => {
+    const vecinos = pts
+      .map((q,j) => ({j, d: j===i ? Infinity : Math.hypot(p.x-q.x, p.y-q.y)}))
+      .sort((a,b) => a.d-b.d).slice(0,3);
+    vecinos.forEach(({j,d}) => {
+      if(j <= i) return;
+      const q = pts[j];
+      const fd = (2.5 + Math.random()*3).toFixed(2);
+      const fdelay = (Math.random()*4).toFixed(2);
+      const color = colores[Math.floor(Math.random()*colores.length)];
+      lineas += `<line x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${q.x.toFixed(1)}" y2="${q.y.toFixed(1)}" class="neuron-line" stroke="${color}" stroke-width="0.9" style="--len:${d.toFixed(1)};--fd:${fd}s;--fdelay:${fdelay}s;color:${color};"/>`;
+    });
+  });
+  pts.forEach(p => {
+    const esPico = Math.random() < 0.18;
+    const r = esPico ? (3.2 + Math.random()*2.4).toFixed(2) : (1.4 + Math.random()*1.4).toFixed(2);
+    const d = (2 + Math.random()*3).toFixed(2);
+    const delay = (Math.random()*3).toFixed(2);
+    const color = colores[Math.floor(Math.random()*colores.length)];
+    nodos += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${color}" class="neuron-node" style="--d:${d}s;--delay:${delay}s;color:${color};"/>`;
+    const sd = (2.5 + Math.random()*3.5).toFixed(2);
+    const sdelay = (Math.random()*5).toFixed(2);
+    const rSpark = (Number(r) * 0.6).toFixed(2);
+    nodos += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rSpark}" class="neuron-spark" style="--sd:${sd}s;--sdelay:${sdelay}s;filter:drop-shadow(0 0 4px ${color}) drop-shadow(0 0 9px ${color});"/>`;
+  });
+  cont.innerHTML = `<svg viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}">${lineas}${nodos}</svg>`;
+}
+</script>
+
+</body>
+</html>

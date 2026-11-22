@@ -4,7 +4,81 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Proyectos</title>
-<!-- AUDIOLINK · proyecto.html · v5.47
+<!-- AUDIOLINK · proyecto.html · v5.53
+     v5.53: (a pedido) Listado de proyectos, mobile first. Solo se tocó el listado: renderListado(), su CSS,
+     el conmutador del encabezado del listado y un par de funciones/variables nuevas. NO se tocó el detalle,
+     los modales, los datos, Firestore ni "⚡ Acciones". (1) Tarjetas (vista por defecto): borde izquierdo de
+     4 px del color de `estado` (ok verde / warn ámbar / err rojo) y proyectos con estado comercial
+     "Finalizado" atenuados al 75% (100% con hover/toque), como las sesiones hechas en logistica.html.
+     Avisos ⚠ en la tarjeta: "Sin fecha de entrega" y "Sin cliente" (este solo si el tipo NO es "propio");
+     no aparecen en proyectos finalizados. El saldo pendiente sigue igual. (2) Vista alternativa "Lista":
+     fila compacta con el mismo borde de estado. Móvil: nombre, cliente, badge de estado, etapa, saldo
+     y los botones 📅/📥 a 44 px. Escritorio (>=641 px): además fecha de entrega, temas, estado comercial y
+     avisos. (3) Conmutador "Tarjetas | Lista" junto al título, botones de 44 px, recordado en el
+     dispositivo (localStorage 'audiolink_vista_proyectos', con try/catch; por defecto Tarjetas). Se
+     conservan: botones 📅 y 📥, el click hacia logistica.html cuando hay fechaParamGlobal (v5.25), el
+     banner de fecha rápida y el click que abre el detalle. Los textos del badge de estado no cambian.
+     v5.52.1: (a pedido) el anillo de "⚡ Acciones" anima SIEMPRE (infinite, un pulso cada 3,2 s: 1,8 s de anillo
+     + pausa) en vez de 3 ciclos. Se quita a propósito la regla prefers-reduced-motion de ese anillo: se anima
+     aunque el sistema pida movimiento reducido. Con el desplegable abierto sigue oculto (visibility; al
+     cerrar no reinicia la animación). Nada más cambió.
+     v5.52: (a pedido) Jerarquía visual del desplegable "⚡ Acciones" del detalle (mobile first). Solo CSS + un
+     contador en el summary; no se tocó JavaScript, funciones, ids ni los 9 botones. (A) Estática: el summary
+     pasa a ser un botón primario (fondo --gold-bg, borde y texto --gold, 48 px de alto, ancho completo) con
+     un contador "9" a la derecha. (B) Atención breve: un anillo (::before) que se expande 3 veces al entrar
+     al detalle del proyecto y queda quieto; con el desplegable abierto no se ve (visibility, sin reiniciar
+     la animación al cerrar); con prefers-reduced-motion no anima. El anillo reinicia solo porque
+     #vistaDetalle alterna display none/block al entrar a un proyecto; los repintados de datos no lo
+     reinician (el details vive fuera de #detalleContent). El desplegable sigue cerrado por defecto. El CSS
+     v5.51 queda intacto: el bloque nuevo va justo después y lo sobrescribe por orden. Nada más cambió.
+     v5.51: (a pedido) Botones del detalle reorganizados para móvil. Los 9 botones que estaban al final de
+     la hoja (dos filas .pdf-actions) pasan a un desplegable "⚡ Acciones" ARRIBA, cerrado por defecto
+     (elemento details nativo, sin JavaScript nuevo), justo bajo "← Volver a proyectos". Va como elemento fijo
+     del HTML y no dentro de #detalleContent, porque ese bloque se vuelve a pintar con cada cambio de datos
+     y cerraría el desplegable. Tres grupos con rótulo: Documentos (PDF Cliente, PDF Interno, Editar) ·
+     Herramientas (Cotizador, Producción, Checklist) · Equipo y accesos (Ingenieros, Músicos (portal),
+     Portal compartido). Mismos textos, funciones e id (btnPortalCompartido). Móvil: 2 columnas, botón de
+     44 px mínimo, y si el último botón de un grupo queda solo ocupa las 2 columnas. Escritorio: los grupos
+     bajan de línea solos. En impresión sigue oculto (#vistaDetalle > *:not(#print-view)). El CSS viejo de
+     .pdf-actions queda sin uso y no se tocó. Nada más cambió.
+     v5.50: (a pedido) VISTA PREVIA del portal compartido. En el modal "🔗 Portal compartido" se agrega el
+     botón "👁️ Vista previa" (primero en la fila de acciones, antes de "Actualizar ahora"): abre en pestaña
+     nueva pcUrl(token) + "&preview=1" (mismo patrón de _ingPreview / _musPreview). Con el enlace pausado el
+     botón sale desactivado ("Reanuda el enlace para ver la vista previa"), porque portal-compartido.html
+     muestra "Este enlace no está disponible" en ese caso. Sin lecturas ni escrituras nuevas. REQUIERE
+     portal-compartido.html v1.2 (sube primero); con una versión anterior &preview=1 se ignora y la página
+     se vería normal. Nada más cambió.
+     v5.49: (a pedido) maquetas en el portal compartido. El snapshot del enlace suma un campo a nivel de
+     proyecto: maquetas = [ { tema, items: [ { etiqueta, instrumento, tipo, url } ] } ], armado con los
+     datos que ya están en memoria (temasDash.practicaMaquetas y el temaId de las sesiones; cero lecturas
+     nuevas). Mismo criterio que portal.html v2.28: solo temas con alguna sesión visible para el cliente
+     (la misma lista que va en el snapshot), solo maquetas con visibleCliente === true y URL http(s),
+     temas en el orden de este archivo (orden y luego nombre). Sin filtro por instrumento ni músico
+     (eso vive en la vista del músico). Nunca viajan color, visibleMusicos ni ningún otro campo de la
+     maqueta. Los cambios en los temas ya disparaban la actualización (el listener de temas llama a
+     refrescarDetalleSiActivo). Los enlaces ya creados se completan solos en la próxima actualización
+     (el snapshot viejo no traía `maquetas`, así que su firma cambia y se reescribe una vez). Sin reglas
+     nuevas. Cambios solo dentro del bloque PORTAL COMPARTIDO: pcArmarMaquetas() nueva y 3 líneas que
+     la usan (listener del enlace, pcReconstruir, pcCrearPortal). Nada más del archivo se tocó.
+     v5.48: (a pedido) portal compartido por enlace: el cliente ve su proyecto con un clic, sin
+     registro ni contraseña (portal-compartido.html v1.0, reglas Firestore v2.49). Se agrega el
+     botón "🔗 Portal compartido" (debajo de la fila de botones del detalle) y un modal para: generar
+     el enlace, copiarlo, pausar/reanudar, "Actualizar ahora", regenerar y revocar; ver y copiar el
+     código financiero (10 caracteres, se envía por otro canal) y regenerarlo; ver la respuesta del
+     cliente ("Acepto" / "Tengo cambios") y Aprobar o Descartar. Aprobar hace lo mismo que el botón
+     de confirmar de portal.html (cotización -> aceptada, aceptadaPor "Portal compartido · nombre",
+     fechaAceptacion) y borra la respuesta, solo si no hay otra cotización aceptada y si la
+     cotización no cambió después de que el cliente respondió.
+     SNAPSHOT: copia filtrada en portalCompartidos/{token} (lista blanca igual a lo que portal.html
+     ya le muestra al cliente; nunca tarifas, notas internas, correos, teléfonos ni la nota de los
+     pagos). Se actualiza con debounce de 3 s mientras el detalle del proyecto está abierto (usa los
+     datos ya en memoria) y solo escribe si el contenido cambió; si nadie tiene el proyecto abierto no
+     se actualiza (usar "Actualizar ahora"). Los listeners nuevos (enlace, financiero, respuesta,
+     cotizaciones y pagos del proyecto) solo existen si el proyecto abierto tiene enlace y se cierran
+     al salir del detalle. No disponible en modo offline.
+     CAMBIOS FUERA DEL BLOQUE NUEVO (solo 3 líneas de enlace): refrescarDetalleSiActivo() llama a
+     pcProgramarSnapshot(); verDetalle() llama a pcCambioProyecto(id) al cambiar de proyecto;
+     volverListado() llama a pcDesuscribir(). Nada más del archivo se tocó.
      v5.47: (a pedido) iconos por grupo de instrumentacion. Se agrega
      <script src="iconos-instrumentacion.js"> (antes de instrumentacion.js,
      que pasa a v1.6 con selector de icono por grupo y campo `icono`) y, en
@@ -1435,6 +1509,82 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   padding:5px 14px;font-size:0.78rem;color:var(--gold);
 }
 .pdf-actions{display:flex;gap:10px;margin-top:20px;}
+/* v5.51 — Acciones del proyecto: desplegable arriba, 3 grupos con rótulo */
+.acciones-det{margin:0 0 14px;border:1px solid var(--brd);border-radius:8px;background:var(--surf);}
+.acciones-det > summary{list-style:none;cursor:pointer;min-height:44px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;font-size:0.85rem;font-weight:500;letter-spacing:0.04em;color:var(--muted);}
+.acciones-det > summary::-webkit-details-marker{display:none;}
+.acciones-det > summary::after{content:'▾';transition:transform 0.2s;}
+.acciones-det[open] > summary{color:var(--gold);}
+.acciones-det[open] > summary::after{transform:rotate(180deg);}
+.acciones-cuerpo{padding:4px 14px 14px;display:flex;flex-wrap:wrap;gap:16px 28px;}
+.acciones-grupo{flex:1 1 220px;min-width:0;}
+.acciones-rotulo{font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--faint);margin-bottom:8px;}
+.acciones-btns{display:flex;flex-wrap:wrap;gap:8px;}
+.acciones-btns .btn{min-height:44px;line-height:1.2;text-align:center;}
+@media (max-width:640px){
+  .acciones-cuerpo{display:block;}
+  .acciones-grupo + .acciones-grupo{margin-top:14px;}
+  .acciones-btns{display:grid;grid-template-columns:1fr 1fr;}
+  .acciones-btns .btn{width:100%;}
+  .acciones-btns .btn:last-child:nth-child(odd){grid-column:1 / -1;}
+}
+
+/* v5.52 — jerarquía de ⚡ Acciones: botón primario estático + anillo de atención breve */
+.acciones-det{position:relative;border-color:var(--gold);}
+.acciones-det > summary{min-height:48px;gap:10px;color:var(--gold);font-weight:600;background:var(--gold-bg);border-radius:7px;}
+.acciones-det[open] > summary{border-radius:7px 7px 0 0;}
+.acciones-tit{flex:1;min-width:0;}
+.acciones-cuenta{flex:0 0 auto;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--gold);color:var(--bg);font-size:0.72rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-family:var(--M, inherit);}
+.acciones-det::before{
+  content:'';position:absolute;inset:0;border-radius:8px;border:2px solid var(--gold);
+  pointer-events:none;opacity:0;
+  animation:accionesAnillo 3.2s ease-out 0.4s infinite;
+}
+.acciones-det[open]::before{visibility:hidden;}
+@keyframes accionesAnillo{
+  0%{inset:0;opacity:0.85;}
+  55%{inset:-9px;opacity:0;}
+  100%{inset:-9px;opacity:0;}
+}
+
+/* v5.53 — listado de proyectos: borde de estado, atenuado, avisos y vista Tarjetas | Lista */
+.est-ok{--est:var(--ok);}
+.est-warn{--est:var(--warn);}
+.est-err{--est:var(--err);}
+.card.proy-card{border-left:4px solid var(--est,var(--brd));}
+.card.proy-card:hover{border-left-color:var(--est,var(--gold));}
+.card.proy-card.fin,.proy-fila.fin{opacity:0.75;}
+.card.proy-card.fin:hover,.proy-fila.fin:hover{opacity:1;}
+.proy-avisos{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px;}
+.proy-aviso{font-size:0.68rem;padding:2px 8px;border-radius:20px;font-weight:600;background:rgba(217,164,65,0.15);color:var(--warn);white-space:nowrap;}
+.top-actions{gap:12px;}
+.vista-toggle{display:inline-flex;border:1px solid var(--brd);border-radius:8px;overflow:hidden;flex-shrink:0;}
+.vista-toggle button{min-height:44px;padding:0 14px;background:transparent;border:0;color:var(--muted);font-size:0.82rem;font-family:inherit;cursor:pointer;}
+.vista-toggle button + button{border-left:1px solid var(--brd);}
+.vista-toggle button.activo{background:var(--gold-bg);color:var(--gold);font-weight:600;}
+.grid.proy-lista{display:flex;flex-direction:column;gap:6px;}
+.proy-fila{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main badge" "chips acc";gap:6px 10px;align-items:center;background:var(--surf);border:1px solid var(--brd);border-left:4px solid var(--est,var(--brd));border-radius:8px;padding:10px 12px;cursor:pointer;transition:border-color 0.2s,background 0.2s;}
+.proy-fila:hover{border-color:var(--gold);border-left-color:var(--est,var(--gold));background:var(--surf-light);}
+.pf-main{grid-area:main;min-width:0;}
+.pf-titulo{font-size:0.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pf-sub{font-size:0.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pf-badge{grid-area:badge;justify-self:end;}
+.pf-chips{grid-area:chips;display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0;}
+.pf-chip{font-size:0.75rem;color:var(--gold);border:1px solid var(--brd);padding:3px 10px;border-radius:6px;background:var(--surf-light);white-space:nowrap;}
+.pf-saldo{font-size:0.78rem;color:var(--warn);font-weight:600;white-space:nowrap;}
+.pf-acc{grid-area:acc;display:flex;gap:8px;justify-content:flex-end;}
+.proy-fila .btn-ir-sesiones{width:44px;height:44px;}
+.pf-extra,.pf-avisos,.pf-comercial{display:none;}
+@media (min-width:641px){
+  .proy-fila{display:flex;gap:14px;padding:10px 14px;}
+  .pf-main{flex:1 1 0;}
+  .pf-extra{display:block;flex:0 0 auto;font-size:0.78rem;color:var(--muted);white-space:nowrap;}
+  .pf-chips{flex:0 0 auto;}
+  .pf-comercial{display:inline-block;}
+  .pf-avisos{display:flex;gap:6px;flex:0 0 auto;}
+  .pf-badge{flex:0 0 auto;}
+  .pf-acc{flex:0 0 auto;}
+}
 
 /* V4.10: bloque reubicado aquí (antes vivía arriba, antes de .row2/.pdf-actions/
    .modal, por lo que esas reglas base lo anulaban al aparecer después en la
@@ -1460,6 +1610,14 @@ main{padding:28px;max-width:1200px;margin:0 auto;}
   50%  { transform:translate(-50%,-50%) rotate(405deg); }
   100% { transform:translate(-50%,-50%) rotate(360deg); }
 }
+/* v5.48 — portal compartido */
+.pc-sec{border-top:1px solid var(--brd);padding-top:14px;margin-top:16px;}
+.pc-sec h3{font-size:0.78rem;color:var(--muted);font-weight:500;margin:0 0 10px;letter-spacing:0.04em;text-transform:uppercase;}
+.pc-fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.pc-fila input{flex:1;min-width:180px;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);padding:10px 12px;border-radius:6px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;}
+.pc-cod{font-family:'JetBrains Mono',monospace;font-size:1.15rem;letter-spacing:0.12em;color:var(--gold);}
+.pc-aviso{font-size:0.8rem;color:var(--muted);line-height:1.45;margin:0;}
+.pc-resp{background:var(--surf-light);border:1px solid var(--brd);border-radius:8px;padding:12px;font-size:0.88rem;line-height:1.45;}
 </style>
 </head>
 <body>
@@ -1511,6 +1669,10 @@ window.NAV_CONFIG = {
   <div id="vistaListado">
     <div class="top-actions">
       <h2>PROYECTOS ACTIVOS</h2>
+      <div class="vista-toggle" role="group" aria-label="Vista del listado">
+        <button type="button" id="vistaBtnTarjetas" class="activo" aria-pressed="true" onclick="setVistaProyectos('tarjetas')">▦ Tarjetas</button>
+        <button type="button" id="vistaBtnLista" aria-pressed="false" onclick="setVistaProyectos('lista')">☰ Lista</button>
+      </div>
     </div>
     <div class="grid" id="gridProyectos"></div>
     <div class="empty" id="emptyState" style="display:none;">No hay proyectos aún. Crea el primero.</div>
@@ -1519,18 +1681,38 @@ window.NAV_CONFIG = {
   <!-- DETALLE -->
   <div class="detalle" id="vistaDetalle">
     <span class="back-link" id="backLink" onclick="volverListado()">← Volver a proyectos</span>
+    <!-- v5.51: acciones del proyecto (antes al final de la hoja, en dos filas .pdf-actions) -->
+    <details class="acciones-det" id="accionesDet">
+      <summary><span class="acciones-tit">⚡ Acciones</span><span class="acciones-cuenta" aria-label="9 acciones">9</span></summary>
+      <div class="acciones-cuerpo">
+        <div class="acciones-grupo">
+          <div class="acciones-rotulo">Documentos</div>
+          <div class="acciones-btns">
+            <button class="btn" onclick="exportarPDF('cliente')">📄 PDF Cliente</button>
+            <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
+            <button class="btn btn-ghost" onclick="editarProyectoActual()">✎ Editar</button>
+          </div>
+        </div>
+        <div class="acciones-grupo">
+          <div class="acciones-rotulo">Herramientas</div>
+          <div class="acciones-btns">
+            <button class="btn btn-ghost" onclick="window.open('cotizacion-rapida.html?id=' + proyectoActualId, '_blank')">🧾 Cotizador</button>
+            <button class="btn btn-ghost" onclick="window.open('produccion.html?id=' + proyectoActualId, '_blank')">🎵 Producción</button>
+            <button class="btn btn-ghost" onclick="window.open('checklist.html?id=' + proyectoActualId, '_blank')">✅ Checklist</button>
+          </div>
+        </div>
+        <div class="acciones-grupo">
+          <div class="acciones-rotulo">Equipo y accesos</div>
+          <div class="acciones-btns">
+            <button class="btn btn-ghost" onclick="abrirModalIngenieros()">🎧 Ingenieros</button>
+            <button class="btn btn-ghost" onclick="abrirModalMusicos()">🎸 Músicos (portal)</button>
+            <button class="btn btn-ghost" id="btnPortalCompartido" onclick="pcAbrirModal()">🔗 Portal compartido</button>
+          </div>
+        </div>
+      </div>
+    </details>
     <div class="detalle-head" id="detalleContent"></div>
     <div id="print-view" style="display:none;"></div>
-    <div class="pdf-actions">
-      <button class="btn" onclick="exportarPDF('cliente')">📄 PDF Cliente</button>
-      <button class="btn btn-ghost" onclick="exportarPDF('interno')">📄 PDF Interno</button>
-      <button class="btn btn-ghost" onclick="editarProyectoActual()">✎ Editar</button>
-      <button class="btn btn-ghost" onclick="window.open('cotizacion-rapida.html?id=' + proyectoActualId, '_blank')">🧾 Cotizador</button>
-      <button class="btn btn-ghost" onclick="window.open('produccion.html?id=' + proyectoActualId, '_blank')">🎵 Producción</button>
-      <button class="btn btn-ghost" onclick="window.open('checklist.html?id=' + proyectoActualId, '_blank')">✅ Checklist</button>
-      <button class="btn btn-ghost" onclick="abrirModalIngenieros()">🎧 Ingenieros</button>
-      <button class="btn btn-ghost" onclick="abrirModalMusicos()">🎸 Músicos (portal)</button>
-    </div>
   </div>
 
 </main>
@@ -1772,6 +1954,17 @@ window.NAV_CONFIG = {
   </div>
 </div>
 
+<!-- v5.48: modal del portal compartido (el contenido lo pinta pcRender()) -->
+<div class="modal-bg" id="modalPortalCompBg" onclick="if(event.target===this)pcCerrarModal()">
+  <div class="modal">
+    <h2>🔗 Portal compartido</h2>
+    <div id="pcContenido"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="pcCerrarModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============ FIREBASE CONFIG ============
 // TU_CONFIG_AQUI — reemplaza con el config real de tu proyecto Firebase
@@ -1864,6 +2057,13 @@ if(estaModoOfflineActivo()){
 
 // ============ ESTADO ============
 let proyectos = [];
+
+// v5.53: vista del listado de proyectos ('tarjetas' | 'lista'), recordada en el dispositivo.
+// Declarada aquí arriba (junto a `proyectos`) para que renderListado() la encuentre inicializada.
+const CLAVE_VISTA_PROY = 'audiolink_vista_proyectos';
+let vistaProyectos = (function(){
+  try{ return localStorage.getItem(CLAVE_VISTA_PROY) === 'lista' ? 'lista' : 'tarjetas'; }catch(e){ return 'tarjetas'; }
+})();
 let proyectoActualId = null;
 let editando = false;
 // v5.25: si la URL trae ?fecha= sin ?id=, se guarda acá una sola vez al
@@ -2041,6 +2241,7 @@ db.collectionGroup('cotizaciones').where('estado', '==', 'aceptada')
 function refrescarDetalleSiActivo(){
   if(proyectoActualId && document.getElementById('vistaDetalle').classList.contains('active')){
     renderDetalleContent();
+    pcProgramarSnapshot(); // v5.48: portal compartido (debounce; solo escribe si cambió)
   }
 }
 
@@ -2837,10 +3038,34 @@ function abrirModalNuevoConFecha(){
   if(fechaParamGlobal) document.getElementById('fFechaEntrega').value = fechaParamGlobal;
 }
 
+// v5.53: cambia la vista del listado y la recuerda en el dispositivo.
+function setVistaProyectos(v){
+  vistaProyectos = (v === 'lista') ? 'lista' : 'tarjetas';
+  try{ localStorage.setItem(CLAVE_VISTA_PROY, vistaProyectos); }catch(e){}
+  renderListado();
+}
+
+// v5.53: avisos ⚠ de un proyecto (solo datos que ya existen). No aplican a finalizados;
+// "Sin cliente" no aplica a proyectos propios.
+function avisosProyecto(p){
+  if(p.estadoComercial === 'finalizado') return [];
+  const av = [];
+  if(!p.fechaEntregaEstimada) av.push('Sin fecha de entrega');
+  if(p.tipo !== 'propio' && !String(p.clienteArtista || '').trim()) av.push('Sin cliente');
+  return av;
+}
+
 function renderListado(){
   const grid = document.getElementById('gridProyectos');
   const empty = document.getElementById('emptyState');
   renderBannerFechaRapida();
+  const enLista = vistaProyectos === 'lista';
+  // v5.53: sincroniza conmutador y clase del contenedor
+  grid.className = enLista ? 'grid proy-lista' : 'grid';
+  const bT = document.getElementById('vistaBtnTarjetas');
+  const bL = document.getElementById('vistaBtnLista');
+  if(bT){ bT.classList.toggle('activo', !enLista); bT.setAttribute('aria-pressed', String(!enLista)); }
+  if(bL){ bL.classList.toggle('activo', enLista); bL.setAttribute('aria-pressed', String(enLista)); }
   if(proyectos.length === 0){
     grid.innerHTML = '';
     empty.style.display = 'block';
@@ -2870,25 +3095,62 @@ function renderListado(){
     const destinoClick = fechaParamGlobal
       ? `window.location.href='logistica.html?id=${p.id}&fecha=${fechaParamGlobal}'`
       : `verDetalle('${p.id}')`;
+    // v5.53: clases de estado y atenuado (compartidas por tarjeta y fila)
+    const est = ['ok', 'warn', 'err'].includes(p.estado) ? p.estado : 'ok';
+    const fin = p.estadoComercial === 'finalizado';
+    const avisos = avisosProyecto(p);
+    const etapaTxt = ETAPAS_LABEL[p.etapaActual] || p.etapaActual || '—';
+    const comercialTxt = COMERCIAL_LABEL[p.estadoComercial] || 'Cotización';
+    const botonesHtml = `
+          <a href="logistica.html?id=${p.id}" class="btn-ir-sesiones" title="Ver sesiones" onclick="event.stopPropagation()">📅</a>
+          <a href="javascript:void(0)" class="btn-ir-sesiones" title="Descargar proyecto (modo offline)" onclick="event.stopPropagation(); descargarProyectoOffline('${p.id}')">📥</a>`;
+
+    if(enLista){
+      const clienteTxt = p.clienteArtista || (p.tipo === 'propio' ? 'Proyecto propio' : '—');
+      const extraFila = [
+        fechaEntregaLegible ? '📅 ' + fechaEntregaLegible : '',
+        p.cantTemas ? '🎵 ' + p.cantTemas + ' tema' + (p.cantTemas === 1 ? '' : 's') : ''
+      ].filter(Boolean).join(' · ');
+      return `
+    <div class="proy-fila est-${est}${fin ? ' fin' : ''}" onclick="${destinoClick}">
+      <div class="pf-main">
+        <div class="pf-titulo">${escapeHtml(p.nombre || 'Sin nombre')}</div>
+        <div class="pf-sub">${escapeHtml(clienteTxt)}</div>
+      </div>
+      ${extraFila ? `<div class="pf-extra">${extraFila}</div>` : ''}
+      <div class="pf-chips">
+        <span class="pf-chip">${etapaTxt}</span>
+        <span class="pf-chip pf-comercial">${comercialTxt}</span>
+        ${(r && r.saldo > 0) ? `<span class="pf-saldo">💰 ${formatCOP(r.saldo)}</span>` : ''}
+      </div>
+      ${avisos.length ? `<div class="pf-avisos">${avisos.map(a => `<span class="proy-aviso">⚠ ${a}</span>`).join('')}</div>` : ''}
+      <span class="badge ${p.estado || 'ok'} pf-badge">${p.estado || 'ok'}</span>
+      <div class="pf-acc">${botonesHtml}
+      </div>
+    </div>`;
+    }
+
+    const avisosHtml = avisos.length
+      ? `<div class="proy-avisos">${avisos.map(a => `<span class="proy-aviso">⚠ ${a}</span>`).join('')}</div>`
+      : '';
     return `
-    <div class="card" onclick="${destinoClick}">
+    <div class="card proy-card est-${est}${fin ? ' fin' : ''}" onclick="${destinoClick}">
       <div class="card-top">
         <div>
           <span class="tipo-tag">${p.tipo === 'propio' ? 'Proyecto propio' : escapeHtml(p.clienteArtista || 'Cliente')}</span>
           <h3>${escapeHtml(p.nombre || 'Sin nombre')}</h3>
         </div>
         <div class="card-top-actions">
-          <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>
-          <a href="logistica.html?id=${p.id}" class="btn-ir-sesiones" title="Ver sesiones" onclick="event.stopPropagation()">📅</a>
-          <a href="javascript:void(0)" class="btn-ir-sesiones" title="Descargar proyecto (modo offline)" onclick="event.stopPropagation(); descargarProyectoOffline('${p.id}')">📥</a>
+          <span class="badge ${p.estado || 'ok'}">${p.estado || 'ok'}</span>${botonesHtml}
         </div>
       </div>
       <div class="meta">${escapeHtml(p.clienteArtista || '—')}</div>
       <div class="meta">Prod. ejecutivo: ${escapeHtml(p.productorEjecutivo || '—')}</div>
       ${extraHtml}
       ${saldoHtml}
-      <span class="etapa">${ETAPAS_LABEL[p.etapaActual] || p.etapaActual || '—'}</span>
-      <span class="etapa" style="margin-left:6px;">${COMERCIAL_LABEL[p.estadoComercial] || 'Cotización'}</span>
+      ${avisosHtml}
+      <span class="etapa">${etapaTxt}</span>
+      <span class="etapa" style="margin-left:6px;">${comercialTxt}</span>
     </div>
   `;
   }).join('');
@@ -3100,6 +3362,7 @@ function verDetalle(id){
 
   if(cambioDeProyecto) suscribirDashboardDetalle(id);
   if(cambioDeProyecto) cargarEgresosProyecto(id);
+  if(cambioDeProyecto) pcCambioProyecto(id); // v5.48: portal compartido
   renderDetalleContent();
 }
 
@@ -3266,6 +3529,7 @@ function volverListado(){
   resumenEgresosProyecto = null;
   desuscribirEgresosProyecto();
   desuscribirDashboardDetalle();
+  pcDesuscribir(); // v5.48: portal compartido
 }
 
 function editarProyectoActual(){
@@ -4160,6 +4424,569 @@ function refrescarModalTemasSiActivo(){
   if(document.getElementById('modalTemasBg')?.classList.contains('active')){
     renderListaTemasModal();
   }
+}
+
+/* ============ PORTAL COMPARTIDO (v5.48) ============
+   Enlace para que el cliente vea el proyecto sin login (portal-compartido.html?t=TOKEN).
+   Escribe una COPIA filtrada del proyecto en portalCompartidos/{token} (reglas v2.49); nunca
+   abre proyectos, cotizaciones ni pagos reales. Todo lo de este bloque lleva prefijo pc/PC.
+   Fuentes (ya en memoria, sin lecturas nuevas): proyectos[], sesionesDash y tomasPorSesionDash.
+   Listeners nuevos (solo si el proyecto abierto TIENE enlace): el enlace (consulta por proyectoId),
+   financiero/, respuesta, cotizaciones y pagos de ese proyecto. Se cierran al salir del detalle.
+   Actualización (opción B): cada cambio espera PC.espera ms y reescribe solo si el contenido
+   cambió (comparación estable); no hay actualización si nadie tiene el proyecto abierto. */
+var PC = {
+  BASE: 'https://audiolink-marto.github.io/AUDIOLINK/portal-compartido.html',
+  ALFA_TOKEN: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+  ALFA_COD: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', // sin I, O, 0, 1 (32 símbolos)
+  LARGO_TOKEN: 32,
+  LARGO_COD: 10,
+  espera: 3000,   // debounce de la actualización automática
+  gracia: 5000,   // tras abrir el proyecto, no se reescribe hasta que lleguen sesiones y tomas
+  proyectoId: null, abiertoEn: 0,
+  portal: null,           // { token, data } del enlace del proyecto abierto
+  codigo: null, codigoCreado: null, finData: null,
+  respuesta: null,
+  cotizDocs: [], pagosDocs: [],
+  listo: { fin: false, cotiz: false, pagos: false },
+  firmaPortal: null, firmaFin: null,
+  unsubPortal: null, unsubFin: null, unsubResp: null, unsubCotiz: null, unsubPagos: null,
+  timer: null, ocupado: false, pendiente: false
+};
+
+function pcRefPortal(token){ return db.collection('portalCompartidos').doc(token); }
+function pcMs(ts){ return ts && ts.toMillis ? ts.toMillis() : 0; }
+function pcTS(){ return firebase.firestore.FieldValue.serverTimestamp(); }
+function pcOpc(){ return { serverTimestamps: 'estimate' }; }
+
+// Aleatorio criptográfico sin sesgo de módulo (descarta bytes que no caben en el alfabeto)
+function pcAleatorio(alfa, n){
+  const lim = 256 - (256 % alfa.length);
+  const out = [];
+  while(out.length < n){
+    const buf = new Uint8Array(n * 2);
+    crypto.getRandomValues(buf);
+    for(let i = 0; i < buf.length && out.length < n; i++){
+      if(buf[i] < lim) out.push(alfa[buf[i] % alfa.length]);
+    }
+  }
+  return out.join('');
+}
+function pcFormatoCodigo(c){ return c && c.length === 10 ? c.slice(0, 5) + '-' + c.slice(5) : (c || ''); }
+function pcUrl(token){ return PC.BASE + '?t=' + token; }
+
+// JSON con llaves ordenadas: Firestore devuelve los mapas ordenados alfabéticamente
+function pcJsonEstable(v){
+  if(Array.isArray(v)) return '[' + v.map(pcJsonEstable).join(',') + ']';
+  if(v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + pcJsonEstable(v[k])).join(',') + '}';
+  return JSON.stringify(v === undefined ? null : v);
+}
+function pcSinMeta(d){ const o = Object.assign({}, d); delete o.actualizadoEn; return o; }
+
+// ---- Armado del snapshot (lista blanca: lo mismo que portal.html ya le muestra al cliente) ----
+function pcArmarProyecto(p){
+  return {
+    nombre: p.nombre || '',
+    clienteArtista: p.clienteArtista || '',
+    productorEjecutivo: p.productorEjecutivo || '',
+    cantTemas: Number(p.cantTemas) || 0,
+    fechaEntregaEstimada: p.fechaEntregaEstimada ? String(p.fechaEntregaEstimada).split('T')[0] : '',
+    etapaActual: p.etapaActual || '',
+    estadoComercial: p.estadoComercial || '',
+    narrativa: p.narrativa || ''
+  };
+}
+function pcArmarSesiones(){
+  return sesionesDash
+    .filter(s => s.visibleCliente === true && s.fecha)
+    .slice()
+    .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.horaInicio || '').localeCompare(String(b.horaInicio || '')))
+    .map(s => {
+      const tomas = tomasPorSesionDash[s.id] || [];
+      const lista = (arr, extra) => (Array.isArray(arr) ? arr : []).filter(x => x && x.nombre)
+        .map(x => ({ nombre: String(x.nombre), [extra]: x[extra] ? String(x[extra]) : '' }));
+      return {
+        fecha: String(s.fecha),
+        horaInicio: s.horaInicio || '',
+        horaFin: s.horaFin || '',
+        tiempoSetupMin: Number(s.tiempoSetupMin) || 0,
+        temaNombre: s.temaNombre || '',
+        actividad: s.actividad || '',
+        estudioNombre: s.estudioNombre || '',
+        sala: s.sala || '',
+        musicosAsignados: lista(s.musicosAsignados, 'instrumento'),
+        tecnicosAsignados: lista(s.tecnicosAsignados, 'rol'),
+        tomasTotal: tomas.length,
+        tomasUsar: tomas.filter(t => t.usar === true).length
+      };
+    });
+}
+// v5.49: maquetas visibles para el cliente, agrupadas por tema (mismo criterio que portal.html v2.28)
+function pcArmarMaquetas(){
+  const ids = new Set(sesionesDash.filter(s => s.visibleCliente === true && s.fecha && s.temaId).map(s => s.temaId));
+  return temasDash
+    .filter(t => ids.has(t.id))
+    .sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity) || String(a.nombre || '').localeCompare(String(b.nombre || '')))
+    .map(t => ({
+      tema: String(t.nombre || '').trim() || 'Tema',
+      items: (Array.isArray(t.practicaMaquetas) ? t.practicaMaquetas : [])
+        .filter(m => m && m.visibleCliente === true && /^https?:\/\//i.test(String(m.url || '').trim()))
+        .map(m => ({
+          etiqueta: String(m.etiqueta || '').trim(),
+          instrumento: String(m.instrumento || '').trim(),
+          tipo: m.tipo === 'youtube' ? 'youtube' : 'audio',
+          url: String(m.url).trim()
+        }))
+    }))
+    .filter(g => g.items.length);
+}
+// Misma elección que portal.html: la aceptada tiene prioridad; si no hay, la enviada más reciente. Nunca borradores.
+function pcElegirCotizacion(docs){
+  const validas = (docs || []).filter(c => c.estado === 'aceptada' || c.estado === 'enviada')
+    .sort((a, b) => pcMs(b.creadoEn) - pcMs(a.creadoEn));
+  return validas.find(c => c.estado === 'aceptada') || validas[0] || null;
+}
+function pcArmarFinanciero(c, pagos){
+  const fmtFecha = f => f.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+  const emision = c.creadoEn && c.creadoEn.toDate ? fmtFecha(c.creadoEn.toDate()) : '';
+  let validez = '';
+  if(c.validez){
+    const dv = c.validez.toDate ? c.validez.toDate() : new Date(String(c.validez).length <= 10 ? c.validez + 'T00:00:00' : c.validez);
+    if(!isNaN(dv)) validez = fmtFecha(dv);
+  }
+  const aceptada = c.estado === 'aceptada';
+  return {
+    cotizacionId: c.id,
+    aceptada: aceptada,
+    total: Number(c.total) || 0,
+    items: (Array.isArray(c.items) ? c.items : []).map(it => ({ concepto: String(it.concepto || ''), cantidad: Number(it.cantidad) || 0, precio: Number(it.precio) || 0 })),
+    detalleLabor: c.detalleLabor || '',
+    notas: c.notas || '',
+    metaLinea: [emision ? 'Emitida el ' + emision : '', validez ? 'Válida hasta ' + validez : ''].filter(Boolean).join(' · '),
+    // La `nota` de cada pago es interna y NUNCA entra
+    pagos: aceptada
+      ? (pagos || []).filter(p => p.cotizacionId === c.id)
+          .map(p => ({ monto: Number(p.monto) || 0, fecha: p.fecha || '', metodo: p.metodo || '', comprobanteUrl: p.comprobanteUrl || '' }))
+          .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)))
+      : []
+  };
+}
+
+// ---- Suscripciones (solo del proyecto abierto) ----
+function pcSoltarDetalle(){
+  ['unsubFin', 'unsubResp', 'unsubCotiz', 'unsubPagos'].forEach(k => { if(PC[k]){ PC[k](); PC[k] = null; } });
+  PC.codigo = null; PC.codigoCreado = null; PC.finData = null; PC.respuesta = null;
+  PC.cotizDocs = []; PC.pagosDocs = [];
+  PC.listo = { fin: false, cotiz: false, pagos: false };
+  PC.firmaFin = null;
+}
+function pcDesuscribir(){
+  if(!PC) return;
+  if(PC.timer){ clearTimeout(PC.timer); PC.timer = null; }
+  if(PC.unsubPortal){ PC.unsubPortal(); PC.unsubPortal = null; }
+  pcSoltarDetalle();
+  PC.portal = null; PC.proyectoId = null; PC.firmaPortal = null; PC.pendiente = false;
+  pcCerrarModal();
+  pcActualizarBoton();
+}
+function pcCambioProyecto(id){
+  if(!PC) return;
+  pcDesuscribir();
+  PC.proyectoId = id;
+  PC.abiertoEn = Date.now();
+  if(estaModoOfflineActivo()) return;
+  PC.unsubPortal = db.collection('portalCompartidos').where('proyectoId', '==', id).onSnapshot(snap => {
+    if(PC.proyectoId !== id) return;
+    const docs = snap.docs.slice().sort((a, b) => pcMs(b.data(pcOpc()).creadoEn) - pcMs(a.data(pcOpc()).creadoEn));
+    const d = docs[0];
+    if(!d){
+      pcSoltarDetalle();
+      PC.portal = null; PC.firmaPortal = null;
+      pcActualizarBoton(); pcRender();
+      return;
+    }
+    const data = d.data(pcOpc());
+    const cambioToken = !PC.portal || PC.portal.token !== d.id;
+    PC.portal = { token: d.id, data: data };
+    PC.firmaPortal = pcJsonEstable({ proyecto: data.proyecto || {}, sesiones: data.sesiones || [], maquetas: data.maquetas || [], tieneFinanciero: data.tieneFinanciero === true });
+    if(cambioToken) pcSuscribirDetalle(d.id);
+    pcActualizarBoton(); pcRender();
+  }, err => console.error('Portal compartido: error leyendo el enlace del proyecto:', err));
+}
+function pcSuscribirDetalle(token){
+  pcSoltarDetalle();
+  const id = PC.proyectoId;
+  const ref = pcRefPortal(token);
+  PC.unsubFin = ref.collection('financiero').onSnapshot(snap => {
+    const d = snap.docs[0];
+    const nuevo = d ? d.id : null;
+    PC.finData = d ? d.data(pcOpc()) : null;
+    PC.firmaFin = PC.finData ? pcJsonEstable(pcSinMeta(PC.finData)) : null;
+    PC.listo.fin = true;
+    if(nuevo !== PC.codigo){
+      PC.codigo = nuevo;
+      if(nuevo && nuevo === PC.codigoCreado) PC.codigoCreado = null;
+      if(PC.unsubResp){ PC.unsubResp(); PC.unsubResp = null; }
+      PC.respuesta = null;
+      if(nuevo){
+        PC.unsubResp = ref.collection('financiero').doc(nuevo).collection('respuestas').doc('respuesta').onSnapshot(r => {
+          PC.respuesta = r.exists ? r.data(pcOpc()) : null;
+          pcActualizarBoton(); pcRender();
+        }, err => console.error('Portal compartido: error leyendo la respuesta del cliente:', err));
+      }
+    }
+    pcActualizarBoton(); pcRender();
+  }, err => console.error('Portal compartido: error leyendo financiero:', err));
+  PC.unsubCotiz = proyectosRef.doc(id).collection('cotizaciones').where('estado', 'in', ['aceptada', 'enviada']).onSnapshot(snap => {
+    PC.cotizDocs = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    PC.listo.cotiz = true;
+    pcProgramarSnapshot(); pcRender();
+  }, err => console.error('Portal compartido: error leyendo cotizaciones:', err));
+  PC.unsubPagos = proyectosRef.doc(id).collection('pagos').onSnapshot(snap => {
+    PC.pagosDocs = snap.docs.map(d => d.data());
+    PC.listo.pagos = true;
+    pcProgramarSnapshot(); pcRender();
+  }, err => console.error('Portal compartido: error leyendo pagos:', err));
+}
+
+// ---- Actualización del snapshot ----
+function pcProgramarSnapshot(){
+  if(!PC || !PC.portal || PC.portal.data.visibleCliente !== true) return;
+  if(PC.proyectoId !== proyectoActualId) return;
+  if(PC.timer) clearTimeout(PC.timer);
+  PC.timer = setTimeout(() => { PC.timer = null; pcReconstruir(false); }, PC.espera);
+}
+function pcListo(){ return PC.listo.fin && PC.listo.cotiz && PC.listo.pagos; }
+
+async function pcReconstruir(forzar){
+  if(!PC || !PC.portal) return false;
+  if(PC.ocupado){ PC.pendiente = true; return false; }
+  if(!forzar){
+    if(PC.portal.data.visibleCliente !== true) return false;
+    if(!pcListo() || Date.now() - PC.abiertoEn < PC.gracia){
+      if(PC.timer) clearTimeout(PC.timer);
+      PC.timer = setTimeout(() => { PC.timer = null; pcReconstruir(false); }, 2000);
+      return false;
+    }
+  } else if(!pcListo()){
+    toast('Cargando datos del proyecto… intenta de nuevo en unos segundos.', 'warn');
+    return false;
+  }
+  const idProy = PC.proyectoId, token = PC.portal.token;
+  const p = proyectos.find(x => x.id === idProy);
+  if(!p) return false;
+  PC.ocupado = true;
+  let ok = false;
+  try{
+    const ts = pcTS();
+    const base = { proyecto: pcArmarProyecto(p), sesiones: pcArmarSesiones(), maquetas: pcArmarMaquetas() };
+    const cot = pcElegirCotizacion(PC.cotizDocs);
+    const fin = cot ? pcArmarFinanciero(cot, PC.pagosDocs) : null;
+    base.tieneFinanciero = !!fin;
+    const firma = pcJsonEstable(base);
+    const firmaFin = fin ? pcJsonEstable(fin) : null;
+    const ref = pcRefPortal(token);
+    let codigo = PC.codigo || PC.codigoCreado || null;
+    // 1) financiero primero: el botón del cliente nunca apunta a un documento que no existe todavía
+    if(fin){
+      if(!codigo){
+        codigo = pcAleatorio(PC.ALFA_COD, PC.LARGO_COD);
+        PC.codigoCreado = codigo;
+        await ref.collection('financiero').doc(codigo).set(Object.assign({}, fin, { actualizadoEn: ts }));
+      } else if(firmaFin !== PC.firmaFin){
+        // solo si el contenido cambió: actualizadoEn marca la última vez que la cotización visible cambió de verdad
+        await ref.collection('financiero').doc(codigo).set(Object.assign({}, fin, { actualizadoEn: ts }));
+      }
+    }
+    // 2) documento del enlace
+    if(forzar || firma !== PC.firmaPortal){
+      await ref.update(Object.assign({}, base, { actualizadoEn: ts }));
+    }
+    // 3) sin cotización visible: se retira lo financiero
+    if(!fin && codigo){
+      await pcBorrarFinanciero(token);
+      PC.codigoCreado = null;
+    }
+    PC.firmaPortal = firma;
+    ok = true;
+  } catch(err){
+    console.error('Portal compartido: no se pudo actualizar el snapshot:', err);
+    if(forzar) toast('No se pudo actualizar el portal compartido. Revisa la consola.', 'error');
+  }
+  PC.ocupado = false;
+  if(PC.pendiente){ PC.pendiente = false; pcProgramarSnapshot(); }
+  return ok;
+}
+
+async function pcBorrarFinanciero(token){
+  const ref = pcRefPortal(token);
+  const s = await ref.collection('financiero').get();
+  for(const d of s.docs){
+    await d.ref.collection('respuestas').doc('respuesta').delete();
+    await d.ref.delete();
+  }
+}
+// Borra primero el documento del enlace (corta el acceso) y después lo que cuelga de él
+async function pcBorrarPortal(token){
+  const ref = pcRefPortal(token);
+  const s = await ref.collection('financiero').get();
+  await ref.delete();
+  for(const d of s.docs){
+    await d.ref.collection('respuestas').doc('respuesta').delete();
+    await d.ref.delete();
+  }
+}
+
+// Crea el enlace (y el documento financiero si hay cotización visible). Lecturas puntuales: aún no hay listeners.
+async function pcCrearPortal(visible){
+  const id = PC.proyectoId;
+  const p = proyectos.find(x => x.id === id);
+  if(!p) throw new Error('Proyecto no encontrado');
+  const [cs, ps] = await Promise.all([
+    proyectosRef.doc(id).collection('cotizaciones').where('estado', 'in', ['aceptada', 'enviada']).get(),
+    proyectosRef.doc(id).collection('pagos').get()
+  ]);
+  const cot = pcElegirCotizacion(cs.docs.map(d => Object.assign({ id: d.id }, d.data())));
+  const fin = cot ? pcArmarFinanciero(cot, ps.docs.map(d => d.data())) : null;
+  const token = pcAleatorio(PC.ALFA_TOKEN, PC.LARGO_TOKEN);
+  const ts = pcTS();
+  const ref = pcRefPortal(token);
+  if(fin){
+    const codigo = pcAleatorio(PC.ALFA_COD, PC.LARGO_COD);
+    await ref.collection('financiero').doc(codigo).set(Object.assign({}, fin, { actualizadoEn: ts }));
+  }
+  await ref.set(Object.assign({
+    proyectoId: id, visibleCliente: visible, creadoEn: ts, actualizadoEn: ts
+  }, { proyecto: pcArmarProyecto(p), sesiones: pcArmarSesiones(), maquetas: pcArmarMaquetas(), tieneFinanciero: !!fin }));
+  return token;
+}
+
+// ---- Acciones del modal ----
+async function pcGenerarEnlace(){
+  if(!PC.proyectoId || PC.portal) return;
+  try{
+    await pcCrearPortal(true);
+    toast('🔗 Enlace generado', 'ok');
+  } catch(err){
+    console.error('Portal compartido: no se pudo generar el enlace:', err);
+    alert('No se pudo generar el enlace. Revisa que las reglas v2.49 estén publicadas.');
+  }
+}
+async function pcAlternarPausa(){
+  if(!PC.portal) return;
+  const activo = PC.portal.data.visibleCliente === true;
+  if(activo && !confirm('¿Pausar el enlace? El cliente verá "Este enlace no está disponible" hasta que lo reanudes.')) return;
+  try{
+    await pcRefPortal(PC.portal.token).update({ visibleCliente: !activo, actualizadoEn: pcTS() });
+    if(!activo){
+      PC.portal.data.visibleCliente = true;
+      await pcReconstruir(true);
+    }
+    toast(activo ? 'Enlace pausado' : 'Enlace reanudado', 'ok');
+  } catch(err){
+    console.error('Portal compartido: no se pudo cambiar el estado:', err);
+    alert('No se pudo cambiar el estado del enlace.');
+  }
+}
+async function pcActualizarAhora(){
+  if(!PC.portal) return;
+  if(PC.ocupado){ toast('Ya se está actualizando…', 'warn'); return; }
+  const ok = await pcReconstruir(true);
+  if(ok) toast('Portal actualizado', 'ok');
+}
+async function pcRegenerarEnlace(){
+  if(!PC.portal) return;
+  if(!confirm('¿Regenerar el enlace? El enlace actual y su código financiero dejarán de funcionar, y se descartará cualquier respuesta pendiente del cliente.')) return;
+  const viejo = PC.portal.token;
+  const visible = PC.portal.data.visibleCliente === true;
+  try{
+    await pcCrearPortal(visible);
+    await pcBorrarPortal(viejo);
+    toast('🔗 Enlace regenerado', 'ok');
+  } catch(err){
+    console.error('Portal compartido: no se pudo regenerar el enlace:', err);
+    alert('No se pudo regenerar el enlace. Revisa la consola.');
+  }
+}
+async function pcRevocarEnlace(){
+  if(!PC.portal) return;
+  if(!confirm('¿Revocar el enlace? Se borra el enlace, el código financiero y cualquier respuesta pendiente. El cliente ya no podrá verlo.')) return;
+  try{
+    await pcBorrarPortal(PC.portal.token);
+    toast('Enlace revocado', 'ok');
+  } catch(err){
+    console.error('Portal compartido: no se pudo revocar el enlace:', err);
+    alert('No se pudo revocar el enlace. Revisa la consola.');
+  }
+}
+async function pcRegenerarCodigo(){
+  if(!PC.portal || !PC.codigo) return;
+  const aviso = PC.respuesta ? ' Hay una respuesta pendiente del cliente: se descartará.' : '';
+  if(!confirm('¿Generar un código financiero nuevo? El código actual dejará de funcionar.' + aviso)) return;
+  const ref = pcRefPortal(PC.portal.token);
+  const viejo = PC.codigo;
+  try{
+    const s = await ref.collection('financiero').doc(viejo).get();
+    if(!s.exists){ alert('No se encontró el documento financiero actual.'); return; }
+    const nuevo = pcAleatorio(PC.ALFA_COD, PC.LARGO_COD);
+    await ref.collection('financiero').doc(nuevo).set(Object.assign({}, s.data(), { actualizadoEn: pcTS() }));
+    await ref.collection('financiero').doc(viejo).collection('respuestas').doc('respuesta').delete();
+    await ref.collection('financiero').doc(viejo).delete();
+    toast('Código financiero nuevo', 'ok');
+  } catch(err){
+    console.error('Portal compartido: no se pudo regenerar el código:', err);
+    alert('No se pudo regenerar el código. Revisa la consola.');
+  }
+}
+function pcRefRespuesta(){
+  return pcRefPortal(PC.portal.token).collection('financiero').doc(PC.codigo).collection('respuestas').doc('respuesta');
+}
+async function pcDescartarRespuesta(){
+  if(!PC.portal || !PC.codigo || !PC.respuesta) return;
+  if(!confirm('¿Descartar la respuesta del cliente? Podrá enviar otra.')) return;
+  try{
+    await pcRefRespuesta().delete();
+    toast('Respuesta descartada', 'ok');
+  } catch(err){
+    console.error('Portal compartido: no se pudo descartar la respuesta:', err);
+    alert('No se pudo descartar la respuesta.');
+  }
+}
+// Aprobar = lo mismo que hace el botón de confirmar de portal.html, solo si no hay otra cotización aceptada
+async function pcAprobarRespuesta(){
+  const r = PC.respuesta;
+  if(!PC.portal || !PC.codigo || !r || r.aceptado !== true) return;
+  const cot = pcElegirCotizacion(PC.cotizDocs);
+  if(!cot){ alert('No hay una cotización visible para aprobar.'); return; }
+  if(cot.estado === 'aceptada'){ alert('Esta cotización ya está aceptada. Puedes descartar la respuesta.'); return; }
+  // La respuesta no guarda a qué versión se refiere: se exige que el portal refleje la cotización actual
+  // y que esta no haya cambiado después de que el cliente respondió.
+  if(pcJsonEstable(pcArmarFinanciero(cot, PC.pagosDocs)) !== PC.firmaFin){
+    alert('El portal compartido todavía no refleja la cotización actual (cambió). Pulsa "Actualizar ahora" y revisa de nuevo antes de aprobar.');
+    return;
+  }
+  if(PC.finData && pcMs(PC.finData.actualizadoEn) > pcMs(r.fecha)){
+    alert('La cotización cambió después de que el cliente respondió, así que no vio esta versión. Descarta la respuesta para que confirme de nuevo, o acéptala desde Cotizador.');
+    return;
+  }
+  const otra = PC.cotizDocs.find(c => c.estado === 'aceptada' && c.id !== cot.id);
+  if(otra){ alert('Ya existe otra cotización aceptada. Usa Cotizador para reemplazarla.'); return; }
+  if(!confirm('¿Aprobar la cotización por ' + formatCOP(Number(cot.total) || 0) + '? Pasará a "aceptada" a nombre de "' + r.nombre + '" (portal compartido).')) return;
+  try{
+    await proyectosRef.doc(PC.proyectoId).collection('cotizaciones').doc(cot.id).update({
+      estado: 'aceptada',
+      aceptadaPor: 'Portal compartido · ' + r.nombre,
+      fechaAceptacion: pcTS()
+    });
+  } catch(err){
+    console.error('Portal compartido: no se pudo aceptar la cotización:', err);
+    alert('No se pudo aceptar la cotización. Revisa la consola.');
+    return;
+  }
+  try{ await pcRefRespuesta().delete(); } catch(err){ console.error('Portal compartido: no se pudo borrar la respuesta procesada:', err); }
+  toast('✅ Cotización aceptada', 'ok');
+}
+
+function pcCopiar(texto, etiqueta){
+  const listo = () => toast(etiqueta + ' copiado', 'ok');
+  const respaldo = () => {
+    const t = document.createElement('textarea');
+    t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); listo(); } catch(e){ alert(texto); }
+    t.remove();
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(listo, respaldo);
+  } else { respaldo(); }
+}
+function pcCopiarEnlace(){ if(PC.portal) pcCopiar(pcUrl(PC.portal.token), 'Enlace'); }
+function pcCopiarCodigo(){ if(PC.codigo) pcCopiar(pcFormatoCodigo(PC.codigo), 'Código'); }
+// v5.50: vista previa de equipo del portal compartido (requiere portal-compartido.html v1.2)
+function pcVistaPrevia(){
+  if(!PC.portal || PC.portal.data.visibleCliente !== true) return;
+  window.open(pcUrl(PC.portal.token) + '&preview=1', '_blank', 'noopener');
+}
+
+// ---- Interfaz ----
+function pcActualizarBoton(){
+  const b = document.getElementById('btnPortalCompartido');
+  if(!b) return;
+  b.innerHTML = '🔗 Portal compartido' + (PC && PC.respuesta ? ' <span style="color:var(--warn)" title="Respuesta pendiente del cliente">●</span>' : '');
+}
+function pcAbrirModal(){
+  if(!proyectoActualId){ alert('Abre un proyecto primero.'); return; }
+  if(estaModoOfflineActivo()){ alert('El portal compartido no está disponible en modo offline.'); return; }
+  if(PC.proyectoId !== proyectoActualId) pcCambioProyecto(proyectoActualId);
+  document.getElementById('modalPortalCompBg').classList.add('active');
+  pcRender();
+}
+function pcCerrarModal(){
+  const m = document.getElementById('modalPortalCompBg');
+  if(m) m.classList.remove('active');
+}
+function pcRender(){
+  const cont = document.getElementById('pcContenido');
+  const m = document.getElementById('modalPortalCompBg');
+  if(!cont || !m || !m.classList.contains('active')) return;
+  if(!PC.portal){
+    cont.innerHTML = `
+      <p class="pc-aviso">Genera un enlace para que el cliente vea este proyecto con un clic, sin registro ni contraseña. La parte financiera se protege con un código aparte. Puedes pausarlo o revocarlo cuando quieras.</p>
+      <div class="pc-fila" style="margin-top:14px;"><button class="btn" onclick="pcGenerarEnlace()">Generar enlace</button></div>`;
+    return;
+  }
+  const d = PC.portal.data;
+  const activo = d.visibleCliente === true;
+  const act = d.actualizadoEn && d.actualizadoEn.toDate ? d.actualizadoEn.toDate().toLocaleString('es-CO') : '—';
+  const cot = pcElegirCotizacion(PC.cotizDocs);
+  let fin;
+  if(PC.codigo){
+    fin = `
+      <div class="pc-fila"><span class="pc-cod">${escapeHtml(pcFormatoCodigo(PC.codigo))}</span>
+        <button class="btn btn-ghost" onclick="pcCopiarCodigo()">Copiar código</button>
+        <button class="btn btn-ghost" onclick="pcRegenerarCodigo()">Regenerar código</button></div>
+      <p class="pc-aviso" style="margin-top:8px;">Envíalo por otro canal (por ejemplo WhatsApp), no junto al enlace.</p>`;
+  } else if(cot){
+    fin = '<p class="pc-aviso">' + (activo ? 'Creando el código financiero…' : 'El código se crea al reanudar el enlace.') + '</p>';
+  } else {
+    fin = '<p class="pc-aviso">No hay cotización enviada ni aceptada: la parte financiera no está disponible para el cliente.</p>';
+  }
+  let resp = '';
+  if(PC.respuesta){
+    const r = PC.respuesta;
+    const cuando = r.fecha && r.fecha.toDate ? r.fecha.toDate().toLocaleString('es-CO') : '';
+    const puedeAprobar = r.aceptado === true && cot && cot.estado !== 'aceptada';
+    resp = `
+      <div class="pc-sec"><h3>Respuesta del cliente</h3>
+        <div class="pc-resp">
+          <div><strong>${r.aceptado ? '✅ Acepta la cotización' : '✏️ Tiene cambios'}</strong> · ${escapeHtml(r.nombre || '')}</div>
+          ${r.comentario ? `<div style="margin-top:6px;white-space:pre-wrap;">${escapeHtml(r.comentario)}</div>` : ''}
+          <div class="pc-aviso" style="margin-top:6px;">${escapeHtml(cuando)}</div>
+        </div>
+        <div class="pc-fila" style="margin-top:10px;">
+          ${puedeAprobar ? '<button class="btn" onclick="pcAprobarRespuesta()">Aprobar</button>' : ''}
+          <button class="btn btn-ghost" onclick="pcDescartarRespuesta()">Descartar</button>
+        </div>
+      </div>`;
+  }
+  cont.innerHTML = `
+    <div class="pc-fila" style="margin-bottom:10px;">
+      <span class="badge ${activo ? 'ok' : 'warn'}">${activo ? 'Activo' : 'Pausado'}</span>
+      <span class="pc-aviso">Actualizado: ${escapeHtml(act)}</span>
+    </div>
+    <div class="pc-fila">
+      <input type="text" readonly value="${escapeHtml(pcUrl(PC.portal.token))}" onfocus="this.select()">
+      <button class="btn" onclick="pcCopiarEnlace()">Copiar enlace</button>
+    </div>
+    <div class="pc-fila" style="margin-top:10px;">
+      <button class="btn btn-ghost" onclick="pcVistaPrevia()" ${activo ? '' : 'disabled style="opacity:.5;cursor:not-allowed;" title="Reanuda el enlace para ver la vista previa"'}>👁️ Vista previa</button>
+      <button class="btn btn-ghost" onclick="pcActualizarAhora()">↻ Actualizar ahora</button>
+      <button class="btn btn-ghost" onclick="pcAlternarPausa()">${activo ? '⏸ Pausar' : '▶ Reanudar'}</button>
+      <button class="btn btn-ghost" onclick="pcRegenerarEnlace()">Regenerar enlace</button>
+      <button class="btn btn-ghost" onclick="pcRevocarEnlace()">Revocar</button>
+    </div>
+    <div class="pc-sec"><h3>Código financiero</h3>${fin}</div>
+    ${resp}`;
 }
 
 </script>

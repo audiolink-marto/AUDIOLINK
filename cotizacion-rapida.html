@@ -4,7 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audiolink — Cotización rápida</title>
-<!-- AUDIOLINK · cotizacion-rapida.html · v1.4
+<!-- AUDIOLINK · cotizacion-rapida.html · v1.5
+     v1.5: (a pedido) al REEMPLAZAR una cotización aceptada, los abonos de
+     la anterior se mueven a la nueva. Antes la anterior pasaba a \"Enviada\"
+     pero sus abonos seguían ligados a ella (por cotizacionId), así que
+     pagos.html y el portal mostraban la nueva con 0 abonado. Cambios, solo
+     en guardarCotizacion(): (1) antes de confirmar se leen los abonos de la
+     aceptada anterior (si la lectura falla, no se hace ningún cambio) y el
+     aviso dice cuántos se moverán; (2) después de guardar la nueva, un batch
+     cambia únicamente el campo cotizacionId de esos abonos al de la nueva;
+     (3) si el batch falla, se avisa: la nueva ya quedó guardada y la
+     anterior en \"Enviada\", y los abonos siguen en la anterior (no se pierde
+     nada). Requiere que las reglas de Firestore permitan al staff ACTUALIZAR
+     pagos (no verificado). Sin cambios en el PDF, el listado, el formulario,
+     la carga inicial ni la regla de una sola aceptada. Editar la MISMA
+     cotización aceptada no mueve nada (conserva su id y sus abonos).
      v1.4: (a pedido) fix: el listado de cotizaciones salía en blanco al
      abrir la página, porque cargarListaCotizaciones() solo se llamaba
      desde volverListadoCotizaciones() (al volver del formulario) y
@@ -717,11 +731,26 @@ async function guardarCotizacion(conPDF){
   // Solo puede haber UNA cotización 'aceptada' por proyecto. Si el usuario
   // marca esta como aceptada y ya existe otra distinta con ese estado, se
   // pregunta antes de continuar; la anterior pasa a 'enviada' (no se borra).
+  let otraAceptada = null;      // v1.5: se declara fuera para usarla después de guardar
+  let abonosAMover = [];        // v1.5: abonos (docs) de la aceptada anterior
   if(data.estado === 'aceptada'){
-    const otraAceptada = cotizacionesProyecto.find(c => c.estado === 'aceptada' && c.id !== cotizacionActualId);
+    otraAceptada = cotizacionesProyecto.find(c => c.estado === 'aceptada' && c.id !== cotizacionActualId) || null;
     if(otraAceptada){
       const totalOtra = (otraAceptada.total || 0).toLocaleString('es-CO');
-      const confirmar = confirm(`Ya existe una cotización aceptada para este proyecto ($${totalOtra}). ¿Quieres reemplazarla? Esa cotización pasará automáticamente a estado "Enviada".`);
+      // v1.5: se cuentan los abonos de la cotización anterior para moverlos a la nueva
+      try{
+        const snapPagos = await proyectosRef.doc(proyectoActualId).collection('pagos')
+          .where('cotizacionId', '==', otraAceptada.id).get();
+        abonosAMover = snapPagos.docs;
+      } catch(errPagos){
+        console.error('Error leyendo los abonos de la cotización anterior:', errPagos);
+        alert('No se pudieron leer los abonos de la cotización aceptada anterior. No se hizo ningún cambio; inténtalo de nuevo.');
+        return;
+      }
+      const avisoAbonos = abonosAMover.length
+        ? ` Sus ${abonosAMover.length} abono${abonosAMover.length === 1 ? '' : 's'} se moverán a la nueva cotización.`
+        : '';
+      const confirmar = confirm(`Ya existe una cotización aceptada para este proyecto ($${totalOtra}). ¿Quieres reemplazarla? Esa cotización pasará automáticamente a estado "Enviada".${avisoAbonos}`);
       if(!confirmar) return;
       try{
         await cotizacionesRef().doc(otraAceptada.id).update({ estado: 'enviada' });
@@ -742,6 +771,17 @@ async function guardarCotizacion(conPDF){
       const docRef = await cotizacionesRef().add(data);
       idGuardado = docRef.id;
       cotizacionActualId = idGuardado;
+    }
+    // v1.5: los abonos de la aceptada anterior pasan a la nueva (solo cambia cotizacionId)
+    if(otraAceptada && abonosAMover.length){
+      try{
+        const batch = db.batch();
+        abonosAMover.forEach(d => batch.update(d.ref, { cotizacionId: idGuardado }));
+        await batch.commit();
+      } catch(errMover){
+        console.error('Error moviendo los abonos a la nueva cotización:', errMover);
+        alert('La cotización nueva quedó guardada y la anterior pasó a "Enviada", pero NO se pudieron mover los abonos (siguen ligados a la anterior). Revisa los permisos de Firestore sobre pagos o muévelos a mano.');
+      }
     }
     if(conPDF) generarPDFCotizacion(data);
     volverListadoCotizaciones();

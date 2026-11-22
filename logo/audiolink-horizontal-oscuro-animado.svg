@@ -1,0 +1,53 @@
+<!-- Audiolink horizontal oscuro ANIMADO v1 · basado en audiolink-horizontal-oscuro.svg + hoja fondo animado v1 (pulso/luz 2.4 s, parpadeo 3.6 s, bucle 7.2 s). Sin JS: funciona con <img>. Geometría del cable fija. No respeta prefers-reduced-motion (a pedido). ESTIMADO: sin brillo (text-shadow) en la luz; en tema claro los colores de la luz/pico se tomaron de las variables claras de la hoja. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24.00 -24.00 1095.39 292.59" role="img" aria-label="Audiolink"><style>
+.al-halo,.al-punto,.al-brote{transform-box:fill-box;transform-origin:center}
+.al-halo{animation:al-pulso 2.4s ease-in-out infinite}
+.al-punto{animation:al-latido 2.4s ease-in-out infinite}
+.al-nucleo{animation:al-latido-n 2.4s ease-in-out infinite}
+.al-brote{animation:al-brote 2.4s ease-in-out infinite}
+@keyframes al-pulso{0%{opacity:1;transform:scale(1)}14%{opacity:.8;transform:scale(1.15)}28%{opacity:1;transform:scale(1)}42%{opacity:.9;transform:scale(1.1)}70%,100%{opacity:1;transform:scale(1)}}
+@keyframes al-brote{0%{opacity:0;transform:scale(.8)}14%{opacity:.75;transform:scale(1.05)}28%{opacity:0;transform:scale(1.25)}42%{opacity:.5;transform:scale(1.1)}56%,100%{opacity:0;transform:scale(.8)}}
+@keyframes al-latido{0%{transform:scale(1);fill:#F5A524}14%{transform:scale(1.3);fill:#FFB93D}28%{transform:scale(1);fill:#F5A524}42%{transform:scale(1.2);fill:#FFB93D}70%,100%{transform:scale(1);fill:#F5A524}}
+@keyframes al-latido-n{0%{transform:scale(1);fill:#FFD27A}14%{transform:scale(1.3);fill:#FFE3A0}28%{transform:scale(1);fill:#FFD27A}42%{transform:scale(1.2);fill:#FFE3A0}70%,100%{transform:scale(1);fill:#FFD27A}}
+.al-pulso-cable{stroke-dasharray:143.49 1000;stroke-dashoffset:143.49;opacity:0;animation:al-viaja 2.4s ease-in-out infinite}
+@keyframes al-viaja{0%,13%{opacity:0;stroke-dashoffset:143.49}16%{opacity:1;stroke-dashoffset:100.45}38%{opacity:1;stroke-dashoffset:-856.51}42%,100%{opacity:0;stroke-dashoffset:-1000}}
+.al-l{animation:al-letra-l 2.4s ease-in-out infinite}
+@keyframes al-letra-l{0%,30%{fill:#F5A524}38%{fill:#FFE3A0}46%{fill:#F5A524}54%{fill:#FFE3A0}72%,100%{fill:#F5A524}}
+.al-luz{opacity:0;animation:al-luz 2.4s linear infinite}
+.al-luzbanda{animation:al-luzbanda 2.4s linear infinite}
+@keyframes al-luz{0%{opacity:0}14%{opacity:0}18%{opacity:1}46%{opacity:1}54%{opacity:0}100%{opacity:0}}
+@keyframes al-luzbanda{0%,14%{transform:translateX(0)}54%,100%{transform:translateX(630px)}}
+.al-parpado{transform-box:fill-box;transform-origin:50% 0;animation:al-parpadeo 3.6s ease-in-out infinite}
+@keyframes al-parpadeo{0%,87%{transform:scaleY(1)}90%{transform:scaleY(2)}93%,100%{transform:scaleY(1)}}
+</style><defs><radialGradient id="al-glow2" cx="50%" cy="50%" r="50%">
+      <stop offset="0" style="stop-color:#F5A524;stop-opacity:0.7000"/>
+      <stop offset="0.15" style="stop-color:#F5A524;stop-opacity:0.6510"/>
+      <stop offset="0.3" style="stop-color:#F5A524;stop-opacity:0.5460"/>
+      <stop offset="0.45" style="stop-color:#F5A524;stop-opacity:0.4060"/>
+      <stop offset="0.6" style="stop-color:#F5A524;stop-opacity:0.2660"/>
+      <stop offset="0.75" style="stop-color:#F5A524;stop-opacity:0.1400"/>
+      <stop offset="0.9" style="stop-color:#F5A524;stop-opacity:0.0490"/>
+      <stop offset="1" style="stop-color:#F5A524" stop-opacity="0"/>
+    </radialGradient><linearGradient id="al-shade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" style="stop-color:#e9dcc3" stop-opacity="0"/>
+      <stop offset="0.5" style="stop-color:#e9dcc3" stop-opacity="0"/>
+      <stop offset="1" style="stop-color:#e9dcc3" stop-opacity="0.3"/>
+    </linearGradient><clipPath id="al-cuerpo"><path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z"/></clipPath><clipPath id="al-luzclip"><rect x="150" y="0" width="557.39" height="260"/></clipPath><linearGradient id="al-luzgrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000"/><stop offset="0.5" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="al-luzmask" maskUnits="userSpaceOnUse" x="-100" y="0" width="1200" height="260"><rect class="al-luzbanda" x="-22.61" y="0" width="200" height="260" fill="url(#al-luzgrad)"/></mask></defs><path d="M95.6233998493976 199.8127277861446 H115.34604411966048 Q123.74792921686748 199.8127277861446 123.74792921686748 208.2146128833516 V209.894989902793 Q123.74792921686748 218.296875 132.1498143140745 218.296875 H718.3350694444445 Q733.890625 218.296875 733.890625 202.74131944444446 V193.83253012048192" fill="none" stroke="#e9dcc3" stroke-opacity=".35" stroke-width="4.861525790662651" stroke-linecap="round" stroke-linejoin="round"/><path class="al-pulso-cable" pathLength="1000" d="M95.6233998493976 96.9569 V185.7505 Q95.6233998493976 199.8127277861446 109.6857 199.8127277861446 H115.34604411966048 Q123.74792921686748 199.8127277861446 123.74792921686748 208.2146128833516 V209.894989902793 Q123.74792921686748 218.296875 132.1498143140745 218.296875 H718.3350694444445 Q733.890625 218.296875 733.890625 202.74131944444446 V193.83253012048192" fill="none" stroke="#F5A524" stroke-width="4.861525790662651" stroke-linecap="butt" stroke-linejoin="round"/><svg x="0.00" y="0.00" width="133.39" height="244.59" viewBox="86.5 79.67 83 152.33" overflow="visible">
+      <g transform="translate(128 140) scale(0.68) translate(-128 -140)">
+        <circle class="al-brote" cx="128" cy="89" r="64" fill="url(#al-glow2)" opacity="0"/>
+        <g clip-path="url(#al-cuerpo)"><circle class="al-halo" cx="128" cy="89" r="50" fill="url(#al-glow2)"/></g>
+        <path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z" fill="url(#al-shade)" stroke="none"/>
+        <g fill="none" stroke="#e9dcc3" stroke-width="7.35" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M85.5 140 V90.7 C85.5 72 99.1 60.1 117.8 60.1 H138.2 C156.9 60.1 170.5 72 170.5 90.7 V140 Z"/>
+          <path d="M160.3 80.5 V128.1" stroke-width="4.41" opacity=".4"/>
+        </g>
+        <circle class="al-punto" cx="128" cy="89" r="10" style="fill:#F5A524"/>
+        <circle class="al-punto al-nucleo" cx="128" cy="89" r="4" style="fill:#FFD27A" opacity="0.95"/>
+        <path d="M95.7 116.2 V95.8 C95.7 83.9 102.5 75.4 112.7 71.15" fill="none" stroke="#ffffff" stroke-opacity="0.65" stroke-width="5.88" stroke-linecap="round"/>
+      </g>
+      <g fill="none" stroke="#e9dcc3" stroke-linecap="round" stroke-linejoin="round">
+        <g stroke-width="4.5"><path d="M110 140 V213.2"/><path d="M146 140 V213.2"/><path d="M128 140 V206"/></g>
+        <g transform="translate(110 222) scale(0.92) translate(-100 -222)"><circle cx="100" cy="222" r="6.5" stroke-width="3.25"/><path class="al-parpado" d="M96 222.4 A4.2 4.2 0 0 1 104 221.05 Z" fill="#e9dcc3" stroke-width="1.08"/></g>
+        <g transform="translate(146 222) scale(0.92) translate(-156 -222)"><circle cx="156" cy="222" r="6.5" stroke-width="3.25"/><path class="al-parpado" d="M152 221.05 A4.2 4.2 0 0 1 160 222.4 Z" fill="#e9dcc3" stroke-width="1.08"/></g>
+      </g>
+    </svg><path transform="translate(177.39 190.30) scale(0.20000 -0.20000)" fill="#e9dcc3" d="M50 89V207L139 295H396V369L359 406H202L165 369V337H54V395L156 498H405L507 395V0H404V77L324 0H139ZM313 89 396 169V211H193L161 180V119L191 89Z"/><path transform="translate(293.39 190.30) scale(0.20000 -0.20000)" fill="#e9dcc3" d="M60 101V498H173V136L212 97H299L405 203V498H518V0H413V92L320 0H161Z"/><path transform="translate(412.39 190.30) scale(0.20000 -0.20000)" fill="#e9dcc3" d="M55 100V398L154 498H350L417 440V714H530V0H423V82L341 0H154ZM328 97 417 187V333L340 401H210L168 359V139L210 97Z"/><path transform="translate(533.39 190.30) scale(0.20000 -0.20000)" fill="#e9dcc3" d="M60 605V663L101 703H162L203 663V605L162 565H101ZM75 498H188V0H75Z"/><path class="al-l" transform="translate(707.39 190.30) scale(0.20000 -0.20000)" fill="#F5A524" d="M70 714H183V0H70Z"/><path transform="translate(760.39 190.30) scale(0.20000 -0.20000)" fill="#F5A524" d="M60 605V663L101 703H162L203 663V605L162 565H101ZM75 498H188V0H75Z"/><path transform="translate(815.39 190.30) scale(0.20000 -0.20000)" fill="#F5A524" d="M65 498H170V407L261 498H419L524 393V0H411V362L372 401H282L178 296V0H65Z"/><path transform="translate(934.39 190.30) scale(0.20000 -0.20000)" fill="#F5A524" d="M65 714H178V307H275L408 498H533L366 258L543 0H418L273 211H178V0H65Z"/><svg x="588.39" y="90.70" width="117.00" height="99.59" viewBox="0 0 585 498" overflow="visible"><g fill="#e9dcc3"><path transform="translate(0 498) scale(1 -1)" fill-rule="evenodd" d="M55 100V398L154 498H430L530 398V100L430 0H154ZM377 95 417 135V363L377 403H208L168 363V135L208 95Z"/><path d="M232 262 C255 310 305 312 345 252" fill="none" style="stroke:#F5A524" stroke-width="38" stroke-linecap="round"/></g></svg><g clip-path="url(#al-luzclip)"><g class="al-luz" mask="url(#al-luzmask)"><path transform="translate(177.39 190.30) scale(0.20000 -0.20000)" fill="#FFB93D" d="M50 89V207L139 295H396V369L359 406H202L165 369V337H54V395L156 498H405L507 395V0H404V77L324 0H139ZM313 89 396 169V211H193L161 180V119L191 89Z"/><path transform="translate(293.39 190.30) scale(0.20000 -0.20000)" fill="#FFB93D" d="M60 101V498H173V136L212 97H299L405 203V498H518V0H413V92L320 0H161Z"/><path transform="translate(412.39 190.30) scale(0.20000 -0.20000)" fill="#FFB93D" d="M55 100V398L154 498H350L417 440V714H530V0H423V82L341 0H154ZM328 97 417 187V333L340 401H210L168 359V139L210 97Z"/><path transform="translate(533.39 190.30) scale(0.20000 -0.20000)" fill="#FFB93D" d="M60 605V663L101 703H162L203 663V605L162 565H101ZM75 498H188V0H75Z"/><svg x="588.39" y="90.70" width="117.00" height="99.59" viewBox="0 0 585 498" overflow="visible"><path fill="#FFB93D" transform="translate(0 498) scale(1 -1)" fill-rule="evenodd" d="M55 100V398L154 498H430L530 398V100L430 0H154ZM377 95 417 135V363L377 403H208L168 363V135L208 95Z"/></svg></g></g></svg>
