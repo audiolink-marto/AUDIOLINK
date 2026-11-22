@@ -1,4 +1,9 @@
-/* AUDIOLINK · checklist-vista.js · v1.3
+/* AUDIOLINK · checklist-vista.js · v1.4
+   v1.4: (a pedido) opción nueva op.soloPreguntas (true/false, por defecto false). Con true se omiten la cabecera
+   (logo y botón de tema), el título (h1), el texto de introducción y el logo del pie, y solo se devuelven el campo
+   de nombre y las preguntas agrupadas, para incrustarlas dentro de otra página (portal-compartido.html v1.5).
+   Sin la opción, o con false, el HTML es idéntico al de v1.3 (verificado byte a byte), así que
+   checklist-cliente.html y la vista previa de checklist.html no cambian. Nada más cambió.
    v1.3: (a pedido) cada pregunta puede traer una fecha propuesta (p.fecha, formato AAAA-MM-DD) y/o un responsable
    (p.responsable, solo texto), que el equipo marcó como visibles en checklist.html v1.8. Se pintan en una línea
    pequeña bajo el enunciado/nota ("📅 Fecha propuesta: 15 dic 2026 · 👤 Responsable: Pedro", clase .fecha-cli).
@@ -19,7 +24,7 @@
    .lbl-nombre .grupo .q .meta .pie-logo .nota-cli .fecha-cli .alerta-cli).
    Uso: clVistaHTML(titulo, preguntas, op)
      preguntas: [{ id, grupo, label, nota?, ejemplo?, fecha?, responsable? }]
-     op (todo opcional): { prefijo:'', nombre:'', respuestas:{ id: texto }, maxTexto:480, botonTema:'<button…>' }
+     op (todo opcional): { prefijo:'', nombre:'', respuestas:{ id: texto }, maxTexto:480, botonTema:'<button…>', soloPreguntas:false }
    Ids que genera: {prefijo}nombre, {prefijo}t{i} (textarea con data-i y data-id), {prefijo}m{i} (estado),
    {prefijo}pieLogo. Sin prefijo coinciden con los de checklist-cliente.html v1.1.
    Requiere audiolink-logo.js (opcional: sin él se ve el texto AUDIOLINK). */
@@ -70,10 +75,12 @@ function clVistaHTML(titulo, preguntas, op){
   const pf = op.prefijo || '';
   const resp = op.respuestas || {};
   const max = op.maxTexto || 480;
-  let html = `<div class="cab"><div class="marca">${cvLogo(26, true)}</div>${op.botonTema || ''}</div>
+  const solo = op.soloPreguntas === true; // v1.4
+  let html = solo ? '' : `<div class="cab"><div class="marca">${cvLogo(26, true)}</div>${op.botonTema || ''}</div>
     <h1>${cvEsc(titulo || 'Preguntas del proyecto')}</h1>
     <p class="intro">Responde lo que puedas. Puedes volver a este mismo link y cambiar tus respuestas cuando quieras.</p>
-    <label class="lbl-nombre" for="${pf}nombre">Tu nombre</label>
+    `;
+  html += `<label class="lbl-nombre" for="${pf}nombre">Tu nombre</label>
     <input class="campo" type="text" id="${pf}nombre" maxlength="100" autocomplete="name" value="${cvEsc(op.nombre)}" placeholder="Para saber quién responde">`;
   const grupos = [];
   (Array.isArray(preguntas) ? preguntas : []).forEach(p => {
@@ -94,6 +101,6 @@ function clVistaHTML(titulo, preguntas, op){
     });
     html += '</div>';
   });
-  html += `<div class="pie-logo" id="${pf}pieLogo">${cvLogo(20, false)}</div>`;
+  if(!solo) html += `<div class="pie-logo" id="${pf}pieLogo">${cvLogo(20, false)}</div>`;
   return html;
 }

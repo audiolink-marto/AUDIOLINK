@@ -11,7 +11,30 @@
 <link rel="icon" type="image/svg+xml" sizes="any" href="logo/transistor/svg/audiolink-simbolo-oscuro.svg" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" sizes="500x500" href="logo/transistor/png/audiolink-simbolo-claro-500.png" media="(prefers-color-scheme: light)">
 <link rel="icon" type="image/png" sizes="500x500" href="logo/transistor/png/audiolink-simbolo-oscuro-500.png" media="(prefers-color-scheme: dark)">
-<!-- AUDIOLINK · portal-compartido.html · v1.4
+<!-- AUDIOLINK · portal-compartido.html · v1.6
+     v1.6: (a pedido) ETIQUETA DE ESTADO. El badge suelto bajo el titulo (que parecia el nombre del documento) pasa a ser un chip
+     "Estado: ● ..." dentro de la fila de chips, junto a "Entrega est.". Texto segun estadoComercial y tieneFinanciero (datos publicos,
+     funciona antes de ingresar el codigo): cotizacion sin cotizacion enviada = "Cotizacion en progreso" (punto gris); cotizacion con
+     cotizacion enviada = "Cotizacion en revision" (ambar); aprobado = "Aprobado" (verde); en_curso = "En curso" (dorado); finalizado =
+     "Finalizado" (verde). Cambios: funcion nueva estadoPortal(), renderPortal() (solo el bloque del badge y la fila de chips) y CSS nuevo
+     (.chip-estado). NO se toco .badge, COMERCIAL_LABEL, el financiero, el checklist, las maquetas, Firestore ni la impresion.
+     Limitacion conocida: sin el codigo el portal no sabe si el cliente ya acepto; si el equipo no actualiza el estado comercial en
+     proyecto.html, el chip puede seguir en "Cotizacion en revision".
+     v1.5: (a pedido) PREGUNTAS DEL PROYECTO (checklist) dentro del portal. Desplegable "📝 Preguntas del proyecto (N)"
+     debajo de Maquetas, abierto si hay preguntas sin responder (con "· X sin responder" en el título) y cerrado si ya
+     están todas. Las preguntas las pinta checklist-vista.js v1.4 con la opción soloPreguntas (mismas notas, fechas,
+     alertas suaves y ejemplos que checklist-cliente.html); debe subirse junto con este archivo. El token del checklist
+     llega en el campo `checklist: { token }` del documento del portal (lo escribe checklist.html v2.3). Con ese token
+     se lee checklistCompartidos/{token} (en vivo) y las respuestas una por una, igual que checklist-cliente.html; la
+     escritura es la misma (texto, nombre, fecha) y respeta las reglas v2.49 (hasta 500 caracteres, aquí 480). Botón
+     "Enviar respuestas" dentro del bloque. Si no hay token, el documento no existe, está pausado o no tiene preguntas,
+     el bloque no aparece y no se muestra ningún mensaje. El bloque conserva su nodo entre repintados del portal y,
+     si el equipo republica las preguntas, repinta sin perder lo escrito sin enviar ni el nombre. Un repintado del
+     portal (cuando el equipo actualiza el proyecto) puede cerrar el teclado en el móvil si el cliente está escribiendo
+     justo en ese momento; lo escrito no se pierde. En vista previa (&preview=1) las cajas y el botón quedan
+     desactivados, no se escribe en Firestore y no se lee ni se guarda el nombre en localStorage (las respuestas ya
+     enviadas sí se leen, solo lectura). El nombre se comparte con checklist-cliente.html (localStorage 'cc_nombre').
+     Sin reglas nuevas. Nada más cambió.
      v1.4: (a pedido) FAVICON: rutas corregidas a la estructura real del repo: logo/transistor/svg/ (SVG claro/oscuro) y logo/transistor/png/ (PNG 500 de respaldo). Solo cambian las 4 rutas de <link rel="icon">. Nada mas cambio.
      v1.3: (a pedido) FAVICON. <head>: 4 <link rel="icon"> con media prefers-color-scheme (SVG claro/oscuro + PNG 500 de respaldo, ambos pares). Archivos en logo/: audiolink-simbolo-claro.svg, audiolink-simbolo-oscuro.svg, audiolink-simbolo-claro-500.png, audiolink-simbolo-oscuro-500.png. Simbolo centrado tal cual (viewBox vertical, sin SVG cuadrado). Nada mas cambio.
      v1.2: (a pedido) VISTA PREVIA de equipo, al estilo de portal.html: con &preview=1 en la URL
@@ -66,6 +89,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="utils.js"></script>
+<script src="checklist-vista.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script>
@@ -262,6 +286,14 @@ main{padding:28px;max-width:1000px;margin:0 auto;}
 .detalle-head h2{font-size:1.4rem;color:var(--gold);margin-bottom:6px;}
 .detalle-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;}
 .chip{background:var(--surf-light);border:1px solid var(--brd);border-radius:6px;padding:6px 12px;font-size:0.8rem;color:var(--muted);}
+/* v1.6 — chip de estado (punto de color + texto) */
+.chip-estado{display:inline-flex;align-items:center;gap:8px;}
+.chip-estado b{font-weight:600;color:var(--txt);}
+.chip-estado .pto{width:8px;height:8px;border-radius:50%;flex:0 0 8px;background:var(--muted);}
+.chip-estado.est-gris .pto{background:var(--muted);}
+.chip-estado.est-warn .pto{background:var(--warn);}
+.chip-estado.est-ok .pto{background:var(--ok);}
+.chip-estado.est-gold .pto{background:var(--gold);}
 /* v2.9 — Resumen del proyecto, progreso, resumen económico y sesiones */
 .resumen-proy{margin-top:16px;display:flex;flex-direction:column;gap:14px;}
 .resumen-datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;}
@@ -485,6 +517,34 @@ body.fin-abierto{overflow:hidden;}
 }
 .btn-maq-yt{margin-top:4px;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--brd);background:var(--surf-light);color:var(--gold);font:inherit;font-size:0.8rem;cursor:pointer;}
 .maq-yt{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:10px;margin-top:4px;}
+
+/* v1.5 — preguntas del proyecto (checklist) dentro del portal; todo limitado a .pc-preg / #ckBox */
+.res-checklist{margin-top:14px;border-top:1px solid var(--brd);padding-top:8px;}
+.res-checklist summary{cursor:pointer;color:var(--gold);font-size:0.86rem;font-weight:500;list-style:none;padding:8px 0;}
+.res-checklist summary::-webkit-details-marker{display:none;}
+.pc-preg .pc-preg-intro{color:var(--muted);font-size:0.85rem;line-height:1.5;margin:4px 0 14px;}
+.pc-preg .lbl-nombre{display:block;font-size:0.78rem;color:var(--muted);margin-bottom:6px;}
+.pc-preg .campo{width:100%;background:var(--surf-light);border:1px solid var(--brd);color:var(--txt);padding:12px;border-radius:8px;font-size:16px;font-family:inherit;scroll-margin-bottom:96px;}
+.pc-preg .campo:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg);}
+.pc-preg .campo:disabled{opacity:0.6;}
+.pc-preg textarea.campo{resize:vertical;min-height:84px;}
+.pc-preg .grupo{margin-top:22px;}
+.pc-preg .grupo h2{font-size:0.82rem;color:var(--gold);letter-spacing:0.04em;text-transform:uppercase;font-weight:500;margin-bottom:10px;}
+.pc-preg .q{background:var(--surf-light);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:10px;}
+.pc-preg .q label{display:block;font-size:0.95rem;line-height:1.4;margin-bottom:10px;font-weight:500;color:var(--txt);}
+.pc-preg .q .meta{font-size:0.78rem;color:var(--muted);margin-top:6px;min-height:1em;}
+.pc-preg .q .meta.ok{color:var(--ok);}
+.pc-preg .q .meta.err{color:var(--err);}
+.pc-preg .q .nota-cli{margin:0 0 10px;padding:10px 12px;background:var(--gold-bg);border-left:3px solid var(--gold);border-radius:6px;font-size:0.85rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
+.pc-preg .q .nota-cli small{display:block;color:var(--muted);font-size:0.78rem;margin-bottom:4px;}
+.pc-preg .q .fecha-cli{margin:0 0 10px;font-size:0.8rem;color:var(--muted);line-height:1.4;}
+.pc-preg .q .alerta-cli{margin:0 0 10px;padding:8px 12px;background:rgba(217,164,65,0.14);border-left:3px solid var(--warn);border-radius:6px;font-size:0.82rem;line-height:1.4;}
+.pc-preg-barra{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;}
+.pc-preg-barra .btn{min-height:44px;flex:0 0 auto;touch-action:manipulation;}
+.pc-preg-barra .btn:disabled{opacity:0.55;cursor:default;}
+#ckEstado{font-size:0.82rem;color:var(--muted);flex:1;min-width:160px;line-height:1.3;overflow-wrap:anywhere;}
+#ckEstado.ok{color:var(--ok);}
+#ckEstado.err{color:var(--err);}
 </style>
 </head>
 <body>
@@ -1038,11 +1098,132 @@ function colocarMaquetas(maquetas){
   pintarMaquetas(maquetasNodo, (Array.isArray(maquetas) ? maquetas : []).map(g => ({ nombre: g && g.tema, items: g && g.items })));
 }
 
+// ============ v1.5 — PREGUNTAS DEL PROYECTO (checklist) ============
+// El nodo se crea una sola vez y se re-inserta en el hueco tras cada repintado del portal (igual que maquetas).
+let ckNodo = null, ckToken = '', ckUnsub = null, ckFirma = null, ckSeq = 0;
+let ckPregs = [], ckTitulo = '';
+let ckResp = {}; // id de pregunta -> texto tal como está guardado
+function ckTxt(r){ return typeof r === 'string' ? r : ''; }
+function ckSinResponder(){ return ckPregs.filter(p => ckTxt(ckResp[p.id]).trim() === '').length; }
+function ckRespRef(t, id){ return db.collection('checklistCompartidos').doc(t).collection('respuestas').doc(id); }
+function ckOcultar(){
+  ckSeq++;
+  ckFirma = null; ckPregs = [];
+  if(ckNodo){ ckNodo.style.display = 'none'; ckNodo.innerHTML = ''; }
+}
+function ckApagar(){
+  if(ckUnsub){ ckUnsub(); ckUnsub = null; }
+  ckToken = ''; ckResp = {};
+  ckOcultar();
+}
+function ckColocar(){
+  if(!ckNodo){ ckNodo = document.createElement('div'); ckNodo.id = 'ckBox'; ckNodo.style.display = 'none'; }
+  const slot = document.getElementById('checklistSlot');
+  if(slot) slot.replaceWith(ckNodo);
+}
+function ckActualizarResumen(){
+  const r = document.getElementById('ckResumen'); if(!r) return;
+  const sin = ckSinResponder();
+  r.textContent = '📝 Preguntas del proyecto (' + ckPregs.length + ')' + (sin > 0 ? ' · ' + sin + ' sin responder' : '');
+}
+function ckSincronizar(d){
+  ckColocar();
+  const t = d && d.checklist && typeof d.checklist.token === 'string' ? d.checklist.token : '';
+  if(t === ckToken) return;
+  ckApagar();
+  if(!/^[A-Za-z0-9]{32}$/.test(t)) return;
+  ckToken = t;
+  ckUnsub = db.collection('checklistCompartidos').doc(t).onSnapshot(doc => {
+    if(t !== ckToken) return;
+    const v = doc.exists ? doc.data() : null;
+    const pregs = (v && v.visibleCliente === true && Array.isArray(v.preguntas)) ? v.preguntas.filter(q => q && typeof q.id === 'string') : [];
+    if(!pregs.length){ ckOcultar(); return; }
+    const firma = JSON.stringify([v.titulo || '', pregs]);
+    if(firma === ckFirma) return;
+    ckCargarYPintar(t, v.titulo, pregs, firma);
+  }, err => {
+    console.warn('Preguntas del proyecto: no se pudo leer el checklist:', err);
+    if(t === ckToken) ckOcultar();
+  });
+}
+async function ckCargarYPintar(t, titulo, pregs, firma){
+  const mi = ++ckSeq;
+  const resp = {}; let nombrePrevio = '';
+  await Promise.all(pregs.map(async q => {
+    try{
+      const r = await ckRespRef(t, q.id).get();
+      if(r.exists){
+        const v = r.data();
+        resp[q.id] = ckTxt(v.texto);
+        if(!nombrePrevio && typeof v.nombre === 'string' && v.nombre) nombrePrevio = v.nombre;
+      }
+    } catch(e){ console.warn('No se pudo leer la respuesta', q.id, e); }
+  }));
+  if(mi !== ckSeq || t !== ckToken) return;
+  // Lo escrito sin enviar, el nombre y el estado del desplegable sobreviven al repintado
+  const sucios = {};
+  ckNodo.querySelectorAll('textarea[data-id]').forEach(el => { if(el.value !== ckTxt(ckResp[el.dataset.id])) sucios[el.dataset.id] = el.value; });
+  const inNombre = document.getElementById('cknombre');
+  const detPrev = ckNodo.querySelector('details');
+  const nombreAct = inNombre ? inNombre.value : null;
+  const abiertoPrev = detPrev ? detPrev.open : null;
+  ckResp = resp; ckPregs = pregs; ckTitulo = titulo || ''; ckFirma = firma;
+  let nombre = nombreAct !== null ? nombreAct : nombrePrevio;
+  if(nombreAct === null && !nombre && !PREVIEW){ try{ nombre = localStorage.getItem('cc_nombre') || ''; }catch(e){} }
+  const abierto = abiertoPrev !== null ? abiertoPrev : ckSinResponder() > 0;
+  ckNodo.innerHTML = `<details class="res-checklist pc-preg"${abierto ? ' open' : ''}>
+    <summary id="ckResumen"></summary>
+    <p class="pc-preg-intro">Responde lo que puedas. Puedes volver a este mismo enlace y cambiar tus respuestas cuando quieras.</p>
+    ${clVistaHTML(ckTitulo, ckPregs, { prefijo: 'ck', soloPreguntas: true, nombre: nombre, respuestas: ckResp, maxTexto: 480 })}
+    <div class="pc-preg-barra"><button type="button" class="btn" id="ckEnviar" onclick="ckEnviar()">Enviar respuestas</button><span id="ckEstado"></span></div>
+  </details>`;
+  ckNodo.style.display = '';
+  ckNodo.querySelectorAll('textarea[data-id]').forEach(el => {
+    const id = el.dataset.id;
+    el.value = Object.prototype.hasOwnProperty.call(sucios, id) ? sucios[id] : ckTxt(ckResp[id]);
+    if(PREVIEW) el.disabled = true;
+  });
+  if(PREVIEW){
+    const n = document.getElementById('cknombre'); if(n) n.disabled = true;
+    const b = document.getElementById('ckEnviar'); if(b) b.disabled = true;
+  }
+  ckActualizarResumen();
+}
+async function ckEnviar(){
+  if(PREVIEW || !ckToken) return;
+  const t = ckToken;
+  const inNombre = document.getElementById('cknombre');
+  const nombre = ((inNombre && inNombre.value) || '').trim().slice(0, 100);
+  try{ localStorage.setItem('cc_nombre', nombre); } catch(e){}
+  const campos = Array.from(ckNodo.querySelectorAll('textarea[data-id]')).map(el => ({ id: el.dataset.id, el: el, meta: document.getElementById('ckm' + el.dataset.i) }));
+  const cambios = campos.filter(c => c.el.value !== ckTxt(ckResp[c.id]));
+  const est = document.getElementById('ckEstado'), btn = document.getElementById('ckEnviar');
+  if(!cambios.length){ est.textContent = 'No hay cambios nuevos.'; est.className = ''; return; }
+  btn.disabled = true; est.textContent = 'Enviando…'; est.className = '';
+  let fallos = 0;
+  await Promise.all(cambios.map(async c => {
+    try{
+      await ckRespRef(t, c.id).set({ texto: c.el.value, nombre: nombre, fecha: firebase.firestore.FieldValue.serverTimestamp() });
+      if(t === ckToken) ckResp[c.id] = c.el.value;
+      if(c.meta){ c.meta.textContent = 'Enviada ✓'; c.meta.className = 'meta ok'; }
+    } catch(e){
+      console.error('Error enviando respuesta', c.id, e);
+      fallos++;
+      if(c.meta){ c.meta.textContent = 'No se pudo enviar'; c.meta.className = 'meta err'; }
+    }
+  }));
+  btn.disabled = false;
+  ckActualizarResumen();
+  if(fallos){ est.textContent = fallos + ' sin enviar. Revisa tu conexión y vuelve a intentar.'; est.className = 'err'; }
+  else { est.textContent = '¡Listo, gracias! Respuestas enviadas ✓'; est.className = 'ok'; }
+}
+
 // ============ CARGA DEL SNAPSHOT (único origen de datos del proyecto) ============
 function mostrarNoDisponible(){
   if(unsubPortal){ unsubPortal(); unsubPortal = null; }
   if(unsubFin){ unsubFin(); unsubFin = null; }
   cerrarFinanciero(); cerrarCodigo(); cerrarConfirmar();
+  ckApagar(); // v1.5
   document.querySelectorAll('#maquetasBox audio').forEach(a => a.pause()); // v1.1
   document.getElementById('estadoCarga').style.display = 'none';
   document.getElementById('portalScreen').style.display = 'none';
@@ -1070,6 +1251,18 @@ function mostrarNoDisponible(){
   });
 })();
 
+// v1.6: texto y color del chip de estado. Solo usa datos publicos del snapshot (sirve antes de ingresar el codigo).
+function estadoPortal(p, d){
+  const com = COMERCIAL_LABEL[p.estadoComercial] ? p.estadoComercial : 'cotizacion';
+  if(com === 'cotizacion'){
+    return (d && d.tieneFinanciero === true)
+      ? { txt: 'Cotización en revisión', cls: 'est-warn' }
+      : { txt: 'Cotización en progreso', cls: 'est-gris' };
+  }
+  if(com === 'en_curso') return { txt: COMERCIAL_LABEL[com], cls: 'est-gold' };
+  return { txt: COMERCIAL_LABEL[com], cls: 'est-ok' }; // aprobado, finalizado
+}
+
 function renderPortal(){
   const d = snapshotPortal;
   const p = d.proyecto || {};
@@ -1079,19 +1272,21 @@ function renderPortal(){
   document.getElementById('portalScreen').style.display = 'block';
 
   const entrega = p.fechaEntregaEstimada ? new Date(p.fechaEntregaEstimada + 'T00:00:00').toLocaleDateString('es-CO') : '—';
-  const comercialDet = COMERCIAL_LABEL[p.estadoComercial] ? p.estadoComercial : 'cotizacion';
+  const estadoDet = estadoPortal(p, d);
   document.getElementById('detalleContent').innerHTML = `
     <h2>${escapeHtml(p.nombre)}</h2>
-    <span class="badge ${comercialDet === 'cotizacion' ? 'warn' : 'ok'}">${COMERCIAL_LABEL[comercialDet]}</span>
     <div class="detalle-meta">
+      <span class="chip chip-estado ${estadoDet.cls}"><span class="pto"></span>Estado: <b>${estadoDet.txt}</b></span>
       <span class="chip">Entrega est.: ${entrega}</span>
     </div>
     ${resumenProyectoHTML(p)}
     <div id="etapaChipsBox"></div>
     <div id="maquetasSlot"></div>
+    <div id="checklistSlot"></div>
     ${p.narrativa ? `<div style="margin-top:16px;font-size:0.88rem;color:var(--txt);line-height:1.5;font-style:italic;border-left:2px solid var(--gold);padding-left:14px;">${escapeHtml(p.narrativa)}</div>` : ''}
   `;
   colocarMaquetas(d.maquetas);
+  ckSincronizar(d); // v1.5
   renderResumenEco();
 
   const sesiones = (Array.isArray(d.sesiones) ? d.sesiones : []).map((s, i) => ({ id: 's' + i, ...s }))
